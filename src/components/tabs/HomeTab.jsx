@@ -37,70 +37,76 @@ function HomeTab({ onQuickMatch, remainingFreeGames, freeGamesPerDay, onlineCoun
             <div className="home-action-buttons">
                 {/* How to Play Button */}
                 <button
-                    className="btn btn-secondary home-action-btn"
+                    className="btn btn-premium home-action-btn"
                     onClick={() => setShowRules(true)}
+                    style={{ flex: 1 }}
                 >
-                    <BookOpen size={18} color="var(--cyan-glow)" />
+                    <BookOpen size={20} />
                     <span>{t('lobby.how_to_play')}</span>
                 </button>
 
                 {/* Inventory Button */}
                 <button
-                    className="btn btn-secondary home-action-btn"
+                    className="btn btn-premium home-action-btn"
                     onClick={onOpenInventory}
+                    style={{ flex: 1, filter: 'hue-rotate(45deg)' }} /* Slight variation */
                 >
-                    <span style={{ fontSize: '18px' }}>🎒</span>
+                    <span style={{ fontSize: '20px' }}>🎒</span>
                     <span>{t('lobby.inventory')}</span>
                 </button>
             </div>
 
             {/* Game Modes */}
+            {/* Game Modes */}
             <h3 className="section-header">{t('lobby.start_match')}</h3>
             <div className="game-modes-grid">
                 <button
-                    onClick={() => onQuickMatch('rapid')}
-                    className="card card-glow game-mode-btn"
+                    onClick={() => {
+                        console.log('[HomeTab] Rapid button clicked');
+                        onQuickMatch('rapid');
+                    }}
+                    className="card-premium-interactive"
                 >
-                    <Clock size={24} color="var(--indigo-glow)" />
-                    <div className="game-mode-info">
-                        <span className="game-mode-name">{t('lobby.rapid')}</span>
-                        <span className="game-mode-time">10 min</span>
-                    </div>
+                    <Clock size={32} color="var(--indigo-glow)" />
+                    <div className="game-mode-name">{t('lobby.rapid')}</div>
+                    <div className="game-mode-time">10 min</div>
                 </button>
 
                 <button
                     onClick={() => onQuickMatch('blitz')}
-                    className="card card-glow game-mode-btn"
+                    className="card-premium-interactive"
                 >
-                    <Zap size={24} color="var(--cyan-glow)" />
-                    <div className="game-mode-info">
-                        <span className="game-mode-name">{t('lobby.blitz')}</span>
-                        <span className="game-mode-time">3 min</span>
-                    </div>
+                    <Zap size={32} color="var(--cyan-glow)" />
+                    <div className="game-mode-name">{t('lobby.blitz')}</div>
+                    <div className="game-mode-time">3 min</div>
                 </button>
 
                 <button
                     onClick={() => onQuickMatch('speed')}
-                    className="card card-glow game-mode-btn"
+                    className="card-premium-interactive"
                 >
-                    <Flame size={24} color="var(--rose-glow)" />
-                    <div className="game-mode-info">
-                        <span className="game-mode-name">{t('lobby.speed')}</span>
-                        <span className="game-mode-time">10s/mv</span>
-                    </div>
+                    <Flame size={32} color="var(--rose-glow)" />
+                    <div className="game-mode-name">{t('lobby.speed')}</div>
+                    <div className="game-mode-time">10s/mv</div>
                 </button>
             </div>
 
             {/* Online Count */}
-            <div className="online-count-container">
-                <button className="card card-glow online-count-card">
-                    <div className="online-count-icon">
-                        <User size={24} />
-                    </div>
-                    <span className="online-count-text">
+            {/* Online Count */}
+            <div className="online-count-container" style={{ display: 'flex', justifyContent: 'center' }}>
+                <div className="glass-panel" style={{
+                    padding: '8px 20px',
+                    borderRadius: '99px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    background: 'rgba(0,0,0,0.3)'
+                }}>
+                    <User size={16} color="var(--primary-glow)" />
+                    <span className="online-count-text" style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
                         {t('lobby.online_count', { count: onlineCount || 1 })}
                     </span>
-                </button>
+                </div>
             </div>
 
             {/* Note: Friends list removed - feature not implemented */}

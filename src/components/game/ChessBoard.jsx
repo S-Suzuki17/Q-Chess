@@ -39,18 +39,27 @@ function ChessBoard({ gameState, selectedPiece, validMoves, lastMove, onSelectPi
             (isLastMoveFrom || isLastMoveTo) && 'last-move',
         ].filter(Boolean).join(' ');
 
-        const handleClick = () => {
-            if (piece && !piece.captured) {
+        const handleClick = (e) => {
+            e.stopPropagation(); // Prevent bubbling
+            if (piece && !piece.captured && (piece.team === (myColor === 'white' ? 0 : 1))) {
+                // Select my piece
                 onSelectPiece(piece);
             } else if (isValidMove || isValidCapture) {
+                // Move to square
                 onClickSquare(x, y);
             } else {
-                onClickSquare(x, y);
+                // Click elsewhere (deselect)
+                onClickSquare(x, y); // This usually handles deselect in useGame
             }
         };
 
         return (
-            <div key={index} className={squareClasses} onClick={handleClick}>
+            <div
+                key={index}
+                className={squareClasses}
+                onClick={handleClick}
+                style={{ cursor: (piece?.team === (myColor === 'white' ? 0 : 1) || isValidMove) ? 'pointer' : 'default' }}
+            >
                 {piece && !piece.captured && (
                     <PieceComponent piece={piece} />
                 )}

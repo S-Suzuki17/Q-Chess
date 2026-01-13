@@ -21,53 +21,61 @@ const Header = ({ user, userData, handleLogout, setShowAuthModal, setShowLeaderb
             <header className="game-header">
                 <div className="header-content">
                     <div className="logo-section">
-                        <h1 className="game-title">{t('app.title')}</h1>
+                        <div className="relative">
+                            <div className="absolute -inset-1 rounded-full bg-cyan-400 opacity-20 blur-md"></div>
+                            <h1 className="game-title relative">Quess</h1>
+                        </div>
                         <span className="version-badge">v1.0.0</span>
                     </div>
 
                     <div className="user-section">
                         <button
                             onClick={() => setShowLeaderboardModal(true)}
-                            className="icon-btn"
-                            aria-label="Leaderboard"
+                            className="icon-btn group"
+                            title={t('leaderboard.title', 'Ranking')}
                         >
-                            <Trophy size={20} className="text-yellow-400" />
+                            <Trophy size={20} className="group-hover:text-yellow-400 transition-colors" />
                         </button>
 
                         <button
                             onClick={() => setShowSettings(true)}
                             className="icon-btn"
-                            aria-label="Settings"
+                            title={t('settings.title', 'Settings')}
                         >
                             <Settings size={20} />
                         </button>
 
                         <button
                             onClick={toggleLanguage}
-                            className="lang-btn"
-                            aria-label="Toggle Language"
+                            className="icon-btn font-orbitron text-xs font-bold"
+                            title="Toggle Language"
                         >
-                            <Globe size={18} />
-                            <span>{i18n.language === 'en' ? 'JP' : 'EN'}</span>
+                            {i18n.language === 'en' ? 'JP' : 'EN'}
                         </button>
 
+                        <div className="w-px h-8 bg-white/10 mx-2"></div>
+
                         {user && !user.isAnonymous ? (
-                            <div className="user-info">
-                                {user.photoURL && (
-                                    <img src={user.photoURL} alt="" className="user-avatar-img" />
-                                )}
-                                <div className="user-details">
-                                    <span className="user-name">{user.displayName || 'Player'}</span>
-                                    <span className="user-rating">R: {userData?.rating || 1000}</span>
-                                </div>
-                                <button onClick={handleLogout} className="icon-btn" aria-label="Logout">
-                                    <LogOut size={20} />
+                            <div className="user-info-pill">
+                                <button onClick={handleLogout} className="text-white/50 hover:text-white mr-2 transition-colors">
+                                    <LogOut size={16} />
                                 </button>
+                                <div className="user-details-text">
+                                    <span className="user-name">{user.displayName || 'Player'}</span>
+                                    <span className="user-rating text-cyan-400">{userData?.rating || 1000}</span>
+                                </div>
+                                {user.photoURL ? (
+                                    <img src={user.photoURL} alt="" className="user-avatar-small" />
+                                ) : (
+                                    <div className="user-avatar-small bg-white/10 flex items-center justify-center">
+                                        <User size={16} />
+                                    </div>
+                                )}
                             </div>
                         ) : (
-                            <button onClick={() => setShowAuthModal(true)} className="login-btn">
-                                <User size={18} />
-                                <span>{t('auth.login', 'Login')}</span>
+                            <button onClick={() => setShowAuthModal(true)} className="btn-premium py-2 px-6 text-sm">
+                                <User size={16} className="mr-2" />
+                                {t('auth.login', 'Login')}
                             </button>
                         )}
                     </div>

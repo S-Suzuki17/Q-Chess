@@ -105,10 +105,13 @@ export default function App() {
 
   // Handle play request with ad gate
   const handlePlayRequest = useCallback((mode = 'rapid') => {
+    console.log('[App] handlePlayRequest triggered:', mode);
     if (canPlayFree) {
+      console.log('[App] playing free, starting matchmaking');
       const modeRating = profile?.ratings?.[mode] || rating || 1500;
       startMatchmaking(mode, modeRating);
     } else {
+      console.log('[App] limit reached, showing ad gate');
       setPendingMode(mode);
       setShowAdGate(true);
     }
@@ -158,7 +161,11 @@ export default function App() {
 
   // Game screen
   if (currentRoom) {
-    return <GameScreen roomInfo={currentRoom} user={user} onExit={handleExitGame} />;
+    return (
+      <div className="game-container-wrapper">
+        <GameScreen roomInfo={currentRoom} user={user} onExit={handleExitGame} />
+      </div>
+    );
   }
 
   return (

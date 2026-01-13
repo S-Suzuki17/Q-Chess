@@ -3,7 +3,7 @@
  * Displays game result and options after game ends
  */
 import React from 'react';
-import { RotateCcw, Share2 } from 'lucide-react';
+import { RotateCcw, Share2, Calendar } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 function GameOverModal({ winner, myColor, onPlayAgain, onExit }) {
@@ -24,6 +24,15 @@ function GameOverModal({ winner, myColor, onPlayAgain, onExit }) {
         window.open(twitterUrl, '_blank');
     };
 
+    const handleCalendar = () => {
+        const title = "Q-Gambit Match Result";
+        const details = isVictory ? "Victory! 🏆 Played a Quantum Chess match." : "Defeat. 💀 Played a Quantum Chess match.";
+        const startTime = new Date().toISOString().replace(/-|:|\.\d\d\d/g, "");
+        const endTime = new Date(new Date().getTime() + 15 * 60000).toISOString().replace(/-|:|\.\d\d\d/g, ""); // +15 mins
+        const calendarUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(title)}&details=${encodeURIComponent(details)}&dates=${startTime}/${endTime}`;
+        window.open(calendarUrl, '_blank');
+    };
+
     return (
         <div className="game-over-modal">
             <div className="game-over-content">
@@ -34,13 +43,17 @@ function GameOverModal({ winner, myColor, onPlayAgain, onExit }) {
                     {t('game.wins_by_capture', { winner: winnerDisplay })}
                 </p>
                 <div className="game-over-actions">
-                    <button className="btn btn-primary" onClick={onPlayAgain}>
+                    <button className="btn btn-premium btn-play-again" onClick={onPlayAgain}>
                         <RotateCcw size={16} className="btn-icon" />
                         {t('game.play_again')}
                     </button>
-                    <button className="btn btn-primary" style={{ background: '#1DA1F2' }} onClick={handleShare}>
+                    <button className="btn btn-premium btn-share" onClick={handleShare}>
                         <Share2 size={16} className="btn-icon" />
                         {t('game.share')}
+                    </button>
+                    <button className="btn btn-premium btn-calendar" onClick={handleCalendar}>
+                        <Calendar size={16} className="btn-icon" />
+                        {t('game.calendar')}
                     </button>
                     <button className="btn btn-secondary" onClick={onExit}>
                         {t('game.exit')}

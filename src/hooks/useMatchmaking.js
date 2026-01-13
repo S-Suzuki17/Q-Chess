@@ -284,8 +284,22 @@ export function useMatchmaking(user, userRating = DEFAULT_RATING) {
         } catch (e) {
             console.error('[Matchmaking] Error:', e);
             setError(e.message);
-            setIsSearching(false);
+
+            // Fallback to offline AI game on error
             cleanup();
+            setIsSearching(false);
+
+            setMatchedRoom({
+                id: 'fallback-ai-' + Date.now(),
+                isAiMatch: true,
+                myColor: 'white',
+                players: {
+                    white: { uid: user?.uid || 'guest', displayName: user?.displayName || 'Player', rating: currentRating },
+                    black: { uid: 'ai', displayName: 'AI (Offline)', rating: currentRating, isAi: true }
+                },
+                mode: mode,
+                timeControl: mode === 'blitz' ? 180 : mode === 'speed' ? 10 : 600
+            });
         }
     }, [user, cleanup, findBestMatch]);
 
