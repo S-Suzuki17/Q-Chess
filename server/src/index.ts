@@ -150,7 +150,7 @@ io.on('connection', (socket: Socket) => {
               host, 
               joiner, 
               publicState.gameOver, 
-              publicState.history
+              (match.engine as any).state?.history || []
           );
       }
     } else {

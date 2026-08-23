@@ -1,4 +1,4 @@
-import { initializeApp, credential } from 'firebase-admin/app';
+import { initializeApp, cert } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
 
 // Initialize Firebase Admin
@@ -8,7 +8,7 @@ if (process.env.FIREBASE_SERVICE_ACCOUNT) {
     try {
         const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
         initializeApp({
-            credential: credential.cert(serviceAccount)
+            credential: cert(serviceAccount)
         });
     } catch (e) {
         console.error('[Auth] Failed to parse FIREBASE_SERVICE_ACCOUNT');
