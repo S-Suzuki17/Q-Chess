@@ -29,3 +29,6 @@ test_result.txt
 # Capacitor
 android/app/build/
 android/.gradle/
+server/node_modules/
+server/dist/
+server/.env

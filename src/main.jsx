@@ -4,11 +4,14 @@ import './index.css'
 import App from './App.jsx'
 import './i18n'; // Initialize i18n
 import ErrorBoundary from './components/ui/ErrorBoundary'
+import { SocketProvider } from './contexts/SocketContext';
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <ErrorBoundary>
-      <App />
+      <SocketProvider>
+        <App />
+      </SocketProvider>
     </ErrorBoundary>
   </StrictMode>,
 )
