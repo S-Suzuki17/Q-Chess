@@ -5,6 +5,7 @@ import cors from 'cors';
 import { GameEngine, Action, ActionPayload } from './game/GameEngine';
 import { MatchmakingService } from './matchmaking/MatchmakingService';
 import { SupabaseService } from './services/SupabaseService';
+import { FirebaseAuthService } from './services/FirebaseAuthService';
 
 const app = express();
 app.use(cors());
@@ -33,21 +34,17 @@ const supabaseService = new SupabaseService();
 io.use(async (socket, next) => {
   const token = socket.handshake.auth.token;
   
-  if (token && !token.startsWith('anon_')) {
-    // Note: Node 5 strict requirement: Verify JWT on connection/reconnection
-    const userId = await supabaseService.verifyUser(token);
-    if (userId) {
-        socket.data.userId = userId;
-        return next();
-    } else {
-        // If JWT invalid, we can reject or fall back to anon.
-        // For strictness, if they passed a token that failed verification, we should probably reject.
-        // But to keep anon testing working, we fallback if they pass 'anon_...'
-        return next(new Error('Authentication Error'));
-    }
+  if (!token) {
+      return next(new Error('Authentication Error: No token provided'));
   }
-  
-  socket.data.userId = token && token.startsWith('anon_') ? token : `anon_${Math.random().toString(36).substring(7)}`;
+
+  // Verify JWT via Firebase Admin
+  const userId = await FirebaseAuthService.verifyToken(token);
+  if (!userId) {
+      return next(new Error('Authentication Error: Invalid token'));
+  }
+
+  socket.data.userId = userId;
   next();
 });
 
@@ -106,19 +103,23 @@ io.on('connection', (socket: Socket) => {
     }
   });
 
-  socket.on('player_action', async (data: { actionId: string, version: number, action: ActionPayload }) => {
-    const session = matchmaking.getPlayerSession(userId);
-    if (!session || !session.currentMatchId) return socket.emit('action_error', { message: 'No active match' });
+  socket.on('player_action', async (data: { actionId: string, version: number, playerId?: string, action: ActionPayload }) => {
+      if (data.playerId && data.playerId !== userId) {
+          return socket.emit('action_error', { message: 'Unauthorized: playerId spoofing detected' });
+      }
 
-    const match = matchmaking.getMatch(session.currentMatchId);
-    if (!match || !match.engine) return socket.emit('action_error', { message: 'Match not initialized' });
+      const session = matchmaking.getPlayerSession(userId);
+      if (!session || !session.currentMatchId) return socket.emit('action_error', { message: 'No active match' });
 
-    const action: Action = {
-        actionId: data.actionId,
-        version: data.version,
-        playerId: userId,
-        action: data.action
-    };
+      const match = matchmaking.getMatch(session.currentMatchId);
+      if (!match || !match.engine) return socket.emit('action_error', { message: 'Match not initialized' });
+
+      const action: Action = {
+          actionId: data.actionId,
+          version: data.version,
+          playerId: userId,
+          action: data.action
+      };
 
     const result = match.engine.processAction(action);
     if (result.success) {
