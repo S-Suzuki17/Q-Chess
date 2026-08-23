@@ -22,34 +22,51 @@ export function SocketProvider({ children }) {
             return;
         }
 
-        // Ideally, we'd get a JWT token from Firebase here
-        // user.getIdToken().then(token => ... )
-        // For now, we simulate sending the userId as token to match Node 1 setup
-        const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001';
-        const newSocket = io(SERVER_URL, {
-            auth: {
-                token: user.uid // Passing UID directly for simplicity, in prod use JWT
-            },
-            reconnection: true,
-            reconnectionAttempts: Infinity,
-            reconnectionDelay: 1000,
-            reconnectionDelayMax: 5000,
-        });
+        let activeSocket = null;
+        let isCancelled = false;
 
-        newSocket.on('connect', () => {
-            console.log('Connected to Game Server:', newSocket.id);
-            setIsConnected(true);
-        });
+        async function initSocket() {
+            let token = user.uid;
+            if (typeof user.getIdToken === 'function') {
+                try {
+                    token = await user.getIdToken();
+                } catch (e) {
+                    console.warn('[Socket] Failed to get ID token, fallback to uid:', e);
+                }
+            }
 
-        newSocket.on('disconnect', (reason) => {
-            console.log('Disconnected from Game Server:', reason);
-            setIsConnected(false);
-        });
+            if (isCancelled) return;
 
-        setSocket(newSocket);
+            const SERVER_URL = import.meta.env.VITE_SERVER_URL || 'https://q-chess.onrender.com';
+            const newSocket = io(SERVER_URL, {
+                auth: { token },
+                reconnection: true,
+                reconnectionAttempts: Infinity,
+                reconnectionDelay: 1000,
+                reconnectionDelayMax: 5000,
+            });
+
+            newSocket.on('connect', () => {
+                console.log('Connected to Game Server:', newSocket.id);
+                setIsConnected(true);
+            });
+
+            newSocket.on('disconnect', (reason) => {
+                console.log('Disconnected from Game Server:', reason);
+                setIsConnected(false);
+            });
+
+            activeSocket = newSocket;
+            setSocket(newSocket);
+        }
+
+        initSocket();
 
         return () => {
-            newSocket.disconnect();
+            isCancelled = true;
+            if (activeSocket) {
+                activeSocket.disconnect();
+            }
         };
     }, [user?.uid]); // Reconnect only if user changes
 
