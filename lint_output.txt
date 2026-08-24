@@ -1,0 +1,141 @@
+
+> web-client@0.1.0 lint
+> eslint
+
+
+C:\Users\souta\AndroidStudioProjects\VSAIOMEGA\web-client\public\sw.js
+  1:35  warning  'e' is defined but never used  @typescript-eslint/no-unused-vars
+  2:36  warning  'e' is defined but never used  @typescript-eslint/no-unused-vars
+  3:33  warning  'e' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\souta\AndroidStudioProjects\VSAIOMEGA\web-client\src\app\api\ai-move\route.ts
+  15:67  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\souta\AndroidStudioProjects\VSAIOMEGA\web-client\src\app\page.tsx
+  48:21  error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\souta\AndroidStudioProjects\VSAIOMEGA\web-client\src\app\page.tsx:48:21
+  46 |                 try {
+  47 |                     const u = JSON.parse(lastUser);
+> 48 |                     setUser(u);
+     |                     ^^^^^^^ Avoid calling setState() directly within an effect
+  49 |                     setGameState('level_select');
+  50 |                 } catch (e) {
+  51 |                     localStorage.removeItem('qg_last_user');  react-hooks/set-state-in-effect
+  50:26  warning  'e' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               @typescript-eslint/no-unused-vars
+
+C:\Users\souta\AndroidStudioProjects\VSAIOMEGA\web-client\src\components\AdBanner.tsx
+  13:13  error  Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free  @typescript-eslint/ban-ts-comment
+
+C:\Users\souta\AndroidStudioProjects\VSAIOMEGA\web-client\src\components\GameBoard.tsx
+   13:10  warning  'soundManager' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        @typescript-eslint/no-unused-vars
+   40:35  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        @typescript-eslint/no-explicit-any
+   41:76  error    Error: Cannot access variable before it is declared
+
+`executeMove` is accessed before it is declared, which prevents the earlier access from updating when this value changes over time.
+
+C:\Users\souta\AndroidStudioProjects\VSAIOMEGA\web-client\src\components\GameBoard.tsx:41:76
+  39 |     const tokensRef = useRef<Token[]>([]);
+  40 |     const executeMoveRef = useRef<any>(null);
+> 41 |     useEffect(() => { tokensRef.current = tokens; executeMoveRef.current = executeMove; }, [tokens]);
+     |                                                                            ^^^^^^^^^^^ `executeMove` accessed before it is declared
+  42 |     const [selectedTokenId, setSelectedTokenId] = useState<string | null>(null);
+  43 |     const [currentTurn, setCurrentTurn] = useState<'white' | 'black'>('white');
+  44 |     const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+C:\Users\souta\AndroidStudioProjects\VSAIOMEGA\web-client\src\components\GameBoard.tsx:339:5
+  337 |     }, [selectedTokenId, tokens, winner, moveHistory]); // tokens縺悟､峨ｏ繧具ｼ医ち繝ｼ繝ｳ縺碁ｲ繧・峨°驕ｸ謚槭′蛻・ｊ譖ｿ繧上▲縺溘ｉ蜀崎ｨ育ｮ・  338 |
+> 339 |     const executeMove = (token: Token, targetRow: number, targetCol: number, possibleTypesForMove: PieceType[], targetToken?: Token, isLocalMove: boolean = true, promotedTo?: PieceType) => {
+      |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 340 |         if (isLocalMove && channelRef.current) {
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 341 |             channelRef.current.send({
+      窶ｦ
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 452 |         }
+      | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 453 |     };
+      | ^^^^^^^ `executeMove` is declared here
+  454 |
+  455 |     const handleSquareClick = (targetRow: number, targetCol: number) => {
+  456 |         if (winner) return;  react-hooks/immutability
+   41:92  warning  React Hook useEffect has a missing dependency: 'executeMove'. Either include it or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  react-hooks/exhaustive-deps
+  134:9   error    Error: This value cannot be modified
+
+Modifying a value previously passed as an argument to a hook is not allowed. Consider moving the modification before calling the hook.
+
+C:\Users\souta\AndroidStudioProjects\VSAIOMEGA\web-client\src\components\GameBoard.tsx:134:9
+  132 |         
+  133 |         const channel = supabase.channel(`room_${roomId}`);
+> 134 |         channelRef.current = channel;
+      |         ^^^^^^^^^^ `channelRef` cannot be modified
+  135 |
+  136 |         channel
+  137 |             .on('broadcast', { event: 'move' }, ({ payload }) => {                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             react-hooks/immutability
+  219:8   warning  React Hook useEffect has missing dependencies: 'executeMove' and 'roomId'. Either include them or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   react-hooks/exhaustive-deps
+  235:9   error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\souta\AndroidStudioProjects\VSAIOMEGA\web-client\src\components\GameBoard.tsx:235:9
+  233 |             }
+  234 |         });
+> 235 |         setTokens(initialTokens);
+      |         ^^^^^^^^^ Avoid calling setState() directly within an effect
+  236 |     }, [pool]);
+  237 |
+  238 |     useEffect(() => {                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  react-hooks/set-state-in-effect
+  240:13  error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\souta\AndroidStudioProjects\VSAIOMEGA\web-client\src\components\GameBoard.tsx:240:13
+  238 |     useEffect(() => {
+  239 |         if (isCheck && !winner) {
+> 240 |             setShowCheckWarning(true);
+      |             ^^^^^^^^^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  241 |             const timer = setTimeout(() => setShowCheckWarning(false), 2500);
+  242 |             return () => clearTimeout(timer);
+  243 |         } else {                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         react-hooks/set-state-in-effect
+  337:8   warning  React Hook useMemo has a missing dependency: 'pool.piecePossibilities'. Either include it or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        react-hooks/exhaustive-deps
+  675:27  warning  'isSelected' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 @typescript-eslint/no-unused-vars
+
+C:\Users\souta\AndroidStudioProjects\VSAIOMEGA\web-client\src\components\QuantumPieceUI.tsx
+  19:63  warning  'id' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\souta\AndroidStudioProjects\VSAIOMEGA\web-client\src\components\ReplayBoard.tsx
+  3:27  warning  'useEffect' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\souta\AndroidStudioProjects\VSAIOMEGA\web-client\src\lib\AIEngine.ts
+  24:41  warning  'pool' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\souta\AndroidStudioProjects\VSAIOMEGA\web-client\src\lib\ISMCTS.ts
+    1:34  warning  'isPlayerInCheck' is defined but never used  @typescript-eslint/no-unused-vars
+    1:51  warning  'isCheckmate' is defined but never used      @typescript-eslint/no-unused-vars
+  199:74  warning  'assignment' is defined but never used       @typescript-eslint/no-unused-vars
+
+C:\Users\souta\AndroidStudioProjects\VSAIOMEGA\web-client\src\lib\ServerAIEngine.ts
+   1:34  warning  'isPlayerInCheck' is defined but never used   @typescript-eslint/no-unused-vars
+   1:51  warning  'isCheckmate' is defined but never used       @typescript-eslint/no-unused-vars
+  25:10  warning  'getExpectedValue' is defined but never used  @typescript-eslint/no-unused-vars
+  25:41  warning  'pool' is defined but never used              @typescript-eslint/no-unused-vars
+
+C:\Users\souta\AndroidStudioProjects\VSAIOMEGA\web-client\src\lib\SoundService.ts
+  24:25  warning  'e' is defined but never used  @typescript-eslint/no-unused-vars
+
+笨・28 problems (8 errors, 20 warnings)
+

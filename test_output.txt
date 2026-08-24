@@ -1,0 +1,162 @@
+
+ DEV  v4.0.16 C:/Users/souta/.gemini/antigravity/scratch/q-gambit
+
+ 笶ｯ src/utils/aiLogic.test.js (4 tests | 1 failed) 13ms
+     笨・should evaluate initial board as equal 1ms
+     笨・should find moves for AI 2ms
+     笨・should generate capture move properly 0ms
+     ﾃ・should prefer capturing a high value piece 8ms
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 3 passed (4)
+   Start at  13:50:24
+   Duration  424ms (transform 61ms, setup 0ms, import 90ms, tests 13ms, environment 0ms)
+
+ FAIL  Tests failed. Watching for file changes...
+       press h to show help, press q to quit
+c[3J RERUN  src/utils/aiLogic.js x1 
+        Filename pattern: src/utils/aiLogic.test.js
+
+ 笶ｯ src/utils/aiLogic.test.js (4 tests | 1 failed) 19ms
+     笨・should evaluate initial board as equal 2ms
+     笨・should find moves for AI 3ms
+     笨・should generate capture move properly 1ms
+     ﾃ・should prefer capturing a high value piece 12ms
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 3 passed (4)
+   Start at  13:50:58
+   Duration  94ms
+
+ FAIL  Tests failed. Watching for file changes...
+       press h to show help, press q to quit
+c[3J RERUN  src/utils/aiLogic.test.js x2 
+        Filename pattern: src/utils/aiLogic.test.js
+
+stdout | src/utils/aiLogic.test.js > AI Logic > should prefer capturing a high value piece
+BEST MOVE: {
+  "piece": {
+    "id": 0,
+    "team": 0,
+    "possibilities": [
+      "R"
+    ],
+    "x": 0,
+    "y": 0,
+    "alive": true,
+    "captured": false
+  },
+  "from": {
+    "x": 0,
+    "y": 0
+  },
+  "to": {
+    "x": 7,
+    "y": 0,
+    "isCapture": true
+  },
+  "score": 10
+}
+
+ 笶ｯ src/utils/aiLogic.test.js (4 tests | 1 failed) 27ms
+     笨・should evaluate initial board as equal 4ms
+     笨・should find moves for AI 2ms
+     笨・should generate capture move properly 3ms
+     ﾃ・should prefer capturing a high value piece 17ms
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 3 passed (4)
+   Start at  13:51:01
+   Duration  133ms
+
+ FAIL  Tests failed. Watching for file changes...
+       press h to show help, press q to quit
+c[3J RERUN  src/utils/aiLogic.test.js x3 
+        Filename pattern: src/utils/aiLogic.test.js
+
+stdout | src/utils/aiLogic.test.js > AI Logic > should prefer capturing a high value piece
+BEST MOVE: {
+  "piece": {
+    "id": 0,
+    "team": 0,
+    "possibilities": [
+      "R"
+    ],
+    "x": 0,
+    "y": 0,
+    "alive": true,
+    "captured": false
+  },
+  "from": {
+    "x": 0,
+    "y": 0
+  },
+  "to": {
+    "x": 0,
+    "y": 1,
+    "isCapture": true
+  },
+  "score": 10
+}
+
+ 笨・src/utils/aiLogic.test.js (4 tests) 11ms
+
+ Test Files  1 passed (1)
+      Tests  4 passed (4)
+   Start at  13:51:30
+   Duration  170ms
+
+ PASS  Waiting for file changes...
+       press h to show help, press q to quit
+c[3J RERUN  src/utils/aiLogic.test.js x4 
+        Filename pattern: src/utils/aiLogic.test.js
+
+ 笨・src/utils/aiLogic.test.js (4 tests) 11ms
+
+ Test Files  1 passed (1)
+      Tests  4 passed (4)
+   Start at  14:03:47
+   Duration  182ms
+
+ PASS  Waiting for file changes...
+       press h to show help, press q to quit
+c[3J RERUN  src/utils/quantumChess.js x5 
+        Filename pattern: src/utils/aiLogic.test.js
+
+ 笨・src/utils/aiLogic.test.js (4 tests) 16ms
+
+ Test Files  1 passed (1)
+      Tests  4 passed (4)
+   Start at  14:46:58
+   Duration  1.43s
+
+ PASS  Waiting for file changes...
+       press h to show help, press q to quit
+c[3J RERUN  src/utils/quantumChess.js x6 
+        Filename pattern: src/utils/aiLogic.test.js
+
+ 笨・src/utils/aiLogic.test.js (4 tests) 12ms
+
+ Test Files  1 passed (1)
+      Tests  4 passed (4)
+   Start at  14:49:58
+   Duration  848ms
+
+ PASS  Waiting for file changes...
+       press h to show help, press q to quit
+
+Restarting due to config changes...
+
+ DEV  v4.0.16 C:/Users/souta/.gemini/antigravity/scratch/q-gambit
+
+ 笨・src/utils/aiLogic.test.js (4 tests) 12ms
+
+ Test Files  1 passed (1)
+      Tests  4 passed (4)
+   Start at  15:50:33
+   Duration  8.86s (transform 1.15s, setup 0ms, import 1.93s, tests 12ms, environment 2ms)
+
+ PASS  Waiting for file changes...
+       press h to show help, press q to quit
+
+Restarting due to config changes...
