@@ -60,7 +60,7 @@ export default function RootLayout({
             {`
               if ('serviceWorker' in navigator) {
                 window.addEventListener('load', function() {
-                  navigator.serviceWorker.register('/sw.js').then(
+                  // navigator.serviceWorker.register('/sw.js').then(
                     function(registration) {},
                     function(err) { console.error('SW registration failed: ', err); }
                   );
