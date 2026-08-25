@@ -353,14 +353,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onReplay, onB
                             <div>
                                 <p className="text-xs text-cyan-600 font-bold mb-1">RATINGS</p>
                                 <div className="bg-black border border-cyan-900/50 rounded p-3 flex justify-between">
-                                    <div className="flex flex-col items-center">
-                                        <span className="text-[10px] text-gray-500 mb-1">10 SEC</span>
-                                        <span className="font-mono text-cyan-400 font-bold">{userProfile ? Math.floor(userProfile.rating_10s) : '---'}</span>
-                                    </div>
-                                    <div className="flex flex-col items-center">
-                                        <span className="text-[10px] text-gray-500 mb-1">3 MIN</span>
-                                        <span className="font-mono text-cyan-400 font-bold">{userProfile ? Math.floor(userProfile.rating_3m) : '---'}</span>
-                                    </div>
+                                    
                                     <div className="flex flex-col items-center">
                                         <span className="text-[10px] text-gray-500 mb-1">10 MIN</span>
                                         <span className="font-mono text-cyan-400 font-bold">{userProfile ? Math.floor(userProfile.rating_10m) : '---'}</span>
@@ -663,8 +656,6 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onReplay, onB
                         {/* Category Tabs */}
                         <div className="flex gap-1 p-1 bg-black/40 border border-fuchsia-900/50 rounded">
                             {[
-                                { id: '10s', label: t.lb10s },
-                                { id: '3m', label: t.lb3m },
                                 { id: '10m', label: t.lb10m },
                             ].map(tab => (
                                 <button
