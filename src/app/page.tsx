@@ -1,4 +1,5 @@
 'use client';
+import { SocketProvider } from '../lib/SocketContext';
 
 import React, { useState, useEffect } from 'react';
 import GameBoard from '../components/GameBoard';
@@ -117,6 +118,7 @@ export default function Home() {
     };
 
     return (
+        <SocketProvider userId={user?.id}>
         <main className="flex min-h-screen flex-col items-center justify-between p-4 bg-[#050505] text-[#00ff41] font-mono relative overflow-hidden">
             <div className="z-10 w-full max-w-5xl flex items-center justify-between font-mono text-sm mb-4">
                 {/* 右上のコントロール群 */}
@@ -270,6 +272,6 @@ export default function Home() {
                 <span className="mx-2">|</span>
                 <span>&copy; 2026 Q-GAMBIT</span>
             </footer>
-        </main>
+        </main></SocketProvider>
     );
 }

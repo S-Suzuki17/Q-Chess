@@ -1,3 +1,4 @@
+'use client';
 import React, { useState, useEffect } from 'react';
 import { ActiveMatch, getActiveMatches, Profile, ensureProfile } from '../lib/gameRecordService';
 import { dict, Language } from '../locales/dict';

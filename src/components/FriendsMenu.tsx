@@ -1,3 +1,4 @@
+'use client';
 import React, { useState, useEffect } from 'react';
 import { User } from '../types/game';
 import { Friend, getFriends, sendFriendRequest, acceptFriendRequest, removeFriend, Profile, ensureProfile } from '../lib/gameRecordService';
