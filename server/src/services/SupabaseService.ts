@@ -46,16 +46,19 @@ export class SupabaseService {
     ): Promise<boolean> {
         try {
             // Check if AI match or anon, we might skip DB entirely or handle differently
-            if (whiteId === 'ai' || blackId === 'ai' || whiteId.startsWith('anon_') || blackId.startsWith('anon_')) {
-                console.log(`[DB] Skipping DB write for AI/Anon match ${matchId}`);
+            let realWhite = whiteId.startsWith('anon_') ? whiteId.replace('anon_', '') : whiteId;
+            let realBlack = blackId.startsWith('anon_') ? blackId.replace('anon_', '') : blackId;
+
+            if (realWhite === 'ai' || realBlack === 'ai' || realWhite.startsWith('GUEST-') || realBlack.startsWith('GUEST-') || realWhite === '' || realBlack === '') {
+                console.log(`[DB] Skipping DB write for AI/Guest match ${matchId}`);
                 return true;
             }
 
             // Use Atomic RPC to prevent partial updates / race conditions (Calculates Elo internally)
             const { data: success, error } = await this.supabase.rpc('record_match_result', {
                 p_match_id: matchId,
-                p_white_id: whiteId,
-                p_black_id: blackId,
+                p_white_id: realWhite,
+                p_black_id: realBlack,
                 p_winner: winner,
                 p_moves: history.length
             });

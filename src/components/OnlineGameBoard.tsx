@@ -343,7 +343,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
                 border-gray-700 shadow-gray-900
             `}>
                 {Array.from({ length: 64 }).map((_, index) => {
-                    const isFlipped = onlineRole === 'black';
+                    const isFlipped = onlineRole !== 'black';
                     const visualRow = Math.floor(index / 8);
                     const visualCol = index % 8;
                     const row = isFlipped ? 7 - visualRow : visualRow;
