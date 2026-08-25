@@ -88,6 +88,14 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
         setShowEmoteMenu(false);
     }, [roomId, onlineRole, triggerEmote, socket]);
 
+    
+    useEffect(() => {
+        if (isConnected && socket && roomId && gameState) {
+            console.log('[OnlineGameBoard] Reconnected, requesting sync_state');
+            socket.emit('request_sync', { matchId: roomId });
+        }
+    }, [isConnected, socket, roomId]);
+
     useEffect(() => {
         if (!socket || !roomId) return;
         
