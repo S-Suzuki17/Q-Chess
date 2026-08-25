@@ -7,7 +7,7 @@ import { Language, dict } from '../locales/dict';
 import { QuantumPieceUI } from './QuantumPieceUI';
 import { PieceType } from '../config/gameConfig';
 import { v4 as uuidv4 } from 'uuid';
-import { Token } from '../lib/GameEngine';
+import { Token, deduceMoveTypes } from '../lib/GameEngine';
 
 export type EmoteType = 'hello' | 'well_played' | 'wow' | 'thinking' | 'resign';
 export const EMOTES: Record<EmoteType, { emoji: string; labelJa: string; labelEn: string }> = {
@@ -47,6 +47,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
 
     const [gameState, setGameState] = useState<any>(null);
     const [selectedTokenId, setSelectedTokenId] = useState<string | null>(null);
+    const [showMoveHints, setShowMoveHints] = useState<boolean>(true);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
     const [timeLeftWhite, setTimeLeftWhite] = useState<number>(0);
@@ -232,6 +233,35 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
         });
     }, [gameState]);
 
+
+    const validMoves = useMemo(() => {
+        if (!selectedTokenId || !gameState) return [];
+        const numId = parseInt(selectedTokenId.split('_')[1], 10);
+        const token = tokens.find(t => t.id === selectedTokenId);
+        if (!token) return [];
+        
+        const moves: {r: number, c: number}[] = [];
+        const currentPossibilities = new Set(Object.keys(token.probabilities).filter(k => token.probabilities[k as PieceType] > 0));
+
+        let lastMoveObj = undefined;
+
+        for (let r = 0; r < 8; r++) {
+            for (let c = 0; c < 8; c++) {
+                if (r === token.row && c === token.col) continue;
+                
+                const targetToken = tokens.find(t => !t.isCaptured && t.row === r && t.col === c);
+                if (targetToken && targetToken.player === token.player) continue;
+
+                const possibleTypes = deduceMoveTypes(token, r, c, tokens, lastMoveObj);
+                if (possibleTypes.some(type => currentPossibilities.has(type))) {
+                    moves.push({r, c});
+                }
+            }
+        }
+        return moves;
+    }, [selectedTokenId, tokens, gameState]);
+
+
     const playerName = user?.name || 'Player';
     const fallbackOpponent = opponentId?.startsWith('GUEST-') ? 'Guest' : 'Opponent';
     const opponentName = fallbackOpponent;
@@ -351,6 +381,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
                     const isDark = (row + col) % 2 === 1;
                     const tokenHere = tokens.find(t => !t.isCaptured && t.row === row && t.col === col);
                     const isSelected = tokenHere?.id === selectedTokenId;
+                    const isMoveCandidate = showMoveHints && validMoves.some(m => m.r === row && m.c === col);
 
                     return (
                         <div 
@@ -360,9 +391,12 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
                                 relative flex justify-center items-center cursor-pointer transition-colors
                                 aspect-square w-full h-full
                                 ${isDark ? 'bg-[#1a202c]' : 'bg-[#2d3748]'}
-                                hover:bg-white/10
+                                ${isMoveCandidate ? 'hover:bg-[#00ff41]/20' : 'hover:bg-white/10'}
                             `}
                         >
+                            {isMoveCandidate && !tokenHere && (
+                                <div className="absolute w-4 h-4 rounded-full bg-[#00ff41]/50 pointer-events-none animate-pulse" />
+                            )}
                             {tokens.filter(t => !t.isCaptured && t.row === row && t.col === col).map(token => (
                                 <QuantumPieceUI 
                                     key={token.id}
@@ -390,6 +424,17 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
                 </div>
             </div>
             
+            <div className="w-full flex justify-center px-2 mt-4">
+                <label className="flex items-center gap-2 text-sm text-gray-400 cursor-pointer hover:text-gray-200 transition-colors select-none">
+                    <input 
+                        type="checkbox" 
+                        checked={showMoveHints} 
+                        onChange={(e) => setShowMoveHints(e.target.checked)} 
+                        className="rounded border-gray-700 bg-gray-800 text-cyan-500 focus:ring-cyan-500/50 w-4 h-4 cursor-pointer" 
+                    />
+                    {lang === 'ja' ? 'コマの移動範囲を表示' : 'Show movable range'}
+                </label>
+            </div>
             <div className="mt-4 text-[#00ff41] text-sm opacity-80 text-center px-4">
                 {t.tips}
             </div>
