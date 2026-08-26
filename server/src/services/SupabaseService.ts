@@ -16,8 +16,6 @@ export class SupabaseService {
     // Verify JWT and extract user info
     public async verifyUser(token: string): Promise<string | null> {
         if (!token) return null;
-        // In a real prod environment we should verify the JWT signature locally or via Supabase.
-        // Supabase `getUser(token)` validates the JWT.
         try {
             const { data: { user }, error } = await this.supabase.auth.getUser(token);
             if (error || !user) return null;
@@ -45,7 +43,6 @@ export class SupabaseService {
         history: any[]
     ): Promise<boolean> {
         try {
-            // Check if AI match or anon, we might skip DB entirely or handle differently
             let realWhite = whiteId.startsWith('anon_') ? whiteId.replace('anon_', '') : whiteId;
             let realBlack = blackId.startsWith('anon_') ? blackId.replace('anon_', '') : blackId;
 
@@ -77,6 +74,27 @@ export class SupabaseService {
         } catch (error) {
             console.error(`[DB] Error recording match ${matchId}:`, error);
             return false;
+        }
+    }
+
+    // Auto cleanup old game records to save DB storage space
+    public async cleanupOldRecords(days: number = 30): Promise<void> {
+        try {
+            const cutoffDate = new Date();
+            cutoffDate.setDate(cutoffDate.getDate() - days);
+
+            const { error, count } = await this.supabase
+                .from('game_records')
+                .delete({ count: 'exact' })
+                .lt('created_at', cutoffDate.toISOString());
+
+            if (error) {
+                console.error('[DB Cleanup] Error deleting old game records:', error);
+            } else {
+                console.log(`[DB Cleanup] Purged ${count ?? 0} game records older than ${days} days.`);
+            }
+        } catch (e) {
+            console.error('[DB Cleanup] Exception during cleanup:', e);
         }
     }
 }

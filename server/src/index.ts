@@ -36,6 +36,12 @@ const MAX_TOKENS = 15; // Max burst allowance of events
 const REFILL_RATE = 5; // Tokens added per second
 const SEVERE_VIOLATION_THRESHOLD = 50; // Dropped packet threshold before forced disconnect
 
+// Daily DB Cleanup for old game records (older than 30 days)
+supabaseService.cleanupOldRecords(30);
+setInterval(() => {
+    supabaseService.cleanupOldRecords(30);
+}, 24 * 60 * 60 * 1000);
+
 io.use(async (socket, next) => {
   const token = socket.handshake.auth.token;
   

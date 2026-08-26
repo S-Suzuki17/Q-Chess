@@ -1,0 +1,16 @@
+name: Keep Render Server Warm
+
+on:
+  schedule:
+    # Run every 10 minutes to prevent Render free-tier instance from sleeping
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+jobs:
+  keep-alive:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Render Backend Health
+        run: |
+          echo "Pinging Render Game Server at $(date)..."
+          curl -s -f --retry 3 --max-time 20 "https://q-chess.onrender.com/health" || echo "Render server ping attempted."
