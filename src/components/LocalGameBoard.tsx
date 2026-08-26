@@ -141,8 +141,16 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
         targetRow: number;
         targetCol: number;
         validTypes: PieceType[];
-        targetToken?: Token;
-        isLocalMove: boolean;
+        targetToken: Token | undefined;
+        isLocalMove?: boolean;
+    } | null>(null);
+
+    const [castlingPending, setCastlingPending] = useState<{
+        token: Token;
+        targetRow: number;
+        targetCol: number;
+        validTypes: PieceType[];
+        targetToken: Token | undefined;
     } | null>(null);
 
     const [moveHistory, setMoveHistory] = useState<MoveRecord[]>([]);
@@ -677,6 +685,22 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
                 return;
             }
 
+            // Ambiguous Castling Check
+            const isHorizontal2 = Math.abs(targetCol - token.col) === 2 && Math.abs(targetRow - token.row) === 0;
+            const canBeKing = validTypesForMove.includes('King');
+            const canBeRookOrQueen = validTypesForMove.includes('Rook') || validTypesForMove.includes('Queen');
+            
+            if (isHorizontal2 && canBeKing && canBeRookOrQueen) {
+                setCastlingPending({
+                    token,
+                    targetRow,
+                    targetCol,
+                    validTypes: validTypesForMove,
+                    targetToken
+                });
+                return;
+            }
+
             // プロモーション済みの駒が最終ランクに再度移動しても、再プロモーションはしない
             if (!token.promotedTo && (targetRow === 0 || targetRow === 7) && validTypesForMove.includes('Pawn')) {
                 setPromotionPending({
@@ -987,6 +1011,55 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
                             ))}
                         </div>
                     )}
+                </div>
+            )}
+
+            {castlingPending && (
+                <div className="absolute inset-0 bg-black/80 z-50 flex flex-col items-center justify-center p-6">
+                    <div className="bg-[#2A2621] border-2 border-[#D4B872]/30 rounded-xl p-8 max-w-md w-full text-center relative shadow-2xl">
+                        <h2 className="text-[#D4B872] text-2xl font-serif font-bold mb-6">
+                            {t.castlingConfirmTitle || 'Castling or Normal Move?'}
+                        </h2>
+                        <p className="text-white/80 mb-8 font-serif">
+                            {t.castlingConfirmDesc || 'This move can be interpreted as Castling or a normal Rook/Queen move. Please select your intention.'}
+                        </p>
+                        <div className="flex flex-col gap-4">
+                            <button
+                                className="px-6 py-4 bg-[#D4B872] hover:bg-[#F2D794] text-[#1A1814] font-serif font-bold rounded-lg transition-colors"
+                                onClick={() => {
+                                    const newValidTypes = ['King'] as PieceType[];
+                                    executeMove(
+                                        castlingPending.token,
+                                        castlingPending.targetRow,
+                                        castlingPending.targetCol,
+                                        newValidTypes,
+                                        castlingPending.targetToken,
+                                        true
+                                    );
+                                    setCastlingPending(null);
+                                }}
+                            >
+                                {t.castlingOption || 'Castling (King)'}
+                            </button>
+                            <button
+                                className="px-6 py-4 border-2 border-[#D4B872] hover:bg-[#D4B872]/10 text-[#D4B872] font-serif font-bold rounded-lg transition-colors"
+                                onClick={() => {
+                                    const newValidTypes = castlingPending.validTypes.filter(type => type !== 'King');
+                                    executeMove(
+                                        castlingPending.token,
+                                        castlingPending.targetRow,
+                                        castlingPending.targetCol,
+                                        newValidTypes,
+                                        castlingPending.targetToken,
+                                        true
+                                    );
+                                    setCastlingPending(null);
+                                }}
+                            >
+                                {t.normalMoveOption || 'Normal Move (Rook/Queen)'}
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
 

@@ -62,7 +62,7 @@ export interface PublicGameState {
 }
 
 export type ActionPayload = 
-    | { type: 'MOVE'; payload: { pieceId: number; toX: number; toY: number } }
+    | { type: 'MOVE'; payload: { pieceId: number; toX: number; toY: number; intention?: 'castle' | 'normal' } }
     | { type: 'RESIGN'; payload: {} };
 
 export interface Action {
@@ -198,16 +198,16 @@ export class GameEngine {
         return finalResult;
     }
 
-    private handleMove(playerId: string, payload: { pieceId: number; toX: number; toY: number }): boolean {
+    private handleMove(playerId: string, payload: { pieceId: number; toX: number; toY: number; intention?: 'castle' | 'normal' }): boolean {
         const expectedTeam = this.state.turn;
         const isHost = playerId === this.state.players.host;
         const playerTeam = isHost ? 0 : 1;
         
         if (playerTeam !== expectedTeam) return false;
 
-        const { pieceId, toX, toY } = payload;
+        const { pieceId, toX, toY, intention } = payload;
 
-        const result = attemptMove(this.state.pieces, this.state.board, pieceId, toX, toY);
+        const result = attemptMove(this.state.pieces, this.state.board, pieceId, toX, toY, intention);
         
         if (result.success) {
             this.state.pieces = result.pieces;

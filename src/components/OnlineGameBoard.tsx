@@ -52,6 +52,13 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
     const [showResignConfirm, setShowResignConfirm] = useState<boolean>(false);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+    const [castlingPending, setCastlingPending] = useState<{
+        pieceId: number;
+        targetRow: number;
+        targetCol: number;
+        validTypes: string[];
+    } | null>(null);
+
     const [timeLeftWhite, setTimeLeftWhite] = useState<number>(0);
     const [timeLeftBlack, setTimeLeftBlack] = useState<number>(0);
 
@@ -269,9 +276,27 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
                 return;
             }
 
-            // Client optimistic action
+            // Client optimistic action (will be intercepted if ambiguous)
+            const token = gameState.pieces.find((p: any) => p.id === numId);
+            if (token && Math.abs(targetCol - token.x) === 2 && Math.abs(targetRow - token.y) === 0) {
+                // Determine if it's ambiguous
+                // Check if it CAN be King AND (Rook OR Queen)
+                const canBeKing = token.possibilities.includes('K');
+                const canBeRook = token.possibilities.includes('R');
+                const canBeQueen = token.possibilities.includes('Q');
+                if (canBeKing && (canBeRook || canBeQueen)) {
+                    setCastlingPending({
+                        pieceId: numId,
+                        targetRow,
+                        targetCol,
+                        validTypes: token.possibilities
+                    });
+                    return;
+                }
+            }
+
             socket?.emit('player_action', {
-                actionId: uuidv4(),
+                actionId: Date.now().toString(),
                 version: gameState.version,
                 action: {
                     type: 'MOVE',

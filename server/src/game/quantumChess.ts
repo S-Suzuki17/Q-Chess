@@ -360,7 +360,7 @@ export function resolveEntanglement(pieces, team) {
  * @param {number} toY - Destination Y
  * @returns {{ success: boolean, pieces: Piece[], board: (number|null)[], capturedPiece: Piece|null, message: string }}
  */
-export function attemptMove(pieces, board, pieceId, toX, toY) {
+export function attemptMove(pieces: any[], board: any[], pieceId: number, toX: number, toY: number, intention: 'castle' | 'normal' | undefined = undefined) {
     const pieceIndex = pieces.findIndex(p => p.id === pieceId);
     if (pieceIndex === -1) {
         return { success: false, pieces, board, capturedPiece: null, message: 'Piece not found' };
@@ -386,7 +386,14 @@ export function attemptMove(pieces, board, pieceId, toX, toY) {
     }
 
     // Filter possibilities based on the move (observation)
-    const newPossibilities = filterPossibilities(piece, toX, toY, board, isCapture, pieces);
+    let newPossibilities = filterPossibilities(piece, toX, toY, board, isCapture, pieces);
+    
+    // Apply user intention for ambiguous moves (castling vs normal rook/queen move)
+    if (intention === 'castle') {
+        newPossibilities = newPossibilities.filter((p: string) => p === 'K');
+    } else if (intention === 'normal') {
+        newPossibilities = newPossibilities.filter((p: string) => p !== 'K');
+    }
 
     if (newPossibilities.length === 0) {
         return { success: false, pieces, board, capturedPiece: null, message: 'Invalid move for this piece' };
