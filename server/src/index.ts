@@ -98,7 +98,6 @@ io.on('connection', (socket: Socket) => {
         console.error(`[RATE_LIMIT] Force disconnecting abusive socket ${socket.id} (user: ${userId})`);
         socket.disconnect(true);
       }
-      // Drop event
       return;
     }
   });
@@ -106,11 +105,15 @@ io.on('connection', (socket: Socket) => {
   matchmaking.registerSocket(userId, socket.id);
   matchmaking.clearDisconnectTimer(userId);
 
-  // If reconnected while in an active game, join the room immediately
+  // If reconnected while in an active game, join the room immediately and push state
   const existingSession = matchmaking.getPlayerSession(userId);
   if (existingSession && existingSession.currentMatchId && existingSession.state === 'IN_GAME') {
-      socket.join(existingSession.currentMatchId);
-      console.log(`[RECONNECT] User ${userId} rejoined room ${existingSession.currentMatchId}`);
+      const activeMatch = matchmaking.getMatch(existingSession.currentMatchId);
+      if (activeMatch && activeMatch.engine && activeMatch.state === 'IN_GAME') {
+          socket.join(existingSession.currentMatchId);
+          console.log(`[RECONNECT] User ${userId} auto-rejoined room ${existingSession.currentMatchId}`);
+          socket.emit('sync_state', activeMatch.engine.getPublicState(userId));
+      }
   }
 
   socket.on('join_queue', (data: { timeControl: number }) => {
@@ -145,12 +148,12 @@ io.on('connection', (socket: Socket) => {
   socket.on('connect_match', (data: { matchId: string }) => {
     const result = matchmaking.connectMatch(userId, data.matchId);
     
-    // Always join the room to receive sync_state broadcasts
     socket.join(data.matchId);
 
     if (result.success && result.engine) {
-      // Send initial state to the user who connected
-      socket.emit('match_start', result.engine.getPublicState(userId));
+      const publicState = result.engine.getPublicState(userId);
+      socket.emit('match_start', publicState);
+      socket.emit('sync_state', publicState);
     }
   });
 
@@ -159,11 +162,24 @@ io.on('connection', (socket: Socket) => {
           return socket.emit('action_error', { message: 'Unauthorized: playerId spoofing detected' });
       }
 
-      const session = matchmaking.getPlayerSession(userId);
-      if (!session || !session.currentMatchId) return socket.emit('action_error', { message: 'No active match' });
+      let session = matchmaking.getPlayerSession(userId);
+      let match = session?.currentMatchId ? matchmaking.getMatch(session.currentMatchId) : null;
 
-      const match = matchmaking.getMatch(session.currentMatchId);
-      if (!match || !match.engine) return socket.emit('action_error', { message: 'Match not initialized' });
+      // Fallback search by matchId if session state dropped
+      if (!match) {
+          for (const m of (matchmaking as any).matches.values()) {
+              if ((m.players.host === userId || m.players.joiner === userId) && m.state === 'IN_GAME') {
+                  match = m;
+                  if (session) {
+                      session.currentMatchId = m.matchId;
+                      session.state = 'IN_GAME';
+                  }
+                  break;
+              }
+          }
+      }
+
+      if (!match || !match.engine) return socket.emit('action_error', { message: 'No active match found' });
 
       const action: Action = {
           actionId: data.actionId,
@@ -210,14 +226,20 @@ io.on('connection', (socket: Socket) => {
   });
 
   socket.on('request_sync', (data: { matchId: string }) => {
-    // Security check: ensure the user is actually in this match
-    const session = matchmaking.getPlayerSession(userId);
-    if (!session || session.currentMatchId !== data.matchId) {
+    const match = matchmaking.getMatch(data.matchId);
+    if (!match || (match.players.host !== userId && match.players.joiner !== userId)) {
         return socket.emit('error', { message: 'Unauthorized match sync request' });
     }
 
-    const match = matchmaking.getMatch(data.matchId);
-    if (match && match.engine) {
+    let session = matchmaking.getPlayerSession(userId);
+    if (session) {
+        session.currentMatchId = data.matchId;
+        session.state = 'IN_GAME';
+    }
+
+    matchmaking.clearDisconnectTimer(userId);
+
+    if (match.engine) {
       socket.join(data.matchId);
       socket.emit('sync_state', match.engine.getPublicState(userId));
     }

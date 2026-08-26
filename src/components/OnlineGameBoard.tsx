@@ -13,9 +13,9 @@ export type EmoteType = 'hello' | 'well_played' | 'wow' | 'thinking' | 'resign';
 export const EMOTES: Record<EmoteType, { emoji: string; labelJa: string; labelEn: string }> = {
     hello: { emoji: '👋', labelJa: 'よろしく！', labelEn: 'Hello!' },
     well_played: { emoji: '👏', labelJa: 'ナイス！', labelEn: 'Well played' },
-    wow: { emoji: '😲', labelJa: 'えっ！？', labelEn: 'Wow' },
-    thinking: { emoji: '🤔', labelJa: 'うーん', labelEn: 'Thinking...' },
-    resign: { emoji: '🙏', labelJa: '参りました', labelEn: 'Good game' }
+    wow: { emoji: '😮', labelJa: 'おお！', labelEn: 'Wow' },
+    thinking: { emoji: '🤔', labelJa: 'うーん...', labelEn: 'Thinking...' },
+    resign: { emoji: '🏳️', labelJa: '参りました', labelEn: 'Good game' }
 };
 
 interface OnlineGameBoardProps {
@@ -53,6 +53,9 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
     const [timeLeftWhite, setTimeLeftWhite] = useState<number>(0);
     const [timeLeftBlack, setTimeLeftBlack] = useState<number>(0);
 
+    const [disconnectTimeLeft, setDisconnectTimeLeft] = useState<number | null>(null);
+    const disconnectTimerRef = useRef<NodeJS.Timeout | null>(null);
+
     const [showEmoteMenu, setShowEmoteMenu] = useState(false);
     const [activeEmotes, setActiveEmotes] = useState<{ white: EmoteType | null, black: EmoteType | null }>({ white: null, black: null });
     const emoteTimers = useRef<{ white: NodeJS.Timeout | null, black: NodeJS.Timeout | null }>({ white: null, black: null });
@@ -89,39 +92,73 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
         setShowEmoteMenu(false);
     }, [roomId, onlineRole, triggerEmote, socket]);
 
-    
-    useEffect(() => {
-        if (isConnected && socket && roomId && gameState) {
-            console.log('[OnlineGameBoard] Reconnected, requesting sync_state');
-            socket.emit('request_sync', { matchId: roomId });
-        }
-    }, [isConnected, socket, roomId]);
-
+    // Connect & Sync on mount or reconnection
     useEffect(() => {
         if (!socket || !roomId) return;
-        
-        socket.emit('connect_match', { matchId: roomId });
+
+        const syncMatch = () => {
+            console.log('[OnlineGameBoard] Connecting/Syncing match:', roomId);
+            socket.emit('connect_match', { matchId: roomId });
+            socket.emit('request_sync', { matchId: roomId });
+        };
+
+        syncMatch();
 
         const onMatchStart = (state: any) => {
+            console.log('[OnlineGameBoard] match_start received:', state);
             setGameState(state);
         };
         const onSyncState = (state: any) => {
             setGameState(state);
             playMoveSound();
+            if (disconnectTimerRef.current) {
+                clearInterval(disconnectTimerRef.current);
+                disconnectTimerRef.current = null;
+            }
+            setDisconnectTimeLeft(null);
         };
         const onActionError = (err: any) => {
             setErrorMsg(err.message || 'Action error');
         };
-        const onOpponentDisconnected = () => {
-            // Can be handled if server emits it, currently server removes socket.id
+        const onOpponentDisconnected = (data: any) => {
+            console.log('[OnlineGameBoard] Opponent disconnected:', data);
+            if (disconnectTimerRef.current) clearInterval(disconnectTimerRef.current);
+            let timeLeft = data?.gracePeriodSeconds || 120;
+            setDisconnectTimeLeft(timeLeft);
+            disconnectTimerRef.current = setInterval(() => {
+                timeLeft--;
+                setDisconnectTimeLeft(timeLeft);
+                if (timeLeft <= 0) {
+                    if (disconnectTimerRef.current) clearInterval(disconnectTimerRef.current);
+                    disconnectTimerRef.current = null;
+                    setDisconnectTimeLeft(null);
+                }
+            }, 1000);
+        };
+        const onOpponentReconnected = () => {
+            console.log('[OnlineGameBoard] Opponent reconnected!');
+            if (disconnectTimerRef.current) {
+                clearInterval(disconnectTimerRef.current);
+                disconnectTimerRef.current = null;
+            }
+            setDisconnectTimeLeft(null);
+        };
+        const onMatchForfeited = (data: any) => {
+            console.log('[OnlineGameBoard] Match forfeited:', data);
+            if (disconnectTimerRef.current) {
+                clearInterval(disconnectTimerRef.current);
+                disconnectTimerRef.current = null;
+            }
+            setDisconnectTimeLeft(null);
         };
 
         socket.on('match_start', onMatchStart);
         socket.on('sync_state', onSyncState);
         socket.on('action_error', onActionError);
         socket.on('opponent_disconnected', onOpponentDisconnected);
+        socket.on('opponent_reconnected', onOpponentReconnected);
+        socket.on('match_forfeited', onMatchForfeited);
 
-        // Also handle emote broadcasts if we implement it on server, else custom
         socket.on('emote', (data: any) => {
             if (data.player && data.emote) {
                 triggerEmote(data.player, data.emote);
@@ -134,13 +171,24 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
             socket.off('sync_state', onSyncState);
             socket.off('action_error', onActionError);
             socket.off('opponent_disconnected', onOpponentDisconnected);
+            socket.off('opponent_reconnected', onOpponentReconnected);
+            socket.off('match_forfeited', onMatchForfeited);
             socket.off('emote');
+            if (disconnectTimerRef.current) {
+                clearInterval(disconnectTimerRef.current);
+                disconnectTimerRef.current = null;
+            }
         };
-    }, [socket, roomId, playMoveSound, triggerEmote]);
+    }, [socket, roomId, isConnected, playMoveSound, triggerEmote]);
 
     // Timer sync
     useEffect(() => {
-        if (!gameState || gameState.gameOver) return;
+        if (!gameState || gameState.gameOver) {
+            if (gameState?.gameOver && typeof window !== 'undefined') {
+                localStorage.removeItem('qg_active_online_match');
+            }
+            return;
+        }
         
         const updateClocks = () => {
             const now = Date.now();
@@ -166,10 +214,13 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
 
         if (selectedTokenId) {
             const numId = parseInt(selectedTokenId.split('_')[1], 10);
-            const token = gameState.pieces.find((p: any) => p.id === numId);
-
-            if (token && token.y === targetRow && token.x === targetCol) {
-                setSelectedTokenId(null);
+            
+            // Check if clicking own another piece to switch selection
+            const clickedOtherPiece = gameState.pieces.find((p: any) => !p.captured && p.y === targetRow && p.x === targetCol);
+            const expectedTeam = onlineRole === 'white' ? 0 : 1;
+            
+            if (clickedOtherPiece && clickedOtherPiece.team === expectedTeam) {
+                setSelectedTokenId(`token_${clickedOtherPiece.id}`);
                 return;
             }
 
@@ -203,12 +254,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
             version: gameState.version,
             action: { type: 'RESIGN', payload: {} }
         });
-    };
-
-    const formatTime = (seconds: number) => {
-        const m = Math.floor(seconds / 60);
-        const s = seconds % 60;
-        return `${m}:${s.toString().padStart(2, '0')}`;
+        setShowEmoteMenu(false);
     };
 
     // Derived states
@@ -227,16 +273,15 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
                 player: p.team === 0 ? 'white' : 'black',
                 row: p.y,
                 col: p.x,
+                isCaptured: p.captured,
                 probabilities,
-                isCaptured: p.captured
+                hasMoved: false
             } as Token;
         });
     }, [gameState]);
 
-
     const validMoves = useMemo(() => {
         if (!selectedTokenId || !gameState) return [];
-        const numId = parseInt(selectedTokenId.split('_')[1], 10);
         const token = tokens.find(t => t.id === selectedTokenId);
         if (!token) return [];
         
@@ -261,22 +306,41 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
         return moves;
     }, [selectedTokenId, tokens, gameState]);
 
+    const currentTurn = gameState?.turn === 0 ? 'white' : 'black';
+    const myRole = onlineRole || 'white';
+    const isMyTurn = myRole === currentTurn;
 
-    const playerName = user?.name || 'Player';
-    const fallbackOpponent = opponentId?.startsWith('GUEST-') ? 'Guest' : 'Opponent';
-    const opponentName = fallbackOpponent;
-    const myRole = onlineRole === 'spectator' ? 'white' : (onlineRole || 'white');
-    const whiteName = onlineRole === 'spectator' ? 'White Player' : (myRole === 'white' ? playerName : opponentName);
-    const blackName = onlineRole === 'spectator' ? 'Black Player' : (myRole === 'black' ? playerName : opponentName);
+    const winner = useMemo(() => {
+        if (!gameState?.gameOver) return null;
+        if (gameState.gameOver.winner === 'WHITE') return 'white_wins';
+        if (gameState.gameOver.winner === 'BLACK') return 'black_wins';
+        return 'draw';
+    }, [gameState]);
 
-    const currentTurn = gameState ? (gameState.turn === 0 ? 'white' : 'black') : 'white';
-    const winnerState = gameState?.gameOver; // 'WHITE' | 'BLACK' | 'DRAW' | null
-    const winner = winnerState === 'WHITE' ? 'white_wins' : winnerState === 'BLACK' ? 'black_wins' : winnerState === 'DRAW' ? 'draw' : null;
+    const formatTime = (seconds: number) => {
+        const m = Math.floor(seconds / 60);
+        const s = seconds % 60;
+        return `${m}:${s < 10 ? '0' : ''}${s}`;
+    };
+
+    const whiteName = onlineRole === 'white' ? (user?.name || 'You') : (opponentId || 'Opponent');
+    const blackName = onlineRole === 'black' ? (user?.name || 'You') : (opponentId || 'Opponent');
+    const playerName = onlineRole === 'white' ? whiteName : blackName;
+    const opponentName = onlineRole === 'white' ? blackName : whiteName;
 
     if (!gameState) {
         return (
-            <div className="flex flex-col items-center w-full max-w-[800px] relative justify-center h-96">
-                <div className="text-white text-2xl animate-pulse">Connecting to match...</div>
+            <div className="flex flex-col items-center justify-center p-12 bg-black/60 border border-cyan-900/50 rounded-xl max-w-lg w-full">
+                <div className="w-12 h-12 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin mb-4" />
+                <p className="text-cyan-400 font-mono tracking-widest text-sm animate-pulse">
+                    {lang === 'ja' ? 'サーバーと対局データを同期中...' : 'CONNECTING TO GAME SERVER...'}
+                </p>
+                <button 
+                    onClick={onHome || (() => window.location.reload())}
+                    className="mt-6 px-4 py-2 bg-gray-900 border border-gray-700 rounded text-xs text-gray-400 hover:text-white transition-colors"
+                >
+                    {t.home}
+                </button>
             </div>
         );
     }
@@ -295,9 +359,21 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
                     </div>
                     <div className="flex items-center gap-2">
                         <span className={`text-xs px-2 py-1 rounded font-bold ${onlineRole === 'spectator' ? 'bg-gray-800 text-gray-300 border border-gray-500' : (myRole === 'white' ? 'bg-blue-900 text-blue-300 border border-blue-500/50' : 'bg-red-900 text-red-300 border border-red-500/50')}`}>
-                            {onlineRole === 'spectator' ? '👁 SPECTATING' : (myRole === 'white' ? 'YOU: 🟦 WHITE' : 'YOU: 🟥 BLACK')}
+                            {onlineRole === 'spectator' ? '👁️ SPECTATING' : (myRole === 'white' ? 'YOU: ⚪ WHITE' : 'YOU: ⚫ BLACK')}
                         </span>
                     </div>
+                </div>
+            )}
+
+            {/* Disconnection Banner */}
+            {disconnectTimeLeft !== null && (
+                <div className="w-full mb-3 p-3 bg-red-950/80 border border-red-500 rounded-lg flex flex-col items-center justify-center animate-pulse shadow-[0_0_15px_rgba(239,68,68,0.5)]">
+                    <span className="text-red-400 font-bold text-sm md:text-base">
+                        {lang === 'ja' ? '⚠️ 相手の通信が切断されました。再接続を待っています...' : '⚠️ Opponent disconnected. Waiting for reconnection...'}
+                    </span>
+                    <span className="text-red-300 font-mono text-xl mt-1 font-black">
+                        {Math.floor(disconnectTimeLeft / 60)}:{(disconnectTimeLeft % 60).toString().padStart(2, '0')}
+                    </span>
                 </div>
             )}
 
@@ -305,7 +381,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
                 {/* White Player Info */}
                 <div className={`text-xl font-bold flex flex-col items-start gap-1 ${currentTurn === 'white' ? 'text-blue-400 drop-shadow-[0_0_5px_currentColor]' : 'text-gray-500'} relative`}>
                     <div className="flex items-center gap-2">
-                        🟦 {whiteName}
+                        ⚪ {whiteName}
                     </div>
                     <span className="text-2xl font-mono">{formatTime(timeLeftWhite)}</span>
                     {activeEmotes.white && (
@@ -322,7 +398,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
                 {/* Black Player Info */}
                 <div className={`text-xl font-bold flex flex-col items-end gap-1 ${currentTurn === 'black' ? 'text-red-500 drop-shadow-[0_0_5px_currentColor]' : 'text-gray-500'} relative`}>
                     <div className="flex items-center gap-2">
-                        {blackName} 🟥
+                        {blackName} ⚫
                     </div>
                     <span className="text-2xl font-mono">{formatTime(timeLeftBlack)}</span>
                     {activeEmotes.black && (
