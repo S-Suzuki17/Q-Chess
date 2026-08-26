@@ -16,6 +16,10 @@ export interface InternalGameState {
         host: string;
         joiner: string;
     };
+    playerNames?: {
+        host?: string;
+        joiner?: string;
+    };
     board: (number | null)[];
     pieces: Piece[];
     turn: number; // 0 for white (host), 1 for black (joiner)
@@ -33,6 +37,14 @@ export interface InternalGameState {
 export interface PublicGameState {
     version: number;
     matchId: string;
+    players?: {
+        host: string;
+        joiner: string;
+    };
+    playerNames?: {
+        host?: string;
+        joiner?: string;
+    };
     board: (number | null)[];
     pieces: Piece[];
     turn: number;
@@ -69,11 +81,19 @@ export class GameEngine {
     // Map of actionId -> ActionResult for idempotent recovery
     private processedActions = new Map<string, ActionResult>();
 
-    constructor(matchId: string, host: string, joiner: string, initialBoard: any, timeControl: number = 600) {
+    constructor(
+        matchId: string, 
+        host: string, 
+        joiner: string, 
+        initialBoard: any, 
+        timeControl: number = 600,
+        playerNames?: { host?: string; joiner?: string }
+    ) {
         this.state = {
             version: 0,
             matchId,
             players: { host, joiner },
+            playerNames: playerNames || {},
             board: initialBoard.board,
             pieces: initialBoard.pieces,
             turn: 0,
@@ -89,6 +109,11 @@ export class GameEngine {
         };
     }
 
+    public setPlayerName(role: 'host' | 'joiner', name: string) {
+        if (!this.state.playerNames) this.state.playerNames = {};
+        this.state.playerNames[role] = name;
+    }
+
     public checkTimeout(): boolean {
         if (this.state.gameOver) return false;
         
@@ -98,14 +123,14 @@ export class GameEngine {
         if (this.state.turn === 0) {
             if (this.state.clock.white - elapsed <= 0) {
                 this.state.clock.white = 0;
-                this.state.gameOver = 'BLACK'; // White timed out
+                this.state.gameOver = 'BLACK'; // White timed out -> Black wins
                 this.state.version += 1;
                 return true;
             }
         } else {
             if (this.state.clock.black - elapsed <= 0) {
                 this.state.clock.black = 0;
-                this.state.gameOver = 'WHITE'; // Black timed out
+                this.state.gameOver = 'WHITE'; // Black timed out -> White wins
                 this.state.version += 1;
                 return true;
             }
@@ -173,7 +198,8 @@ export class GameEngine {
 
     private handleMove(playerId: string, payload: { pieceId: number; toX: number; toY: number }): boolean {
         const expectedTeam = this.state.turn;
-        const playerTeam = playerId === this.state.players.host ? 0 : 1;
+        const isHost = playerId === this.state.players.host;
+        const playerTeam = isHost ? 0 : 1;
         
         if (playerTeam !== expectedTeam) return false;
 
@@ -201,24 +227,23 @@ export class GameEngine {
     }
 
     private handleResign(playerId: string): boolean {
-        const playerTeam = playerId === this.state.players.host ? 0 : 1;
-        this.state.gameOver = playerTeam === 0 ? 'BLACK' : 'WHITE';
+        const isHost = playerId === this.state.players.host;
+        // If Host (White) resigns, Black wins ('BLACK'). If Joiner (Black) resigns, White wins ('WHITE').
+        this.state.gameOver = isHost ? 'BLACK' : 'WHITE';
         return true;
     }
 
-    // 2. Generate Public GameState with filtering (Information Hiding)
+    // 2. Generate Public GameState with filtering
     public getPublicState(playerId: string): PublicGameState {
-        // Deep copy pieces to filter out any true identities if they existed
-        // Currently Q-GAMBIT pieces are purely their possibilities, 
-        // but this ensures we have a hook for future hidden info filtering.
         const filteredPieces = this.state.pieces.map(p => ({
-            ...p,
-            // Example of filtering: if there was a hidden `trueIdentity`, we would strip it if p.team !== playerTeam
+            ...p
         }));
 
         return {
             version: this.state.version,
             matchId: this.state.matchId,
+            players: this.state.players,
+            playerNames: this.state.playerNames,
             board: this.state.board,
             pieces: filteredPieces,
             turn: this.state.turn,

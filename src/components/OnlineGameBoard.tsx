@@ -111,7 +111,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
 
         const cleanId = targetId.replace('anon_', '');
         if (cleanId.startsWith('GUEST-')) {
-            setFetchedOpponentName(cleanId);
+            setFetchedOpponentName(lang === 'ja' ? 'ゲスト' : 'Guest');
             return;
         }
 
@@ -125,23 +125,23 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
                 if (data?.name) {
                     setFetchedOpponentName(data.name);
                 } else {
-                    setFetchedOpponentName(cleanId);
+                    setFetchedOpponentName(lang === 'ja' ? 'プレイヤー' : 'Player');
                 }
             } catch (e) {
-                setFetchedOpponentName(cleanId);
+                setFetchedOpponentName(lang === 'ja' ? 'プレイヤー' : 'Player');
             }
         };
 
         fetchProfileName();
-    }, [opponentId, gameState?.players, user?.id]);
+    }, [opponentId, gameState?.players, user?.id, lang]);
 
     // Connect & Sync on mount or reconnection
     useEffect(() => {
         if (!socket || !roomId) return;
 
         const syncMatch = () => {
-            console.log('[OnlineGameBoard] Connecting/Syncing match:', roomId);
-            socket.emit('connect_match', { matchId: roomId });
+            console.log('[OnlineGameBoard] Connecting/Syncing match:', roomId, 'User:', user?.name);
+            socket.emit('connect_match', { matchId: roomId, userName: user?.name });
             socket.emit('request_sync', { matchId: roomId });
         };
 
@@ -195,19 +195,21 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
             setDisconnectTimeLeft(null);
         };
 
+        const onEmote = (data: any) => {
+            console.log('[OnlineGameBoard] Received emote:', data);
+            if (data.player && data.emote) {
+                triggerEmote(data.player, data.emote);
+                playMoveSound();
+            }
+        };
+
         socket.on('match_start', onMatchStart);
         socket.on('sync_state', onSyncState);
         socket.on('action_error', onActionError);
         socket.on('opponent_disconnected', onOpponentDisconnected);
         socket.on('opponent_reconnected', onOpponentReconnected);
         socket.on('match_forfeited', onMatchForfeited);
-
-        socket.on('emote', (data: any) => {
-            if (data.player && data.emote) {
-                triggerEmote(data.player, data.emote);
-                playMoveSound();
-            }
-        });
+        socket.on('emote', onEmote);
 
         return () => {
             socket.off('match_start', onMatchStart);
@@ -216,13 +218,13 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
             socket.off('opponent_disconnected', onOpponentDisconnected);
             socket.off('opponent_reconnected', onOpponentReconnected);
             socket.off('match_forfeited', onMatchForfeited);
-            socket.off('emote');
+            socket.off('emote', onEmote);
             if (disconnectTimerRef.current) {
                 clearInterval(disconnectTimerRef.current);
                 disconnectTimerRef.current = null;
             }
         };
-    }, [socket, roomId, isConnected, playMoveSound, triggerEmote]);
+    }, [socket, roomId, isConnected, user?.name, playMoveSound, triggerEmote]);
 
     // Timer sync
     useEffect(() => {
@@ -353,10 +355,12 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
     const myRole = onlineRole || 'white';
     const isMyTurn = myRole === currentTurn;
 
+    // Robust winner calculation
     const winner = useMemo(() => {
         if (!gameState?.gameOver) return null;
-        if (gameState.gameOver.winner === 'WHITE') return 'white_wins';
-        if (gameState.gameOver.winner === 'BLACK') return 'black_wins';
+        const go = typeof gameState.gameOver === 'object' ? (gameState.gameOver as any).winner : gameState.gameOver;
+        if (go === 'WHITE') return 'white_wins';
+        if (go === 'BLACK') return 'black_wins';
         return 'draw';
     }, [gameState]);
 
@@ -366,15 +370,29 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
         return `${m}:${s < 10 ? '0' : ''}${s}`;
     };
 
-    const fallbackOpponent = (opponentId && opponentId.startsWith('GUEST-')) 
-        ? opponentId 
-        : (opponentId?.replace('anon_', '') || 'Player');
-    const resolvedOpponentName = fetchedOpponentName || fallbackOpponent;
+    const hostServerName = gameState?.playerNames?.host;
+    const joinerServerName = gameState?.playerNames?.joiner;
 
-    const whiteName = onlineRole === 'white' ? (user?.name || 'You') : resolvedOpponentName;
-    const blackName = onlineRole === 'black' ? (user?.name || 'You') : resolvedOpponentName;
-    const playerName = onlineRole === 'white' ? whiteName : blackName;
-    const opponentName = onlineRole === 'white' ? blackName : whiteName;
+    const guestLabel = lang === 'ja' ? 'ゲスト' : 'Guest';
+    const playerLabel = lang === 'ja' ? 'プレイヤー' : 'Player';
+
+    const getOpponentLabel = (id?: string, serverName?: string, fetchedName?: string | null) => {
+        if (fetchedName) return fetchedName;
+        if (serverName) return serverName;
+        if (!id) return playerLabel;
+        const clean = id.replace('anon_', '');
+        if (clean.startsWith('GUEST-')) return guestLabel;
+        return playerLabel;
+    };
+
+    const isHost = onlineRole === 'white';
+    const opponentServerName = isHost ? joinerServerName : hostServerName;
+    const resolvedOpponent = getOpponentLabel(opponentId, opponentServerName, fetchedOpponentName);
+
+    const whiteName = isHost ? (user?.name || playerLabel) : resolvedOpponent;
+    const blackName = !isHost ? (user?.name || playerLabel) : resolvedOpponent;
+    const playerName = isHost ? whiteName : blackName;
+    const opponentName = isHost ? blackName : whiteName;
 
     if (!gameState) {
         return (
@@ -441,15 +459,31 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
 
             {winner && (
                 <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center z-50 backdrop-blur-sm rounded-lg border border-gray-800">
-                    <div className="text-6xl font-black text-white drop-shadow-[0_0_20px_rgba(255,255,255,0.8)] mb-8 tracking-widest">
-                        {winner === 'draw' ? 'DRAW' : 'CHECKMATE'}
-                    </div>
-                    <div className={`text-4xl font-bold mb-12 ${winner === 'draw' ? 'text-gray-400 drop-shadow-[0_0_15px_rgba(156,163,175,0.8)]' : winner === 'white_wins' ? 'text-blue-400 drop-shadow-[0_0_15px_rgba(96,165,250,0.8)]' : 'text-red-500 drop-shadow-[0_0_15px_rgba(239,68,68,0.8)]'}`}>
+                    <div className={`text-6xl font-black mb-8 tracking-widest ${
+                        winner === 'draw' 
+                            ? 'text-gray-300 drop-shadow-[0_0_20px_rgba(255,255,255,0.8)]' 
+                            : (winner === 'white_wins' && onlineRole === 'white') || (winner === 'black_wins' && onlineRole === 'black')
+                                ? 'text-[#00ff41] drop-shadow-[0_0_25px_rgba(0,255,65,0.9)] animate-bounce'
+                                : 'text-red-500 drop-shadow-[0_0_25px_rgba(239,68,68,0.9)]'
+                    }`}>
                         {winner === 'draw' 
-                            ? 'Draw (Stalemate)' 
+                            ? 'DRAW' 
+                            : (winner === 'white_wins' && onlineRole === 'white') || (winner === 'black_wins' && onlineRole === 'black')
+                                ? (lang === 'ja' ? '勝利！ (YOU WIN)' : 'YOU WIN!')
+                                : (lang === 'ja' ? '敗北... (YOU LOSE)' : 'YOU LOSE...')}
+                    </div>
+                    <div className={`text-3xl font-bold mb-12 ${
+                        winner === 'draw' 
+                            ? 'text-gray-400' 
+                            : (winner === 'white_wins' && onlineRole === 'white') || (winner === 'black_wins' && onlineRole === 'black')
+                                ? 'text-cyan-300 drop-shadow-[0_0_10px_rgba(34,211,238,0.8)]' 
+                                : 'text-red-400 drop-shadow-[0_0_10px_rgba(239,68,68,0.8)]'
+                    }`}>
+                        {winner === 'draw' 
+                            ? (lang === 'ja' ? '引き分け (ステイルメイト)' : 'Draw (Stalemate)') 
                             : winner === 'white_wins' 
-                                ? `${whiteName} (${t.whiteWon})` 
-                                : `${blackName} (${t.blackWon})`}
+                                ? `${whiteName} ${lang === 'ja' ? 'の勝利 (白)' : '(White Won)'}` 
+                                : `${blackName} ${lang === 'ja' ? 'の勝利 (黒)' : '(Black Won)'}`}
                     </div>
                     <div className="flex gap-4 mt-8">
                         <button 

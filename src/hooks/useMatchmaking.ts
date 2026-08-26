@@ -30,8 +30,8 @@ export function useMatchmaking(user: User | null) {
         const handleMatchFound = (data: any) => {
             console.log('[Matchmaking] Match found!', data);
             
-            // Inform the server we are connecting
-            socket.emit('connect_match', { matchId: data.matchId });
+            // Inform the server we are connecting with our username
+            socket.emit('connect_match', { matchId: data.matchId, userName: user?.name });
 
             setMatchedRoom({
                 id: data.matchId,
@@ -57,7 +57,7 @@ export function useMatchmaking(user: User | null) {
             socket.off('match_found', handleMatchFound);
             socket.off('match_cancelled', handleMatchCancelled);
         };
-    }, [socket, user?.id, cleanup]);
+    }, [socket, user?.id, user?.name, cleanup]);
 
     const startMatchmaking = useCallback((timeControlSeconds: number = 600) => {
         if (!user) {
@@ -75,8 +75,8 @@ export function useMatchmaking(user: User | null) {
         setError(null);
         searchStartRef.current = Date.now();
 
-        // Emit to Server
-        socket!.emit('join_queue', { timeControl: timeControlSeconds });
+        // Emit to Server with username
+        socket!.emit('join_queue', { timeControl: timeControlSeconds, userName: user?.name });
 
         waitTimerRef.current = setInterval(() => {
             const elapsed = Date.now() - searchStartRef.current;

@@ -116,9 +116,9 @@ io.on('connection', (socket: Socket) => {
       }
   }
 
-  socket.on('join_queue', (data: { timeControl: number }) => {
+  socket.on('join_queue', (data: { timeControl: number, userName?: string }) => {
     const timeControl = data?.timeControl || 600;
-    const result = matchmaking.joinQueue(userId, timeControl);
+    const result = matchmaking.joinQueue(userId, timeControl, data?.userName);
     
     if (result.success && result.match) {
       const { match } = result;
@@ -145,8 +145,8 @@ io.on('connection', (socket: Socket) => {
     matchmaking.leaveQueue(userId);
   });
 
-  socket.on('connect_match', (data: { matchId: string }) => {
-    const result = matchmaking.connectMatch(userId, data.matchId);
+  socket.on('connect_match', (data: { matchId: string, userName?: string }) => {
+    const result = matchmaking.connectMatch(userId, data.matchId, data.userName);
     
     socket.join(data.matchId);
 
@@ -155,6 +155,17 @@ io.on('connection', (socket: Socket) => {
       socket.emit('match_start', publicState);
       socket.emit('sync_state', publicState);
     }
+  });
+
+  socket.on('emote', (data: { roomId?: string, matchId?: string, emote: string, player?: string }) => {
+    const targetRoom = data.roomId || data.matchId;
+    if (!targetRoom) return;
+    
+    // Broadcast emote to other players in the room
+    socket.to(targetRoom).emit('emote', {
+      player: data.player,
+      emote: data.emote
+    });
   });
 
   socket.on('player_action', async (data: { actionId: string, version: number, playerId?: string, action: ActionPayload }) => {

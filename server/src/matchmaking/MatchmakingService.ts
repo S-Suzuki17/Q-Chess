@@ -10,6 +10,7 @@ export interface PlayerSession {
     userId: string;
     socketId: string;
     state: PlayerState;
+    userName?: string;
     currentMatchId?: string;
     timeControl?: number;
 }
@@ -21,6 +22,10 @@ export interface MatchSession {
     players: {
         host: string;
         joiner: string;
+    };
+    playerNames: {
+        host?: string;
+        joiner?: string;
     };
     connected: {
         host: boolean;
@@ -40,13 +45,14 @@ export class MatchmakingService {
         this.io = io;
     }
 
-    public registerSocket(userId: string, socketId: string) {
+    public registerSocket(userId: string, socketId: string, userName?: string) {
         let session = this.players.get(userId);
         if (!session) {
-            session = { userId, socketId, state: 'IDLE' };
+            session = { userId, socketId, state: 'IDLE', userName };
             this.players.set(userId, session);
         } else {
             session.socketId = socketId; // Update socket on reconnect
+            if (userName) session.userName = userName;
         }
     }
 
@@ -63,7 +69,7 @@ export class MatchmakingService {
         }
     }
 
-    public joinQueue(userId: string, timeControl: number): { success: boolean, match?: MatchSession } {
+    public joinQueue(userId: string, timeControl: number, userName?: string): { success: boolean, match?: MatchSession } {
         const session = this.players.get(userId);
         if (!session) return { success: false };
 
@@ -73,6 +79,7 @@ export class MatchmakingService {
 
         session.state = 'WAITING';
         session.timeControl = timeControl;
+        if (userName) session.userName = userName;
         this.waitingQueue.add(userId);
 
         return this.tryMatch(timeControl);
@@ -96,20 +103,24 @@ export class MatchmakingService {
             this.waitingQueue.delete(hostId);
             this.waitingQueue.delete(joinerId);
 
+            const hostSession = this.players.get(hostId)!;
+            const joinerSession = this.players.get(joinerId)!;
+
             const matchId = uuidv4();
             const match: MatchSession = {
                 matchId,
                 state: 'CONNECTING',
                 timeControl,
                 players: { host: hostId, joiner: joinerId },
+                playerNames: {
+                    host: hostSession?.userName,
+                    joiner: joinerSession?.userName
+                },
                 connected: { host: false, joiner: false },
                 createdAt: Date.now()
             };
 
             this.matches.set(matchId, match);
-
-            const hostSession = this.players.get(hostId)!;
-            const joinerSession = this.players.get(joinerId)!;
 
             hostSession.state = 'CONNECTING';
             hostSession.currentMatchId = matchId;
@@ -135,7 +146,7 @@ export class MatchmakingService {
         return { success: false };
     }
 
-    public connectMatch(userId: string, matchId: string): { success: boolean, match?: MatchSession, engine?: GameEngine } {
+    public connectMatch(userId: string, matchId: string, userName?: string): { success: boolean, match?: MatchSession, engine?: GameEngine } {
         let session = this.players.get(userId);
         const match = this.matches.get(matchId);
 
@@ -159,11 +170,21 @@ export class MatchmakingService {
 
         // Restore / initialize session
         if (!session) {
-            session = { userId, socketId: '', state: 'IN_GAME', currentMatchId: matchId };
+            session = { userId, socketId: '', state: 'IN_GAME', currentMatchId: matchId, userName };
             this.players.set(userId, session);
         } else {
             session.state = 'IN_GAME';
             session.currentMatchId = matchId;
+            if (userName) session.userName = userName;
+        }
+
+        // Store player name in match
+        if (userName) {
+            if (isHost) match.playerNames.host = userName;
+            if (isJoiner) match.playerNames.joiner = userName;
+            if (match.engine) {
+                match.engine.setPlayerName(isHost ? 'host' : 'joiner', userName);
+            }
         }
 
         // Clear any disconnect timer
@@ -177,7 +198,7 @@ export class MatchmakingService {
         if (match.state === 'CONNECTING' && match.connected.host && match.connected.joiner) {
             match.state = 'IN_GAME';
             const initialBoard = createInitialBoard();
-            match.engine = new GameEngine(matchId, match.players.host, match.players.joiner, initialBoard, match.timeControl);
+            match.engine = new GameEngine(matchId, match.players.host, match.players.joiner, initialBoard, match.timeControl, match.playerNames);
         }
 
         // If reconnected to an ongoing match, broadcast to opponent
