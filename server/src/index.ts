@@ -10,9 +10,9 @@ import { FirebaseAuthService } from './services/FirebaseAuthService';
 const app = express();
 app.use(cors());
 
-// Phase 4: Health Check
+// Phase 4: Health Check & Uptime ping target
 app.get('/health', (req, res) => {
-    res.json({ status: 'ok' });
+    res.json({ status: 'ok', timestamp: Date.now() });
 });
 
 const server = http.createServer(app);
@@ -30,6 +30,11 @@ const io = new Server(server, {
 
 const matchmaking = new MatchmakingService(io);
 const supabaseService = new SupabaseService();
+
+// Token Bucket Rate Limiting Constants
+const MAX_TOKENS = 15; // Max burst allowance of events
+const REFILL_RATE = 5; // Tokens added per second
+const SEVERE_VIOLATION_THRESHOLD = 50; // Dropped packet threshold before forced disconnect
 
 io.use(async (socket, next) => {
   const token = socket.handshake.auth.token;
@@ -51,6 +56,46 @@ io.use(async (socket, next) => {
 io.on('connection', (socket: Socket) => {
   const userId = socket.data.userId;
   console.log(`[+] User connected: ${userId} (Socket: ${socket.id})`);
+
+  // Initialize Rate Limiter State for this socket
+  socket.data.rateLimit = {
+    tokens: MAX_TOKENS,
+    lastRefill: Date.now(),
+    violations: 0
+  };
+
+  // Socket middleware for incoming event rate-limiting
+  socket.use((packet, next) => {
+    const eventName = packet[0];
+    const now = Date.now();
+    const rl = socket.data.rateLimit;
+
+    // Refill tokens based on elapsed time
+    const timePassed = (now - rl.lastRefill) / 1000;
+    const tokensToAdd = timePassed * REFILL_RATE;
+    if (tokensToAdd > 0) {
+      rl.tokens = Math.min(MAX_TOKENS, rl.tokens + tokensToAdd);
+      rl.lastRefill = now;
+    }
+
+    if (rl.tokens >= 1) {
+      rl.tokens -= 1;
+      rl.violations = Math.max(0, rl.violations - 1);
+      next();
+    } else {
+      rl.violations += 1;
+      console.warn(`[RATE_LIMIT] Dropped '${eventName}' from user ${userId} (violations: ${rl.violations})`);
+      
+      socket.emit('action_error', { message: 'Too many requests. Please slow down.' });
+
+      if (rl.violations > SEVERE_VIOLATION_THRESHOLD) {
+        console.error(`[RATE_LIMIT] Force disconnecting abusive socket ${socket.id} (user: ${userId})`);
+        socket.disconnect(true);
+      }
+      // Drop event
+      return;
+    }
+  });
 
   matchmaking.registerSocket(userId, socket.id);
   matchmaking.clearDisconnectTimer(userId);
