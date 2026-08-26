@@ -72,6 +72,13 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
         });
     }, [opponentId, user?.id, timeControl, matchMode]);
     const [isCheck, setIsCheck] = useState<boolean>(false);
+    const [showMoveHints, setShowMoveHints] = useState<boolean>(true);
+    const [showResignConfirm, setShowResignConfirm] = useState<boolean>(false);
+
+    const handleResign = () => {
+        setWinner(onlineRole === 'black' ? 'white_wins' : 'black_wins');
+        setShowResignConfirm(false);
+    };
     const [showCheckWarning, setShowCheckWarning] = useState<boolean>(false);
     const [winner, setWinner] = useState<'white_wins' | 'black_wins' | 'draw' | null>(null);
     const [disconnectTimeLeft, setDisconnectTimeLeft] = useState<number | null>(null);
@@ -714,24 +721,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
 
     return (
         <div className="flex flex-col items-center w-full max-w-[800px] relative">
-            {/* Online match: ROOM ID banner */}
-            {roomId && (
-                <div className="w-full mb-3 p-3 bg-cyan-950/60 border border-cyan-500/50 rounded-lg flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <span className="text-cyan-400 text-sm font-bold uppercase tracking-wider">ROOM ID:</span>
-                        <span className="text-2xl font-black text-cyan-300 tracking-[0.3em] font-mono select-all cursor-pointer"
-                              onClick={() => { navigator.clipboard.writeText(roomId); }}
-                              title="Click to copy">
-                            {roomId}
-                        </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <span className={`text-xs px-2 py-1 rounded font-bold ${onlineRole === 'spectator' ? 'bg-gray-800 text-gray-300 border border-gray-500' : (myRole === 'white' ? 'bg-blue-900 text-blue-300 border border-blue-500/50' : 'bg-red-900 text-red-300 border border-red-500/50')}`}>
-                            {onlineRole === 'spectator' ? '👁 SPECTATING' : (myRole === 'white' ? 'YOU: 🟦 WHITE' : 'YOU: 🟥 BLACK')}
-                        </span>
-                    </div>
-                </div>
-            )}
+            
 
             {disconnectTimeLeft !== null && (
                 <div className="w-full mb-3 p-3 bg-red-950/80 border border-red-500 rounded-lg flex flex-col items-center justify-center animate-pulse shadow-[0_0_15px_rgba(239,68,68,0.5)]">
@@ -864,7 +854,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
                     const isSelected = tokenHere?.id === selectedTokenId;
                     
                     // このマスが、選択中の駒の移動可能マスかどうかを判定
-                    const isMoveCandidate = validMoves.some(m => m.r === row && m.c === col);
+                    const isMoveCandidate = showMoveHints && validMoves.some(m => m.r === row && m.c === col);
 
                     return (
                         <div 
@@ -913,9 +903,66 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
                 </div>
             </div>
             
+            
+            {/* Control Bar: Move hints toggle & Resign button */}
+            <div className="w-full flex justify-between items-center px-4 mt-4">
+                <label className="flex items-center gap-2 text-sm text-gray-400 cursor-pointer hover:text-gray-200 transition-colors select-none">
+                    <input 
+                        type="checkbox" 
+                        checked={showMoveHints} 
+                        onChange={(e) => setShowMoveHints(e.target.checked)} 
+                        className="rounded border-gray-700 bg-gray-800 text-cyan-500 focus:ring-cyan-500/50 w-4 h-4 cursor-pointer" 
+                    />
+                    {lang === 'ja' ? 'コマの移動範囲を表示' : 'Show movable range'}
+                </label>
+
+                {!winner && onlineRole !== 'spectator' && (
+                    <button
+                        onClick={() => setShowResignConfirm(true)}
+                        className="px-3 py-1.5 bg-red-950/50 hover:bg-red-900/80 border border-red-800/80 hover:border-red-600 rounded text-xs text-red-400 hover:text-red-200 font-bold transition-all flex items-center gap-1.5 shadow-sm"
+                    >
+                        <span>🏳️</span>
+                        <span>{lang === 'ja' ? '投了' : 'Resign'}</span>
+                    </button>
+                )}
+            </div>
+
             <div className="mt-4 text-[#00ff41] text-sm opacity-80 text-center px-4">
                 {t.tips}
             </div>
+
+            {/* Resign Confirmation Modal */}
+            {showResignConfirm && (
+                <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 backdrop-blur-sm animate-fade-in">
+                    <div className="bg-gray-900 border border-red-500/50 rounded-xl p-6 max-w-sm w-full shadow-2xl flex flex-col items-center text-center">
+                        <span className="text-4xl mb-3">🏳️</span>
+                        <h3 className="text-lg font-bold text-white mb-2">
+                            {lang === 'ja' ? '投了しますか？' : 'Resign Match?'}
+                        </h3>
+                        <p className="text-sm text-gray-400 mb-6">
+                            {lang === 'ja' ? '投了すると相手の勝利となります。本当に対局を終了しますか？' : 'Resigning will forfeit the match to your opponent. Are you sure?'}
+                        </p>
+                        <div className="flex gap-3 w-full">
+                            <button
+                                onClick={() => setShowResignConfirm(false)}
+                                className="flex-1 py-2.5 bg-gray-800 hover:bg-gray-700 border border-gray-600 rounded-lg text-sm text-gray-300 font-bold transition-colors"
+                            >
+                                {lang === 'ja' ? 'キャンセル' : 'Cancel'}
+                            </button>
+                            <button
+                                onClick={() => {
+                                    setShowResignConfirm(false);
+                                    handleResign();
+                                }}
+                                className="flex-1 py-2.5 bg-red-600 hover:bg-red-500 rounded-lg text-sm text-white font-bold transition-colors shadow-lg shadow-red-600/30"
+                            >
+                                {lang === 'ja' ? '投了する' : 'Resign'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
 
             {/* Emote Button & Menu */}
             {roomId && onlineRole && onlineRole !== 'spectator' && !winner && (
