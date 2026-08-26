@@ -8,6 +8,7 @@ import { QuantumPieceUI } from './QuantumPieceUI';
 import { PieceType } from '../config/gameConfig';
 import { v4 as uuidv4 } from 'uuid';
 import { Token, deduceMoveTypes } from '../lib/GameEngine';
+import { supabase } from '../lib/supabaseClient';
 
 export type EmoteType = 'hello' | 'well_played' | 'wow' | 'thinking' | 'resign';
 export const EMOTES: Record<EmoteType, { emoji: string; labelJa: string; labelEn: string }> = {
@@ -54,6 +55,8 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
     const [timeLeftWhite, setTimeLeftWhite] = useState<number>(0);
     const [timeLeftBlack, setTimeLeftBlack] = useState<number>(0);
 
+    const [fetchedOpponentName, setFetchedOpponentName] = useState<string | null>(null);
+
     const [disconnectTimeLeft, setDisconnectTimeLeft] = useState<number | null>(null);
     const disconnectTimerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -92,6 +95,45 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
         triggerEmote(onlineRole, emote);
         setShowEmoteMenu(false);
     }, [roomId, onlineRole, triggerEmote, socket]);
+
+    // Fetch opponent's display name from Supabase profiles
+    useEffect(() => {
+        let targetId = opponentId;
+        if (!targetId && gameState?.players) {
+            const myId = user?.id || '';
+            const myClean = myId.replace('anon_', '');
+            const hostClean = (gameState.players.host || '').replace('anon_', '');
+            const joinerClean = (gameState.players.joiner || '').replace('anon_', '');
+            targetId = myClean === hostClean ? joinerClean : hostClean;
+        }
+
+        if (!targetId) return;
+
+        const cleanId = targetId.replace('anon_', '');
+        if (cleanId.startsWith('GUEST-')) {
+            setFetchedOpponentName(cleanId);
+            return;
+        }
+
+        const fetchProfileName = async () => {
+            try {
+                const { data } = await supabase
+                    .from('profiles')
+                    .select('name')
+                    .eq('id', cleanId)
+                    .single();
+                if (data?.name) {
+                    setFetchedOpponentName(data.name);
+                } else {
+                    setFetchedOpponentName(cleanId);
+                }
+            } catch (e) {
+                setFetchedOpponentName(cleanId);
+            }
+        };
+
+        fetchProfileName();
+    }, [opponentId, gameState?.players, user?.id]);
 
     // Connect & Sync on mount or reconnection
     useEffect(() => {
@@ -324,8 +366,13 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
         return `${m}:${s < 10 ? '0' : ''}${s}`;
     };
 
-    const whiteName = onlineRole === 'white' ? (user?.name || 'You') : (opponentId || 'Opponent');
-    const blackName = onlineRole === 'black' ? (user?.name || 'You') : (opponentId || 'Opponent');
+    const fallbackOpponent = (opponentId && opponentId.startsWith('GUEST-')) 
+        ? opponentId 
+        : (opponentId?.replace('anon_', '') || 'Player');
+    const resolvedOpponentName = fetchedOpponentName || fallbackOpponent;
+
+    const whiteName = onlineRole === 'white' ? (user?.name || 'You') : resolvedOpponentName;
+    const blackName = onlineRole === 'black' ? (user?.name || 'You') : resolvedOpponentName;
     const playerName = onlineRole === 'white' ? whiteName : blackName;
     const opponentName = onlineRole === 'white' ? blackName : whiteName;
 
