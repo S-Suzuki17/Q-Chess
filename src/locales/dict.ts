@@ -113,6 +113,8 @@ export const dict = {
         muted: 'MUTED',
         on: 'ON',
         language: 'Language',
+                friends: 'Friends',
+        liveMatch: 'Live Match',
         // Rules
         rulesTitle: "RULES OF Q-GAMBIT",
         rulesButton: "How to Play",
@@ -223,6 +225,8 @@ export const dict = {
         muted: 'ミュート',
         on: 'オン',
         language: '言語 (Language)',
+                friends: 'フレンド',
+        liveMatch: 'ライブ観戦',
         // Rules
         rulesTitle: "Q-GAMBIT のルール",
         rulesButton: "遊び方",
@@ -333,6 +337,8 @@ export const dict = {
         muted: '静音',
         on: '开启',
         language: '语言 (Language)',
+                friends: '好友',
+        liveMatch: '实时观战',
         // Rules
         rulesTitle: "Q-GAMBIT 游戏规则",
         rulesButton: "玩法介绍",
@@ -443,6 +449,8 @@ export const dict = {
         muted: 'ВЫКЛ',
         on: 'ВКЛ',
         language: 'Язык (Language)',
+                friends: 'Друзья',
+        liveMatch: 'Прямой эфир',
         // Rules
         rulesTitle: "ПРАВИЛА Q-GAMBIT",
         rulesButton: "Как играть",
@@ -553,6 +561,8 @@ export const dict = {
         muted: 'COUPÉ',
         on: 'ON',
         language: 'Langue (Language)',
+                friends: 'Amis',
+        liveMatch: 'Match en direct',
         // Rules
         rulesTitle: "RÈGLES DE Q-GAMBIT",
         rulesButton: "Comment jouer",
@@ -663,6 +673,8 @@ export const dict = {
         muted: 'STUMM',
         on: 'AN',
         language: 'Sprache (Language)',
+                friends: 'Freunde',
+        liveMatch: 'Live-Spiel',
         // Rules
         rulesTitle: "REGELN VON Q-GAMBIT",
         rulesButton: "Spielanleitung",
@@ -773,6 +785,8 @@ export const dict = {
         muted: 'SILENCIADO',
         on: 'ON',
         language: 'Idioma (Language)',
+                friends: 'Amigos',
+        liveMatch: 'Partida en vivo',
         // Rules
         rulesTitle: "REGLAS DE Q-GAMBIT",
         rulesButton: "Cómo jugar",
