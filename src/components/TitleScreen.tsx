@@ -68,32 +68,32 @@ export function TitleScreen({ lang, onLogin }: TitleScreenProps) {
     };
 
     return (
-        <div className="flex flex-col items-center justify-center min-h-[80vh] w-full text-cyan-400">
+        <div className="flex flex-col items-center justify-center min-h-[80vh] w-full text-[#E8E5DF] font-sans">
             {/* Title Section */}
-            <div className="text-center mb-16 animate-pulse">
-                <h1 className="text-6xl md:text-8xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-600 drop-shadow-[0_0_15px_rgba(34,211,238,0.8)]">
+            <div className="text-center mb-16">
+                <h1 className="text-6xl md:text-8xl font-serif text-[#D4B872] drop-shadow-lg">
                     {t.title}
                 </h1>
-                <p className="mt-4 text-xl tracking-widest text-cyan-200/80">{t.subtitle}</p>
+                <p className="mt-4 text-xl tracking-widest text-[#E8E5DF]/80 font-serif">{t.subtitle}</p>
             </div>
 
             {/* Menu Section */}
-            <div className="w-full max-w-md p-8 bg-black/40 border border-cyan-500/30 rounded-xl backdrop-blur-sm shadow-[0_0_30px_rgba(34,211,238,0.1)]">
+            <div className="w-full max-w-md p-8 bg-[#2A2621] border border-[#4A4238] rounded-xl shadow-2xl">
                 
                 {mode === 'select' && (
                     <div className="flex flex-col gap-4">
-                        <button onClick={handleGuest} className="w-full py-3 px-6 bg-cyan-950/50 border border-cyan-500 hover:bg-cyan-900 transition-all text-cyan-300 font-bold tracking-widest uppercase hover:shadow-[0_0_15px_rgba(34,211,238,0.5)]">
+                        <button onClick={handleGuest} className="w-full py-3 px-6 bg-[#3B342C] border border-[#4A4238] hover:bg-[#4A4238] transition-all text-[#D4B872] font-bold tracking-widest uppercase">
                             {t.guestLogin}
                         </button>
                         {!hasRegisteredAccount && (
-                            <button onClick={() => setMode('register')} className="w-full py-3 px-6 bg-cyan-950/50 border border-cyan-500 hover:bg-cyan-900 transition-all text-cyan-300 font-bold tracking-widest uppercase hover:shadow-[0_0_15px_rgba(34,211,238,0.5)]">
+                            <button onClick={() => setMode('register')} className="w-full py-3 px-6 bg-[#3B342C] border border-[#4A4238] hover:bg-[#4A4238] transition-all text-[#D4B872] font-bold tracking-widest uppercase">
                                 {t.createAccount}
                             </button>
                         )}
-                        <button onClick={() => setMode('login')} className="w-full py-3 px-6 bg-cyan-950/50 border border-cyan-500 hover:bg-cyan-900 transition-all text-cyan-300 font-bold tracking-widest uppercase hover:shadow-[0_0_15px_rgba(34,211,238,0.5)]">
+                        <button onClick={() => setMode('login')} className="w-full py-3 px-6 bg-[#3B342C] border border-[#4A4238] hover:bg-[#4A4238] transition-all text-[#D4B872] font-bold tracking-widest uppercase">
                             {t.login}
                         </button>
-                        <button onClick={() => setMode('rules')} className="w-full mt-4 py-2 px-6 border-t border-cyan-900 text-cyan-500 hover:text-cyan-300 transition-all font-bold tracking-widest uppercase">
+                        <button onClick={() => setMode('rules')} className="w-full mt-4 py-2 px-6 border-t border-[#4A4238] text-[#D4B872] hover:text-[#E8E5DF] transition-all font-bold tracking-widest uppercase">
                             📖 {t.rulesButton}
                         </button>
                     </div>
@@ -106,13 +106,13 @@ export function TitleScreen({ lang, onLogin }: TitleScreenProps) {
                             placeholder={t.enterName}
                             value={inputName}
                             onChange={e => setInputName(e.target.value)}
-                            className="w-full bg-black/50 border border-cyan-500/50 p-3 text-cyan-300 focus:outline-none focus:border-cyan-400 focus:shadow-[0_0_10px_rgba(34,211,238,0.3)] text-center text-xl"
+                            className="w-full bg-[#1E1C19] border border-[#4A4238] p-3 text-[#E8E5DF] focus:outline-none focus:border-[#D4B872] text-center text-xl font-serif"
                             autoFocus
                         />
-                        <button type="submit" className="w-full py-3 bg-cyan-600 hover:bg-cyan-500 text-black font-bold tracking-widest transition-all">
+                        <button type="submit" className="w-full py-3 bg-[#4A4238] hover:bg-[#5C5346] text-[#E8E5DF] font-bold tracking-widest transition-all">
                             {t.submit}
                         </button>
-                        <button type="button" onClick={() => setMode('select')} className="text-cyan-600/80 hover:text-cyan-400 text-sm mt-2">
+                        <button type="button" onClick={() => setMode('select')} className="text-[#D4B872]/80 hover:text-[#D4B872] text-sm mt-2">
                             {t.back}
                         </button>
                     </form>
@@ -120,17 +120,17 @@ export function TitleScreen({ lang, onLogin }: TitleScreenProps) {
 
                 {mode === 'show_id' && (
                     <div className="flex flex-col items-center gap-6 text-center">
-                        <div className="text-green-400 font-bold text-xl">{t.accountCreated}</div>
+                        <div className="text-green-500 font-bold text-xl">{t.accountCreated}</div>
                         <div>
-                            <p className="text-cyan-500 mb-2">{t.yourIdIs}</p>
-                            <div className="text-4xl font-mono text-white bg-cyan-950 px-6 py-3 border border-cyan-400 rounded shadow-[0_0_20px_rgba(34,211,238,0.4)]">
+                            <p className="text-[#D4B872] mb-2 font-serif">{t.yourIdIs}</p>
+                            <div className="text-4xl font-mono text-[#E8E5DF] bg-[#1E1C19] px-6 py-3 border border-[#4A4238] rounded">
                                 {generatedId}
                             </div>
                         </div>
-                        <p className="text-sm text-cyan-200/60 max-w-xs">{t.rememberId}</p>
+                        <p className="text-sm text-[#E8E5DF]/60 max-w-xs">{t.rememberId}</p>
                         <button 
                             onClick={() => onLogin({ id: generatedId, name: inputName, type: 'registered' })} 
-                            className="w-full py-3 mt-4 bg-cyan-600 hover:bg-cyan-500 text-black font-bold tracking-widest transition-all">
+                            className="w-full py-3 mt-4 bg-[#4A4238] hover:bg-[#5C5346] text-[#E8E5DF] font-bold tracking-widest transition-all">
                             {t.continue}
                         </button>
                     </div>
@@ -144,11 +144,11 @@ export function TitleScreen({ lang, onLogin }: TitleScreenProps) {
                                 placeholder={t.enterId}
                                 value={inputId}
                                 onChange={e => setInputId(e.target.value.toUpperCase())}
-                                className="w-full bg-black/50 border border-cyan-500/50 p-3 text-cyan-300 focus:outline-none focus:border-cyan-400 focus:shadow-[0_0_10px_rgba(34,211,238,0.3)] text-center text-xl font-mono uppercase"
+                                className="w-full bg-[#1E1C19] border border-[#4A4238] p-3 text-[#E8E5DF] focus:outline-none focus:border-[#D4B872] text-center text-xl font-mono uppercase"
                                 autoFocus
                             />
                             {error && <p className="text-red-500 text-sm text-center">{error}</p>}
-                            <button type="submit" className="w-full py-3 bg-cyan-600 hover:bg-cyan-500 text-black font-bold tracking-widest transition-all">
+                            <button type="submit" className="w-full py-3 bg-[#4A4238] hover:bg-[#5C5346] text-[#E8E5DF] font-bold tracking-widest transition-all">
                                 {t.login}
                             </button>
                         </form>
@@ -158,17 +158,17 @@ export function TitleScreen({ lang, onLogin }: TitleScreenProps) {
                             const savedAccounts: User[] = savedStr ? JSON.parse(savedStr) : [];
                             if (savedAccounts.length > 0) {
                                 return (
-                                    <div className="mt-4 pt-4 border-t border-cyan-900/50">
-                                        <p className="text-cyan-600/80 text-xs text-center mb-2">SAVED ACCOUNTS</p>
+                                    <div className="mt-4 pt-4 border-t border-[#4A4238]">
+                                        <p className="text-[#D4B872]/80 text-xs text-center mb-2 font-bold tracking-widest">SAVED ACCOUNTS</p>
                                         <div className="flex flex-col gap-2">
                                             {savedAccounts.map(account => (
                                                 <button 
                                                     key={account.id}
                                                     onClick={() => onLogin(account)}
-                                                    className="w-full py-2 px-4 bg-cyan-950/30 hover:bg-cyan-900/50 border border-cyan-800 rounded transition-colors text-left flex justify-between items-center"
+                                                    className="w-full py-2 px-4 bg-[#3B342C] hover:bg-[#4A4238] border border-[#4A4238] rounded transition-colors text-left flex justify-between items-center"
                                                 >
-                                                    <span className="text-cyan-300 font-bold">{account.name}</span>
-                                                    <span className="text-cyan-600 font-mono text-sm">{account.id}</span>
+                                                    <span className="text-[#E8E5DF] font-bold">{account.name}</span>
+                                                    <span className="text-[#D4B872] font-mono text-sm">{account.id}</span>
                                                 </button>
                                             ))}
                                         </div>
@@ -178,7 +178,7 @@ export function TitleScreen({ lang, onLogin }: TitleScreenProps) {
                             return null;
                         })()}
 
-                        <button type="button" onClick={() => setMode('select')} className="text-cyan-600/80 hover:text-cyan-400 text-sm mt-4">
+                        <button type="button" onClick={() => setMode('select')} className="text-[#D4B872]/80 hover:text-[#D4B872] text-sm mt-4">
                             {t.back}
                         </button>
                     </div>
@@ -186,14 +186,14 @@ export function TitleScreen({ lang, onLogin }: TitleScreenProps) {
 
                 {mode === 'rules' && (
                     <div className="flex flex-col gap-4 text-left">
-                        <h2 className="text-2xl font-bold text-center text-cyan-400 mb-2">{t.rulesTitle}</h2>
-                        <ul className="text-cyan-100 text-sm flex flex-col gap-3">
+                        <h2 className="text-2xl font-serif text-center text-[#D4B872] mb-2">{t.rulesTitle}</h2>
+                        <ul className="text-[#E8E5DF] text-sm flex flex-col gap-3">
                             <li>{t.rule1}</li>
                             <li>{t.rule2}</li>
                             <li>{t.rule3}</li>
                             <li>{t.rule4}</li>
                         </ul>
-                        <button type="button" onClick={() => setMode('select')} className="text-cyan-600/80 hover:text-cyan-400 text-sm mt-4">
+                        <button type="button" onClick={() => setMode('select')} className="text-[#D4B872]/80 hover:text-[#D4B872] text-sm mt-4">
                             {t.back}
                         </button>
                     </div>

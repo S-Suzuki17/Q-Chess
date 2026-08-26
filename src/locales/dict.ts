@@ -107,6 +107,12 @@ export const dict = {
         next: "NEXT",
         vs: "vs",
         
+                bgmVolume: 'BGM Volume',
+        seVolume: 'SE Volume',
+        masterMute: 'Sound ON/OFF',
+        muted: 'MUTED',
+        on: 'ON',
+        language: 'Language',
         // Rules
         rulesTitle: "RULES OF Q-GAMBIT",
         rulesButton: "How to Play",
@@ -211,6 +217,12 @@ export const dict = {
         next: "進む",
         vs: "対",
         
+                bgmVolume: 'BGM 音量',
+        seVolume: '効果音 音量',
+        masterMute: 'サウンドのON/OFF',
+        muted: 'ミュート',
+        on: 'オン',
+        language: '言語 (Language)',
         // Rules
         rulesTitle: "Q-GAMBIT のルール",
         rulesButton: "遊び方",
@@ -315,6 +327,12 @@ export const dict = {
         next: "下一步",
         vs: "VS",
         
+                bgmVolume: '背景音乐音量',
+        seVolume: '音效音量',
+        masterMute: '声音开关',
+        muted: '静音',
+        on: '开启',
+        language: '语言 (Language)',
         // Rules
         rulesTitle: "Q-GAMBIT 游戏规则",
         rulesButton: "玩法介绍",
@@ -419,6 +437,12 @@ export const dict = {
         next: "ВПЕРЕД",
         vs: "против",
         
+                bgmVolume: 'Громкость музыки',
+        seVolume: 'Громкость звуков',
+        masterMute: 'Звук ВКЛ/ВЫКЛ',
+        muted: 'ВЫКЛ',
+        on: 'ВКЛ',
+        language: 'Язык (Language)',
         // Rules
         rulesTitle: "ПРАВИЛА Q-GAMBIT",
         rulesButton: "Как играть",
@@ -523,6 +547,12 @@ export const dict = {
         next: "SUIV",
         vs: "vs",
         
+                bgmVolume: 'Volume musique',
+        seVolume: 'Volume effets',
+        masterMute: 'Son ON/OFF',
+        muted: 'COUPÉ',
+        on: 'ON',
+        language: 'Langue (Language)',
         // Rules
         rulesTitle: "RÈGLES DE Q-GAMBIT",
         rulesButton: "Comment jouer",
@@ -627,6 +657,12 @@ export const dict = {
         next: "WEITER",
         vs: "vs",
         
+                bgmVolume: 'Musik-Lautstärke',
+        seVolume: 'Effekt-Lautstärke',
+        masterMute: 'Ton AN/AUS',
+        muted: 'STUMM',
+        on: 'AN',
+        language: 'Sprache (Language)',
         // Rules
         rulesTitle: "REGELN VON Q-GAMBIT",
         rulesButton: "Spielanleitung",
@@ -731,6 +767,12 @@ export const dict = {
         next: "SIG",
         vs: "vs",
         
+                bgmVolume: 'Volumen de música',
+        seVolume: 'Volumen de efectos',
+        masterMute: 'Sonido ON/OFF',
+        muted: 'SILENCIADO',
+        on: 'ON',
+        language: 'Idioma (Language)',
         // Rules
         rulesTitle: "REGLAS DE Q-GAMBIT",
         rulesButton: "Cómo jugar",
