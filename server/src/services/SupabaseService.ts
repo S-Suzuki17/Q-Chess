@@ -47,29 +47,82 @@ export class SupabaseService {
             let realBlack = blackId.startsWith('anon_') ? blackId.replace('anon_', '') : blackId;
 
             if (realWhite === 'ai' || realBlack === 'ai' || realWhite.startsWith('GUEST-') || realBlack.startsWith('GUEST-') || realWhite === '' || realBlack === '') {
-                console.log(`[DB] Skipping DB write for AI/Guest match ${matchId}`);
+                console.log(`[DB] Skipping DB rating update for AI/Guest match ${matchId}`);
                 return true;
             }
 
-            // Use Atomic RPC to prevent partial updates / race conditions (Calculates Elo internally)
-            const { data: success, error } = await this.supabase.rpc('record_match_result', {
-                p_match_id: matchId,
-                p_white_id: realWhite,
-                p_black_id: realBlack,
-                p_winner: winner,
-                p_moves: history.length
+            console.log(`[DB] Recording match ${matchId}: White=${realWhite}, Black=${realBlack}, Winner=${winner}`);
+
+            // 1. Fetch current profiles for both players
+            const [whiteRes, blackRes] = await Promise.all([
+                this.supabase.from('profiles').select('*').eq('id', realWhite).single(),
+                this.supabase.from('profiles').select('*').eq('id', realBlack).single()
+            ]);
+
+            let whiteProfile = whiteRes.data;
+            let blackProfile = blackRes.data;
+
+            // Ensure profile exists if missing
+            if (!whiteProfile) {
+                const { data } = await this.supabase.from('profiles').insert({
+                    id: realWhite,
+                    name: 'Player',
+                    rating: 2000,
+                    rating_10m: 2000,
+                    rating_3m: 2000,
+                    rating_10s: 2000
+                }).select().single();
+                whiteProfile = data;
+            }
+
+            if (!blackProfile) {
+                const { data } = await this.supabase.from('profiles').insert({
+                    id: realBlack,
+                    name: 'Player',
+                    rating: 2000,
+                    rating_10m: 2000,
+                    rating_3m: 2000,
+                    rating_10s: 2000
+                }).select().single();
+                blackProfile = data;
+            }
+
+            const whiteRating = whiteProfile?.rating_10m ?? whiteProfile?.rating ?? 2000;
+            const blackRating = blackProfile?.rating_10m ?? blackProfile?.rating ?? 2000;
+
+            const scoreWhite = winner === 'WHITE' ? 1.0 : winner === 'BLACK' ? 0.0 : 0.5;
+            const { newA: newWhiteRating, newB: newBlackRating } = this.calculateElo(whiteRating, blackRating, scoreWhite, 32);
+
+            console.log(`[DB] Rating Updated: White(${whiteRating} -> ${newWhiteRating}), Black(${blackRating} -> ${newBlackRating})`);
+
+            // 2. Update profiles in parallel
+            await Promise.all([
+                this.supabase.from('profiles').update({
+                    rating: newWhiteRating,
+                    rating_10m: newWhiteRating
+                }).eq('id', realWhite),
+
+                this.supabase.from('profiles').update({
+                    rating: newBlackRating,
+                    rating_10m: newBlackRating
+                }).eq('id', realBlack)
+            ]);
+
+            // 3. Save match record to game_records table
+            const winnerString = winner === 'WHITE' ? 'white_wins' : winner === 'BLACK' ? 'black_wins' : 'draw';
+            await this.supabase.from('game_records').insert({
+                white_player: whiteProfile?.name || 'White',
+                black_player: blackProfile?.name || 'Black',
+                white_id: realWhite,
+                black_id: realBlack,
+                winner: winnerString,
+                mode: 'random',
+                time_control: '10m',
+                moves: [],
+                total_moves: history.length
             });
 
-            if (error) {
-                console.error(`[DB] RPC Error recording match ${matchId}:`, error);
-                return false;
-            }
-
-            if (success) {
-                console.log(`[DB] Recorded Match ${matchId} successfully.`);
-            } else {
-                console.log(`[DB] Match ${matchId} already recorded (Idempotency trigger).`);
-            }
+            console.log(`[DB] Match ${matchId} and Ratings recorded successfully.`);
             return true;
         } catch (error) {
             console.error(`[DB] Error recording match ${matchId}:`, error);

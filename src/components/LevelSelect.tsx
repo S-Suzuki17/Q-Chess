@@ -71,21 +71,42 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onReplay, onB
             supabase.removeChannel(channel);
         };
     }, [user.id]);
-    React.useEffect(() => {
-        import('../lib/gameRecordService').then(({ ensureProfile }) => {
-            ensureProfile(user.id, user.name).then(profile => {
-                if (profile) setUserProfile(profile);
-            });
-        });
+
+    const refreshUserProfile = React.useCallback(async () => {
+        const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+        if (data) {
+            setUserProfile(data as Profile);
+        } else {
+            const { ensureProfile } = await import('../lib/gameRecordService');
+            const p = await ensureProfile(user.id, user.name);
+            if (p) setUserProfile(p);
+        }
     }, [user.id, user.name]);
 
     React.useEffect(() => {
-        if (showAccount && !userStats) {
+        refreshUserProfile();
+    }, [refreshUserProfile]);
+
+    React.useEffect(() => {
+        if (showAccount) {
+            refreshUserProfile();
             import('../lib/gameRecordService').then(({ getUserStats }) => {
                 getUserStats(user.id).then(stats => setUserStats(stats));
             });
         }
-    }, [showAccount, user.id, userStats]);
+    }, [showAccount, user.id, refreshUserProfile]);
+
+    React.useEffect(() => {
+        if (showLeaderboard) {
+            loadLeaderboard(leaderboardCategory);
+        }
+    }, [showLeaderboard, leaderboardCategory]);
+
+    React.useEffect(() => {
+        if (showReplays) {
+            loadReplays(replayCategory);
+        }
+    }, [showReplays, replayCategory]);
 
     React.useEffect(() => {
         if (isSearching) {
