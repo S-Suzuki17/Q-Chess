@@ -7,6 +7,8 @@ export interface Piece {
     x: number;
     y: number;
     captured: boolean;
+    hasMoved?: boolean;
+    promoted?: boolean;
 }
 
 export interface InternalGameState {

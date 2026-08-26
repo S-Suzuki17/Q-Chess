@@ -49,6 +49,7 @@ export function createInitialBoard() {
             x,
             y: 0,
             captured: false,
+            hasMoved: false,
         });
         board[x] = pieceId++;
 
@@ -60,6 +61,7 @@ export function createInitialBoard() {
             x,
             y: 1,
             captured: false,
+            hasMoved: false,
         });
         board[8 + x] = pieceId++;
     }
@@ -74,6 +76,7 @@ export function createInitialBoard() {
             x,
             y: 6,
             captured: false,
+            hasMoved: false,
         });
         board[48 + x] = pieceId++;
 
@@ -85,6 +88,7 @@ export function createInitialBoard() {
             x,
             y: 7,
             captured: false,
+            hasMoved: false,
         });
         board[56 + x] = pieceId++;
     }
@@ -150,9 +154,11 @@ export function isPathClear(board, fromX, fromY, toX, toY) {
  * @param {number} team - 0 for white, 1 for black
  * @param {(number|null)[]} board - Current board state
  * @param {boolean} isCapture - Whether this move captures an opponent
+ * @param {any} piece - Optional piece reference
+ * @param {any[]} pieces - Optional pieces array
  * @returns {boolean} True if move is valid
  */
-export function isValidMoveForType(pieceType, fromX, fromY, toX, toY, team, board, isCapture) {
+export function isValidMoveForType(pieceType: string, fromX: number, fromY: number, toX: number, toY: number, team: number, board: any[], isCapture: boolean, piece: any = null, pieces: any[] = []) {
     const dx = toX - fromX;
     const dy = toY - fromY;
     const absDx = Math.abs(dx);
@@ -204,8 +210,23 @@ export function isValidMoveForType(pieceType, fromX, fromY, toX, toY, team, boar
 
         case 'K':
             // King: One square in any direction
-            return absDx <= 1 && absDy <= 1 && (absDx + absDy > 0);
-
+            if (absDx <= 1 && absDy <= 1 && (absDx + absDy > 0)) return true;
+            // Castling
+            if (absDx === 2 && dy === 0 && piece && pieces) {
+                const kingStartRow = team === 0 ? 0 : 7;
+                if (fromY === kingStartRow && !piece.hasMoved) {
+                    const rookX = dx > 0 ? 7 : 0;
+                    const rookId = board[coordToIndex(rookX, kingStartRow)];
+                    if (rookId !== null) {
+                        const rookPiece = pieces.find((p: any) => p.id === rookId);
+                        if (rookPiece && rookPiece.team === team && !rookPiece.hasMoved && !rookPiece.captured) {
+                            return isPathClear(board, fromX, fromY, toX, toY);
+                        }
+                    }
+                }
+            }
+            return false;
+            
         default:
             return false;
     }
@@ -221,11 +242,12 @@ export function isValidMoveForType(pieceType, fromX, fromY, toX, toY, team, boar
  * @param {number} toY - Destination Y
  * @param {(number|null)[]} board - Current board state
  * @param {boolean} isCapture - Whether this move captures an opponent
+ * @param {any[]} pieces - Optional pieces array
  * @returns {string[]} Filtered array of possible piece types
  */
-export function filterPossibilities(piece, toX, toY, board, isCapture) {
-    return piece.possibilities.filter(type =>
-        isValidMoveForType(type, piece.x, piece.y, toX, toY, piece.team, board, isCapture)
+export function filterPossibilities(piece: any, toX: number, toY: number, board: any[], isCapture: boolean, pieces: any[] = []) {
+    return piece.possibilities.filter((type: string) =>
+        isValidMoveForType(type, piece.x, piece.y, toX, toY, piece.team, board, isCapture, piece, pieces)
     );
 }
 
@@ -364,7 +386,7 @@ export function attemptMove(pieces, board, pieceId, toX, toY) {
     }
 
     // Filter possibilities based on the move (observation)
-    const newPossibilities = filterPossibilities(piece, toX, toY, board, isCapture);
+    const newPossibilities = filterPossibilities(piece, toX, toY, board, isCapture, pieces);
 
     if (newPossibilities.length === 0) {
         return { success: false, pieces, board, capturedPiece: null, message: 'Invalid move for this piece' };
@@ -374,10 +396,14 @@ export function attemptMove(pieces, board, pieceId, toX, toY) {
     piece.possibilities = newPossibilities;
     piece.x = toX;
     piece.y = toY;
+    piece.hasMoved = true;
 
     // Update pieces array
     const newPieces = [...pieces];
     newPieces[pieceIndex] = piece;
+
+    // Update board
+    const newBoard = [...board];
 
     // Handle capture
     if (capturedPiece) {
@@ -385,8 +411,26 @@ export function attemptMove(pieces, board, pieceId, toX, toY) {
         newPieces[capturedIndex] = { ...newPieces[capturedIndex], captured: true };
     }
 
-    // Update board
-    const newBoard = [...board];
+    // Handle castling side effect (move the rook)
+    if (newPossibilities.includes('K') && Math.abs(toX - fromX) === 2) {
+        const isKingside = toX > fromX;
+        const rookX = isKingside ? 7 : 0;
+        const newRookX = isKingside ? toX - 1 : toX + 1;
+        const rookId = board[coordToIndex(rookX, fromY)];
+        if (rookId !== null) {
+            const rookIndex = newPieces.findIndex(p => p.id === rookId);
+            if (rookIndex !== -1) {
+                newPieces[rookIndex] = { ...newPieces[rookIndex], x: newRookX, hasMoved: true };
+                // Also restrict to Rook
+                newPieces[rookIndex].possibilities = newPieces[rookIndex].possibilities.filter((p: string) => p === 'R');
+                if (newPieces[rookIndex].possibilities.length === 0) newPieces[rookIndex].possibilities = ['R'];
+                // Update board
+                newBoard[coordToIndex(rookX, fromY)] = null;
+                newBoard[coordToIndex(newRookX, fromY)] = rookId;
+            }
+        }
+    }
+
     newBoard[coordToIndex(fromX, fromY)] = null;
     newBoard[destIndex] = pieceId;
 
@@ -447,7 +491,8 @@ export function getValidMoves(piece, board, pieces) {
         // Check if any current possibility allows this move
         // Optimization: Pass pre-calculated flags to avoid redundant checks inside filterPossibilities if needed
         // For now, we rely on filterPossibilities doing the geometry check
-        const validTypes = filterPossibilities(piece, x, y, board, isCapture);
+        const validTypes = filterPossibilities(piece, x, y, board, isCapture, pieces);
+        
         if (validTypes.length > 0) {
             validMoves.push({ x, y, isCapture });
         }

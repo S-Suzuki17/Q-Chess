@@ -71,17 +71,29 @@ export function deduceMoveTypes(
         return types;
     }
 
+    const kingStartRow = isWhite ? 7 : 0;
+    
     if (absDr <= 1 && absDc <= 1) types.push('King');
     if ((absDr > 0 && absDc === 0) || (absDr === 0 && absDc > 0)) { types.push('Rook'); types.push('Queen'); }
     if (absDr === absDc && absDr > 0) { types.push('Bishop'); types.push('Queen'); }
 
     // Castling
-    if (absDr === 0 && absDc === 2 && token.row === startRow && !token.hasMoved) {
+    if (absDr === 0 && absDc === 2 && token.row === kingStartRow && !token.hasMoved) {
         // Must be row 7 or 0. Check if corresponding corner piece has moved.
         const cornerCol = dc > 0 ? 7 : 0;
-        const cornerToken = tokens.find(t => t.row === startRow && t.col === cornerCol && t.player === token.player);
+        const cornerToken = tokens.find(t => t.row === kingStartRow && t.col === cornerCol && t.player === token.player && !t.isCaptured);
         if (cornerToken && !cornerToken.hasMoved) {
-            types.push('King'); // Moving 2 horizontally allows King (if castling conditions met)
+            let pathClear = true;
+            const step = dc > 0 ? 1 : -1;
+            for (let c = token.col + step; c !== cornerCol; c += step) {
+                if (tokens.some(t => t.row === kingStartRow && t.col === c && !t.isCaptured)) {
+                    pathClear = false;
+                    break;
+                }
+            }
+            if (pathClear) {
+                types.push('King'); // Moving 2 horizontally allows King (if castling conditions met)
+            }
         }
     }
 
