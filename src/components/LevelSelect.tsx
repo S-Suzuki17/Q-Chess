@@ -581,14 +581,14 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onReplay, onB
                         onClick={() => setShowFriends(true)}
                         className="group relative w-1/2 p-3 bg-[#3B342C] border border-[#4A4238] hover:bg-[#4A4238] transition-all rounded text-center overflow-hidden hover:shadow-lg">
                         <div className="relative z-10 flex flex-col justify-center items-center gap-1">
-                            <span className="text-lg font-bold text-[#E8E5DF] tracking-wider">👥 Friends</span>
+                            <span className="text-lg font-bold text-[#E8E5DF] tracking-wider">👥 {(t as any).friends || \'Friends\'}</span>
                         </div>
                     </button>
                     <button 
                         onClick={() => setShowLiveMatches(true)}
                         className="group relative w-1/2 p-3 bg-red-900/40 border border-[#4A4238] hover:bg-red-800/50 transition-all rounded text-center overflow-hidden hover:shadow-lg">
                         <div className="relative z-10 flex flex-col justify-center items-center gap-1">
-                            <span className="text-lg font-bold text-red-300 tracking-wider">🔴 Live Matches</span>
+                            <span className="text-lg font-bold text-red-300 tracking-wider">🔴 {(t as any).liveMatch || \'Live Matches\'}</span>
                         </div>
                     </button>
                 </div>
