@@ -1,5 +1,6 @@
 'use client';
 import { useMatchmaking } from '../hooks/useMatchmaking';
+import { AdBanner } from './AdBanner';
 
 import React from 'react';
 import { dict, Language } from '../locales/dict';

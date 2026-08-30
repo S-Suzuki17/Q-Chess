@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { User } from '../types/game';
 import { dict, Language } from '../locales/dict';
+import { AdBanner } from './AdBanner';
 import { supabase } from '../lib/supabaseClient';
 
 interface TitleScreenProps {
@@ -167,6 +168,7 @@ export function TitleScreen({ lang, onLogin }: TitleScreenProps) {
                     </form>
                 )}
             </div>
-        </div>
+            <AdBanner adSlot={process.env.NEXT_PUBLIC_AD_SLOT_TITLE || ''} adFormat="horizontal" className="mt-4 w-full max-w-sm" />
+            </div>
     );
 }
