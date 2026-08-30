@@ -48,6 +48,44 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onReplay, onB
     const [isEditingName, setIsEditingName] = React.useState(false);
     const [newName, setNewName] = React.useState('');
     const [nameLoading, setNameLoading] = React.useState(false);
+    const [uploadingAvatar, setUploadingAvatar] = React.useState(false);
+
+    const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        try {
+            setUploadingAvatar(true);
+            if (!e.target.files || e.target.files.length === 0) return;
+            const file = e.target.files[0];
+            const fileExt = file.name.split('.').pop();
+            const filePath = `${user.id}/avatar.${fileExt}`;
+
+            // Upload to Supabase Storage
+            const { error: uploadError } = await supabase.storage
+                .from('avatars')
+                .upload(filePath, file, { upsert: true });
+
+            if (uploadError) throw uploadError;
+
+            // Get public URL
+            const { data: publicUrlData } = supabase.storage
+                .from('avatars')
+                .getPublicUrl(filePath);
+
+            // Update profiles table
+            const { error: updateError } = await supabase.from('profiles')
+                .update({ avatar_url: publicUrlData.publicUrl })
+                .eq('id', user.id);
+
+            if (updateError) throw updateError;
+            
+            // Reload to show new avatar
+            window.location.reload();
+        } catch (error) {
+            alert('Error uploading avatar!');
+            console.error(error);
+        } finally {
+            setUploadingAvatar(false);
+        }
+    };
 
     const handleUpdateName = async () => {
         if (!newName.trim() || newName.trim().length > 15) {
