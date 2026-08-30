@@ -456,7 +456,11 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
                 {/* White Player Info */}
                 <div className={`text-xl font-bold flex flex-col items-start gap-1 ${currentTurn === 'white' ? 'text-blue-400 drop-shadow-[0_0_5px_currentColor]' : 'text-gray-500'} relative`}>
                     <div className="flex items-center gap-2">
-                        ⚪ {whiteName} {onlineRole === 'white' && <span className="text-xs px-1.5 py-0.5 rounded bg-blue-900/60 text-blue-300 font-normal">YOU</span>}
+                        {(() => {
+                            const av = isHost ? (user?.avatar_url || hostAvatarUrl) : joinerAvatarUrl;
+                            return av ? <img src={av} alt="" className="w-7 h-7 rounded-full object-cover border border-blue-400/50" /> : <div className="w-7 h-7 rounded-full bg-gray-800 border border-blue-400/50 flex items-center justify-center"><span className="text-xs">👤</span></div>;
+                        })()}
+                        {whiteName} {onlineRole === 'white' && <span className="text-xs px-1.5 py-0.5 rounded bg-blue-900/60 text-blue-300 font-normal">YOU</span>}
                     </div>
                     <span className="text-2xl font-mono">{formatTime(timeLeftWhite)}</span>
                     {activeEmotes.white && (
@@ -473,7 +477,11 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
                 {/* Black Player Info */}
                 <div className={`text-xl font-bold flex flex-col items-end gap-1 ${currentTurn === 'black' ? 'text-red-500 drop-shadow-[0_0_5px_currentColor]' : 'text-gray-500'} relative`}>
                     <div className="flex items-center gap-2">
-                        {onlineRole === 'black' && <span className="text-xs px-1.5 py-0.5 rounded bg-red-900/60 text-red-300 font-normal">YOU</span>} {blackName} ⚫
+                        {onlineRole === 'black' && <span className="text-xs px-1.5 py-0.5 rounded bg-red-900/60 text-red-300 font-normal">YOU</span>} {blackName}
+                        {(() => {
+                            const av = !isHost ? (user?.avatar_url || joinerAvatarUrl) : hostAvatarUrl;
+                            return av ? <img src={av} alt="" className="w-7 h-7 rounded-full object-cover border border-red-500/50" /> : <div className="w-7 h-7 rounded-full bg-gray-800 border border-red-500/50 flex items-center justify-center"><span className="text-xs">👤</span></div>;
+                        })()}
                     </div>
                     <span className="text-2xl font-mono">{formatTime(timeLeftBlack)}</span>
                     {activeEmotes.black && (
