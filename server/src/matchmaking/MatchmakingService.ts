@@ -242,6 +242,18 @@ export class MatchmakingService {
         }
     }
 
+
+    public getQueueStats(): Record<number, number> {
+        const stats: Record<number, number> = {};
+        for (const userId of this.waitingQueue) {
+            const session = this.players.get(userId);
+            if (session && session.timeControl) {
+                stats[session.timeControl] = (stats[session.timeControl] || 0) + 1;
+            }
+        }
+        return stats;
+    }
+
     public getMatch(matchId: string) {
         return this.matches.get(matchId);
     }
