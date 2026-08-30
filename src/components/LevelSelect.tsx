@@ -261,7 +261,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onReplay, onB
             setMatchFound(true);
             setIsSearching(false);
             setTimeout(() => {
-                const tcStr = matchedRoom.timeControl === 180 ? '3m' : matchedRoom.timeControl === 600 ? '10m' : '10m';
+                const tcStr = matchedRoom.timeControl === 180 ? '3m' : matchedRoom.timeControl === 600 ? '10m' : '10s';
                 onOnlineMatch?.(matchedRoom.id, matchedRoom.myColor, 'random', tcStr, matchedRoom.myColor === 'white' ? matchedRoom.joinerId : matchedRoom.hostId);
                 setMatchFound(false);
             }, 1500);
@@ -279,7 +279,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onReplay, onB
 
     const startRandomMatch = React.useCallback((mode: 'random' | 'ranked', tc: TimeControl) => {
         setIsSearching(true);
-        const tcSeconds = tc === '3m' ? 180 : tc === '10m' ? 600 : 900;
+        const tcSeconds = tc === '3m' ? 180 : tc === '10m' ? 600 : 10;
         startMatchmaking(tcSeconds);
     }, [startMatchmaking]);
 
