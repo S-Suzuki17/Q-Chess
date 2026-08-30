@@ -804,7 +804,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
 
             {winner && (
                 <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center z-50 backdrop-blur-md rounded-lg border-2 border-gray-700 animate-shake">
-                    <div className="text-7xl md:text-8xl font-black text-white drop-shadow-[0_0_30px_rgba(255,255,255,1)] mb-8 tracking-[0.3em] animate-stamp glitch-text" data-text={winner === 'draw' ? 'DRAW' : 'CHECKMATE'}>
+                    <div className="text-5xl sm:text-6xl md:text-8xl font-black text-white drop-shadow-[0_0_30px_rgba(255,255,255,1)] mb-8 tracking-widest md:tracking-[0.3em] animate-stamp glitch-text text-center px-4" data-text={winner === 'draw' ? 'DRAW' : 'CHECKMATE'}>
                         {winner === 'draw' ? 'DRAW' : 'CHECKMATE'}
                     </div>
                     <div className={`text-4xl font-bold mb-12 ${winner === 'draw' ? 'text-gray-400 drop-shadow-[0_0_15px_rgba(156,163,175,0.8)]' : winner === 'white_wins' ? 'text-blue-400 drop-shadow-[0_0_15px_rgba(96,165,250,0.8)]' : 'text-red-500 drop-shadow-[0_0_15px_rgba(239,68,68,0.8)]'}`}>

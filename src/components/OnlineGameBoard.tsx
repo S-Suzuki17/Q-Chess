@@ -484,7 +484,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
 
             {winner && (
                 <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center z-50 backdrop-blur-md rounded-lg border-2 border-gray-700 animate-shake">
-                    <div className={`text-7xl md:text-8xl font-black mb-8 tracking-[0.3em] animate-stamp glitch-text ${
+                    <div className={`text-4xl sm:text-6xl md:text-7xl font-black mb-8 tracking-widest md:tracking-[0.3em] animate-stamp glitch-text text-center px-4 ${
                         winner === 'draw' 
                             ? 'text-gray-300 drop-shadow-[0_0_20px_rgba(255,255,255,1)]' 
                             : (winner === 'white_wins' && onlineRole === 'white') || (winner === 'black_wins' && onlineRole === 'black')
