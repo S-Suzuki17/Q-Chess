@@ -41,6 +41,32 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onReplay, onB
     const [userProfile, setUserProfile] = React.useState<Profile | null>(null);
     const [userStats, setUserStats] = React.useState<UserStats | null>(null);
     const [showAccount, setShowAccount] = React.useState(false);
+    const [updateEmail, setUpdateEmail] = React.useState('');
+    const [updatePassword, setUpdatePassword] = React.useState('');
+    const [emailMsg, setEmailMsg] = React.useState('');
+    const [emailLoading, setEmailLoading] = React.useState(false);
+
+    const handleUpdateEmail = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setEmailMsg('');
+        if (!updateEmail || !updatePassword) {
+            setEmailMsg('Email and password required.');
+            return;
+        }
+        setEmailLoading(true);
+        const { data, error } = await supabase.rpc('update_user_email', {
+            p_id: user.id,
+            p_password: updatePassword,
+            p_email: updateEmail
+        });
+        setEmailLoading(false);
+        if (error || !data) {
+            setEmailMsg('Update failed. Incorrect password?');
+        } else {
+            setEmailMsg('Email updated successfully!');
+            setUpdatePassword('');
+        }
+    };
     const [showFriends, setShowFriends] = React.useState(false);
     const [showLiveMatches, setShowLiveMatches] = React.useState(false);
     const [onlineCount, setOnlineCount] = React.useState(1);
