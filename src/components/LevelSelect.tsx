@@ -1,5 +1,6 @@
 'use client';
 import { useMatchmaking } from '../hooks/useMatchmaking';
+import { useSocket } from '../lib/SocketContext';
 import { AdBanner } from './AdBanner';
 
 import React from 'react';
@@ -31,6 +32,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onReplay, onB
     const [isSearching, setIsSearching] = React.useState(false);
     const [matchFound, setMatchFound] = React.useState(false);
     const { isSearching: hookSearching, matchedRoom, startMatchmaking, cancelMatchmaking: hookCancel } = useMatchmaking(user);
+    const { queueStats } = useSocket();
     const [showReplays, setShowReplays] = React.useState(false);
     const [replays, setReplays] = React.useState<GameRecord[]>([]);
     const [loadingReplays, setLoadingReplays] = React.useState(false);
@@ -388,11 +390,16 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onReplay, onB
                                     className="w-full py-4 bg-[#161513] border border-[#A89C86]/40 hover:border-[#B39A62] transition-colors text-[#E8E2D7] tracking-widest text-sm flex justify-between px-6 items-center group"
                                 >
                                     <span className="group-hover:text-[#B39A62]">{tc === '10s' ? t.tc10s : tc === '3m' ? t.tc3m : t.tc10m}</span>
+                                    
                                     {pendingAction.type === 'ranked' && userProfile && (
                                         <span className="text-xs text-[#B39A62] font-mono mx-auto">
                                             {(t as any).ratingLabel}: {Math.floor(tc === '10s' ? userProfile.rating_10s : tc === '3m' ? userProfile.rating_3m : userProfile.rating_10m)}
                                         </span>
                                     )}
+                                    <span className="text-[#A89C86] text-[10px] tracking-widest ml-auto group-hover:text-[#D4B872] transition-colors">
+                                        {queueStats?.[tc === '10s' ? 10 : tc === '3m' ? 180 : 600] || 0} waiting
+                                    </span>
+
                                     <span className="text-xs text-[#A89C86]">→</span>
                                 </button>
                             ))}

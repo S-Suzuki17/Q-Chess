@@ -5,9 +5,10 @@ import { io, Socket } from 'socket.io-client';
 interface SocketContextProps {
     socket: Socket | null;
     isConnected: boolean;
+    queueStats: Record<number, number>;
 }
 
-const SocketContext = createContext<SocketContextProps>({ socket: null, isConnected: false });
+const SocketContext = createContext<SocketContextProps>({ socket: null, isConnected: false, queueStats: {} });
 
 export function useSocket() {
     return useContext(SocketContext);
@@ -16,6 +17,7 @@ export function useSocket() {
 export function SocketProvider({ children, userId }: { children: React.ReactNode, userId: string | undefined }) {
     const [socket, setSocket] = useState<Socket | null>(null);
     const [isConnected, setIsConnected] = useState(false);
+    const [queueStats, setQueueStats] = useState<Record<number, number>>({});
 
     useEffect(() => {
         if (!userId) return;
@@ -50,7 +52,7 @@ export function SocketProvider({ children, userId }: { children: React.ReactNode
     }, [userId]);
 
     return (
-        <SocketContext.Provider value={{ socket, isConnected }}>
+        <SocketContext.Provider value={{ socket, isConnected, queueStats }}>
             {children}
         </SocketContext.Provider>
     );
