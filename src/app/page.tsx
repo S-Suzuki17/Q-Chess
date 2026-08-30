@@ -28,8 +28,19 @@ export default function Home() {
 
     
     useEffect(() => {
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-            if (session && event === 'SIGNED_IN') {
+        const fetchProfileAndSetUser = async (session: any) => {
+            try {
+                const { data: profile } = await supabase.from('profiles').select('name').eq('id', session.user.id).single();
+                const u = {
+                    id: session.user.id,
+                    name: profile?.name || session.user.user_metadata?.full_name || session.user.user_metadata?.name || 'Player',
+                    type: 'registered' as const
+                };
+                setUser(u);
+                localStorage.setItem('qg_last_user', JSON.stringify(u));
+                setGameState('level_select');
+            } catch (e) {
+                console.error('Failed to fetch profile', e);
                 const u = {
                     id: session.user.id,
                     name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || 'Player',
@@ -38,6 +49,12 @@ export default function Home() {
                 setUser(u);
                 localStorage.setItem('qg_last_user', JSON.stringify(u));
                 setGameState('level_select');
+            }
+        };
+
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+            if (session && event === 'SIGNED_IN') {
+                await fetchProfileAndSetUser(session);
             } else if (event === 'SIGNED_OUT') {
                 setUser(null);
                 localStorage.removeItem('qg_last_user');
@@ -48,14 +65,7 @@ export default function Home() {
         // Check initial session
         supabase.auth.getSession().then(({ data: { session } }) => {
             if (session) {
-                const u = {
-                    id: session.user.id,
-                    name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || 'Player',
-                    type: 'registered' as const
-                };
-                setUser(u);
-                localStorage.setItem('qg_last_user', JSON.stringify(u));
-                setGameState('level_select');
+                fetchProfileAndSetUser(session);
             }
         });
 
