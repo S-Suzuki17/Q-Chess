@@ -34,7 +34,7 @@ interface GameBoardProps {
 }
 
 export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, matchMode, opponentId, timeControl = '10m', onHome }: GameBoardProps) {
-    const t = dict[lang];
+    const t = { ...dict['en'], ...(dict[lang] || {}) } as any;
     const [pool, setPool] = useState(() => new IdentityPool());
     const poolRef = useRef<IdentityPool>(pool);
     useEffect(() => { poolRef.current = pool; }, [pool]);

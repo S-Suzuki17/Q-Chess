@@ -22,7 +22,7 @@ interface LevelSelectProps {
 }
 
 export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onReplay, onBack }: LevelSelectProps) {
-    const t = dict[lang];
+    const t = { ...dict['en'], ...(dict[lang] || {}) } as any;
     const [showAdModal, setShowAdModal] = React.useState(false);
     const [adProgress, setAdProgress] = React.useState(0);
     const [showOnlineMenu, setShowOnlineMenu] = React.useState(false);

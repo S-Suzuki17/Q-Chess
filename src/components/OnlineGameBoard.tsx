@@ -43,7 +43,7 @@ const mapPossibility = (p: string): PieceType => {
 };
 
 export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchMode, opponentId, timeControl = '10m', onHome }: OnlineGameBoardProps) {
-    const t = dict[lang];
+    const t = { ...dict['en'], ...(dict[lang] || {}) } as any;
     const { socket, isConnected } = useSocket();
 
     const [gameState, setGameState] = useState<any>(null);

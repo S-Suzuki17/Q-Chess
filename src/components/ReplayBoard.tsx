@@ -14,7 +14,7 @@ interface ReplayBoardProps {
 }
 
 export default function ReplayBoard({ lang, record, onHome }: ReplayBoardProps) {
-    const t = dict[lang];
+    const t = { ...dict['en'], ...(dict[lang] || {}) } as any;
     const [currentMoveIndex, setCurrentMoveIndex] = useState(0);
     const tokens = useMemo(() => {
         // Rebuild state from scratch up to currentMoveIndex

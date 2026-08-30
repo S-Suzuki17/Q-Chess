@@ -13,7 +13,7 @@ interface FriendsMenuProps {
 }
 
 export function FriendsMenu({ user, lang, onlineUsers, onClose, onChallenge }: FriendsMenuProps) {
-    const t = dict[lang];
+    const t = { ...dict['en'], ...(dict[lang] || {}) } as any;
     const [friends, setFriends] = useState<Friend[]>([]);
     const [profiles, setProfiles] = useState<Record<string, Profile>>({});
     const [loading, setLoading] = useState(true);

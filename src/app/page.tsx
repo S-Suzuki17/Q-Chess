@@ -76,7 +76,7 @@ export default function Home() {
     useEffect(() => {
         if (typeof window !== 'undefined') {
             const savedLang = localStorage.getItem('qg_language') as Language;
-            if (savedLang) {
+            if (savedLang && LANGUAGES.some(l => l.code === savedLang)) {
                 setLang(savedLang);
             } else {
                 const browserLang = navigator.language.split('-')[0];

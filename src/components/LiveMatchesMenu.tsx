@@ -10,7 +10,7 @@ interface LiveMatchesMenuProps {
 }
 
 export function LiveMatchesMenu({ lang, onClose, onSpectate }: LiveMatchesMenuProps) {
-    const t = dict[lang];
+    const t = { ...dict['en'], ...(dict[lang] || {}) } as any;
     const [matches, setMatches] = useState<ActiveMatch[]>([]);
     const [profiles, setProfiles] = useState<Record<string, Profile>>({});
     const [loading, setLoading] = useState(true);

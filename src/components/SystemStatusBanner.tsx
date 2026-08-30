@@ -15,7 +15,7 @@ interface Props {
 }
 
 export function SystemStatusBanner({ lang }: Props) {
-    const t = dict[lang];
+    const t = { ...dict['en'], ...(dict[lang] || {}) } as any;
     const [status, setStatus] = useState<SystemStatus | null>(null);
 
     useEffect(() => {

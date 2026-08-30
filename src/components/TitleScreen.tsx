@@ -11,7 +11,7 @@ interface TitleScreenProps {
 }
 
 export function TitleScreen({ lang, onLogin }: TitleScreenProps) {
-    const t = dict[lang];
+    const t = { ...dict['en'], ...(dict[lang] || {}) } as any;
     const [mode, setMode] = useState<'select' | 'register' | 'login' | 'rules'>('select');
     const [inputId, setInputId] = useState('');
     const [inputPassword, setInputPassword] = useState('');
@@ -88,25 +88,17 @@ export function TitleScreen({ lang, onLogin }: TitleScreenProps) {
                 <h1 className="text-5xl md:text-7xl font-serif text-[#E8E2D7] tracking-[0.2em] mb-4">
                     Q-GAMBIT
                 </h1>
-                <p className="text-xs md:text-sm tracking-[0.4em] text-[#A89C86] font-light uppercase">
-                    A game of hidden identity
-                </p>
+                <p className="text-xs md:text-sm tracking-[0.4em] text-[#A89C86] font-light uppercase">{(t as any)?.subtitle2 || "A game of hidden identity"}</p>
             </div>
 
             <div className="relative z-10 w-full max-w-sm flex flex-col gap-6">
                 {mode === 'select' && (
                     <div className="flex flex-col gap-4">
-                        <button onClick={handleGuest} className="w-full py-4 bg-[#191714] border border-[#B39A62]/50 hover:bg-[#B39A62] hover:text-[#11100E] transition-colors text-lg tracking-[0.2em] text-[#B39A62]">
-                            PLAY AS GUEST
-                        </button>
+                        <button onClick={handleGuest} className="w-full py-4 bg-[#191714] border border-[#B39A62]/50 hover:bg-[#B39A62] hover:text-[#11100E] transition-colors text-lg tracking-[0.2em] text-[#B39A62]">{(t as any)?.guestLogin || "PLAY AS GUEST"}</button>
                         
                         <div className="flex flex-col gap-3 mt-4">
-                            <button onClick={() => { setMode('login'); setError(''); }} className="w-full py-3 bg-[#191714]/80 border border-[#A89C86]/30 hover:bg-[#A89C86]/20 transition-colors text-sm tracking-widest text-[#E8E2D7]">
-                                SIGN IN
-                            </button>
-                            <button onClick={() => { setMode('register'); setError(''); }} className="w-full py-3 bg-transparent border border-[#A89C86]/30 hover:bg-[#A89C86]/10 transition-colors text-sm tracking-widest text-[#E8E2D7]">
-                                CREATE ACCOUNT
-                            </button>
+                            <button onClick={() => { setMode('login'); setError(''); }} className="w-full py-3 bg-[#191714]/80 border border-[#A89C86]/30 hover:bg-[#A89C86]/20 transition-colors text-sm tracking-widest text-[#E8E2D7]">{(t as any)?.login || "SIGN IN"}</button>
+                            <button onClick={() => { setMode('register'); setError(''); }} className="w-full py-3 bg-transparent border border-[#A89C86]/30 hover:bg-[#A89C86]/10 transition-colors text-sm tracking-widest text-[#E8E2D7]">{(t as any)?.createAccount || "CREATE ACCOUNT"}</button>
                         </div>
                     </div>
                 )}
@@ -135,7 +127,7 @@ export function TitleScreen({ lang, onLogin }: TitleScreenProps) {
                         {error && <p className="text-red-400 text-sm text-center bg-red-950/50 p-2 border border-red-900/50">{error}</p>}
                         
                         <button type="submit" disabled={loading} className="w-full py-3 bg-[#B39A62] hover:bg-[#D0C8B6] text-[#11100E] font-bold tracking-widest transition-colors mt-2">
-                            {loading ? "..." : (mode === 'register' ? 'SUBMIT' : 'SIGN IN')}
+                            {loading ? "..." : (mode === "register" ? ((t as any)?.submit || "SUBMIT") : ((t as any)?.login || "SIGN IN"))}
                         </button>
                         
                         <div className="flex items-center justify-center gap-4 my-2 opacity-50">
@@ -167,9 +159,7 @@ export function TitleScreen({ lang, onLogin }: TitleScreenProps) {
                             </button>
                         </div>
                         
-                        <button type="button" onClick={() => setMode('select')} disabled={loading} className="text-[#A89C86] hover:text-[#E8E2D7] text-xs tracking-widest mt-2">
-                            CANCEL
-                        </button>
+                        <button type="button" onClick={() => setMode('select')} disabled={loading} className="text-[#A89C86] hover:text-[#E8E2D7] text-xs tracking-widest mt-2">{(t as any)?.cancel || "CANCEL"}</button>
                     </form>
                 )}
             </div>
