@@ -193,7 +193,7 @@ export default function Home() {
         <SocketProvider userId={user?.id}>
             <SystemStatusBanner lang={lang} />
             <SpeedInsights />
-        <main className="fixed inset-0 flex flex-col items-center justify-between bg-[#161513] text-[#E8E2D7] font-sans overflow-hidden">
+        <main className="fixed inset-0 flex flex-col items-center justify-between bg-[#11100E] text-[#E8E2D7] font-sans overflow-hidden">
             <div className="z-10 w-full max-w-5xl flex items-center justify-between text-sm mb-4">
                 {/* 右上のコントロール群 */}
                 <div className="fixed right-4 top-4 z-50 flex gap-2 items-center">
@@ -287,12 +287,12 @@ export default function Home() {
 
             
             {(gameState === 'title' || gameState === 'level_select') && (
-                <div className="absolute inset-0 z-0 flex items-center justify-center opacity-[0.03] pointer-events-none scale-[2] rotate-12 blur-[1px]">
-                    <div className="grid grid-cols-8 grid-rows-8 border-4 border-[#E8E2D7] w-[800px] h-[800px]">
+                <div className="absolute inset-0 z-0 flex items-center justify-center opacity-[0.045] pointer-events-none scale-[2] rotate-12 blur-[0.5px]">
+                    <div className="grid grid-cols-8 grid-rows-8 border-4 border-[#B39A62] w-[800px] h-[800px]">
                         {Array.from({ length: 64 }).map((_, i) => {
                             const isBlack = (Math.floor(i / 8) + (i % 8)) % 2 === 1;
                             return (
-                                <div key={i} className={`w-full h-full ${isBlack ? 'bg-[#E8E2D7]' : 'bg-transparent'}`} />
+                                <div key={i} className={`w-full h-full ${isBlack ? 'bg-[#B39A62]' : 'bg-transparent'}`} />
                             );
                         })}
                     </div>

@@ -82,7 +82,7 @@ export function TitleScreen({ lang, onLogin }: TitleScreenProps) {
     };
 
     return (
-        <div className="flex flex-col items-center justify-center min-h-screen bg-[#11100E] text-[#E8E2D7] p-4 font-sans selection:bg-[#B39A62]/30">
+        <div className="flex flex-col items-center justify-center w-full h-full min-h-screen bg-transparent text-[#E8E2D7] p-4 font-sans selection:bg-[#B39A62]/30">
             {/* Minimal Board Pattern Background */}
             <div className="relative z-10 text-center mb-16">
                 <h1 className="text-5xl md:text-7xl font-serif text-[#E8E2D7] tracking-[0.2em] mb-4">
