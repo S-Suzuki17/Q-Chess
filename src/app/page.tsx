@@ -207,7 +207,7 @@ export default function Home() {
             </div>
 
             {showSettings && (
-                <div className="fixed inset-0 bg-black/80 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
+                <div className="fixed inset-0 bg-black/80 z-[300] flex items-center justify-center p-4 backdrop-blur-sm">
                     <div className="bg-[#2A2621] border border-[#4A4238] rounded-xl p-8 w-full max-w-md shadow-2xl font-sans">
                         <div className="flex justify-between items-center mb-8">
                             <h2 className="text-2xl font-serif text-[#D4B872]">⚙️ {dict[lang]?.settings || 'SETTINGS'}</h2>
@@ -368,6 +368,15 @@ export default function Home() {
                     </footer>
                 </>
             )}
+
+            <div className="fixed right-4 top-4 z-[200] flex gap-2 items-center pointer-events-auto">
+                <button 
+                    onClick={() => setShowSettings(true)}
+                    className="px-3 py-2 bg-[#2A2621] border border-[#4A4238] text-[#D4B872] rounded hover:bg-[#3B342C] transition-colors font-sans font-bold tracking-widest flex items-center justify-center text-xs shadow-lg"
+                >
+                    ⚙ {dict[lang]?.settings || 'SETTINGS'}
+                </button>
+            </div>
         </main></SocketProvider>
     );
 }
