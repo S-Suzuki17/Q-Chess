@@ -795,15 +795,16 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
             </div>
             
             {showCheckWarning && !winner && (
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 pointer-events-none">
-                    <div className="text-6xl font-black text-red-600 animate-ping opacity-70 whitespace-nowrap">{t.quantumCheck}</div>
-                    <div className="text-6xl font-black text-red-500 absolute inset-0 whitespace-nowrap">{t.quantumCheck}</div>
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 pointer-events-none animate-shake">
+                    <div className="text-6xl md:text-7xl font-black text-red-500 whitespace-nowrap tracking-[0.2em] glitch-text drop-shadow-[0_0_20px_rgba(239,68,68,1)]" data-text={t.quantumCheck}>
+                        {t.quantumCheck}
+                    </div>
                 </div>
             )}
 
             {winner && (
-                <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center z-50 backdrop-blur-sm rounded-lg border border-gray-800">
-                    <div className="text-6xl font-black text-white drop-shadow-[0_0_20px_rgba(255,255,255,0.8)] mb-8 tracking-widest">
+                <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center z-50 backdrop-blur-md rounded-lg border-2 border-gray-700 animate-shake">
+                    <div className="text-7xl md:text-8xl font-black text-white drop-shadow-[0_0_30px_rgba(255,255,255,1)] mb-8 tracking-[0.3em] animate-stamp glitch-text" data-text={winner === 'draw' ? 'DRAW' : 'CHECKMATE'}>
                         {winner === 'draw' ? 'DRAW' : 'CHECKMATE'}
                     </div>
                     <div className={`text-4xl font-bold mb-12 ${winner === 'draw' ? 'text-gray-400 drop-shadow-[0_0_15px_rgba(156,163,175,0.8)]' : winner === 'white_wins' ? 'text-blue-400 drop-shadow-[0_0_15px_rgba(96,165,250,0.8)]' : 'text-red-500 drop-shadow-[0_0_15px_rgba(239,68,68,0.8)]'}`}>
