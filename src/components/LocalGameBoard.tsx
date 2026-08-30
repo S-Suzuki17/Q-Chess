@@ -762,7 +762,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
                 {/* White Player Info */}
                 <div className={`text-xl font-bold flex flex-col items-start gap-1 ${currentTurn === 'white' ? 'text-blue-400 drop-shadow-[0_0_5px_currentColor]' : 'text-gray-500'} relative`}>
                     <div className="flex items-center gap-2">
-                        🟦 {whiteName} {whiteRatingToDisplay !== null && <span className="text-gray-400 text-sm">({whiteRatingToDisplay})</span>}
+                        {user?.avatar_url ? <img src={user.avatar_url} alt="" className="w-7 h-7 rounded-full object-cover border border-blue-400/50" /> : <div className="w-7 h-7 rounded-full bg-gray-800 border border-blue-400/50 flex items-center justify-center"><span className="text-xs">👤</span></div>} {whiteName} {whiteRatingToDisplay !== null && <span className="text-gray-400 text-sm">({whiteRatingToDisplay})</span>}
                         {isCheck && currentTurn === 'white' && <span className="text-red-500 text-sm animate-pulse">(CHECK)</span>}
                     </div>
                     <span className="text-2xl font-mono">{formatTime(timeLeftWhite)}</span>
@@ -782,7 +782,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
                 <div className={`text-xl font-bold flex flex-col items-end gap-1 ${currentTurn === 'black' ? 'text-red-500 drop-shadow-[0_0_5px_currentColor]' : 'text-gray-500'} relative`}>
                     <div className="flex items-center gap-2">
                         {isCheck && currentTurn === 'black' && <span className="text-red-500 text-sm animate-pulse">(CHECK)</span>}
-                        {blackRatingToDisplay !== null && <span className="text-gray-400 text-sm">({blackRatingToDisplay})</span>} {blackName} 🟥
+                        {blackRatingToDisplay !== null && <span className="text-gray-400 text-sm">({blackRatingToDisplay})</span>} {blackName} <div className="w-7 h-7 rounded-full bg-gray-800 border border-red-500/50 flex items-center justify-center"><span className="text-xs">🤖</span></div>
                     </div>
                     <span className="text-2xl font-mono">{formatTime(timeLeftBlack)}</span>
                     {/* Black Emote */}
