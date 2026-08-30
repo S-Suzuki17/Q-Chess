@@ -2,6 +2,14 @@ import { Token, deduceMoveTypes, isPlayerInCheck, isCheckmate } from './GameEngi
 import { IdentityPool } from './IdentityPool';
 import { PieceType } from '../config/gameConfig';
 
+
+function isValidMove(player: 'white'|'black', simTokens: Token[], pool: IdentityPool): boolean {
+    const opponent = player === 'white' ? 'black' : 'white';
+    const opponentHasKing = simTokens.some(t => t.player === opponent && !t.isCaptured && pool.piecePossibilities.get(t.id)?.has('King'));
+    if (!opponentHasKing) return true; // Capturing the king is always valid and wins the game!
+    return !isPlayerInCheck(player, simTokens, pool);
+}
+
 export interface AIMove {
     tokenId: string;
     targetRow: number;
@@ -46,6 +54,9 @@ function evaluateState(tokens: Token[], pool: IdentityPool, cpuPlayer: 'white' |
             if (p.has('King')) enemyKingCandidates.push(t);
         }
     }
+
+    if (myKingCandidates.length === 0) return -999999;
+    if (enemyKingCandidates.length === 0) return 999999;
 
     let score = 0;
     score += myTotalAmbiguity * 40;
@@ -181,7 +192,7 @@ export function calculateDeepMove(level: number, tokens: Token[], pool: Identity
             for (const move of nextMoves) {
                 const { nextTokens: simTokens, nextPool: simPool } = applyMoveAndResolve(currentTokens, currentPool, move);
                 if (!simPool.resolveGlobalConstraints(simTokens)) continue;
-                if (isPlayerInCheck(currentPlayer, simTokens, simPool)) continue;
+                if (!isValidMove(currentPlayer, simTokens, simPool)) continue;
                 
                 const evalScore = quiescence(alpha, beta, false, simTokens, simPool);
                 maxEval = Math.max(maxEval, evalScore);
@@ -194,7 +205,7 @@ export function calculateDeepMove(level: number, tokens: Token[], pool: Identity
             for (const move of nextMoves) {
                 const { nextTokens: simTokens, nextPool: simPool } = applyMoveAndResolve(currentTokens, currentPool, move);
                 if (!simPool.resolveGlobalConstraints(simTokens)) continue;
-                if (isPlayerInCheck(currentPlayer, simTokens, simPool)) continue;
+                if (!isValidMove(currentPlayer, simTokens, simPool)) continue;
                 
                 const evalScore = quiescence(alpha, beta, true, simTokens, simPool);
                 minEval = Math.min(minEval, evalScore);
@@ -230,7 +241,7 @@ const alphaBeta = (depth: number, alpha: number, beta: number, isMaximizingPlaye
             for (const move of nextMoves) {
                 const { nextTokens: simTokens, nextPool: simPool } = applyMoveAndResolve(currentTokens, currentPool, move);
                 if (!simPool.resolveGlobalConstraints(simTokens)) continue;
-                if (isPlayerInCheck(currentPlayer, simTokens, simPool)) continue;
+                if (!isValidMove(currentPlayer, simTokens, simPool)) continue;
                 
                 const evalScore = alphaBeta(depth - 1, alpha, beta, false, simTokens, simPool);
                 maxEval = Math.max(maxEval, evalScore);
@@ -243,7 +254,7 @@ const alphaBeta = (depth: number, alpha: number, beta: number, isMaximizingPlaye
             for (const move of nextMoves) {
                 const { nextTokens: simTokens, nextPool: simPool } = applyMoveAndResolve(currentTokens, currentPool, move);
                 if (!simPool.resolveGlobalConstraints(simTokens)) continue;
-                if (isPlayerInCheck(currentPlayer, simTokens, simPool)) continue;
+                if (!isValidMove(currentPlayer, simTokens, simPool)) continue;
                 
                 const evalScore = alphaBeta(depth - 1, alpha, beta, true, simTokens, simPool);
                 minEval = Math.min(minEval, evalScore);
@@ -265,7 +276,7 @@ const alphaBeta = (depth: number, alpha: number, beta: number, isMaximizingPlaye
         for (const move of moves) {
             const { nextTokens: simTokens, nextPool: simPool } = applyMoveAndResolve(tokens, pool, move);
             if (!simPool.resolveGlobalConstraints(simTokens)) continue;
-            if (isPlayerInCheck(cpuPlayer, simTokens, simPool)) continue;
+            if (!isValidMove(cpuPlayer, simTokens, simPool)) continue;
             
             const score = alphaBeta(currentDepth - 1, alpha, beta, false, simTokens, simPool);
             
