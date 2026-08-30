@@ -360,7 +360,7 @@ export function resolveEntanglement(pieces, team) {
  * @param {number} toY - Destination Y
  * @returns {{ success: boolean, pieces: Piece[], board: (number|null)[], capturedPiece: Piece|null, message: string }}
  */
-export function attemptMove(pieces: any[], board: any[], pieceId: number, toX: number, toY: number, intention: 'castle' | 'normal' | undefined = undefined) {
+export function attemptMove(pieces: any[], board: any[], pieceId: number, toX: number, toY: number, intention: 'castle' | 'normal' | undefined = undefined, promotedTo: string | undefined = undefined) {
     const pieceIndex = pieces.findIndex(p => p.id === pieceId);
     if (pieceIndex === -1) {
         return { success: false, pieces, board, capturedPiece: null, message: 'Piece not found' };

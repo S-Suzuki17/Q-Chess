@@ -50,6 +50,11 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
     const [selectedTokenId, setSelectedTokenId] = useState<string | null>(null);
     const [showMoveHints, setShowMoveHints] = useState<boolean>(true);
     const [showResignConfirm, setShowResignConfirm] = useState<boolean>(false);
+    const [promotionPending, setPromotionPending] = useState<{
+        pieceId: number;
+        targetRow: number;
+        targetCol: number;
+    } | null>(null);
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
     const [castlingPending, setCastlingPending] = useState<{
@@ -642,6 +647,53 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
             </div>
 
             {/* Resign Confirmation Modal */}
+            {/* Promotion Modal */}
+            {promotionPending && (
+                <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+                    <div className="bg-gray-900 border-2 border-cyan-500/50 p-6 rounded-lg max-w-sm w-full text-center">
+                        <h3 className="text-xl font-bold text-cyan-300 mb-2">{lang === 'ja' ? 'プロモーション' : 'Promotion'}</h3>
+                        <p className="text-cyan-500/70 text-sm mb-6">{lang === 'ja' ? 'どの駒に昇格しますか？' : 'Choose a piece to promote to:'}</p>
+                        <div className="grid grid-cols-2 gap-3 mb-6">
+                            {(['Queen', 'Rook', 'Bishop', 'Knight'] as const).map(pt => (
+                                <button
+                                    key={pt}
+                                    onClick={() => {
+                                        const pTo = pt === 'Queen' ? 'Q' : pt === 'Rook' ? 'R' : pt === 'Bishop' ? 'B' : 'N';
+                                        socket?.emit('player_action', {
+                                            actionId: Date.now().toString(),
+                                            version: gameState.version,
+                                            action: {
+                                                type: 'MOVE',
+                                                payload: { 
+                                                    pieceId: promotionPending.pieceId, 
+                                                    toX: promotionPending.targetCol, 
+                                                    toY: promotionPending.targetRow,
+                                                    promotedTo: pTo
+                                                }
+                                            }
+                                        });
+                                        setPromotionPending(null);
+                                        setSelectedTokenId(null);
+                                    }}
+                                    className="p-3 bg-cyan-950/40 border border-cyan-500/30 hover:bg-cyan-800/50 hover:border-cyan-400 rounded text-cyan-300 font-bold transition-all"
+                                >
+                                    {pt}
+                                </button>
+                            ))}
+                        </div>
+                        <button
+                            onClick={() => {
+                                setPromotionPending(null);
+                                setSelectedTokenId(null);
+                            }}
+                            className="w-full p-3 bg-red-950/40 border border-red-500/30 hover:bg-red-900/20 hover:border-red-400 rounded text-red-300 font-bold transition-all text-sm"
+                        >
+                            {lang === 'ja' ? 'キャンセル' : 'Cancel'}
+                        </button>
+                    </div>
+                </div>
+            )}
+            
             {showResignConfirm && (
                 <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 backdrop-blur-sm animate-fade-in">
                     <div className="bg-gray-900 border border-red-500/50 rounded-xl p-6 max-w-sm w-full shadow-2xl flex flex-col items-center text-center">
