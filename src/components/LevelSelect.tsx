@@ -587,26 +587,22 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onReplay, onB
                     </div>
                 </div>
             )}
-            <div className="w-full max-w-md flex flex-col gap-4 mt-8">
-                {/* VS CPU */}
+            
+            <div className="w-full max-w-2xl flex flex-col gap-6">
+                
+                {/* ── VS CPU ── */}
+                <div className="w-full mt-4 mb-2"><h3 className="text-sm tracking-[0.3em] text-[#A89C86] uppercase border-b border-[#A89C86]/30 pb-2">PRACTICE</h3></div>
+                
                 <button 
                     onClick={handleVsCpuClick}
-                    className="group relative w-full p-4 bg-[#2A2621] border border-[#4A4238] hover:bg-[#3B342C] transition-all rounded text-left overflow-hidden hover:shadow-lg">
-                    <div className="absolute inset-0 w-1 bg-[#D4B872] group-hover:w-full transition-all duration-300 opacity-10" />
-                    <div className="relative z-10 flex flex-col">
-                        <div className="flex justify-between items-center mb-1">
-                            <span className="text-xl font-bold text-[#E8E5DF] tracking-wider">🤖 {t.vsCpu}</span>
-                        </div>
-                        <span className="text-xs text-[#E8E5DF]/70">{t.vsCpuDesc}</span>
-                    </div>
+                    className="flex flex-col md:flex-row md:items-baseline justify-between w-full py-4 group text-left relative border-b border-[#A89C86]/30 hover:border-[#E8E2D7] transition-all"
+                >
+                    <span className="text-xl tracking-widest text-[#E8E2D7] group-hover:text-[#B39A62]">{t.vsCpu}</span>
+                    <span className="text-xs tracking-widest text-[#A89C86] group-hover:text-[#E8E2D7] transition-colors">{t.vsCpuDesc}</span>
                 </button>
 
                 {/* ── Online Multiplayer ── */}
-                <div className="flex items-center justify-center gap-2 my-2 opacity-50">
-                    <div className="h-px w-full bg-[#4A4238]" />
-                    <span className="text-xs uppercase tracking-widest text-[#8C7A5E] whitespace-nowrap">{t.onlineMultiplayer}</span>
-                    <div className="h-px w-full bg-[#4A4238]" />
-                </div>
+                <div className="w-full mt-12 mb-2"><h3 className="text-sm tracking-[0.3em] text-[#A89C86] uppercase border-b border-[#A89C86]/30 pb-2">{t.onlineMultiplayer}</h3></div>
 
                 {/* Ranked Match */}
                 <button 
@@ -617,115 +613,92 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onReplay, onB
                         }
                         startRandomMatch('ranked', '10m');
                     }}
-                    className={`group relative w-full p-4 border transition-all rounded text-left overflow-hidden ${
-                        user.type === 'guest'
-                            ? 'bg-[#2A2621]/40 border-gray-600/50 cursor-not-allowed'
-                            : 'bg-[#3B342C] border-[#4A4238] hover:bg-[#4A4238] hover:shadow-lg'
-                    }`}>
-                    <div className={`absolute inset-0 w-1 ${user.type === 'guest' ? 'bg-gray-600' : 'bg-[#D4B872] group-hover:w-full'} transition-all duration-300 opacity-10`} />
-                    <div className="relative z-10 flex justify-between items-center">
-                        <div className="flex flex-col">
-                            <span className={`text-xl font-bold tracking-wider flex items-baseline gap-2 ${user.type === 'guest' ? 'text-gray-500' : 'text-[#E8E5DF]'}`}>
-                                🏆 {t.rankedMatch}
-                                <span className="text-sm font-mono opacity-80">(10 MIN)</span>
-                            </span>
-                            {user.type === 'guest' && <span className="text-xs text-[#D4B872] mt-1">※ {lang === 'ja' ? '登録必須' : 'Account Required'}</span>}
-                        </div>
-                        <span className={`text-xs px-2 py-1 rounded border ${user.type === 'guest' ? 'text-gray-500 border-[#4A4238]' : 'text-fuchsia-500 border-[#4A4238]'}`}>{t.rated}</span>
+                    className={`flex flex-col md:flex-row md:items-baseline justify-between w-full py-4 group text-left relative border-b border-[#A89C86]/30 hover:border-[#E8E2D7] transition-all ${
+                        user.type === 'guest' ? 'opacity-50 cursor-not-allowed hover:border-[#A89C86]/30' : ''
+                    }`}
+                >
+                    <div className="flex flex-col">
+                        <span className={`text-xl tracking-widest ${user.type === 'guest' ? 'text-gray-500' : 'text-[#E8E2D7] group-hover:text-[#B39A62]'}`}>
+                            {t.rankedMatch}
+                        </span>
+                        {user.type === 'guest' && <span className="text-xs text-[#B39A62] mt-1 tracking-widest">※ {lang === 'ja' ? '登録必須' : 'ACCOUNT REQUIRED'}</span>}
                     </div>
+                    <span className="text-xs tracking-widest text-[#A89C86]">{t.rated} / 10 MIN</span>
                 </button>
 
                 {/* Random Match */}
                 <button 
                     onClick={() => startRandomMatch('random', '10m')}
-                    className="group relative w-full p-4 bg-[#3B342C] border border-[#4A4238] hover:bg-[#4A4238] transition-all rounded text-left overflow-hidden hover:shadow-lg">
-                    <div className="absolute inset-0 w-1 bg-[#D4B872] group-hover:w-full transition-all duration-300 opacity-10" />
-                    <div className="relative z-10 flex justify-between items-center">
-                        <div className="flex flex-col">
-                            <span className="text-xl font-bold text-[#E8E5DF] tracking-wider flex items-baseline gap-2">
-                                🎲 {t.randomMatch}
-                                <span className="text-sm font-mono opacity-80">(10 MIN)</span>
-                            </span>
-                        </div>
-                        <span className="text-xs px-2 py-1 rounded border text-gray-500 border-[#4A4238]">{t.unrated}</span>
-                    </div>
+                    className="flex flex-col md:flex-row md:items-baseline justify-between w-full py-4 group text-left relative border-b border-[#A89C86]/30 hover:border-[#E8E2D7] transition-all"
+                >
+                    <span className="text-xl tracking-widest text-[#E8E2D7] group-hover:text-[#B39A62]">{t.randomMatch}</span>
+                    <span className="text-xs tracking-widest text-[#A89C86]">{t.unrated} / 10 MIN</span>
                 </button>
-
 
                 {!showOnlineMenu ? (
                     <button 
                         onClick={() => setShowOnlineMenu(true)}
-                        className="group relative w-full p-4 bg-[#3B342C] border border-[#4A4238] hover:bg-[#4A4238] transition-all rounded text-left overflow-hidden hover:shadow-lg">
-                        <div className="absolute inset-0 w-1 bg-[#D4B872] group-hover:w-full transition-all duration-300 opacity-10" />
-                        <div className="relative z-10 flex justify-between items-center">
-                            <span className="text-xl font-bold text-[#E8E5DF] tracking-wider">🔒 {t.privateMatch}</span>
-                        </div>
+                        className="flex flex-col md:flex-row md:items-baseline justify-between w-full py-4 group text-left relative border-b border-[#A89C86]/30 hover:border-[#E8E2D7] transition-all"
+                    >
+                        <span className="text-xl tracking-widest text-[#E8E2D7] group-hover:text-[#B39A62]">{t.privateMatch}</span>
+                        <span className="text-xs tracking-widest text-[#A89C86]">PLAY WITH FRIENDS</span>
                     </button>
                 ) : (
-                    <div className="p-4 bg-[#1E1C19]/60 border border-[#4A4238] rounded flex flex-col gap-4">
-                        <div className="flex items-center gap-2 mb-1">
-                            <span className="text-[#D4B872] font-bold text-sm">🔒 {t.privateMatch}</span>
-                        </div>
-                        <button 
-                            onClick={() => {
-                                const newRoomId = Math.random().toString(36).substring(2, 8).toUpperCase();
-                                setPendingAction({ type: 'host', roomId: newRoomId });
-                            }}
-                            className="w-full p-3 bg-[#3B342C] hover:bg-[#4A4238] border border-blue-400 rounded text-[#E8E5DF] font-bold transition-colors"
-                        >
-                            {t.hostMatch}
-                        </button>
+                    <div className="w-full py-4 border-b border-[#A89C86]/30 flex flex-col gap-4">
+                        <span className="text-sm tracking-widest text-[#B39A62]">{t.privateMatch}</span>
                         
-                        <div className="flex gap-2">
-                            <input 
-                                type="text" 
-                                placeholder={t.roomId}
-                                value={joinRoomId}
-                                onChange={(e) => setJoinRoomId(e.target.value.toUpperCase())}
-                                className="flex-1 bg-[#1E1C19]/50 border border-[#4A4238] rounded px-3 py-2 text-[#E8E5DF] focus:outline-none focus:border-[#D4B872]"
-                            />
+                        <div className="flex flex-col gap-2">
                             <button 
                                 onClick={() => {
-                                    if(joinRoomId.trim()) onOnlineMatch?.(joinRoomId.trim(), 'black', 'private', '10m');
+                                    const newRoomId = Math.random().toString(36).substring(2, 8).toUpperCase();
+                                    setPendingAction({ type: 'host', roomId: newRoomId });
                                 }}
-                                className="px-4 py-2 bg-red-900/50 hover:bg-red-800/50 border border-red-400 rounded text-red-300 font-bold transition-colors"
+                                className="text-left text-lg tracking-widest text-[#E8E2D7] hover:text-[#B39A62] transition-colors"
                             >
-                                {t.joinMatch}
+                                + {t.hostMatch}
                             </button>
+                            
+                            <div className="flex items-center gap-4 mt-2">
+                                <input 
+                                    type="text" 
+                                    placeholder="ROOM ID"
+                                    value={joinRoomId}
+                                    onChange={(e) => setJoinRoomId(e.target.value.toUpperCase())}
+                                    className="bg-transparent border-b border-[#A89C86]/50 focus:border-[#E8E2D7] outline-none px-2 py-1 text-sm tracking-widest w-32 text-[#E8E2D7] placeholder:text-[#A89C86]/30"
+                                />
+                                <button 
+                                    onClick={() => {
+                                        if(joinRoomId.trim()) onOnlineMatch?.(joinRoomId.trim(), 'black', 'private', '10m');
+                                    }}
+                                    className="text-sm tracking-widest text-[#A89C86] hover:text-[#E8E2D7] transition-colors"
+                                >
+                                    {t.joinMatch}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 )}
 
                 {/* ── Social ── */}
-                <div className="flex items-center justify-center gap-2 my-2 opacity-50 mt-8">
-                    <div className="h-px w-full bg-[#4A4238]" />
-                    <span className="text-xs uppercase tracking-widest text-[#8C7A5E] whitespace-nowrap">Social & Live</span>
-                    <div className="h-px w-full bg-[#4A4238]" />
-                </div>
+                <div className="w-full mt-12 mb-2"><h3 className="text-sm tracking-[0.3em] text-[#A89C86] uppercase border-b border-[#A89C86]/30 pb-2">SOCIAL & LIVE</h3></div>
 
-                <div className="flex gap-2">
+                <div className="flex flex-col w-full">
                     <button 
                         onClick={() => setShowFriends(true)}
-                        className="group relative w-1/2 p-3 bg-[#3B342C] border border-[#4A4238] hover:bg-[#4A4238] transition-all rounded text-center overflow-hidden hover:shadow-lg">
-                        <div className="relative z-10 flex flex-col justify-center items-center gap-1">
-                            <span className="text-lg font-bold text-[#E8E5DF] tracking-wider">👥 {(t as any).friends || 'Friends'}</span>
-                        </div>
+                        className="flex flex-col md:flex-row justify-between w-full py-4 group text-left relative border-b border-[#A89C86]/30 hover:border-[#E8E2D7] transition-all"
+                    >
+                        <span className="text-lg tracking-widest text-[#E8E2D7] group-hover:text-[#B39A62]">{(t as any).friends || 'FRIENDS'}</span>
                     </button>
                     <button 
                         onClick={() => setShowLiveMatches(true)}
-                        className="group relative w-1/2 p-3 bg-red-900/40 border border-[#4A4238] hover:bg-red-800/50 transition-all rounded text-center overflow-hidden hover:shadow-lg">
-                        <div className="relative z-10 flex flex-col justify-center items-center gap-1">
-                            <span className="text-lg font-bold text-red-300 tracking-wider">🔴 {(t as any).liveMatch || 'Live Matches'}</span>
-                        </div>
+                        className="flex flex-col md:flex-row justify-between w-full py-4 group text-left relative border-b border-[#A89C86]/30 hover:border-[#E8E2D7] transition-all"
+                    >
+                        <span className="text-lg tracking-widest text-[#E8E2D7] group-hover:text-[#B39A62]">{(t as any).liveMatch || 'LIVE MATCHES'}</span>
                     </button>
                 </div>
 
                 {/* ── Replays ── */}
-                <div className="flex items-center justify-center gap-2 my-2 opacity-50 mt-8">
-                    <div className="h-px w-full bg-[#4A4238]" />
-                    <span className="text-xs uppercase tracking-widest text-[#8C7A5E] whitespace-nowrap">{t.gameReplays}</span>
-                    <div className="h-px w-full bg-[#4A4238]" />
-                </div>
+                <div className="w-full mt-12 mb-2"><h3 className="text-sm tracking-[0.3em] text-[#A89C86] uppercase border-b border-[#A89C86]/30 pb-2">{t.gameReplays}</h3></div>
 
                 {!showReplays ? (
                     <button 
@@ -733,17 +706,15 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onReplay, onB
                             setShowReplays(true);
                             loadReplays(replayCategory);
                         }}
-                        className="group relative w-full p-4 bg-[#2A2621]/40 border border-[#4A4238] hover:bg-gray-800/50 transition-all rounded text-left overflow-hidden hover:shadow-lg">
-                        <div className="absolute inset-0 w-1 bg-[#4A4238] group-hover:w-full transition-all duration-300 opacity-10" />
-                        <div className="relative z-10 flex justify-between items-center">
-                            <span className="text-xl font-bold text-gray-300 tracking-wider">📺 {t.watchReplays}</span>
-                        </div>
+                        className="flex flex-col md:flex-row justify-between w-full py-4 group text-left relative border-b border-[#A89C86]/30 hover:border-[#E8E2D7] transition-all"
+                    >
+                        <span className="text-lg tracking-widest text-[#E8E2D7] group-hover:text-[#B39A62]">{t.watchReplays}</span>
                     </button>
                 ) : (
-                    <div className="p-4 bg-[#1E1C19]/60 border border-[#4A4238] rounded flex flex-col gap-4">
+                    <div className="w-full py-4 flex flex-col gap-4 border-b border-[#A89C86]/30">
                         <div className="flex justify-between items-center mb-1">
-                            <span className="text-gray-400 font-bold text-sm">📺 {t.watchReplays}</span>
-                            <button onClick={() => setShowReplays(false)} className="text-gray-500 hover:text-white">✕</button>
+                            <span className="text-[#B39A62] tracking-widest text-sm">{t.watchReplays}</span>
+                            <button onClick={() => setShowReplays(false)} className="text-[#A89C86] hover:text-[#E8E2D7]">✕</button>
                         </div>
                         
                         <div className="flex gap-1 p-1 bg-[#2A2621] border border-gray-700/50 rounded">

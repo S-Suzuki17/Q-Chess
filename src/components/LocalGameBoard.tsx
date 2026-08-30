@@ -760,10 +760,10 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
 
             <div className="flex justify-between w-full mb-4 px-4 items-center bg-gray-900/40 py-2 border-b border-cyan-900/50 relative">
                 {/* White Player Info */}
-                <div className={`text-xl font-bold flex flex-col items-start gap-1 ${currentTurn === 'white' ? 'text-blue-400 drop-shadow-[0_0_5px_currentColor]' : 'text-gray-500'} relative`}>
+                <div className={`text-xl font-bold flex flex-col items-start gap-1 ${currentTurn === 'white' ? 'text-blue-400 drop-shadow-[0_0_5px_currentColor]' : 'text-[#A89C86]'} relative`}>
                     <div className="flex items-center gap-2">
-                        {user?.avatar_url ? <img src={user.avatar_url} alt="" className="w-7 h-7 rounded-full object-cover border border-blue-400/50" /> : <div className="w-7 h-7 rounded-full bg-gray-800 border border-blue-400/50 flex items-center justify-center"><span className="text-xs">👤</span></div>} {whiteName} {whiteRatingToDisplay !== null && <span className="text-gray-400 text-sm">({whiteRatingToDisplay})</span>}
-                        {isCheck && currentTurn === 'white' && <span className="text-red-500 text-sm animate-pulse">(CHECK)</span>}
+                        {user?.avatar_url ? <img src={user.avatar_url} alt="" className="w-7 h-7 rounded-full object-cover border border-blue-400/50" /> : <div className="w-7 h-7 rounded-full bg-[#191714] border border-blue-400/50 flex items-center justify-center"><span className="text-xs">👤</span></div>} {whiteName} {whiteRatingToDisplay !== null && <span className="text-gray-400 text-sm">({whiteRatingToDisplay})</span>}
+                        {isCheck && currentTurn === 'white' && <span className="text-red-900 text-sm animate-pulse">(CHECK)</span>}
                     </div>
                     <span className="text-2xl font-mono">{formatTime(timeLeftWhite)}</span>
                     {/* White Emote */}
@@ -774,15 +774,15 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
                     )}
                 </div>
 
-                <div className="text-sm font-bold text-red-500 min-h-[20px] mx-4 text-center">
+                <div className="text-sm font-bold text-red-900 min-h-[20px] mx-4 text-center">
                     {errorMsg}
                 </div>
 
                 {/* Black Player Info */}
-                <div className={`text-xl font-bold flex flex-col items-end gap-1 ${currentTurn === 'black' ? 'text-red-500 drop-shadow-[0_0_5px_currentColor]' : 'text-gray-500'} relative`}>
+                <div className={`text-xl font-bold flex flex-col items-end gap-1 ${currentTurn === 'black' ? 'text-red-900 drop-shadow-[0_0_5px_currentColor]' : 'text-[#A89C86]'} relative`}>
                     <div className="flex items-center gap-2">
-                        {isCheck && currentTurn === 'black' && <span className="text-red-500 text-sm animate-pulse">(CHECK)</span>}
-                        {blackRatingToDisplay !== null && <span className="text-gray-400 text-sm">({blackRatingToDisplay})</span>} {blackName} <div className="w-7 h-7 rounded-full bg-gray-800 border border-red-500/50 flex items-center justify-center"><span className="text-xs">🤖</span></div>
+                        {isCheck && currentTurn === 'black' && <span className="text-red-900 text-sm animate-pulse">(CHECK)</span>}
+                        {blackRatingToDisplay !== null && <span className="text-gray-400 text-sm">({blackRatingToDisplay})</span>} {blackName} <div className="w-7 h-7 rounded-full bg-[#191714] border border-red-500/50 flex items-center justify-center"><span className="text-xs">🤖</span></div>
                     </div>
                     <span className="text-2xl font-mono">{formatTime(timeLeftBlack)}</span>
                     {/* Black Emote */}
@@ -796,7 +796,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
             
             {showCheckWarning && !winner && (
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 pointer-events-none animate-shake">
-                    <div className="text-6xl md:text-7xl font-black text-red-500 whitespace-nowrap tracking-[0.2em] glitch-text drop-shadow-[0_0_20px_rgba(239,68,68,1)]" data-text={t.quantumCheck}>
+                    <div className="text-6xl md:text-7xl font-black text-red-900 whitespace-nowrap tracking-[0.2em] glitch-text drop-shadow-[0_0_20px_rgba(239,68,68,1)]" data-text={t.quantumCheck}>
                         {t.quantumCheck}
                     </div>
                 </div>
@@ -804,10 +804,10 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
 
             {winner && (
                 <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center z-50 backdrop-blur-md rounded-lg border-2 border-gray-700 animate-shake">
-                    <div className="text-5xl sm:text-6xl md:text-8xl font-black text-white drop-shadow-[0_0_30px_rgba(255,255,255,1)] mb-8 tracking-widest md:tracking-[0.3em] animate-stamp glitch-text text-center px-4" data-text={winner === 'draw' ? 'DRAW' : 'CHECKMATE'}>
+                    <div className="text-5xl sm:text-6xl md:text-8xl font-black text-[#E8E2D7] drop-shadow-[0_0_30px_rgba(255,255,255,1)] mb-8 tracking-widest md:tracking-[0.3em] animate-stamp glitch-text text-center px-4" data-text={winner === 'draw' ? 'DRAW' : 'CHECKMATE'}>
                         {winner === 'draw' ? 'DRAW' : 'CHECKMATE'}
                     </div>
-                    <div className={`text-4xl font-bold mb-12 ${winner === 'draw' ? 'text-gray-400 drop-shadow-[0_0_15px_rgba(156,163,175,0.8)]' : winner === 'white_wins' ? 'text-blue-400 drop-shadow-[0_0_15px_rgba(96,165,250,0.8)]' : 'text-red-500 drop-shadow-[0_0_15px_rgba(239,68,68,0.8)]'}`}>
+                    <div className={`text-4xl font-bold mb-12 ${winner === 'draw' ? 'text-gray-400 drop-shadow-[0_0_15px_rgba(156,163,175,0.8)]' : winner === 'white_wins' ? 'text-blue-400 drop-shadow-[0_0_15px_rgba(96,165,250,0.8)]' : 'text-red-900 drop-shadow-[0_0_15px_rgba(239,68,68,0.8)]'}`}>
                         {winner === 'draw' 
                             ? 'Draw (Stalemate)' 
                             : winner === 'white_wins' 
@@ -817,7 +817,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
                     <div className="flex gap-4 mt-8">
                         <button 
                             onClick={onHome || (() => window.location.reload())}
-                            className="px-6 py-4 bg-gray-900/50 hover:bg-gray-800/80 border border-gray-500/50 rounded-lg text-lg font-bold tracking-wider transition-all text-gray-300"
+                            className="px-6 py-4 bg-gray-900/50 hover:bg-[#191714]/80 border border-gray-500/50 rounded-lg text-lg font-bold tracking-wider transition-all text-gray-300"
                         >
                             🏠 {t.home}
                         </button>
@@ -856,7 +856,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
             <div className="w-full flex gap-2 min-h-[48px] mb-2 p-2 bg-black/40 border border-red-900/30 rounded-lg items-center overflow-x-auto">
                 <div className="flex items-center gap-2 min-w-[100px] shrink-0 opacity-70">
                     <div className="w-6 h-6 rounded-full bg-red-950/30 flex items-center justify-center border border-red-900/50"><span className="text-[10px] opacity-50">🤖</span></div>
-                    <span className="text-red-500 font-bold text-xs uppercase whitespace-nowrap">{opponentName} {t.captured}:</span>
+                    <span className="text-red-900 font-bold text-xs uppercase whitespace-nowrap">{opponentName} {t.captured}:</span>
                 </div>
                 <div className="flex gap-1">
                     {tokens.filter(t => t.player === 'white' && t.isCaptured).map(token => (
@@ -869,7 +869,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
 
             <div className={`
                 grid grid-cols-8 grid-rows-8 border-4 bg-[#0b0c10] shadow-2xl w-full aspect-square relative transition-all duration-300
-                ${showCheckWarning ? 'border-red-600 shadow-red-900/50' : 'border-gray-700 shadow-gray-900'}
+                ${showCheckWarning ? 'border-red-900/50 shadow-red-900/50' : 'border-gray-700 shadow-gray-900'}
             `}>
                 {Array.from({ length: 64 }).map((_, index) => {
                     const isFlipped = onlineRole === 'black';
@@ -891,16 +891,16 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
                             className={`
                                 relative flex justify-center items-center cursor-pointer transition-colors
                                 aspect-square w-full h-full
-                                ${isDark ? 'bg-[#1a202c]' : 'bg-[#2d3748]'}
-                                ${isMoveCandidate ? 'hover:bg-[#00ff41]/20' : 'hover:bg-white/10'}
+                                ${isDark ? 'bg-[#11100E]' : 'bg-[#191714]'}
+                                ${isMoveCandidate ? 'hover:bg-[#B39A62]/20' : 'hover:bg-[#E8E2D7]/5'}
                             `}
                         >
                             {/* 移動先候補のハイライト描画 */}
                             {isMoveCandidate && !tokenHere && (
-                                <div className="absolute w-4 h-4 rounded-full bg-[#00ff41]/50 pointer-events-none animate-pulse" />
+                                <div className="absolute w-4 h-4 rounded-full bg-[#B39A62]/40 pointer-events-none animate-pulse" />
                             )}
                             {isMoveCandidate && tokenHere && (
-                                <div className="absolute inset-1 border-4 border-red-500/60 rounded pointer-events-none animate-pulse" />
+                                <div className="absolute inset-1 border-4 border-[#B39A62]/60 rounded pointer-events-none animate-pulse" />
                             )}
 
                             {tokens.filter(t => !t.isCaptured && t.row === row && t.col === col).map(token => (
@@ -925,7 +925,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
                     {user?.avatar_url ? (
                         <img src={user.avatar_url} alt="" className="w-6 h-6 rounded-full object-cover border border-[#4A4238]" />
                     ) : (
-                        <div className="w-6 h-6 rounded-full bg-gray-800 flex items-center justify-center border border-[#4A4238]"><span className="text-[10px]">👤</span></div>
+                        <div className="w-6 h-6 rounded-full bg-[#191714] flex items-center justify-center border border-[#4A4238]"><span className="text-[10px]">👤</span></div>
                     )}
                     <span className="text-[#E8E5DF] font-bold text-sm uppercase whitespace-nowrap">{playerName} {t.captured}:</span>
                 </div>
@@ -946,7 +946,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
                         type="checkbox" 
                         checked={showMoveHints} 
                         onChange={(e) => setShowMoveHints(e.target.checked)} 
-                        className="rounded border-gray-700 bg-gray-800 text-cyan-500 focus:ring-cyan-500/50 w-4 h-4 cursor-pointer" 
+                        className="rounded border-gray-700 bg-[#191714] text-cyan-500 focus:ring-cyan-500/50 w-4 h-4 cursor-pointer" 
                     />
                     {lang === 'ja' ? 'コマの移動範囲を表示' : 'Show movable range'}
                 </label>
@@ -954,7 +954,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
                 {!winner && onlineRole !== 'spectator' && (
                     <button
                         onClick={() => setShowResignConfirm(true)}
-                        className="px-3 py-1.5 bg-red-950/50 hover:bg-red-900/80 border border-red-800/80 hover:border-red-600 rounded text-xs text-red-400 hover:text-red-200 font-bold transition-all flex items-center gap-1.5 shadow-sm"
+                        className="px-3 py-1.5 bg-red-950/50 hover:bg-red-900/80 border border-red-800/80 hover:border-red-900/50 rounded text-xs text-red-400 hover:text-red-200 font-bold transition-all flex items-center gap-1.5 shadow-sm"
                     >
                         <span>🏳️</span>
                         <span>{lang === 'ja' ? '投了' : 'Resign'}</span>
@@ -971,7 +971,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
                 <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 backdrop-blur-sm animate-fade-in">
                     <div className="bg-gray-900 border border-red-500/50 rounded-xl p-6 max-w-sm w-full shadow-2xl flex flex-col items-center text-center">
                         <span className="text-4xl mb-3">🏳️</span>
-                        <h3 className="text-lg font-bold text-white mb-2">
+                        <h3 className="text-lg font-bold text-[#E8E2D7] mb-2">
                             {lang === 'ja' ? '投了しますか？' : 'Resign Match?'}
                         </h3>
                         <p className="text-sm text-gray-400 mb-6">
@@ -980,7 +980,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
                         <div className="flex gap-3 w-full">
                             <button
                                 onClick={() => setShowResignConfirm(false)}
-                                className="flex-1 py-2.5 bg-gray-800 hover:bg-gray-700 border border-gray-600 rounded-lg text-sm text-gray-300 font-bold transition-colors"
+                                className="flex-1 py-2.5 bg-[#191714] hover:bg-gray-700 border border-gray-600 rounded-lg text-sm text-gray-300 font-bold transition-colors"
                             >
                                 {lang === 'ja' ? 'キャンセル' : 'Cancel'}
                             </button>
@@ -989,7 +989,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
                                     setShowResignConfirm(false);
                                     handleResign();
                                 }}
-                                className="flex-1 py-2.5 bg-red-600 hover:bg-red-500 rounded-lg text-sm text-white font-bold transition-colors shadow-lg shadow-red-600/30"
+                                className="flex-1 py-2.5 bg-red-600 hover:bg-red-500 rounded-lg text-sm text-[#E8E2D7] font-bold transition-colors shadow-lg shadow-red-600/30"
                             >
                                 {lang === 'ja' ? '投了する' : 'Resign'}
                             </button>
@@ -1028,10 +1028,10 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
             {castlingPending && (
                 <div className="absolute inset-0 bg-black/80 z-50 flex flex-col items-center justify-center p-6">
                     <div className="bg-[#2A2621] border-2 border-[#D4B872]/30 rounded-xl p-8 max-w-md w-full text-center relative shadow-2xl">
-                        <h2 className="text-[#D4B872] text-2xl font-serif font-bold mb-6">
+                        <h2 className="text-[#B39A62] text-2xl font-serif font-bold mb-6">
                             {t.castlingConfirmTitle || 'Castling or Normal Move?'}
                         </h2>
-                        <p className="text-white/80 mb-8 font-serif">
+                        <p className="text-[#E8E2D7]/80 mb-8 font-serif">
                             {t.castlingConfirmDesc || 'This move can be interpreted as Castling or a normal Rook/Queen move. Please select your intention.'}
                         </p>
                         <div className="flex flex-col gap-4">
@@ -1053,7 +1053,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
                                 {t.castlingOption || 'Castling (King)'}
                             </button>
                             <button
-                                className="px-6 py-4 border-2 border-[#D4B872] hover:bg-[#D4B872]/10 text-[#D4B872] font-serif font-bold rounded-lg transition-colors"
+                                className="px-6 py-4 border-2 border-[#D4B872] hover:bg-[#D4B872]/10 text-[#B39A62] font-serif font-bold rounded-lg transition-colors"
                                 onClick={() => {
                                     const newValidTypes = castlingPending.validTypes.filter(type => type !== 'King');
                                     executeMove(
@@ -1118,7 +1118,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
                                 }
                                 setPromotionPending(null);
                             }}
-                            className="w-full p-3 bg-red-950/40 border border-red-500/30 hover:bg-red-900/50 hover:border-red-400 rounded text-red-300 font-bold transition-all text-sm"
+                            className="w-full p-3 bg-red-950/40 border border-red-500/30 hover:bg-red-900/20 hover:border-red-400 rounded text-red-300 font-bold transition-all text-sm"
                         >
                             {t.promotionCancel}
                         </button>

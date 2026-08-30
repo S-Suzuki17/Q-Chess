@@ -82,93 +82,113 @@ export function TitleScreen({ lang, onLogin }: TitleScreenProps) {
     };
 
     return (
-        <div className="flex flex-col items-center justify-center min-h-screen bg-[#1E1C19] text-[#E8E5DF] p-4 font-sans">
-            <div className="text-center mb-12">
-                <h1 className="text-6xl md:text-8xl font-serif text-[#D4B872] drop-shadow-lg">
-                    {t.title}
-                </h1>
-                <p className="mt-4 text-xl tracking-widest text-[#E8E5DF]/80 font-serif">{t.subtitle}</p>
+        <div className="flex flex-col items-center justify-center min-h-screen bg-[#11100E] text-[#E8E2D7] p-4 font-sans selection:bg-[#B39A62]/30">
+            {/* Minimal Board Pattern Background */}
+            <div className="absolute inset-0 z-0 flex items-center justify-center opacity-[0.03] pointer-events-none scale-[2] rotate-12 blur-[1px]">
+                <div className="grid grid-cols-8 grid-rows-8 border-4 border-[#E8E2D7] w-[800px] h-[800px]">
+                    {Array.from({ length: 64 }).map((_, i) => {
+                        const isBlack = (Math.floor(i / 8) + (i % 8)) % 2 === 1;
+                        return (
+                            <div key={i} className={`w-full h-full ${isBlack ? 'bg-[#E8E2D7]' : 'bg-transparent'}`} />
+                        );
+                    })}
+                </div>
             </div>
 
-            <div className="w-full max-w-md p-8 bg-[#2A2621] border border-[#4A4238] rounded-xl shadow-2xl">
+            <div className="relative z-10 text-center mb-16">
+                <h1 className="text-5xl md:text-7xl font-serif text-[#E8E2D7] tracking-[0.2em] mb-4">
+                    Q-GAMBIT
+                </h1>
+                <p className="text-xs md:text-sm tracking-[0.4em] text-[#A89C86] font-light uppercase">
+                    A game of hidden identity
+                </p>
+            </div>
+
+            <div className="relative z-10 w-full max-w-sm flex flex-col gap-8">
                 {mode === 'select' && (
-                    <div className="flex flex-col gap-4">
-                        <button onClick={handleGuest} className="w-full py-3 px-6 bg-[#3B342C] border border-[#4A4238] hover:bg-[#4A4238] transition-all text-[#D4B872] font-bold tracking-widest uppercase">
-                            {t.guestLogin}
+                    <div className="flex flex-col items-center gap-6">
+                        <button onClick={handleGuest} className="text-xl tracking-[0.2em] hover:text-[#B39A62] transition-colors pb-1 border-b border-transparent hover:border-[#B39A62]">
+                            PLAY AS GUEST
                         </button>
-                        <button onClick={() => { setMode('register'); setError(''); }} className="w-full py-3 px-6 bg-[#3B342C] border border-[#4A4238] hover:bg-[#4A4238] transition-all text-[#D4B872] font-bold tracking-widest uppercase">
-                            {t.createAccount}
-                        </button>
-                        <button onClick={() => { setMode('login'); setError(''); }} className="w-full py-3 px-6 bg-[#3B342C] border border-[#4A4238] hover:bg-[#4A4238] transition-all text-[#D4B872] font-bold tracking-widest uppercase">
-                            {t.login}
-                        </button>
+                        
+                        <div className="flex flex-col items-center gap-4 mt-8 w-full border-t border-[#A89C86]/30 pt-8">
+                            <span className="text-xs tracking-widest text-[#A89C86]">ACCOUNT ACCESS</span>
+                            <button onClick={() => { setMode('login'); setError(''); }} className="text-sm tracking-widest hover:text-[#E8E2D7] text-[#A89C86]">
+                                SIGN IN
+                            </button>
+                            <button onClick={() => { setMode('register'); setError(''); }} className="text-sm tracking-widest hover:text-[#E8E2D7] text-[#A89C86]">
+                                CREATE ACCOUNT
+                            </button>
+                        </div>
                     </div>
                 )}
 
                 {(mode === 'register' || mode === 'login') && (
-                    <form onSubmit={mode === 'register' ? handleRegisterSubmit : handleLoginSubmit} className="flex flex-col gap-4">
-                        <input 
-                            type="text" 
-                            placeholder={(t as any).enterName || "Account ID"}
-                            value={inputId}
-                            onChange={e => setInputId(e.target.value)}
-                            className="w-full bg-[#1E1C19] border border-[#4A4238] p-3 text-[#E8E5DF] focus:outline-none focus:border-[#D4B872] text-center text-xl font-mono"
-                            autoFocus
-                            disabled={loading}
-                        />
-                        <input 
-                            type="password" 
-                            placeholder={(t as any).password || "Password"}
-                            value={inputPassword}
-                            onChange={e => setInputPassword(e.target.value)}
-                            className="w-full bg-[#1E1C19] border border-[#4A4238] p-3 text-[#E8E5DF] focus:outline-none focus:border-[#D4B872] text-center text-xl font-mono"
-                            disabled={loading}
-                        />
-                        {error && <p className="text-red-500 text-sm text-center">{error}</p>}
-                        <div className="flex items-center justify-center gap-2 my-2 opacity-50">
-                            <div className="h-px w-full bg-[#4A4238]" />
-                            <span className="text-xs uppercase tracking-widest text-[#8C7A5E] whitespace-nowrap">OR</span>
-                            <div className="h-px w-full bg-[#4A4238]" />
+                    <form onSubmit={mode === 'register' ? handleRegisterSubmit : handleLoginSubmit} className="flex flex-col gap-6 w-full max-w-xs mx-auto">
+                        <div className="flex flex-col gap-4">
+                            <input 
+                                type="text" 
+                                placeholder={(t as any).enterName || "USERNAME"}
+                                value={inputId}
+                                onChange={e => setInputId(e.target.value)}
+                                className="w-full bg-transparent border-b border-[#A89C86]/50 p-2 text-[#E8E2D7] focus:outline-none focus:border-[#E8E2D7] text-center text-sm tracking-widest placeholder:text-[#A89C86]/30"
+                                autoFocus
+                                disabled={loading}
+                            />
+                            <input 
+                                type="password" 
+                                placeholder={(t as any).password || "PASSWORD"}
+                                value={inputPassword}
+                                onChange={e => setInputPassword(e.target.value)}
+                                className="w-full bg-transparent border-b border-[#A89C86]/50 p-2 text-[#E8E2D7] focus:outline-none focus:border-[#E8E2D7] text-center text-sm tracking-widest placeholder:text-[#A89C86]/30"
+                                disabled={loading}
+                            />
                         </div>
-                        <div className="flex flex-col gap-2">
+                        {error && <p className="text-red-900 text-sm text-center">{error}</p>}
+                        
+                        <button type="submit" disabled={loading} className="w-full py-2 border-b border-[#A89C86] hover:border-[#E8E2D7] text-[#E8E2D7] tracking-widest transition-all">
+                            {loading ? "..." : (mode === 'register' ? 'SUBMIT' : 'SIGN IN')}
+                        </button>
+                        
+                        <div className="flex items-center justify-center gap-4 my-2 opacity-30">
+                            <div className="h-px w-full bg-[#A89C86]" />
+                            <span className="text-[10px] uppercase tracking-widest text-[#A89C86]">OR</span>
+                            <div className="h-px w-full bg-[#A89C86]" />
+                        </div>
+                        
+                        <div className="flex flex-col gap-3">
                             <button 
                                 type="button" 
                                 onClick={async () => {
                                     await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin } });
                                 }} 
-                                className="w-full py-3 bg-white hover:bg-gray-200 text-black font-bold tracking-widest transition-all rounded flex items-center justify-center gap-2"
+                                className="w-full py-2 border border-[#A89C86]/30 hover:border-[#E8E2D7] text-[#E8E2D7] text-xs tracking-widest transition-all flex items-center justify-center gap-3"
                             >
-                                <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" className="w-5 h-5" />
-                                Continue with Google
+                                <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" className="w-3 h-3 grayscale opacity-70" />
+                                GOOGLE
                             </button>
                             <button 
                                 type="button" 
                                 onClick={async () => {
                                     await supabase.auth.signInWithOAuth({ provider: 'discord', options: { redirectTo: window.location.origin } });
                                 }} 
-                                className="w-full py-3 bg-[#5865F2] hover:bg-[#4752C4] text-white font-bold tracking-widest transition-all rounded flex items-center justify-center gap-2"
+                                className="w-full py-2 border border-[#A89C86]/30 hover:border-[#E8E2D7] text-[#E8E2D7] text-xs tracking-widest transition-all flex items-center justify-center gap-3"
                             >
-                                <img src="https://www.svgrepo.com/show/353655/discord-icon.svg" alt="Discord" className="w-5 h-5" />
-                                Continue with Discord
+                                <img src="https://www.svgrepo.com/show/353655/discord-icon.svg" alt="Discord" className="w-3 h-3 grayscale opacity-70" />
+                                DISCORD
                             </button>
                         </div>
-                        <div className="mt-4 text-center">
-                            <p className="text-[10px] text-[#8C7A5E] leading-relaxed">
-                                ※取得した情報はアカウントデータ保存と引き継ぎにのみ使用されます。<br/>
-                                パスワードは全て暗号化され、安全に管理されます。
-                            </p>
-                        </div>
-
-                        <button type="submit" disabled={loading} className="w-full py-3 bg-[#4A4238] hover:bg-[#5C5346] text-[#E8E5DF] font-bold tracking-widest transition-all">
-                            {loading ? "..." : (mode === 'register' ? t.submit : t.login)}
-                        </button>
-                        <button type="button" onClick={() => setMode('select')} disabled={loading} className="text-[#D4B872]/80 hover:text-[#D4B872] text-sm mt-2">
-                            {t.back}
+                        
+                        <button type="button" onClick={() => setMode('select')} disabled={loading} className="text-[#A89C86] hover:text-[#E8E2D7] text-xs tracking-widest mt-4">
+                            CANCEL
                         </button>
                     </form>
                 )}
             </div>
-            <AdBanner adSlot={process.env.NEXT_PUBLIC_AD_SLOT_TITLE || ''} adFormat="horizontal" className="mt-4 w-full max-w-sm" />
+            
+            <div className="absolute bottom-0 w-full z-20">
+                <AdBanner />
             </div>
+        </div>
     );
 }

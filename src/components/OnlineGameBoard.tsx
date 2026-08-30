@@ -430,7 +430,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
                 </p>
                 <button 
                     onClick={onHome || (() => window.location.reload())}
-                    className="mt-6 px-4 py-2 bg-gray-900 border border-gray-700 rounded text-xs text-gray-400 hover:text-white transition-colors"
+                    className="mt-6 px-4 py-2 bg-gray-900 border border-gray-700 rounded text-xs text-gray-400 hover:text-[#E8E2D7] transition-colors"
                 >
                     {t.home}
                 </button>
@@ -454,11 +454,11 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
 
             <div className="flex justify-between w-full mb-4 px-4 items-center bg-gray-900/40 py-2 border-b border-cyan-900/50 relative">
                 {/* White Player Info */}
-                <div className={`text-xl font-bold flex flex-col items-start gap-1 ${currentTurn === 'white' ? 'text-blue-400 drop-shadow-[0_0_5px_currentColor]' : 'text-gray-500'} relative`}>
+                <div className={`text-xl font-bold flex flex-col items-start gap-1 ${currentTurn === 'white' ? 'text-blue-400 drop-shadow-[0_0_5px_currentColor]' : 'text-[#A89C86]'} relative`}>
                     <div className="flex items-center gap-2">
                         {(() => {
                             const av = isHost ? (user?.avatar_url || hostAvatarUrl) : joinerAvatarUrl;
-                            return av ? <img src={av} alt="" className="w-7 h-7 rounded-full object-cover border border-blue-400/50" /> : <div className="w-7 h-7 rounded-full bg-gray-800 border border-blue-400/50 flex items-center justify-center"><span className="text-xs">👤</span></div>;
+                            return av ? <img src={av} alt="" className="w-7 h-7 rounded-full object-cover border border-blue-400/50" /> : <div className="w-7 h-7 rounded-full bg-[#191714] border border-blue-400/50 flex items-center justify-center"><span className="text-xs">👤</span></div>;
                         })()}
                         {whiteName} {onlineRole === 'white' && <span className="text-xs px-1.5 py-0.5 rounded bg-blue-900/60 text-blue-300 font-normal">YOU</span>}
                     </div>
@@ -470,17 +470,17 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
                     )}
                 </div>
 
-                <div className="text-sm font-bold text-red-500 min-h-[20px] mx-4 text-center">
+                <div className="text-sm font-bold text-red-900 min-h-[20px] mx-4 text-center">
                     {errorMsg}
                 </div>
 
                 {/* Black Player Info */}
-                <div className={`text-xl font-bold flex flex-col items-end gap-1 ${currentTurn === 'black' ? 'text-red-500 drop-shadow-[0_0_5px_currentColor]' : 'text-gray-500'} relative`}>
+                <div className={`text-xl font-bold flex flex-col items-end gap-1 ${currentTurn === 'black' ? 'text-red-900 drop-shadow-[0_0_5px_currentColor]' : 'text-[#A89C86]'} relative`}>
                     <div className="flex items-center gap-2">
                         {onlineRole === 'black' && <span className="text-xs px-1.5 py-0.5 rounded bg-red-900/60 text-red-300 font-normal">YOU</span>} {blackName}
                         {(() => {
                             const av = !isHost ? (user?.avatar_url || joinerAvatarUrl) : hostAvatarUrl;
-                            return av ? <img src={av} alt="" className="w-7 h-7 rounded-full object-cover border border-red-500/50" /> : <div className="w-7 h-7 rounded-full bg-gray-800 border border-red-500/50 flex items-center justify-center"><span className="text-xs">👤</span></div>;
+                            return av ? <img src={av} alt="" className="w-7 h-7 rounded-full object-cover border border-red-500/50" /> : <div className="w-7 h-7 rounded-full bg-[#191714] border border-red-500/50 flex items-center justify-center"><span className="text-xs">👤</span></div>;
                         })()}
                     </div>
                     <span className="text-2xl font-mono">{formatTime(timeLeftBlack)}</span>
@@ -499,7 +499,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
                             ? 'text-gray-300 drop-shadow-[0_0_20px_rgba(255,255,255,1)]' 
                             : (winner === 'white_wins' && onlineRole === 'white') || (winner === 'black_wins' && onlineRole === 'black')
                                 ? 'text-[#00ff41] drop-shadow-[0_0_25px_rgba(0,255,65,1)]'
-                                : 'text-red-500 drop-shadow-[0_0_25px_rgba(239,68,68,1)]'
+                                : 'text-red-900 drop-shadow-[0_0_25px_rgba(239,68,68,1)]'
                     }`} data-text={
                         winner === 'draw' 
                             ? 'DRAW' 
@@ -529,7 +529,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
                     <div className="flex gap-4 mt-8">
                         <button 
                             onClick={onHome || (() => window.location.reload())}
-                            className="px-6 py-4 bg-gray-900/50 hover:bg-gray-800/80 border border-gray-500/50 rounded-lg text-lg font-bold tracking-wider transition-all text-gray-300"
+                            className="px-6 py-4 bg-gray-900/50 hover:bg-[#191714]/80 border border-gray-500/50 rounded-lg text-lg font-bold tracking-wider transition-all text-gray-300"
                         >
                             🏠 {t.home}
                         </button>
@@ -547,7 +547,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
                         ) : (
                             <div className="w-6 h-6 rounded-full bg-red-950/30 flex items-center justify-center border border-red-900/50"><span className="text-[10px] opacity-50">👤</span></div>
                         )}
-                        <span className="text-red-500 font-bold text-xs uppercase whitespace-nowrap">{opponentName} {t.captured}:</span>
+                        <span className="text-red-900 font-bold text-xs uppercase whitespace-nowrap">{opponentName} {t.captured}:</span>
                     </div>
                 <div className="flex gap-1">
                     {tokens.filter(t => t.player === 'white' && t.isCaptured).map(token => (
@@ -580,12 +580,12 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
                             className={`
                                 relative flex justify-center items-center cursor-pointer transition-colors
                                 aspect-square w-full h-full
-                                ${isDark ? 'bg-[#1a202c]' : 'bg-[#2d3748]'}
-                                ${isMoveCandidate ? 'hover:bg-[#00ff41]/20' : 'hover:bg-white/10'}
+                                ${isDark ? 'bg-[#11100E]' : 'bg-[#191714]'}
+                                ${isMoveCandidate ? 'hover:bg-[#B39A62]/20' : 'hover:bg-[#E8E2D7]/5'}
                             `}
                         >
                             {isMoveCandidate && !tokenHere && (
-                                <div className="absolute w-4 h-4 rounded-full bg-[#00ff41]/50 pointer-events-none animate-pulse" />
+                                <div className="absolute w-4 h-4 rounded-full bg-[#B39A62]/40 pointer-events-none animate-pulse" />
                             )}
                             {tokens.filter(t => !t.isCaptured && t.row === row && t.col === col).map(token => (
                                 <QuantumPieceUI 
@@ -621,7 +621,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
                         type="checkbox" 
                         checked={showMoveHints} 
                         onChange={(e) => setShowMoveHints(e.target.checked)} 
-                        className="rounded border-gray-700 bg-gray-800 text-cyan-500 focus:ring-cyan-500/50 w-4 h-4 cursor-pointer" 
+                        className="rounded border-gray-700 bg-[#191714] text-cyan-500 focus:ring-cyan-500/50 w-4 h-4 cursor-pointer" 
                     />
                     {lang === 'ja' ? 'コマの移動範囲を表示' : 'Show movable range'}
                 </label>
@@ -629,7 +629,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
                 {!winner && onlineRole !== 'spectator' && (
                     <button
                         onClick={() => setShowResignConfirm(true)}
-                        className="px-3 py-1.5 bg-red-950/50 hover:bg-red-900/80 border border-red-800/80 hover:border-red-600 rounded text-xs text-red-400 hover:text-red-200 font-bold transition-all flex items-center gap-1.5 shadow-sm"
+                        className="px-3 py-1.5 bg-red-950/50 hover:bg-red-900/80 border border-red-800/80 hover:border-red-900/50 rounded text-xs text-red-400 hover:text-red-200 font-bold transition-all flex items-center gap-1.5 shadow-sm"
                     >
                         <span>🏳️</span>
                         <span>{lang === 'ja' ? '投了' : 'Resign'}</span>
@@ -646,7 +646,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
                 <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 backdrop-blur-sm animate-fade-in">
                     <div className="bg-gray-900 border border-red-500/50 rounded-xl p-6 max-w-sm w-full shadow-2xl flex flex-col items-center text-center">
                         <span className="text-4xl mb-3">🏳️</span>
-                        <h3 className="text-lg font-bold text-white mb-2">
+                        <h3 className="text-lg font-bold text-[#E8E2D7] mb-2">
                             {lang === 'ja' ? '投了しますか？' : 'Resign Match?'}
                         </h3>
                         <p className="text-sm text-gray-400 mb-6">
@@ -655,7 +655,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
                         <div className="flex gap-3 w-full">
                             <button
                                 onClick={() => setShowResignConfirm(false)}
-                                className="flex-1 py-2.5 bg-gray-800 hover:bg-gray-700 border border-gray-600 rounded-lg text-sm text-gray-300 font-bold transition-colors"
+                                className="flex-1 py-2.5 bg-[#191714] hover:bg-gray-700 border border-gray-600 rounded-lg text-sm text-gray-300 font-bold transition-colors"
                             >
                                 {lang === 'ja' ? 'キャンセル' : 'Cancel'}
                             </button>
@@ -664,7 +664,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
                                     setShowResignConfirm(false);
                                     handleResign();
                                 }}
-                                className="flex-1 py-2.5 bg-red-600 hover:bg-red-500 rounded-lg text-sm text-white font-bold transition-colors shadow-lg shadow-red-600/30"
+                                className="flex-1 py-2.5 bg-red-600 hover:bg-red-500 rounded-lg text-sm text-[#E8E2D7] font-bold transition-colors shadow-lg shadow-red-600/30"
                             >
                                 {lang === 'ja' ? '投了する' : 'Resign'}
                             </button>
@@ -689,7 +689,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
                                     setShowEmoteMenu(false);
                                     setShowResignConfirm(true);
                                 }}
-                                className="flex items-center gap-3 px-4 py-2 hover:bg-red-900/50 rounded transition-colors whitespace-nowrap text-left border-b border-gray-700 pb-2 mb-2"
+                                className="flex items-center gap-3 px-4 py-2 hover:bg-red-900/20 rounded transition-colors whitespace-nowrap text-left border-b border-gray-700 pb-2 mb-2"
                             >
                                 <span className="text-2xl">🏳️</span>
                                 <span className="text-red-400 text-sm font-bold">{lang === 'ja' ? '投了' : 'Resign'}</span>

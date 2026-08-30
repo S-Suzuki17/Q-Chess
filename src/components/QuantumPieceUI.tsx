@@ -13,10 +13,14 @@ interface QuantumPieceProps {
 }
 
 const PIECE_SYMBOLS: Record<PieceType, string> = {
+    King: '♔', Queen: '♕', Rook: '♖', Bishop: '♗', Knight: '♘', Pawn: '♙'
+};
+
+const PIECE_SYMBOLS_BLACK: Record<PieceType, string> = {
     King: '♚', Queen: '♛', Rook: '♜', Bishop: '♝', Knight: '♞', Pawn: '♟'
 };
 
-export const QuantumPieceUI: React.FC<QuantumPieceProps> = ({ id, player, probabilities, isSelected, onClick, promotedTo }) => {
+export const QuantumPieceUI: React.FC<QuantumPieceProps> = ({ player, probabilities, isSelected, onClick, promotedTo }) => {
     const possibleTypes = (Object.keys(probabilities) as PieceType[]).filter(type => probabilities[type] > 0);
     
     const isPromoted = !!promotedTo;
@@ -24,104 +28,51 @@ export const QuantumPieceUI: React.FC<QuantumPieceProps> = ({ id, player, probab
 
     const isWhite = player === 'white';
     
-    // Traditional White and Black Styling
+    // Physical materials: Ivory for White, Ebony/Charcoal for Black
     const baseBg = isWhite 
-        ? 'bg-gradient-to-b from-white via-slate-100 to-slate-300 border-slate-300 text-slate-900 shadow-[0_2px_8px_rgba(0,0,0,0.25)]' 
-        : 'bg-gradient-to-b from-gray-800 via-gray-900 to-zinc-950 border-gray-600 text-gray-100 shadow-[0_2px_8px_rgba(0,0,0,0.7)]';
+        ? 'bg-[#E8E2D7] border-[#D0C8B6] shadow-[inset_0_-2px_4px_rgba(0,0,0,0.1),_0_2px_4px_rgba(0,0,0,0.3)]' 
+        : 'bg-[#191714] border-[#2D2A26] shadow-[inset_0_-2px_4px_rgba(0,0,0,0.6),_0_2px_4px_rgba(0,0,0,0.5)]';
     
-    const iconColor = isWhite ? 'text-slate-900' : 'text-slate-100';
-    const barColor = isWhite ? 'bg-slate-700' : 'bg-slate-300';
+    const iconColor = isWhite ? 'text-[#191714]' : 'text-[#E8E2D7]';
+    const highlightRing = isWhite ? 'ring-[#B39A62]' : 'ring-[#B39A62]';
+
+    const symbols = isWhite ? PIECE_SYMBOLS : PIECE_SYMBOLS_BLACK;
 
     return (
-        <>
-            {/* Quantum jitter & Promotion animation CSS */}
-            <style>{`
-                @keyframes quantum-jitter {
-                    0% { transform: translate(0px, 0px) scale(1) rotate(0deg); opacity: 0.85; }
-                    33% { transform: translate(1px, -1px) scale(1.08) rotate(2deg); opacity: 1; }
-                    66% { transform: translate(-1px, 1px) scale(0.92) rotate(-2deg); opacity: 0.9; }
-                    100% { transform: translate(0px, 0px) scale(1) rotate(0deg); opacity: 0.85; }
+        <div 
+            onClick={onClick}
+            className={`
+                relative w-12 h-12 cursor-pointer transition-transform duration-150
+                flex items-center justify-center border
+                ${confirmedType ? 'rounded' : 'rounded-full'}
+                ${isSelected ? `ring-2 ring-offset-2 ring-offset-[#11100E] ${highlightRing} scale-105 z-10` : 'hover:scale-105'}
+                ${isPromoted 
+                    ? 'bg-[#191714] border-[#B39A62] text-[#B39A62]' 
+                    : baseBg
                 }
-                .quantum-icon {
-                    animation: quantum-jitter 1.2s infinite alternate ease-in-out;
-                    display: inline-block;
-                }
-                @keyframes gold-pulse {
-                    0%, 100% { box-shadow: 0 0 8px rgba(245, 158, 11, 0.6), inset 0 0 6px rgba(245, 158, 11, 0.2); }
-                    50% { box-shadow: 0 0 16px rgba(245, 158, 11, 0.9), inset 0 0 10px rgba(245, 158, 11, 0.4); }
-                }
-                .promoted-glow {
-                    animation: gold-pulse 2s infinite ease-in-out;
-                }
-            `}</style>
+            `}
+        >
+            {isPromoted && (
+                <div className="absolute -top-1 -right-1 w-2 h-2 bg-[#B39A62] rounded-full" />
+            )}
 
-            <div 
-                onClick={onClick}
-                className={`
-                    relative w-12 h-12 cursor-pointer transition-all duration-300
-                    flex items-center justify-center overflow-hidden border-2
-                    ${confirmedType ? 'rounded-lg' : 'rounded-full'}
-                    ${isSelected ? 'ring-4 ring-cyan-400 scale-110 z-10 shadow-[0_0_15px_rgba(34,211,238,0.8)]' : 'hover:scale-105 hover:ring-2 hover:ring-cyan-400/50'}
-                    ${isPromoted 
-                        ? 'bg-gradient-to-b from-amber-950/80 via-black to-[#120a02] border-2 border-amber-400 promoted-glow text-amber-300' 
-                        : baseBg
-                    }
-                `}
-            >
-                {/* Promotion badge */}
-                {isPromoted && (
-                    <>
-                        <div 
-                            className="absolute top-0.5 left-0.5 flex items-center justify-center bg-amber-500 text-black text-[8px] font-black rounded px-1 leading-none shadow border border-amber-300 z-10 select-none"
-                            title="Promoted from Pawn"
+            {confirmedType ? (
+                <span className={`text-3xl ${isPromoted ? 'text-[#B39A62]' : iconColor} opacity-90 drop-shadow-sm`}>
+                    {symbols[confirmedType]}
+                </span>
+            ) : (
+                // Superposition: Elegant engraved subtle icons
+                <div className="flex flex-wrap justify-center items-center content-center w-full h-full p-1 opacity-60">
+                    {possibleTypes.map((type) => (
+                        <span 
+                            key={type} 
+                            className={`text-[12px] leading-none m-[1px] ${iconColor}`}
                         >
-                            <span>成</span>
-                        </div>
-
-                        <div className="absolute top-0.5 right-0.5 text-amber-300 text-[8px] font-bold z-10 select-none animate-pulse">
-                            ★
-                        </div>
-
-                        <div className="absolute bottom-0 w-full flex justify-center items-center py-[1px] bg-amber-500/30 border-t border-amber-400/50 select-none">
-                            <span className="text-[7px] font-black tracking-tighter text-amber-300 uppercase leading-none">
-                                👑{confirmedType ? PIECE_SYMBOLS[confirmedType] : ''}
-                            </span>
-                        </div>
-                    </>
-                )}
-
-                {confirmedType ? (
-                    <span className={`text-3xl ${isPromoted ? 'text-amber-300 drop-shadow-[0_0_10px_rgba(251,191,36,0.9)]' : iconColor} transition-transform duration-500 scale-110 ${isPromoted ? 'pb-1' : ''}`}>
-                        {PIECE_SYMBOLS[confirmedType]}
-                    </span>
-                ) : (
-                    // Superposition: render icons
-                    <div className="flex flex-wrap justify-center items-center content-center p-0.5 w-full h-full">
-                        {possibleTypes.map((type, index) => (
-                            <span 
-                                key={type} 
-                                title={type} 
-                                className={`quantum-icon text-[13px] leading-none m-[1px] font-bold ${iconColor}`}
-                                style={{ animationDelay: `${(index * 0.17) % 1}s` }}
-                            >
-                                {PIECE_SYMBOLS[type]}
-                            </span>
-                        ))}
-                    </div>
-                )}
-
-                {!confirmedType && (
-                    <div className="absolute bottom-0 w-full flex justify-center opacity-60">
-                        {possibleTypes.map(type => (
-                            <div 
-                                key={type} 
-                                className={`h-[2px] ${barColor}`}
-                                style={{ width: `${Math.max(probabilities[type] * 100, 10)}%` }}
-                            />
-                        ))}
-                    </div>
-                )}
-            </div>
-        </>
+                            {symbols[type]}
+                        </span>
+                    ))}
+                </div>
+            )}
+        </div>
     );
 };

@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Playfair_Display } from "next/font/google";
 import Script from "next/script";
 import { Analytics } from "@vercel/analytics/react";
 import "./globals.css";
@@ -14,8 +14,13 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const playfair = Playfair_Display({
+  variable: "--font-playfair",
+  subsets: ["latin"],
+});
+
 export const viewport: Viewport = {
-  themeColor: "#000000",
+  themeColor: "#11100E",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -41,12 +46,12 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const adClient = process.env.NEXT_PUBLIC_ADSENSE_CLIENT || "ca-pub-1116866075179199";
+  const adClient = process.env.NEXT_PUBLIC_ADSENSE_CLIENT_ID || "ca-pub-1116866075179199";
 
   return (
     <html
       lang="ja"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${playfair.variable} h-full antialiased`}
     >
       <head>
         {adClient && (
@@ -57,20 +62,17 @@ export default function RootLayout({
                 strategy="afterInteractive"
             />
         )}
-        <Script id="sw-register" strategy="afterInteractive">
+        <Script id="adsense-init" strategy="afterInteractive">
             {`
-              if ('serviceWorker' in navigator) {
-                window.addEventListener('load', function() {
-                  // navigator.serviceWorker.register('/sw.js').then(
-                    function(registration) {},
-                    function(err) { console.error('SW registration failed: ', err); }
-                  );
-                });
-              }
+              (adsbygoogle = window.adsbygoogle || []).push({
+                google_ad_client: "${adClient}",
+                enable_page_level_ads: true,
+                overlays: {bottom: true}
+              });
             `}
         </Script>
       </head>
-      <body className="h-full bg-black text-white selection:bg-cyan-500/30">
+      <body className="h-full bg-[#11100E] text-[#E8E2D7] selection:bg-[#B39A62]/30 font-sans">
         <main className="h-full">{children}</main>
         <Analytics />
       </body>
