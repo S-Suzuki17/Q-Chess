@@ -43,6 +43,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
     const executeMoveRef = useRef<any>(null);
     useEffect(() => { tokensRef.current = tokens; executeMoveRef.current = executeMove; }, [tokens]);
     const [selectedTokenId, setSelectedTokenId] = useState<string | null>(null);
+    const [tutorialHint, setTutorialHint] = useState<string | null>(null);
     const [currentTurn, setCurrentTurn] = useState<'white' | 'black'>('white');
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
     const [fetchedOpponentName, setFetchedOpponentName] = useState<string | null>(null);
@@ -515,6 +516,24 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
     }, [selectedTokenId, tokens, winner, moveHistory]); // tokensが変わる（ターンが進む）か選択が切り替わったら再計算
 
     const executeMove = (token: Token, targetRow: number, targetCol: number, possibleTypesForMove: PieceType[], targetToken?: Token, isLocalMove: boolean = true, promotedTo?: PieceType) => {
+        // Tutorial hint logic (VS CPU only)
+        if (cpuLevel !== undefined && token.player === 'white') {
+            const dx = Math.abs(targetCol - token.col);
+            const dy = Math.abs(targetRow - token.row);
+            
+            if (dx === dy && dx > 0) {
+                setTutorialHint((t as any).tutorialDiagonal || '💡 Moved diagonally! This piece must be a Bishop or Queen.');
+            } else if ((dx > 0 && dy === 0) || (dx === 0 && dy > 0)) {
+                if (dx > 1 || dy > 1) {
+                    setTutorialHint((t as any).tutorialStraight || '💡 Moved straight! This must be a Rook or Queen (or Pawn initial).');
+                }
+            } else if ((dx === 2 && dy === 1) || (dx === 1 && dy === 2)) {
+                setTutorialHint((t as any).tutorialL || '💡 Moved in an L-shape! This piece has to be a Knight.');
+            }
+            
+            setTimeout(() => setTutorialHint(null), 7000);
+        }
+
         if (winner) return;
         if (isLocalMove && channelRef.current) {
             channelRef.current.send({
@@ -804,10 +823,10 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
 
             {winner && (
                 <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center z-50 backdrop-blur-md rounded-lg border-2 border-gray-700 animate-shake">
-                    <div className="text-5xl sm:text-6xl md:text-8xl font-black text-[#E8E2D7] drop-shadow-[0_0_30px_rgba(255,255,255,1)] mb-8 tracking-widest md:tracking-[0.3em] animate-stamp glitch-text text-center px-4" data-text={winner === 'draw' ? 'DRAW' : 'CHECKMATE'}>
+                    <div className="text-4xl sm:text-5xl md:text-8xl font-black text-[#E8E2D7] drop-shadow-[0_0_30px_rgba(255,255,255,1)] mb-8 tracking-widest md:tracking-[0.3em] animate-stamp glitch-text text-center px-4" data-text={winner === 'draw' ? 'DRAW' : 'CHECKMATE'}>
                         {winner === 'draw' ? 'DRAW' : 'CHECKMATE'}
                     </div>
-                    <div className={`text-4xl font-bold mb-12 ${winner === 'draw' ? 'text-gray-400 drop-shadow-[0_0_15px_rgba(156,163,175,0.8)]' : winner === 'white_wins' ? 'text-blue-400 drop-shadow-[0_0_15px_rgba(96,165,250,0.8)]' : 'text-red-900 drop-shadow-[0_0_15px_rgba(239,68,68,0.8)]'}`}>
+                    <div className={`text-xl sm:text-3xl md:text-4xl font-bold mb-12 px-4 ${winner === 'draw' ? 'text-gray-400 drop-shadow-[0_0_15px_rgba(156,163,175,0.8)]' : winner === 'white_wins' ? 'text-blue-400 drop-shadow-[0_0_15px_rgba(96,165,250,0.8)]' : 'text-red-900 drop-shadow-[0_0_15px_rgba(239,68,68,0.8)]'}`}>
                         {winner === 'draw' 
                             ? 'Draw (Stalemate)' 
                             : winner === 'white_wins' 
