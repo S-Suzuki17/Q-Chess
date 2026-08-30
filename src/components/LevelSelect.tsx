@@ -318,7 +318,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onReplay, onB
                 <div className="fixed inset-0 bg-[#11100E]/95 z-[60] flex flex-col justify-end md:justify-center p-4 md:p-0 backdrop-blur-sm animate-in fade-in duration-200">
                     <div className="w-full max-w-md mx-auto bg-[#11100E] border border-[#A89C86]/30 p-6 flex flex-col shadow-2xl">
                         <div className="flex justify-between items-center border-b border-[#A89C86]/20 pb-4 mb-4 shrink-0">
-                            <span className="text-sm tracking-[0.2em] text-[#E8E2D7] font-serif uppercase">CHOOSE YOUR GAME</span>
+                            <span className="text-sm tracking-[0.2em] text-[#E8E2D7] font-serif uppercase">{(t as any).chooseGame}</span>
                             <button onClick={() => setShowPlayMenu(false)} className="text-[#A89C86] hover:text-[#E8E2D7] text-xl transition-colors">✕</button>
                         </div>
                         
@@ -326,14 +326,14 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onReplay, onB
                             {/* RANKED */}
                             <button onClick={() => {
                                 if (user.type === 'guest') {
-                                    alert(lang === 'ja' ? 'ランクマッチプレイにはアカウント登録が必要です。' : 'Please register an account to play Ranked Matches.');
+                                    alert((t as any).needAccount);
                                 } else {
                                     setPendingAction({ type: 'ranked' });
                                     setShowPlayMenu(false);
                                 }
                             }} className="w-full text-left py-6 border-b border-[#A89C86]/10 hover:bg-[#191714] group transition-colors flex flex-col gap-2 px-4">
-                                <span className="text-lg tracking-[0.15em] text-[#E8E2D7] group-hover:text-[#B39A62]">RANKED</span>
-                                <span className="text-[10px] tracking-widest text-[#A89C86] leading-relaxed">Competitive match.<br/>Your rating is affected by the result.</span>
+                                <span className="text-lg tracking-[0.15em] text-[#E8E2D7] group-hover:text-[#B39A62]">{(t as any).ranked}</span>
+                                <span className="text-[10px] tracking-widest text-[#A89C86] leading-relaxed" dangerouslySetInnerHTML={{ __html: (t as any).rankedDesc.replace(/\n/g, '<br/>') }}></span>
                             </button>
                             
                             {/* RANDOM MATCH */}
@@ -341,8 +341,8 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onReplay, onB
                                 setPendingAction({ type: 'random' });
                                 setShowPlayMenu(false);
                             }} className="w-full text-left py-6 border-b border-[#A89C86]/10 hover:bg-[#191714] group transition-colors flex flex-col gap-2 px-4">
-                                <span className="text-lg tracking-[0.15em] text-[#E8E2D7] group-hover:text-[#B39A62]">RANDOM MATCH</span>
-                                <span className="text-[10px] tracking-widest text-[#A89C86] leading-relaxed">Casual online match.<br/>Find an opponent at random.</span>
+                                <span className="text-lg tracking-[0.15em] text-[#E8E2D7] group-hover:text-[#B39A62]">{(t as any).randomMatch2}</span>
+                                <span className="text-[10px] tracking-widest text-[#A89C86] leading-relaxed" dangerouslySetInnerHTML={{ __html: (t as any).randomMatchDesc.replace(/\n/g, '<br/>') }}></span>
                             </button>
 
                             {/* FRIEND MATCH */}
@@ -350,20 +350,20 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onReplay, onB
                                 setShowFriends(true);
                                 setShowPlayMenu(false);
                             }} className="w-full text-left py-6 border-b border-[#A89C86]/10 hover:bg-[#191714] group transition-colors flex flex-col gap-2 px-4">
-                                <span className="text-lg tracking-[0.15em] text-[#E8E2D7] group-hover:text-[#B39A62]">FRIEND MATCH</span>
-                                <span className="text-[10px] tracking-widest text-[#A89C86] leading-relaxed">Challenge someone you know.</span>
+                                <span className="text-lg tracking-[0.15em] text-[#E8E2D7] group-hover:text-[#B39A62]">{(t as any).friendMatch}</span>
+                                <span className="text-[10px] tracking-widest text-[#A89C86] leading-relaxed">{(t as any).friendMatchDesc}</span>
                             </button>
                             
                             {/* JOIN ROOM */}
                             <button onClick={() => {
-                                const room = prompt(lang === 'ja' ? 'ルームIDを入力' : 'Enter Room ID');
+                                const room = prompt((t as any).enterRoomId);
                                 if (room) {
                                     setPendingAction({ type: 'join', roomId: room.toUpperCase() });
                                     setShowPlayMenu(false);
                                 }
                             }} className="w-full text-left py-6 hover:bg-[#191714] group transition-colors flex flex-col gap-2 px-4">
-                                <span className="text-lg tracking-[0.15em] text-[#E8E2D7] group-hover:text-[#B39A62]">JOIN ROOM</span>
-                                <span className="text-[10px] tracking-widest text-[#A89C86] leading-relaxed">Join a private match via 6-letter code.</span>
+                                <span className="text-lg tracking-[0.15em] text-[#E8E2D7] group-hover:text-[#B39A62]">{(t as any).joinRoom}</span>
+                                <span className="text-[10px] tracking-widest text-[#A89C86] leading-relaxed">{(t as any).joinRoomDesc}</span>
                             </button>
                         </div>
                     </div>
@@ -389,7 +389,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onReplay, onB
                             ))}
                         </div>
                         <button onClick={() => setPendingAction(null)} className="mt-8 text-xs text-[#A89C86] hover:text-[#E8E2D7] tracking-widest">
-                            CANCEL
+                            {t.cancel}
                         </button>
                     </div>
                 </div>
@@ -399,7 +399,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onReplay, onB
                 <div className="fixed inset-0 bg-[#11100E]/95 z-50 flex flex-col items-center justify-center p-4 backdrop-blur-sm">
                     <div className="bg-[#11100E] border border-[#A89C86]/30 p-6 md:p-8 w-full max-w-md shadow-2xl max-h-[90vh] overflow-y-auto custom-scrollbar">
                         <div className="flex justify-between items-center mb-6 pb-4 border-b border-[#A89C86]/20">
-                            <h3 className="text-lg tracking-[0.2em] text-[#E8E2D7] font-serif">ACCOUNT</h3>
+                            <h3 className="text-lg tracking-[0.2em] text-[#E8E2D7] font-serif">{(t as any).account}</h3>
                             <button onClick={() => setShowAccount(false)} className="text-[#A89C86] hover:text-[#E8E2D7] text-xl">✕</button>
                         </div>
                         
@@ -414,7 +414,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onReplay, onB
                                         )}
                                         {uploadingAvatar && (
                                             <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                                                <span className="text-[10px] tracking-widest text-white animate-pulse">UPLOADING</span>
+                                                <span className="text-[10px] tracking-widest text-white animate-pulse">{(t as any).uploading}</span>
                                             </div>
                                         )}
                                     </div>
@@ -436,7 +436,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onReplay, onB
                                             if (isEditingName) { handleUpdateName(); setIsEditingName(false); } 
                                             else { setIsEditingName(true); setNewName(userProfile?.name || user.name); }
                                         }} className="text-[10px] text-[#A89C86] hover:text-[#B39A62] ml-2 tracking-widest">
-                                            {isEditingName ? 'SAVE' : 'EDIT'}
+                                            {isEditingName ? (t as any).save : (t as any).edit}
                                         </button>
                                     </div>
                                     <p className="text-[10px] text-[#A89C86] font-mono mt-1">ID: {user.id}</p>
@@ -444,7 +444,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onReplay, onB
                             </div>
 
                             <div>
-                                <p className="text-[10px] tracking-[0.2em] text-[#A89C86] mb-2 uppercase">Ratings</p>
+                                <p className="text-[10px] tracking-[0.2em] text-[#A89C86] mb-2 uppercase">{(t as any).ratings}</p>
                                 <div className="border border-[#A89C86]/20 flex justify-between">
                                     <div className="flex flex-col items-center p-4 border-r border-[#A89C86]/20 flex-1">
                                         <span className="text-[10px] text-[#A89C86] mb-1 tracking-widest">10 MIN</span>
@@ -462,7 +462,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onReplay, onB
                             </div>
 
                             <button onClick={async () => { await supabase.auth.signOut(); window.location.reload(); }} className="w-full mt-4 py-4 border border-[#A89C86]/30 hover:border-[#E8E2D7] text-[#A89C86] hover:text-[#E8E2D7] text-xs tracking-widest transition-colors">
-                                SIGN OUT
+                                {t.logout}
                             </button>
                         </div>
                     </div>
@@ -478,8 +478,8 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onReplay, onB
                         </div>
                         
                         <div className="flex gap-2 mb-6 shrink-0">
-                            <button onClick={() => handleReplayCategoryChange('global')} className={`flex-1 py-3 text-[10px] tracking-[0.2em] transition-colors border ${replayCategory === 'global' ? 'border-[#B39A62] bg-[#B39A62]/10 text-[#B39A62]' : 'border-[#A89C86]/30 text-[#A89C86] hover:border-[#E8E2D7]'}`}>GLOBAL</button>
-                            <button onClick={() => handleReplayCategoryChange('mine')} className={`flex-1 py-3 text-[10px] tracking-[0.2em] transition-colors border ${replayCategory === 'mine' ? 'border-[#B39A62] bg-[#B39A62]/10 text-[#B39A62]' : 'border-[#A89C86]/30 text-[#A89C86] hover:border-[#E8E2D7]'}`}>MY GAMES</button>
+                            <button onClick={() => handleReplayCategoryChange('global')} className={`flex-1 py-3 text-[10px] tracking-[0.2em] transition-colors border ${replayCategory === 'global' ? 'border-[#B39A62] bg-[#B39A62]/10 text-[#B39A62]' : 'border-[#A89C86]/30 text-[#A89C86] hover:border-[#E8E2D7]'}`}>{(t as any).global}</button>
+                            <button onClick={() => handleReplayCategoryChange('mine')} className={`flex-1 py-3 text-[10px] tracking-[0.2em] transition-colors border ${replayCategory === 'mine' ? 'border-[#B39A62] bg-[#B39A62]/10 text-[#B39A62]' : 'border-[#A89C86]/30 text-[#A89C86] hover:border-[#E8E2D7]'}`}>{(t as any).mine}</button>
                         </div>
 
                         {loadingReplays ? (
@@ -600,23 +600,23 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onReplay, onB
                 
                 <div className="flex flex-col gap-6 w-full">
                     <div className="flex flex-col items-center w-full">
-                        <h2 className="text-[10px] tracking-[0.3em] text-[#A89C86] uppercase mb-4">YOUR NEXT GAME</h2>
+                        <h2 className="text-[10px] tracking-[0.3em] text-[#A89C86] uppercase mb-4">{(t as any).yourNextGame}</h2>
                         <button onClick={() => setShowPlayMenu(true)} className="w-full py-8 bg-transparent border border-[#A89C86]/50 hover:bg-[#E8E2D7] hover:text-[#11100E] text-[#E8E2D7] transition-all group relative overflow-hidden">
-                            <span className="relative z-10 text-2xl tracking-[0.3em] font-serif transition-colors">PLAY</span>
+                            <span className="relative z-10 text-2xl tracking-[0.3em] font-serif transition-colors">{(t as any).play}</span>
                         </button>
                     </div>
 
                     <button onClick={handleVsCpuClick} className="w-full py-4 bg-transparent border border-[#A89C86]/20 hover:bg-[#191714] text-xs tracking-[0.2em] transition-colors text-[#A89C86] hover:text-[#E8E2D7] uppercase">
-                        PRACTICE
+                        {(t as any).practice}
                     </button>
                 </div>
 
                 <div className="flex flex-col w-full">
                     <div className="border-b border-[#A89C86]/20 pb-2 mb-2 flex justify-between items-end">
-                        <span className="text-[10px] tracking-[0.2em] text-[#A89C86] uppercase">RECENT GAMES</span>
+                        <span className="text-[10px] tracking-[0.2em] text-[#A89C86] uppercase">{(t as any).recentGames}</span>
                     </div>
                     {recentGames.length === 0 ? (
-                        <div className="py-2 text-[10px] text-[#A89C86]/50 tracking-widest">No recent games.</div>
+                        <div className="py-2 text-[10px] text-[#A89C86]/50 tracking-widest">{(t as any).noRecentGames}</div>
                     ) : (
                         <div className="flex flex-col gap-0">
                             {recentGames.slice(0, 3).map(r => {
@@ -628,7 +628,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onReplay, onB
                                     <div key={r.id} className="flex justify-between items-center py-3 border-b border-[#A89C86]/10 text-xs tracking-widest">
                                         <span className="text-[#E8E2D7] truncate max-w-[150px]">{opponent}</span>
                                         <span className={`text-[10px] ${iWon ? 'text-[#B39A62]' : isDraw ? 'text-[#A89C86]' : 'text-[#A89C86]/50'}`}>
-                                            {iWon ? 'WIN' : isDraw ? 'DRAW' : 'LOSS'}
+                                            {iWon ? (t as any).win : isDraw ? (t as any).draw : (t as any).loss}
                                         </span>
                                     </div>
                                 );
@@ -640,11 +640,11 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onReplay, onB
 
             <div className="shrink-0 w-full max-w-lg mx-auto flex flex-wrap justify-center sm:justify-between items-center border-t border-[#A89C86]/20 pt-6 pb-2 text-[10px] tracking-[0.2em] text-[#A89C86] gap-y-4 z-10">
                 <div className="flex gap-6 justify-center w-full sm:w-auto">
-                    <button onClick={() => { setShowReplays(true); loadReplays(replayCategory); }} className="hover:text-[#E8E2D7] transition-colors uppercase">REPLAYS</button>
-                    <button onClick={() => { setShowLeaderboard(true); loadLeaderboard(); }} className="hover:text-[#E8E2D7] transition-colors uppercase">RANKINGS</button>
-                    <button onClick={() => setShowFriends(true)} className="hover:text-[#E8E2D7] transition-colors uppercase">FRIENDS</button>
+                    <button onClick={() => { setShowReplays(true); loadReplays(replayCategory); }} className="hover:text-[#E8E2D7] transition-colors uppercase">{t.gameReplays}</button>
+                    <button onClick={() => { setShowLeaderboard(true); loadLeaderboard(); }} className="hover:text-[#E8E2D7] transition-colors uppercase">{t.globalRankings}</button>
+                    <button onClick={() => setShowFriends(true)} className="hover:text-[#E8E2D7] transition-colors uppercase">{(t as any).friends}</button>
                 </div>
-                <button onClick={() => setShowAccount(true)} className="hover:text-[#E8E2D7] transition-colors uppercase w-full sm:w-auto text-center">ACCOUNT</button>
+                <button onClick={() => setShowAccount(true)} className="hover:text-[#E8E2D7] transition-colors uppercase w-full sm:w-auto text-center">{(t as any).account}</button>
             </div>
         </div>
     );
