@@ -45,6 +45,26 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onReplay, onB
     const [updatePassword, setUpdatePassword] = React.useState('');
     const [emailMsg, setEmailMsg] = React.useState('');
     const [emailLoading, setEmailLoading] = React.useState(false);
+    const [isEditingName, setIsEditingName] = React.useState(false);
+    const [newName, setNewName] = React.useState('');
+    const [nameLoading, setNameLoading] = React.useState(false);
+
+    const handleUpdateName = async () => {
+        if (!newName.trim() || newName.trim().length > 15) {
+            alert(lang === 'ja' ? '名前は1〜15文字で入力してください。' : 'Name must be between 1 and 15 characters.');
+            return;
+        }
+        setNameLoading(true);
+        try {
+            const { error } = await supabase.from('profiles').update({ name: newName.trim() }).eq('id', user.id);
+            if (error) throw error;
+            window.location.reload();
+        } catch (e) {
+            alert('Error updating name');
+        } finally {
+            setNameLoading(false);
+        }
+    };
 
     const handleUpdateEmail = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -382,15 +402,39 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onReplay, onB
                             <div>
                                 <p className="text-xs text-[#8C7A5E] font-bold mb-1">NAME</p>
                                 <div className="flex items-center gap-2">
-                                    <p className="text-lg text-white font-bold">{user.name}</p>
-                                    {userProfile && (() => {
-                                        const title = getTitleFromRating(userProfile.rating_10m || 1200);
-                                        return (
-                                            <span className={`text-xs px-2 py-0.5 rounded border border-current ${title.color} bg-[#1E1C19]`}>
-                                                {title.icon} {title.name}
-                                            </span>
-                                        );
-                                    })()}
+                                    {isEditingName ? (
+                                        <div className="flex items-center gap-2">
+                                            <input 
+                                                type="text" 
+                                                value={newName} 
+                                                onChange={e => setNewName(e.target.value)}
+                                                className="bg-[#1E1C19] border border-[#4A4238] rounded px-2 py-1 text-white text-sm w-32 outline-none focus:border-[#D4B872]"
+                                                maxLength={15}
+                                                autoFocus
+                                            />
+                                            <button onClick={handleUpdateName} disabled={nameLoading} className="text-xs bg-[#D4B872] text-[#1E1C19] px-2 py-1 rounded font-bold">{nameLoading ? '...' : 'SAVE'}</button>
+                                            <button onClick={() => setIsEditingName(false)} className="text-xs text-[#8C7A5E] hover:text-[#E8E5DF]">CANCEL</button>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <p className="text-lg text-[#E8E5DF] font-bold">{user.name}</p>
+                                            {user.type === 'registered' && (
+                                                <button onClick={() => { setIsEditingName(true); setNewName(user.name); }} className="text-[#8C7A5E] hover:text-[#D4B872] transition-colors ml-1" title="Edit Name">
+                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                                    </svg>
+                                                </button>
+                                            )}
+                                            {userProfile && (() => {
+                                                const title = getTitleFromRating(userProfile.rating_10m || 1200);
+                                                return (
+                                                    <span className={`text-xs px-2 py-0.5 rounded border border-current ${title.color} bg-[#1E1C19]`}>
+                                                        {title.icon} {title.name}
+                                                    </span>
+                                                );
+                                            })()}
+                                        </>
+                                    )}
                                 </div>
                             </div>
                             <div>
