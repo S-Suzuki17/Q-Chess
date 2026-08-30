@@ -11,6 +11,7 @@ import { soundManager } from '../lib/SoundService';
 import { getTitleFromRating } from '../lib/rankSystem';
 import { FriendsMenu } from './FriendsMenu';
 import { LiveMatchesMenu } from './LiveMatchesMenu';
+import { InteractiveTutorial } from './InteractiveTutorial';
 
 interface LevelSelectProps {
     lang: Language;
@@ -127,6 +128,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onReplay, onB
         }
     };
     const [showFriends, setShowFriends] = React.useState(false);
+    const [showTutorial, setShowTutorial] = React.useState(false);
     const [showLiveMatches, setShowLiveMatches] = React.useState(false);
     const [showPlayMenu, setShowPlayMenu] = React.useState(false);
     const [recentGames, setRecentGames] = React.useState<any[]>([]);
@@ -312,6 +314,8 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onReplay, onB
     }, []);
     return (
         <div className="w-full h-full flex flex-col bg-transparent text-[#E8E2D7] font-sans px-6 py-6 md:px-8 md:py-8 overflow-hidden relative">
+            {showTutorial && <InteractiveTutorial lang={lang} onClose={() => setShowTutorial(false)} />}
+
             
             {/* Play Menu Modal */}
             {showPlayMenu && (
@@ -644,9 +648,16 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onReplay, onB
                         </button>
                     </div>
 
-                    <button onClick={handleVsCpuClick} className="w-full py-4 bg-transparent border border-[#A89C86]/20 hover:bg-[#24211D] text-xs tracking-[0.2em] transition-colors text-[#A89C86] hover:text-[#E8E2D7] uppercase">
-                        {(t as any).practice}
-                    </button>
+                    
+                    <div className="flex gap-2">
+                        <button onClick={handleVsCpuClick} className="flex-1 py-4 bg-transparent border border-[#A89C86]/20 hover:bg-[#24211D] text-xs tracking-[0.2em] transition-colors text-[#A89C86] hover:text-[#E8E2D7] uppercase">
+                            {(t as any).practice}
+                        </button>
+                        <button onClick={() => setShowTutorial(true)} className="flex-1 py-4 bg-[#B39A62]/10 border border-[#B39A62]/30 hover:bg-[#B39A62]/30 text-xs tracking-[0.2em] transition-colors text-[#D4B872] hover:text-[#E8E2D7] uppercase font-bold">
+                            {(t as any).rulesButton || "HOW TO PLAY"}
+                        </button>
+                    </div>
+
                 </div>
 
                 <div className="flex flex-col w-full">
