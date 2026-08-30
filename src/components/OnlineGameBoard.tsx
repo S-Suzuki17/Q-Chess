@@ -483,18 +483,24 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
             </div>
 
             {winner && (
-                <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center z-50 backdrop-blur-sm rounded-lg border border-gray-800">
-                    <div className={`text-6xl font-black mb-8 tracking-widest ${
+                <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center z-50 backdrop-blur-md rounded-lg border-2 border-gray-700 animate-shake">
+                    <div className={`text-7xl md:text-8xl font-black mb-8 tracking-[0.3em] animate-stamp glitch-text ${
                         winner === 'draw' 
-                            ? 'text-gray-300 drop-shadow-[0_0_20px_rgba(255,255,255,0.8)]' 
+                            ? 'text-gray-300 drop-shadow-[0_0_20px_rgba(255,255,255,1)]' 
                             : (winner === 'white_wins' && onlineRole === 'white') || (winner === 'black_wins' && onlineRole === 'black')
-                                ? 'text-[#00ff41] drop-shadow-[0_0_25px_rgba(0,255,65,0.9)] animate-bounce'
-                                : 'text-red-500 drop-shadow-[0_0_25px_rgba(239,68,68,0.9)]'
-                    }`}>
+                                ? 'text-[#00ff41] drop-shadow-[0_0_25px_rgba(0,255,65,1)]'
+                                : 'text-red-500 drop-shadow-[0_0_25px_rgba(239,68,68,1)]'
+                    }`} data-text={
+                        winner === 'draw' 
+                            ? 'DRAW' 
+                            : (winner === 'white_wins' && onlineRole === 'white') || (winner === 'black_wins' && onlineRole === 'black')
+                                ? (lang === 'ja' ? '勝利 (YOU WIN)' : 'YOU WIN!')
+                                : (lang === 'ja' ? '敗北... (YOU LOSE)' : 'YOU LOSE...')
+                    }>
                         {winner === 'draw' 
                             ? 'DRAW' 
                             : (winner === 'white_wins' && onlineRole === 'white') || (winner === 'black_wins' && onlineRole === 'black')
-                                ? (lang === 'ja' ? '勝利！ (YOU WIN)' : 'YOU WIN!')
+                                ? (lang === 'ja' ? '勝利 (YOU WIN)' : 'YOU WIN!')
                                 : (lang === 'ja' ? '敗北... (YOU LOSE)' : 'YOU LOSE...')}
                     </div>
                     <div className={`text-3xl font-bold mb-12 ${
