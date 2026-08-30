@@ -307,589 +307,384 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onReplay, onB
             }
         };
     }, []);
-
     return (
-        <div className="flex flex-col items-center justify-center min-h-[80vh] w-full text-[#D4B872]">
-            {/* Time Control selection modal */}
+        <div className="w-full min-h-[100dvh] flex flex-col items-center bg-[#11100E] text-[#E8E2D7] font-sans">
+            
+            {/* --- Modals --- */}
             {pendingAction && (
-                <div className="fixed inset-0 bg-[#1E1C19]/90 z-50 flex flex-col items-center justify-center p-4">
-                    <div className="bg-[#2A2621] border border-[#4A4238] p-8 rounded-lg max-w-md w-full text-center shadow-2xl">
-                        <h3 className="text-2xl font-bold text-[#E8E5DF] mb-2">⏱ {t.selectTimeLimit}</h3>
-                        <p className="text-gray-400 text-sm mb-6">{t.timeLimit}</p>
-                        <div className="flex flex-col gap-3">
+                <div className="fixed inset-0 bg-[#11100E]/90 z-50 flex flex-col items-center justify-center p-4 backdrop-blur-sm">
+                    <div className="bg-[#191714] border border-[#A89C86]/30 p-8 w-full max-w-sm text-center shadow-2xl">
+                        <h3 className="text-xl tracking-[0.2em] text-[#E8E2D7] mb-2">{t.selectTimeLimit}</h3>
+                        <p className="text-[#A89C86] text-xs tracking-widest mb-8">{t.timeLimit}</p>
+                        <div className="flex flex-col gap-4">
                             {(['10s', '3m', '10m'] as TimeControl[]).map(tc => (
                                 <button
                                     key={tc}
                                     onClick={() => handleTimeControlConfirm(tc)}
-                                    className="w-full py-4 bg-[#3B342C] border border-[#4A4238] hover:bg-[#4A4238] transition-all text-[#E8E5DF] font-bold tracking-widest text-lg hover:shadow-md rounded flex justify-between px-6 items-center"
+                                    className="w-full py-4 bg-[#11100E] border border-[#A89C86]/30 hover:border-[#B39A62] transition-colors text-[#E8E2D7] tracking-widest text-sm flex justify-between px-6 items-center group"
                                 >
-                                    <span>{tc === '10s' ? t.tc10s : tc === '3m' ? t.tc3m : t.tc10m}</span>
-                                    <span className="text-sm font-mono text-[#D4B872]">▶</span>
+                                    <span className="group-hover:text-[#B39A62]">{tc === '10s' ? t.tc10s : tc === '3m' ? t.tc3m : t.tc10m}</span>
+                                    <span className="text-xs text-[#A89C86]">→</span>
                                 </button>
                             ))}
                         </div>
                         <button
                             onClick={() => setPendingAction(null)}
-                            className="mt-6 text-gray-500 hover:text-gray-300 text-sm"
+                            className="mt-8 text-xs text-[#A89C86] hover:text-[#E8E2D7] tracking-widest"
                         >
-                            {t.cancel}
+                            CANCEL
                         </button>
                     </div>
                 </div>
             )}
 
-            {/* Ad overlay */}
-            {showAdModal && (
-                <div className="fixed inset-0 bg-[#1E1C19]/90 z-50 flex flex-col items-center justify-center p-4">
-                    <div className="bg-[#2A2621] border border-[#4A4238] p-8 rounded-lg max-w-md w-full text-center shadow-2xl">
-                        <h3 className="text-xl font-bold text-[#E8E5DF] mb-4 flex items-center justify-center gap-2">
-                            <span className="text-yellow-400">⚡</span> {t.adCloudTitle}
-                        </h3>
-                        <p className="text-gray-400 text-sm mb-6">
-                            {t.adCloudDesc}
-                        </p>
-                        
-                        <div className="w-full h-4 bg-gray-800 rounded-full overflow-hidden mb-6 border border-gray-700">
-                            <div 
-                                className="h-full bg-[#D4B872] transition-all duration-75"
-                                style={{ width: `${adProgress}%` }}
-                            />
-                        </div>
-
-                        {adProgress < 100 ? (
-                            <div className="flex flex-col gap-4 w-full">
-                                <p className="text-[#D4B872] animate-pulse text-sm font-mono">Simulating Ad... {adProgress}%</p>
-                                <button 
-                                    onClick={handleAdCancel}
-                                    className="w-full py-3 bg-red-900/50 hover:bg-red-800/50 border border-[#4A4238] text-red-300 font-bold rounded transition-colors"
-                                >
-                                    {t.cancel}
-                                </button>
-                            </div>
-                        ) : (
-                            <button 
-                                onClick={handleAdFinish}
-                                className="w-full py-3 bg-[#4A4238] hover:bg-[#D4B872] text-white font-bold rounded transition-colors"
-                            >
-                                {t.adPlayButton}
-                            </button>
-                        )}
-                    </div>
-                </div>
-            )}
-
-            {/* Random Match searching overlay */}
-            {isSearching && (
-                <div className="fixed inset-0 bg-[#1E1C19]/90 z-50 flex flex-col items-center justify-center p-4">
-                    <div className="bg-[#2A2621] border border-[#4A4238] p-8 rounded-lg max-w-md w-full text-center shadow-2xl">
-                        {matchFound ? (
-                            <>
-                                <div className="text-4xl mb-6 inline-block">⚔️</div>
-                                <h3 className="text-2xl font-bold text-[#E8E5DF] mb-4 animate-pulse">
-                                    {lang === 'ja' ? 'マッチング成功！' : 'Match Found!'}
-                                </h3>
-                                <p className="text-gray-400 text-sm mb-6">
-                                    {lang === 'ja' ? '対戦の準備をしています...' : 'Preparing the match...'}
-                                </p>
-                            </>
-                        ) : (
-                            <>
-                                <div className="text-4xl mb-6 animate-spin inline-block">🔍</div>
-                                <h3 className="text-2xl font-bold text-[#E8E5DF] mb-4">
-                                    {t.searchingOpponent}
-                                </h3>
-                                <p className="text-gray-400 text-sm mb-6">
-                                    Waiting for another player to join the queue.
-                                </p>
-                                <div className="flex justify-center mb-6">
-                                    <div className="flex gap-1">
-                                        <div className="w-3 h-3 rounded-full bg-[#D4B872] animate-bounce" style={{ animationDelay: '0ms' }} />
-                                        <div className="w-3 h-3 rounded-full bg-[#D4B872] animate-bounce" style={{ animationDelay: '150ms' }} />
-                                        <div className="w-3 h-3 rounded-full bg-[#D4B872] animate-bounce" style={{ animationDelay: '300ms' }} />
-                                    </div>
-                                </div>
-                                <button onClick={cancelSearch} className="px-8 py-3 bg-red-950/50 border border-[#4A4238] hover:bg-red-900 text-red-300 font-bold rounded transition-all">
-                                    {t.cancel}
-                                </button>
-                            </>
-                        )}
-                    </div>
-                </div>
-            )}
-
-            <div className="text-center mb-12">
-                <button
-                    onClick={() => setShowAccount(true)}
-                    className="flex flex-col items-center justify-center gap-1 text-[#D4B872] mb-6 hover:text-[#E8E5DF] transition-colors group"
-                >
-                    <div className="flex items-center gap-2">
-                        {user.avatar_url || userProfile?.avatar_url ? (
-                            <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-800 border border-[#4A4238]">
-                                <img src={user.avatar_url || userProfile?.avatar_url} alt="" className="w-full h-full object-cover" />
-                            </div>
-                        ) : (
-                            <span className="text-lg">👤</span>
-                        )}
-                        <span className="text-lg font-bold">{user.name}</span>
-                    </div>
-                    <span className="text-xs border border-[#4A4238] px-2 py-1 rounded bg-cyan-950/30 group-hover:bg-[#3B342C]">View Account</span>
-                    <span className="text-[10px] text-green-400 mt-1 animate-pulse">● {onlineCount} Player(s) Online</span>
-                </button>
-                <h2 className="text-4xl font-bold tracking-widest text-[#D4B872] font-serif">
-                    {t.selectMode}
-                </h2>
-            </div>
-
-            {/* Account Modal */}
             {showAccount && (
-                <div className="fixed inset-0 bg-[#1E1C19]/90 z-50 flex flex-col items-center justify-center p-4">
-                    <div className="bg-[#2A2621] border border-[#4A4238] p-8 rounded-lg max-w-sm w-full text-center shadow-2xl">
-                        <h3 className="text-2xl font-bold text-[#E8E5DF] mb-6">👤 ACCOUNT</h3>
+                <div className="fixed inset-0 bg-[#11100E]/90 z-50 flex flex-col items-center justify-center p-4 backdrop-blur-sm">
+                    <div className="bg-[#191714] border border-[#A89C86]/30 p-6 md:p-8 w-full max-w-md shadow-2xl max-h-[90vh] overflow-y-auto custom-scrollbar">
+                        <div className="flex justify-between items-center mb-6 pb-4 border-b border-[#A89C86]/20">
+                            <h3 className="text-lg tracking-[0.2em] text-[#E8E2D7]">ACCOUNT</h3>
+                            <button onClick={() => setShowAccount(false)} className="text-[#A89C86] hover:text-[#E8E2D7]">✕</button>
+                        </div>
                         
-                        <div className="flex flex-col gap-4 text-left mb-8">
-                                <div className="flex flex-col items-center mb-6">
-                                    <div className="relative group">
-                                        <div className="w-24 h-24 rounded-full border-2 border-[#4A4238] overflow-hidden bg-gray-800 flex items-center justify-center mb-2">
-                                            {userProfile?.avatar_url ? (
-                                                <img src={userProfile.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
-                                            ) : (
-                                                <span className="text-4xl text-gray-600">👤</span>
-                                            )}
-                                        </div>
-                                        {user.type === 'registered' && (
-                                            <label className="absolute inset-0 bg-black/60 rounded-full flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity">
-                                                <span className="text-xs font-bold text-white text-center">
-                                                    {uploadingAvatar ? '...' : 'UPLOAD'}
-                                                </span>
-                                                <input type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} disabled={uploadingAvatar} />
-                                            </label>
+                        <div className="flex flex-col gap-6 text-left">
+                            <div className="flex items-center gap-6">
+                                <label className="cursor-pointer group relative">
+                                    <div className="w-20 h-20 rounded-full border border-[#A89C86]/50 overflow-hidden bg-[#11100E] flex items-center justify-center transition-all group-hover:border-[#B39A62]">
+                                        {userProfile?.avatar_url ? (
+                                            <img src={userProfile.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
+                                        ) : (
+                                            <span className="text-[#A89C86] text-xl">?</span>
+                                        )}
+                                        {uploadingAvatar && (
+                                            <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                                                <span className="text-xs text-white animate-pulse">...</span>
+                                            </div>
                                         )}
                                     </div>
-                                    <p className="text-xs text-[#8C7A5E] font-bold">PROFILE PHOTO</p>
-                                </div>
-
-                                <div>
-                                    <p className="text-xs text-[#8C7A5E] font-bold mb-1">NAME</p>
-                                <div className="flex items-center gap-2">
-                                    {isEditingName ? (
-                                        <div className="flex items-center gap-2">
+                                    <input type="file" accept="image/*" onChange={handleAvatarUpload} className="hidden" disabled={uploadingAvatar} />
+                                </label>
+                                <div className="flex flex-col">
+                                    <div className="flex items-center gap-2">
+                                        {isEditingName ? (
                                             <input 
                                                 type="text" 
                                                 value={newName} 
-                                                onChange={e => setNewName(e.target.value)}
-                                                className="bg-[#1E1C19] border border-[#4A4238] rounded px-2 py-1 text-white text-sm w-32 outline-none focus:border-[#D4B872]"
-                                                maxLength={15}
-                                                autoFocus
+                                                onChange={e => setNewName(e.target.value)} 
+                                                className="bg-[#11100E] border border-[#A89C86]/50 p-1 text-sm text-[#E8E2D7] w-32" 
                                             />
-                                            <button onClick={handleUpdateName} disabled={nameLoading} className="text-xs bg-[#D4B872] text-[#1E1C19] px-2 py-1 rounded font-bold">{nameLoading ? '...' : 'SAVE'}</button>
-                                            <button onClick={() => setIsEditingName(false)} className="text-xs text-[#8C7A5E] hover:text-[#E8E5DF]">CANCEL</button>
-                                        </div>
-                                    ) : (
-                                        <>
-                                            <p className="text-lg text-[#E8E5DF] font-bold">{user.name}</p>
-                                            {user.type === 'registered' && (
-                                                <button onClick={() => { setIsEditingName(true); setNewName(user.name); }} className="text-[#8C7A5E] hover:text-[#D4B872] transition-colors ml-1" title="Edit Name">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                                                    </svg>
-                                                </button>
-                                            )}
-                                            {userProfile && (() => {
-                                                const title = getTitleFromRating(userProfile.rating_10m || 1200);
-                                                return (
-                                                    <span className={`text-xs px-2 py-0.5 rounded border border-current ${title.color} bg-[#1E1C19]`}>
-                                                        {title.icon} {title.name}
-                                                    </span>
-                                                );
-                                            })()}
-                                        </>
-                                    )}
+                                        ) : (
+                                            <span className="text-xl font-bold tracking-wider">{userProfile?.name || user.name}</span>
+                                        )}
+                                        <button onClick={() => {
+                                            if (isEditingName) { handleUpdateName(); } 
+                                            else { setIsEditingName(true); setNewName(userProfile?.name || user.name); }
+                                        }} className="text-[10px] text-[#A89C86] hover:text-[#B39A62] ml-2">
+                                            {isEditingName ? 'SAVE' : 'EDIT'}
+                                        </button>
+                                    </div>
+                                    <p className="text-[10px] text-[#A89C86] font-mono mt-1">ID: {user.id}</p>
                                 </div>
                             </div>
+
                             <div>
-                                <p className="text-xs text-[#8C7A5E] font-bold mb-1">ID (Keep Secret)</p>
-                                <p className="text-sm text-gray-300 font-mono bg-[#1E1C19] p-2 rounded border border-[#4A4238] break-all select-all">{user.id}</p>
-                            </div>
-                            <div>
-                                <p className="text-xs text-[#8C7A5E] font-bold mb-1">RATINGS</p>
-                                <div className="bg-[#1E1C19] border border-[#4A4238] rounded p-3 flex justify-between">
-                                    
+                                <p className="text-[10px] tracking-[0.2em] text-[#A89C86] mb-2 uppercase">Ratings</p>
+                                <div className="bg-[#11100E] border border-[#A89C86]/20 p-4 flex justify-between">
                                     <div className="flex flex-col items-center">
-                                        <span className="text-[10px] text-gray-500 mb-1">10 MIN</span>
-                                        <span className="font-mono text-[#D4B872] font-bold">{userProfile ? Math.floor(userProfile.rating_10m) : '---'}</span>
+                                        <span className="text-[10px] text-[#A89C86] mb-1">10 MIN</span>
+                                        <span className="font-mono text-[#B39A62] font-bold">{userProfile ? Math.floor(userProfile.rating_10m) : '---'}</span>
+                                    </div>
+                                    <div className="flex flex-col items-center">
+                                        <span className="text-[10px] text-[#A89C86] mb-1">3 MIN</span>
+                                        <span className="font-mono text-[#B39A62] font-bold">{userProfile ? Math.floor(userProfile.rating_3m) : '---'}</span>
+                                    </div>
+                                    <div className="flex flex-col items-center">
+                                        <span className="text-[10px] text-[#A89C86] mb-1">10 SEC</span>
+                                        <span className="font-mono text-[#B39A62] font-bold">{userProfile ? Math.floor(userProfile.rating_10s) : '---'}</span>
                                     </div>
                                 </div>
                             </div>
-                            
-                            <div>
-                                <p className="text-xs text-[#8C7A5E] font-bold mb-1">STATISTICS (BETA)</p>
-                                <div className="bg-[#1E1C19] border border-[#4A4238] rounded p-3 text-xs text-gray-300">
-                                    {!userStats ? (
-                                        <div className="text-center text-gray-600 animate-pulse">Loading stats...</div>
-                                    ) : userStats.totalGames === 0 ? (
-                                        <div className="text-center text-gray-600">No games played yet.</div>
-                                    ) : (
-                                        <div className="flex flex-col gap-3">
-                                            <div className="flex justify-between items-end">
-                                                <span>Total Games: <strong className="text-white">{userStats.totalGames}</strong></span>
-                                                <span className="text-[#D4B872] font-bold text-sm">
-                                                    WIN RATE: {Math.round((userStats.wins / userStats.totalGames) * 100)}%
-                                                </span>
-                                            </div>
-                                            
-                                            {/* Win/Loss/Draw Bar */}
-                                            <div className="w-full h-2 rounded-full overflow-hidden flex bg-gray-800">
-                                                <div style={{ width: `${(userStats.wins / userStats.totalGames) * 100}%` }} className="bg-[#D4B872] h-full" />
-                                                <div style={{ width: `${(userStats.draws / userStats.totalGames) * 100}%` }} className="bg-[#4A4238] h-full" />
-                                                <div style={{ width: `${(userStats.losses / userStats.totalGames) * 100}%` }} className="bg-[#D4B872] h-full" />
-                                            </div>
-                                            <div className="flex justify-between text-[10px] text-gray-500">
-                                                <span className="text-[#D4B872]">{userStats.wins} W</span>
-                                                <span className="text-gray-500">{userStats.draws} D</span>
-                                                <span className="text-[#D4B872]">{userStats.losses} L</span>
-                                            </div>
-                                            
-                                            {/* White vs Black stats */}
-                                            <div className="flex justify-between mt-2 pt-2 border-t border-[#4A4238]">
-                                                <div className="flex flex-col items-center w-1/2 border-r border-[#4A4238]">
-                                                    <span className="text-[10px] text-gray-500 mb-1">AS WHITE (W/L)</span>
-                                                    <span>
-                                                        <strong className="text-[#E8E5DF]">{userStats.whiteWins}</strong> - {userStats.whiteGames - userStats.whiteWins}
-                                                    </span>
-                                                </div>
-                                                <div className="flex flex-col items-center w-1/2">
-                                                    <span className="text-[10px] text-gray-500 mb-1">AS BLACK (W/L)</span>
-                                                    <span>
-                                                        <strong className="text-red-300">{userStats.blackWins}</strong> - {userStats.blackGames - userStats.blackWins}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
 
-                        <div className="flex gap-4">
-                            <button
-                                onClick={onBack}
-                                className="flex-1 py-2 bg-red-900/30 border border-[#4A4238] hover:bg-red-800/50 rounded text-[#E8E5DF] font-bold transition-colors"
-                            >
-                                {t.logout}
-                            </button>
-                            <button
-                                onClick={() => setShowAccount(false)}
-                                className="flex-1 py-2 bg-[#2A2621] border border-[#4A4238] hover:bg-[#4A4238] rounded text-[#D4B872] font-bold transition-colors"
-                            >
-                                CLOSE
+                            {userStats && (
+                                <div>
+                                    <p className="text-[10px] tracking-[0.2em] text-[#A89C86] mb-2 uppercase">Stats</p>
+                                    <div className="bg-[#11100E] border border-[#A89C86]/20 p-4 flex justify-between text-sm">
+                                        <div className="flex flex-col items-center"><span className="text-[#A89C86] text-[10px]">WINS</span><span className="text-[#E8E2D7] font-mono">{userStats.wins}</span></div>
+                                        <div className="flex flex-col items-center"><span className="text-[#A89C86] text-[10px]">LOSSES</span><span className="text-[#E8E2D7] font-mono">{userStats.losses}</span></div>
+                                        <div className="flex flex-col items-center"><span className="text-[#A89C86] text-[10px]">DRAWS</span><span className="text-[#E8E2D7] font-mono">{userStats.draws}</span></div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {user.type === 'registered' && (
+                                <div className="mt-4 border-t border-[#A89C86]/20 pt-6">
+                                    <p className="text-[10px] tracking-[0.2em] text-[#A89C86] mb-4 uppercase">{(t as any).emailUpdate || 'Update Email'}</p>
+                                    <form onSubmit={handleUpdateEmail} className="flex flex-col gap-3">
+                                        <input type="email" placeholder={(t as any).email || 'Email'} value={updateEmail} onChange={e => setUpdateEmail(e.target.value)} className="bg-[#11100E] border border-[#A89C86]/30 p-2 text-sm text-[#E8E2D7] focus:border-[#B39A62] outline-none" />
+                                        <input type="password" placeholder={(t as any).password || 'Password'} value={updatePassword} onChange={e => setUpdatePassword(e.target.value)} className="bg-[#11100E] border border-[#A89C86]/30 p-2 text-sm text-[#E8E2D7] focus:border-[#B39A62] outline-none" />
+                                        <button type="submit" disabled={emailLoading} className="py-2 bg-[#A89C86]/10 border border-[#A89C86]/30 hover:bg-[#A89C86]/20 text-xs tracking-widest transition-colors mt-2">
+                                            {emailLoading ? '...' : 'UPDATE EMAIL'}
+                                        </button>
+                                        {emailMsg && <p className="text-[10px] text-[#B39A62] text-center mt-1">{emailMsg}</p>}
+                                    </form>
+                                </div>
+                            )}
+
+                            <button onClick={async () => { await supabase.auth.signOut(); window.location.reload(); }} className="w-full mt-4 py-3 border border-red-900/50 hover:bg-red-900/20 text-red-400 text-xs tracking-widest transition-colors">
+                                SIGN OUT
                             </button>
                         </div>
                     </div>
                 </div>
             )}
-            
-            <div className="w-full max-w-2xl flex flex-col gap-6">
-                
-                {/* ── VS CPU ── */}
-                <div className="w-full mt-4 mb-2"><h3 className="text-sm tracking-[0.3em] text-[#B39A62] uppercase mb-4">PRACTICE</h3></div>
-                
-                <button 
-                    onClick={handleVsCpuClick}
-                    className="flex flex-col md:flex-row md:items-baseline justify-between w-full p-4 group text-left relative border border-[#A89C86]/20 bg-[#191714] hover:bg-[#2D2A26] hover:border-[#B39A62] transition-colors mb-3"
-                >
-                    <span className="text-xl tracking-widest text-[#E8E2D7] group-hover:text-[#B39A62]">{t.vsCpu}</span>
-                    <span className="text-xs tracking-widest text-[#A89C86] group-hover:text-[#E8E2D7] transition-colors">{t.vsCpuDesc}</span>
-                </button>
 
-                {/* ── Online Multiplayer ── */}
-                <div className="w-full mt-12 mb-2"><h3 className="text-sm tracking-[0.3em] text-[#B39A62] uppercase mb-4">{t.onlineMultiplayer}</h3></div>
-
-                {/* Ranked Match */}
-                <button 
-                    onClick={() => {
-                        if (user.type === 'guest') {
-                            alert(lang === 'ja' ? 'ランクマッチをプレイするにはアカウント登録が必要です。タイトル画面に戻ってGoogleまたはDiscordでサインインしてください。' : 'Please register an account (Sign in with Google/Discord on Title Screen) to play Ranked Matches.');
-                            return;
-                        }
-                        startRandomMatch('ranked', '10m');
-                    }}
-                    className={`flex flex-col md:flex-row md:items-baseline justify-between w-full py-4 group text-left relative border-b border-[#A89C86]/30 hover:border-[#E8E2D7] transition-all ${
-                        user.type === 'guest' ? 'opacity-50 cursor-not-allowed hover:border-[#A89C86]/30' : ''
-                    }`}
-                >
-                    <div className="flex flex-col">
-                        <span className={`text-xl tracking-widest ${user.type === 'guest' ? 'text-gray-500' : 'text-[#E8E2D7] group-hover:text-[#B39A62]'}`}>
-                            {t.rankedMatch}
-                        </span>
-                        {user.type === 'guest' && <span className="text-xs text-[#B39A62] mt-1 tracking-widest">※ {lang === 'ja' ? '登録必須' : 'ACCOUNT REQUIRED'}</span>}
-                    </div>
-                    <span className="text-xs tracking-widest text-[#A89C86]">{t.rated} / 10 MIN</span>
-                </button>
-
-                {/* Random Match */}
-                <button 
-                    onClick={() => startRandomMatch('random', '10m')}
-                    className="flex flex-col md:flex-row md:items-baseline justify-between w-full p-4 group text-left relative border border-[#A89C86]/20 bg-[#191714] hover:bg-[#2D2A26] hover:border-[#B39A62] transition-colors mb-3"
-                >
-                    <span className="text-xl tracking-widest text-[#E8E2D7] group-hover:text-[#B39A62]">{t.randomMatch}</span>
-                    <span className="text-xs tracking-widest text-[#A89C86]">{t.unrated} / 10 MIN</span>
-                </button>
-
-                {!showOnlineMenu ? (
-                    <button 
-                        onClick={() => setShowOnlineMenu(true)}
-                        className="flex flex-col md:flex-row md:items-baseline justify-between w-full p-4 group text-left relative border border-[#A89C86]/20 bg-[#191714] hover:bg-[#2D2A26] hover:border-[#B39A62] transition-colors mb-3"
-                    >
-                        <span className="text-xl tracking-widest text-[#E8E2D7] group-hover:text-[#B39A62]">{t.privateMatch}</span>
-                        <span className="text-xs tracking-widest text-[#A89C86]">PLAY WITH FRIENDS</span>
-                    </button>
-                ) : (
-                    <div className="w-full py-4 border-b border-[#A89C86]/30 flex flex-col gap-4">
-                        <span className="text-sm tracking-widest text-[#B39A62]">{t.privateMatch}</span>
-                        
-                        <div className="flex flex-col gap-2">
-                            <button 
-                                onClick={() => {
-                                    const newRoomId = Math.random().toString(36).substring(2, 8).toUpperCase();
-                                    setPendingAction({ type: 'host', roomId: newRoomId });
-                                }}
-                                className="text-left text-lg tracking-widest text-[#E8E2D7] hover:text-[#B39A62] transition-colors"
-                            >
-                                + {t.hostMatch}
-                            </button>
-                            
-                            <div className="flex items-center gap-4 mt-2">
-                                <input 
-                                    type="text" 
-                                    placeholder="ROOM ID"
-                                    value={joinRoomId}
-                                    onChange={(e) => setJoinRoomId(e.target.value.toUpperCase())}
-                                    className="bg-transparent border-b border-[#A89C86]/50 focus:border-[#E8E2D7] outline-none px-2 py-1 text-sm tracking-widest w-32 text-[#E8E2D7] placeholder:text-[#A89C86]/30"
-                                />
-                                <button 
-                                    onClick={() => {
-                                        if(joinRoomId.trim()) onOnlineMatch?.(joinRoomId.trim(), 'black', 'private', '10m');
-                                    }}
-                                    className="text-sm tracking-widest text-[#A89C86] hover:text-[#E8E2D7] transition-colors"
-                                >
-                                    {t.joinMatch}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                )}
-
-                {/* ── Social ── */}
-                <div className="w-full mt-12 mb-2"><h3 className="text-sm tracking-[0.3em] text-[#B39A62] uppercase mb-4">SOCIAL & LIVE</h3></div>
-
-                <div className="flex flex-col w-full">
-                    <button 
-                        onClick={() => setShowFriends(true)}
-                        className="flex flex-col md:flex-row md:items-baseline justify-between w-full p-4 group text-left relative border border-[#A89C86]/20 bg-[#191714] hover:bg-[#2D2A26] hover:border-[#B39A62] transition-colors mb-3"
-                    >
-                        <span className="text-lg tracking-widest text-[#E8E2D7] group-hover:text-[#B39A62]">{(t as any).friends || 'FRIENDS'}</span>
-                    </button>
-                    <button 
-                        onClick={() => setShowLiveMatches(true)}
-                        className="flex flex-col md:flex-row md:items-baseline justify-between w-full p-4 group text-left relative border border-[#A89C86]/20 bg-[#191714] hover:bg-[#2D2A26] hover:border-[#B39A62] transition-colors mb-3"
-                    >
-                        <span className="text-lg tracking-widest text-[#E8E2D7] group-hover:text-[#B39A62]">{(t as any).liveMatch || 'LIVE MATCHES'}</span>
-                    </button>
-                </div>
-
-                {/* ── Replays ── */}
-                <div className="w-full mt-12 mb-2"><h3 className="text-sm tracking-[0.3em] text-[#B39A62] uppercase mb-4">{t.gameReplays}</h3></div>
-
-                {!showReplays ? (
-                    <button 
-                        onClick={() => {
-                            setShowReplays(true);
-                            loadReplays(replayCategory);
-                        }}
-                        className="flex flex-col md:flex-row md:items-baseline justify-between w-full p-4 group text-left relative border border-[#A89C86]/20 bg-[#191714] hover:bg-[#2D2A26] hover:border-[#B39A62] transition-colors mb-3"
-                    >
-                        <span className="text-lg tracking-widest text-[#E8E2D7] group-hover:text-[#B39A62]">{t.watchReplays}</span>
-                    </button>
-                ) : (
-                    <div className="w-full py-4 flex flex-col gap-4 border-b border-[#A89C86]/30">
-                        <div className="flex justify-between items-center mb-1">
-                            <span className="text-[#B39A62] tracking-widest text-sm">{t.watchReplays}</span>
-                            <button onClick={() => setShowReplays(false)} className="text-[#A89C86] hover:text-[#E8E2D7]">✕</button>
+            {showReplays && (
+                <div className="fixed inset-0 bg-[#11100E]/95 z-50 flex flex-col p-4 md:p-8 backdrop-blur-md">
+                    <div className="w-full max-w-4xl mx-auto h-full flex flex-col">
+                        <div className="flex justify-between items-center mb-6 pb-4 border-b border-[#A89C86]/20 shrink-0">
+                            <h3 className="text-xl tracking-[0.2em] text-[#E8E2D7]">{t.watchReplays}</h3>
+                            <button onClick={() => setShowReplays(false)} className="text-[#A89C86] hover:text-[#E8E2D7] text-2xl">✕</button>
                         </div>
                         
-                        <div className="flex gap-1 p-1 bg-[#2A2621] border border-gray-700/50 rounded">
-                            <button
-                                onClick={() => handleReplayCategoryChange('global')}
-                                className={`flex-1 py-1.5 text-xs font-bold rounded transition-all ${
-                                    replayCategory === 'global'
-                                        ? 'bg-gray-700 text-white shadow-sm'
-                                        : 'text-gray-500 hover:text-gray-300'
-                                }`}
-                            >
-                                🌏 Global
+                        <div className="flex gap-2 mb-6 shrink-0">
+                            <button onClick={() => handleReplayCategoryChange('global')} className={`flex-1 py-3 text-xs tracking-widest transition-colors border ${replayCategory === 'global' ? 'border-[#B39A62] bg-[#B39A62]/10 text-[#B39A62]' : 'border-[#A89C86]/30 text-[#A89C86] hover:border-[#E8E2D7]'}`}>
+                                GLOBAL
                             </button>
-                            <button
-                                onClick={() => handleReplayCategoryChange('mine')}
-                                className={`flex-1 py-1.5 text-xs font-bold rounded transition-all ${
-                                    replayCategory === 'mine'
-                                        ? 'bg-gray-700 text-white shadow-sm'
-                                        : 'text-gray-500 hover:text-gray-300'
-                                }`}
-                            >
-                                👤 My Games
+                            <button onClick={() => handleReplayCategoryChange('mine')} className={`flex-1 py-3 text-xs tracking-widest transition-colors border ${replayCategory === 'mine' ? 'border-[#B39A62] bg-[#B39A62]/10 text-[#B39A62]' : 'border-[#A89C86]/30 text-[#A89C86] hover:border-[#E8E2D7]'}`}>
+                                MY GAMES
                             </button>
                         </div>
 
                         {loadingReplays ? (
-                            <div className="text-center text-gray-500 py-4 animate-pulse">{t.loading}</div>
+                            <div className="flex-grow flex items-center justify-center text-[#A89C86] animate-pulse">{t.loading}</div>
                         ) : replays.length === 0 ? (
-                            <div className="text-center text-gray-500 py-4">{t.noRecords}</div>
+                            <div className="flex-grow flex items-center justify-center text-[#A89C86]">{t.noRecords}</div>
                         ) : (
-                            <div className="flex flex-col gap-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+                            <div className="flex-grow overflow-y-auto custom-scrollbar flex flex-col gap-3 pr-2">
                                 {replays.map(r => (
-                                    <button 
-                                        key={r.id}
-                                        onClick={() => onReplay?.(r)}
-                                        className="w-full text-left p-3 bg-[#2A2621]/50 hover:bg-gray-800 border border-gray-700 rounded transition-colors flex justify-between items-center"
-                                    >
+                                    <button key={r.id} onClick={() => onReplay?.(r)} className="w-full text-left p-4 bg-[#191714] border border-[#A89C86]/20 hover:border-[#B39A62] transition-colors flex justify-between items-center group">
                                         <div className="flex flex-col">
-                                            <span className="text-sm font-bold text-gray-300">
-                                                {r.white_player} <span className="text-gray-600">{t.vs}</span> {r.black_player}
+                                            <span className="text-sm tracking-wider text-[#E8E2D7]">
+                                                {r.white_player} <span className="text-[#A89C86] mx-2">{t.vs}</span> {r.black_player}
                                             </span>
-                                            <span className="text-xs text-gray-500">
-                                                {new Date(r.created_at!).toLocaleDateString()} • {r.mode.toUpperCase()} {r.time_control ? `• ${r.time_control}` : ''}
-                                            </span>
-                                        </div>
-                                        <div className="flex flex-col items-end">
-                                            <span className={`text-xs font-bold px-2 py-1 rounded ${r.winner === 'white_wins' ? 'bg-blue-900 text-[#E8E5DF]' : r.winner === 'black_wins' ? 'bg-red-900 text-red-300' : 'bg-gray-800 text-gray-400'}`}>
-                                                {r.winner === 'white_wins' ? t.whiteWon : r.winner === 'black_wins' ? t.blackWon : t.draw}
+                                            <span className="text-[10px] text-[#A89C86] mt-2 font-mono">
+                                                {new Date(r.created_at!).toLocaleDateString()} / {r.mode.toUpperCase()} {r.time_control ? `/ ${r.time_control}` : ''}
                                             </span>
                                         </div>
+                                        <span className={`text-[10px] tracking-widest px-2 py-1 border ${r.winner === 'white_wins' ? 'border-[#E8E2D7]/50 text-[#E8E2D7]' : r.winner === 'black_wins' ? 'border-red-900/50 text-red-400' : 'border-[#A89C86]/50 text-[#A89C86]'}`}>
+                                            {r.winner === 'white_wins' ? t.whiteWon : r.winner === 'black_wins' ? t.blackWon : t.draw}
+                                        </span>
                                     </button>
                                 ))}
                             </div>
                         )}
                     </div>
-                )}
-
-                {/* ── Leaderboard ── */}
-                <div className="flex items-center justify-center gap-2 my-2 opacity-50 mt-8">
-                    <div className="h-px w-full bg-[#4A4238]" />
-                    <span className="text-xs uppercase tracking-widest text-[#8C7A5E] whitespace-nowrap">{t.globalRankings}</span>
-                    <div className="h-px w-full bg-[#4A4238]" />
                 </div>
+            )}
 
-                {!showLeaderboard ? (
-                    <button 
-                        onClick={() => {
-                            setShowLeaderboard(true);
-                            loadLeaderboard();
-                        }}
-                        className="group relative w-full p-4 bg-[#3B342C] border border-[#4A4238] hover:bg-fuchsia-800/50 transition-all rounded text-left overflow-hidden hover:shadow-lg">
-                        <div className="absolute inset-0 w-1 bg-[#D4B872] group-hover:w-full transition-all duration-300 opacity-10" />
-                        <div className="relative z-10 flex justify-between items-center">
-                            <span className="text-xl font-bold text-fuchsia-300 tracking-wider">🏆 {t.top10Players}</span>
+            {showLeaderboard && (
+                <div className="fixed inset-0 bg-[#11100E]/95 z-50 flex flex-col p-4 md:p-8 backdrop-blur-md">
+                    <div className="w-full max-w-4xl mx-auto h-full flex flex-col">
+                        <div className="flex justify-between items-center mb-6 pb-4 border-b border-[#A89C86]/20 shrink-0">
+                            <h3 className="text-xl tracking-[0.2em] text-[#E8E2D7]">{t.globalRankings}</h3>
+                            <button onClick={() => setShowLeaderboard(false)} className="text-[#A89C86] hover:text-[#E8E2D7] text-2xl">✕</button>
                         </div>
-                    </button>
-                ) : (
-                    <div className="p-4 bg-[#1E1C19]/60 border border-[#4A4238] rounded flex flex-col gap-4">
-                        <div className="flex justify-between items-center mb-1">
-                            <span className="text-[#E8E5DF] font-bold text-sm">🏆 {t.top10Players}</span>
-                            <button onClick={() => setShowLeaderboard(false)} className="text-gray-500 hover:text-white">✕</button>
-                        </div>
-
-                        {/* Category Tabs */}
-                        <div className="flex gap-1 p-1 bg-[#2A2621] border border-fuchsia-900/50 rounded">
-                            {[
-                                { id: '10m', label: t.lb10m },
-                            ].map(tab => (
-                                <button
-                                    key={tab.id}
-                                    onClick={() => handleCategoryChange(tab.id as TimeControl)}
-                                    className={`flex-1 py-1.5 text-xs font-bold rounded transition-all ${
-                                        leaderboardCategory === tab.id
-                                            ? 'bg-fuchsia-600 text-white shadow-sm'
-                                            : 'text-[#E8E5DF]/70 hover:text-fuchsia-200'
-                                    }`}
-                                >
+                        
+                        <div className="flex gap-2 mb-6 shrink-0">
+                            {[ { id: '10m', label: t.lb10m } ].map(tab => (
+                                <button key={tab.id} onClick={() => handleCategoryChange(tab.id as TimeControl)} className={`flex-1 py-3 text-xs tracking-widest transition-colors border ${leaderboardCategory === tab.id ? 'border-[#B39A62] bg-[#B39A62]/10 text-[#B39A62]' : 'border-[#A89C86]/30 text-[#A89C86] hover:border-[#E8E2D7]'}`}>
                                     {tab.label}
                                 </button>
                             ))}
                         </div>
-                        
+
                         {loadingLeaderboard ? (
-                            <div className="text-center text-gray-500 py-4 animate-pulse">{t.loading}</div>
+                            <div className="flex-grow flex items-center justify-center text-[#A89C86] animate-pulse">{t.loading}</div>
                         ) : leaderboard.length === 0 ? (
-                            <div className="text-center text-gray-500 py-4">{t.noRankedPlayers}</div>
+                            <div className="flex-grow flex items-center justify-center text-[#A89C86]">{t.noRankedPlayers}</div>
                         ) : (
-                            <div className="flex flex-col gap-2">
+                            <div className="flex-grow overflow-y-auto custom-scrollbar flex flex-col gap-2 pr-2">
                                 {leaderboard.map((p, index) => {
                                     const ratingVal = leaderboardCategory === '10s' ? (p.rating_10s ?? 2000)
                                                     : leaderboardCategory === '3m' ? (p.rating_3m ?? 2000)
                                                     : (p.rating_10m ?? 2000);
                                     return (
-                                        <div 
-                                            key={p.id}
-                                            className="w-full flex justify-between items-center p-3 bg-fuchsia-950/30 border border-fuchsia-900/50 rounded"
-                                        >
-                                            <div className="flex items-center gap-4">
-                                                <span className={`text-lg font-black ${index === 0 ? 'text-yellow-400' : index === 1 ? 'text-gray-300' : index === 2 ? 'text-amber-600' : 'text-gray-600'}`}>
+                                        <div key={p.id} className="w-full flex justify-between items-center p-4 bg-[#191714] border border-[#A89C86]/20">
+                                            <div className="flex items-center gap-6">
+                                                <span className={`text-lg font-serif ${index === 0 ? 'text-[#B39A62]' : index === 1 ? 'text-[#E8E2D7]' : index === 2 ? 'text-[#A89C86]' : 'text-[#A89C86]/50'}`}>
                                                     #{index + 1}
                                                 </span>
-                                                <div className="flex flex-col">
-                                                    <span className="font-bold text-gray-200">{p.name}</span>
-                                                    {(() => {
-                                                        const title = getTitleFromRating(ratingVal);
-                                                        return (
-                                                            <span className={`text-[10px] ${title.color}`}>
-                                                                {title.icon} {title.name}
-                                                            </span>
-                                                        );
-                                                    })()}
-                                                </div>
+                                                <span className="tracking-widest text-[#E8E2D7]">{p.name}</span>
                                             </div>
-                                            <div className="text-[#E8E5DF] font-mono font-bold tracking-widest">
-                                                {ratingVal}
-                                            </div>
+                                            <div className="text-[#B39A62] font-mono">{Math.floor(ratingVal)}</div>
                                         </div>
                                     );
                                 })}
                             </div>
                         )}
                     </div>
-                )}
-            </div>
+                </div>
+            )}
 
             {showFriends && (
-                <FriendsMenu 
-                    user={user} 
-                    lang={lang} 
-                    onlineUsers={onlineUsers} 
-                    onClose={() => setShowFriends(false)} 
-                    onChallenge={(friendId) => {
-                        // Create a private room for challenge
+                <div className="fixed inset-0 z-50">
+                    <FriendsMenu user={user} lang={lang} onlineUsers={onlineUsers} onClose={() => setShowFriends(false)} onChallenge={(friendId) => {
                         const newRoomId = Math.random().toString(36).substring(2, 8).toUpperCase();
-                        // You might want to send a real-time notification to the friend here via a separate channel or the global lobby.
-                        // For now, it just acts as a host and the friend has to manually join.
                         setPendingAction({ type: 'host', roomId: newRoomId });
                         setShowFriends(false);
-                    }}
-                />
+                    }} />
+                </div>
             )}
 
             {showLiveMatches && (
-                <LiveMatchesMenu 
-                    lang={lang} 
-                    onClose={() => setShowLiveMatches(false)} 
-                    onSpectate={(roomId) => {
-                        // TODO: We need to tell the parent component to start a spectator match
-                        // Can we just use onOnlineMatch with a 'spectator' role? Yes, we can add 'spectator' to role type!
-                        // Actually, onOnlineMatch role is 'white' | 'black'. We will change it to 'white' | 'black' | 'spectator'.
-                        // For now let's just cast it, or I will update the type!
+                <div className="fixed inset-0 z-50">
+                    <LiveMatchesMenu lang={lang} onClose={() => setShowLiveMatches(false)} onSpectate={(roomId) => {
                         onOnlineMatch?.(roomId, 'spectator', 'private', '10m');
                         setShowLiveMatches(false);
-                    }}
-                />
+                    }} />
+                </div>
+            )}
+
+
+            {/* --- Main Dashboard Container --- */}
+            <div className="w-full max-w-5xl h-full flex flex-col pt-4 pb-8 px-4 relative z-10 flex-grow">
+                
+                {/* Header / Profile Bar */}
+                <div className="flex justify-between items-center w-full py-4 border-b border-[#A89C86]/30 shrink-0 mb-8 md:mb-12">
+                    <div className="flex items-center gap-4">
+                        <span className="text-2xl md:text-3xl tracking-[0.2em] font-serif text-[#E8E2D7]">Q-GAMBIT</span>
+                        <span className="text-[10px] md:text-xs text-[#A89C86] hidden sm:inline tracking-[0.2em] uppercase">A game of hidden identity</span>
+                    </div>
+                    <button onClick={() => setShowAccount(true)} className="flex items-center gap-4 hover:text-[#B39A62] transition-colors group">
+                        <span className="text-sm tracking-widest text-[#E8E2D7] group-hover:text-[#B39A62]">{userProfile?.name || user.name}</span>
+                        <div className="w-10 h-10 rounded border border-[#A89C86]/50 bg-[#191714] flex items-center justify-center overflow-hidden">
+                            {userProfile?.avatar_url ? (
+                                <img src={userProfile.avatar_url} className="w-full h-full object-cover" alt="avatar" />
+                            ) : (
+                                <span className="text-sm text-[#A89C86]">?</span>
+                            )}
+                        </div>
+                    </button>
+                </div>
+
+                {/* Dashboard Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full flex-grow content-start">
+                    
+                    {/* ONLINE MATCH */}
+                    <div className="flex flex-col border border-[#A89C86]/20 bg-[#191714]/80 p-6">
+                        <h3 className="text-[10px] tracking-[0.3em] text-[#B39A62] mb-6 border-b border-[#A89C86]/20 pb-2 uppercase">{t.onlineMultiplayer}</h3>
+                        <div className="flex flex-col gap-3">
+                            <button onClick={() => {
+                                if (user.type === 'guest') {
+                                    alert(lang === 'ja' ? 'ランクマッチプレイにはアカウント登録が必要です。' : 'Please register an account to play Ranked Matches.');
+                                } else {
+                                    setPendingAction({ type: 'ranked' });
+                                }
+                            }} className="w-full py-4 bg-[#11100E] border border-[#A89C86]/30 hover:border-[#B39A62] text-sm tracking-widest transition-colors text-left px-4 group flex justify-between">
+                                <span className="group-hover:text-[#B39A62] text-[#E8E2D7]">{t.rankedMatch}</span>
+                                <span className="text-[#A89C86]">→</span>
+                            </button>
+                            <button onClick={() => setPendingAction({ type: 'random' })} className="w-full py-4 bg-[#11100E] border border-[#A89C86]/30 hover:border-[#B39A62] text-sm tracking-widest transition-colors text-left px-4 group flex justify-between">
+                                <span className="group-hover:text-[#B39A62] text-[#E8E2D7]">{t.randomMatch}</span>
+                                <span className="text-[#A89C86]">→</span>
+                            </button>
+                            
+                            <div className="grid grid-cols-2 gap-3 mt-3">
+                                <button onClick={() => {
+                                    const newRoomId = Math.random().toString(36).substring(2, 8).toUpperCase();
+                                    setPendingAction({ type: 'host', roomId: newRoomId });
+                                }} className="py-3 bg-transparent border border-[#A89C86]/30 hover:bg-[#A89C86]/10 text-xs text-[#E8E2D7] tracking-widest transition-colors text-center">
+                                    {t.hostMatch}
+                                </button>
+                                <button onClick={() => {
+                                    const room = prompt(lang === 'ja' ? 'ルームIDを入力' : 'Enter Room ID');
+                                    if (room) setPendingAction({ type: 'join', roomId: room.toUpperCase() });
+                                }} className="py-3 bg-transparent border border-[#A89C86]/30 hover:bg-[#A89C86]/10 text-xs text-[#E8E2D7] tracking-widest transition-colors text-center">
+                                    {t.joinMatch}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* PRACTICE */}
+                    <div className="flex flex-col border border-[#A89C86]/20 bg-[#191714]/80 p-6">
+                        <h3 className="text-[10px] tracking-[0.3em] text-[#B39A62] mb-6 border-b border-[#A89C86]/20 pb-2 uppercase">PRACTICE</h3>
+                        <div className="flex flex-col gap-3 h-full justify-start">
+                            <button onClick={handleVsCpuClick} className="w-full py-8 bg-[#11100E] border border-[#A89C86]/30 hover:border-[#B39A62] text-center transition-colors group flex flex-col items-center justify-center gap-3">
+                                <span className="text-xl tracking-[0.2em] text-[#E8E2D7] group-hover:text-[#B39A62]">{t.vsCpu}</span>
+                                <span className="text-[10px] text-[#A89C86] tracking-widest">{t.vsCpuDesc}</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* SOCIAL & COMMUNITY */}
+                    <div className="flex flex-col gap-6 sm:col-span-2 lg:col-span-1">
+                        
+                        <div className="flex flex-col border border-[#A89C86]/20 bg-[#191714]/80 p-6">
+                            <h3 className="text-[10px] tracking-[0.3em] text-[#B39A62] mb-4 border-b border-[#A89C86]/20 pb-2 uppercase">SOCIAL & LIVE</h3>
+                            <div className="flex flex-col gap-3">
+                                <button onClick={() => setShowFriends(true)} className="w-full py-3 bg-[#11100E] border border-[#A89C86]/30 hover:border-[#B39A62] text-[#E8E2D7] text-xs tracking-widest transition-colors text-center group">
+                                    <span className="group-hover:text-[#B39A62]">{(t as any).friends || 'FRIENDS'}</span>
+                                </button>
+                                <button onClick={() => setShowLiveMatches(true)} className="w-full py-3 bg-[#11100E] border border-[#A89C86]/30 hover:border-[#B39A62] text-[#E8E2D7] text-xs tracking-widest transition-colors text-center group">
+                                    <span className="group-hover:text-[#B39A62]">{(t as any).liveMatch || 'LIVE MATCHES'}</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="flex flex-col border border-[#A89C86]/20 bg-[#191714]/80 p-6">
+                            <h3 className="text-[10px] tracking-[0.3em] text-[#B39A62] mb-4 border-b border-[#A89C86]/20 pb-2 uppercase">COMMUNITY</h3>
+                            <div className="flex flex-col gap-3">
+                                <button onClick={() => { setShowReplays(true); loadReplays(replayCategory); }} className="w-full py-3 bg-[#11100E] border border-[#A89C86]/30 hover:border-[#B39A62] text-[#E8E2D7] text-xs tracking-widest transition-colors text-center group">
+                                    <span className="group-hover:text-[#B39A62]">{t.gameReplays}</span>
+                                </button>
+                                <button onClick={() => { setShowLeaderboard(true); loadLeaderboard(); }} className="w-full py-3 bg-[#11100E] border border-[#A89C86]/30 hover:border-[#B39A62] text-[#E8E2D7] text-xs tracking-widest transition-colors text-center group">
+                                    <span className="group-hover:text-[#B39A62]">{t.globalRankings}</span>
+                                </button>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <div className="w-full flex justify-between items-center mt-auto pt-8">
+                    <span className="text-[10px] tracking-[0.2em] text-[#A89C86]/50 uppercase">Online: {onlineCount}</span>
+                    <button onClick={onBack} className="text-[10px] tracking-[0.2em] text-[#A89C86] hover:text-[#E8E2D7] uppercase transition-colors">
+                        LOGOUT
+                    </button>
+                </div>
+            </div>
+            
+            {showAdModal && (
+                <div className="fixed inset-0 bg-[#11100E]/90 z-[100] flex flex-col items-center justify-center p-4 backdrop-blur-sm">
+                    <div className="bg-[#191714] border border-[#A89C86]/30 p-8 rounded-lg max-w-sm w-full text-center shadow-2xl flex flex-col items-center">
+                        <h3 className="text-xl font-serif text-[#E8E2D7] mb-2">{(t as any).adCloudTitle || 'Preparing Match'}</h3>
+                        <p className="text-[#A89C86] text-xs mb-8">{(t as any).adCloudDesc || 'Watch a short ad to start the practice match!'}</p>
+                        
+                        <div className="w-full h-2 bg-[#11100E] rounded-full overflow-hidden mb-6 border border-[#A89C86]/20">
+                            <div 
+                                className="h-full bg-[#B39A62] transition-all duration-[1000ms] ease-linear"
+                                style={{ width: `${adProgress}%` }}
+                            />
+                        </div>
+                        
+                        <div className="w-32 h-32 mb-4 bg-transparent">
+                            <AdBanner />
+                        </div>
+                        
+                        {adProgress >= 100 ? (
+                            <button
+                                onClick={handleAdFinish}
+                                className="w-full py-4 bg-[#B39A62] text-[#11100E] font-bold tracking-widest text-sm transition-colors mt-4"
+                            >
+                                START MATCH
+                            </button>
+                        ) : (
+                            <div className="w-full py-4 bg-[#11100E] text-[#A89C86] tracking-widest text-sm mt-4 border border-[#A89C86]/20">
+                                LOADING...
+                            </div>
+                        )}
+                    </div>
+                </div>
             )}
         </div>
     );
