@@ -193,7 +193,7 @@ export class GameEngine {
             } else {
                 this.state.clock.black -= elapsed;
             }
-            this.state.clock.lastMoveAt = now;
+            if (this.state.clock.timeControl === 10000) { if (turnBefore === 0) this.state.clock.white = 10000; else this.state.clock.black = 10000; } this.state.clock.lastMoveAt = now;
 
             this.state.version += 1;
             this.state.history.push(action);
