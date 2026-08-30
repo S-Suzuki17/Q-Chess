@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "deploy:itch": "butler push itch-build $npm_config_user/q-gambit:html5"
   },
   "dependencies": {
     "@libsql/client": "^0.17.4",
