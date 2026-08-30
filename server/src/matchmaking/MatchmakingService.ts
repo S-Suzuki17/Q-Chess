@@ -4,7 +4,7 @@ import { GameEngine } from '../game/GameEngine';
 import { createInitialBoard } from '../game/quantumChess';
 
 export type PlayerState = 'IDLE' | 'WAITING' | 'CONNECTING' | 'IN_GAME';
-export type MatchState = 'MATCHED' | 'CONNECTING' | 'IN_GAME' | 'FINISHED' | 'CANCELLED';
+export type MatchState = 'MATCHED' | 'CONNECTING' | 'IN_GAME' | 'FINISHED' | 'CANCELLED' | 'WAITING_FOR_JOINER';
 
 export interface PlayerSession {
     userId: string;
@@ -146,13 +146,27 @@ export class MatchmakingService {
         return { success: false };
     }
 
-    public connectMatch(userId: string, matchId: string, userName?: string, avatarUrl?: string): { success: boolean, match?: MatchSession, engine?: GameEngine } {
+        public connectMatch(userId: string, matchId: string, userName?: string, avatarUrl?: string): { success: boolean, match?: MatchSession, engine?: GameEngine } {
         let session = this.players.get(userId);
-        const match = this.matches.get(matchId);
+        let match = this.matches.get(matchId);
 
         if (!match) {
-            console.log(`[connectMatch] Match ${matchId} not found`);
-            return { success: false };
+            // Create ad-hoc private match
+            match = {
+                matchId,
+                state: 'WAITING_FOR_JOINER',
+                timeControl: 600, // 10m default for private rooms if not specified
+                players: { host: userId, joiner: '' },
+                playerNames: { host: userName },
+                connected: { host: false, joiner: false },
+                createdAt: Date.now()
+            };
+            this.matches.set(matchId, match);
+        } else if (match.state === 'WAITING_FOR_JOINER' && match.players.host !== userId) {
+            // Join existing private match
+            match.players.joiner = userId;
+            match.playerNames.joiner = userName;
+            match.state = 'CONNECTING';
         }
 
         const isHost = match.players.host === userId;
@@ -187,7 +201,6 @@ export class MatchmakingService {
             }
         }
 
-        // Clear any disconnect timer
         this.clearDisconnectTimer(userId);
 
         // Mark as connected
@@ -195,72 +208,29 @@ export class MatchmakingService {
         if (isJoiner) match.connected.joiner = true;
 
         // Transition to IN_GAME if both connected
-        if (match.state === 'CONNECTING' && match.connected.host && match.connected.joiner) {
+        if ((match.state === 'CONNECTING' || match.state === 'WAITING_FOR_JOINER') && match.connected.host && match.connected.joiner) {
             match.state = 'IN_GAME';
             const initialBoard = createInitialBoard();
             match.engine = new GameEngine(matchId, match.players.host, match.players.joiner, initialBoard, match.timeControl, match.playerNames);
         }
 
         // If reconnected to an ongoing match, broadcast to opponent
-        if (match.state === 'IN_GAME') {
-            this.io.to(matchId).emit('opponent_reconnected', { userId, timestamp: Date.now() });
-        }
+        const updatedMatch = this.matches.get(matchId);
+        if (!updatedMatch) return { success: false };
 
-        return { success: true, match, engine: match.engine };
-    }
-
-    private disconnectTimers = new Map<string, NodeJS.Timeout>(); // userId -> Timer
-
-    private handleMatchDisconnect(userId: string, matchId: string) {
-        const match = this.matches.get(matchId);
-        if (!match) return;
-
-        if (match.players.host === userId) match.connected.host = false;
-        if (match.players.joiner === userId) match.connected.joiner = false;
-
-        if (match.state === 'CONNECTING') {
-            match.state = 'CANCELLED';
-            const hSession = this.players.get(match.players.host);
-            const jSession = this.players.get(match.players.joiner);
-            if (hSession && hSession.currentMatchId === matchId) { hSession.state = 'IDLE'; hSession.currentMatchId = undefined; }
-            if (jSession && jSession.currentMatchId === matchId) { jSession.state = 'IDLE'; jSession.currentMatchId = undefined; }
-            this.io.to(matchId).emit('match_cancelled', { reason: 'opponent_disconnected' });
-        } else if (match.state === 'IN_GAME') {
-            console.log(`[DISCONNECT] User ${userId} disconnected from match ${matchId}. Starting 120s grace period.`);
-            this.io.to(matchId).emit('opponent_disconnected', { userId, timestamp: Date.now(), gracePeriodSeconds: 120 });
-            
-            this.clearDisconnectTimer(userId);
-
-            const timer = setTimeout(() => {
-                const m = this.matches.get(matchId);
-                if (m && m.state === 'IN_GAME') {
-                    console.log(`[TIMEOUT] User ${userId} failed to reconnect to match ${matchId}. Forfeiting.`);
-                    m.state = 'FINISHED';
-                    const hSession = this.players.get(m.players.host);
-                    const jSession = this.players.get(m.players.joiner);
-                    if (hSession && hSession.currentMatchId === matchId) { hSession.state = 'IDLE'; hSession.currentMatchId = undefined; }
-                    if (jSession && jSession.currentMatchId === matchId) { jSession.state = 'IDLE'; jSession.currentMatchId = undefined; }
-                    
-                    if (m.engine) {
-                        m.engine.processAction({
-                            actionId: `forfeit_${userId}_${Date.now()}`,
-                            version: m.engine.getPublicState(userId).version,
-                            playerId: userId,
-                            action: { type: 'RESIGN', payload: {} }
-                        });
-                        
-                        const hSock = hSession ? this.io.sockets.sockets.get(hSession.socketId) : null;
-                        const jSock = jSession ? this.io.sockets.sockets.get(jSession.socketId) : null;
-                        if (hSock) hSock.emit('sync_state', m.engine.getPublicState(m.players.host));
-                        if (jSock) jSock.emit('sync_state', m.engine.getPublicState(m.players.joiner));
-                    }
-                    this.io.to(matchId).emit('match_forfeited', { loserId: userId });
+        if (updatedMatch.state === 'IN_GAME' && updatedMatch.engine) {
+            const opponentId = isHost ? updatedMatch.players.joiner : updatedMatch.players.host;
+            const oppSession = this.players.get(opponentId);
+            if (oppSession) {
+                const oppSock = this.io.sockets.sockets.get(oppSession.socketId);
+                if (oppSock) {
+                    oppSock.emit('opponent_reconnected');
+                    oppSock.emit('sync_state', updatedMatch.engine.getPublicState(opponentId));
                 }
-                this.disconnectTimers.delete(userId);
-            }, 120000); // 120 seconds
-
-            this.disconnectTimers.set(userId, timer);
+            }
         }
+
+        return { success: true, match: updatedMatch, engine: updatedMatch.engine };
     }
 
     public clearDisconnectTimer(userId: string) {
