@@ -1,0 +1,40 @@
+# Q-GAMBIT: Quantum Superposition Chess (itch.io Listing)
+
+### 📌 Title & Tagline
+- **Title**: Q-GAMBIT: Quantum Superposition Chess
+- **Short Tagline**: A mind-bending quantum chess game where pieces exist in superposition and every move collapses reality.
+
+---
+
+### 📝 Game Description (Copy & Paste to itch.io)
+
+**Q-GAMBIT** reimagines the timeless game of chess through the lens of quantum mechanics and imperfect-information strategy. In Q-GAMBIT, both players command an army of 16 unobserved quantum tokens. Every token starts in an ambiguous superposition state—possessing the potential to be a King, Queen, Rook, Bishop, Knight, or Pawn. Until observed through movement or tactical confrontation, the true identity of each piece remains fluid, challenging players to look beyond classical openings and master the art of deduction, probability, and strategic deception.
+
+Movement is observation: whenever you move a token across the 64 squares, its wavefunction collapses. A piece can execute any move valid for its remaining possible identities; as soon as it glides along a diagonal or leaps in an L-shape, incompatible identities are eliminated on the spot. Governed by global quantum conservation constraints, the collapse of any single token ripples across the entire board, updating the possible identities of every other friendly and enemy piece. Checkmate or direct capture of the enemy King still seals victory—but beware: any unidentified enemy token lurking near your back rank could suddenly collapse into a devastating Queen, and any friendly piece could turn out to be your King in disguise!
+
+Whether honing your skills solo or dueling tacticians worldwide, Q-GAMBIT offers deep single-player and multiplayer experiences. Challenge the custom **Quantum IS-MCTS AI Engine** (Information Set Monte Carlo Tree Search), purpose-built to navigate deep probabilistic search trees. Enter the online arena with competitive **Ranked Matchmaking** to earn MMR and prestigious tier titles, host private 1v1 lobbies with 6-digit room codes to challenge friends, or spectate live matches in real time. Relive your greatest victories and analyze tactical breakthroughs with built-in **Cloud Game Replays** and JSON game-state export.
+
+Q-GAMBIT is **100% free to play directly in your web browser**—no downloads, installations, or pay-to-win mechanics. Jump into battle immediately with instant one-click **Guest Mode**, or sign in with Google / Discord to customize your username, upload your avatar, track detailed statistics, and climb the global leaderboards. Fully localized into **7 languages** with atmospheric audio and polished sci-fi aesthetics, Q-GAMBIT offers an accessible yet profound new frontier for chess lovers and strategy enthusiasts alike.
+
+---
+
+### ✨ Features List
+- ⚛️ **Quantum Superposition & Wavefunction Collapse**: Pieces start as indeterminate tokens; moving or capturing collapses their possible identities in real time.
+- 🧩 **Global Constraint Deduction Engine**: Board-wide piece conservation (1 King, 1 Queen, 2 Rooks, 2 Bishops, 2 Knights, 8 Pawns) automatically deduces and restricts piece identities.
+- 🤖 **Advanced IS-MCTS Quantum AI**: Battle a high-performance Information Set Monte Carlo Tree Search engine designed specifically for hidden-information games.
+- 🌐 **Ranked & Casual Online Multiplayer**: Jump into rated ladder matches with rating progression and titles, play unrated quick matches, or host private custom rooms with shareable room codes.
+- 🎭 **Custom Usernames & Avatar Photos**: Personalize your profile with custom display names and profile photos that show in matches and leaderboards.
+- 🔴 **Live Match Spectating & Friends List**: Watch ongoing quantum duels live and connect with friends in-game.
+- 📜 **Cloud Replay Theater & JSON Export**: Review past games turn-by-turn with interactive move navigation and download full match records.
+- ⏱️ **Multiple Time Controls**: Choose your preferred pace with 10s bullet/blitz, 3-minute blitz, or 10-minute rapid clocks.
+- 🌍 **Full 7-Language Localization**: Seamlessly play in English, 日本語 (Japanese), 简体中文 (Simplified Chinese), Русский (Russian), Français (French), Deutsch (German), and Español (Spanish).
+- 👑 **Complete Chess Rule Support**: Quantum pawn promotion, castling, en passant, and check/checkmate detection fully integrated into quantum superposition mechanics.
+- 🚀 **Zero Installation Required**: Runs smoothly in any standard web browser across desktop, laptop, and mobile devices.
+
+---
+
+### 💻 System Requirements
+- **Platform**: Web Browser (HTML5 / WebGL)
+- **Supported Browsers**: Google Chrome, Mozilla Firefox, Apple Safari, Microsoft Edge, Opera (Desktop, Tablet & Mobile)
+- **Internet Connection**: Required for Online Multiplayer, Cloud AI compute, Leaderboards, and Cloud Replays
+- **Controls**: Mouse, Trackpad, or Touchscreen

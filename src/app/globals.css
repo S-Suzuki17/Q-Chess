@@ -1,33 +1,28 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #11100E;
+  --foreground: #E8E2D7;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --font-sans: var(--font-geist-sans), "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", "Meiryo", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --font-serif: var(--font-cinzel), var(--font-playfair), "Times New Roman", "Yu Mincho", "Hiragino Mincho ProN", serif;
 }
 
 html, body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: #11100E;
+  color: #E8E2D7;
+  font-family: var(--font-sans);
   margin: 0;
   padding: 0;
   overflow: hidden;
   overscroll-behavior: none;
 }
+
 @keyframes cinematic-stamp {
   0% { transform: scale(3); opacity: 0; filter: blur(10px); }
   50% { transform: scale(1.1); opacity: 1; filter: blur(0px); }

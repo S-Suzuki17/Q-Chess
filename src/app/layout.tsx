@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono, Playfair_Display } from "next/font/google";
+import { Geist, Geist_Mono, Playfair_Display, Cinzel } from "next/font/google";
 import Script from "next/script";
 import { Analytics } from "@vercel/analytics/react";
 import "./globals.css";
@@ -19,6 +19,12 @@ const playfair = Playfair_Display({
   subsets: ["latin"],
 });
 
+const cinzel = Cinzel({
+  variable: "--font-cinzel",
+  subsets: ["latin"],
+  weight: ["400", "600", "700", "800", "900"],
+});
+
 export const viewport: Viewport = {
   themeColor: "#11100E",
   width: "device-width",
@@ -28,7 +34,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "Q-GAMBIT | Quantum Superposition Chess",
+  title: "Q-GAMBIT - Quantum Superposition Chess",
   description: "Play Quantum Chess online! Pieces are in a state of superposition. Observe, collapse, and outsmart your opponent.",
   manifest: "/manifest.json",
   appleWebApp: {
@@ -51,7 +57,7 @@ export default function RootLayout({
   return (
     <html
       lang="ja"
-      className={`${geistSans.variable} ${geistMono.variable} ${playfair.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${playfair.variable} ${cinzel.variable} h-full antialiased`}
     >
       <head>
         {adClient && (
