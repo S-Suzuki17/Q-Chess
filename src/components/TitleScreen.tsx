@@ -151,6 +151,12 @@ export function TitleScreen({ lang, onLogin }: TitleScreenProps) {
                                 Continue with Discord
                             </button>
                         </div>
+                        <div className="mt-4 text-center">
+                            <p className="text-[10px] text-[#8C7A5E] leading-relaxed">
+                                ※取得した情報はアカウントデータ保存と引き継ぎにのみ使用されます。<br/>
+                                パスワードは全て暗号化され、安全に管理されます。
+                            </p>
+                        </div>
 
                         <button type="submit" disabled={loading} className="w-full py-3 bg-[#4A4238] hover:bg-[#5C5346] text-[#E8E5DF] font-bold tracking-widest transition-all">
                             {loading ? "..." : (mode === 'register' ? t.submit : t.login)}
