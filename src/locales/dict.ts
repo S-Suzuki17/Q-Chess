@@ -66,6 +66,9 @@ export const dict = {
         winsRed: 'YOU LOSE...',
         rematch: 'REMATCH',
         tips: 'TIPS: Tap a token, then tap a destination square. The token\'s identity will collapse (deduced) based on its movement pattern.',
+        tutorialDiagonal: '💡 Moved diagonally! This means the piece must be a Bishop or a Queen.',
+        tutorialStraight: '💡 Moved straight! This means it must be a Rook or a Queen (or Pawn).',
+        tutorialL: '💡 Moved in an L-shape! This piece has to be a Knight.',
         
         // New Additions
         back: "Back",
@@ -215,6 +218,9 @@ export const dict = {
         winsRed: '黒 の勝利！',
         rematch: 'もう一度プレイ',
         tips: 'TIPS: 駒をタップして移動先をタップしてください。移動距離やルールによって駒の正体が推論（収縮）されます。',
+        tutorialDiagonal: '💡 斜めに移動しました！つまりこの駒は「ビショップ」か「クイーン」で確定です。',
+        tutorialStraight: '💡 まっすぐ移動しました！これは「ルーク」か「クイーン（またはポーン）」になります。',
+        tutorialL: '💡 L字型に移動しました！この駒は「ナイト」で確定です。',
         
         // New Additions
         back: "戻る",
