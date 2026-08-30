@@ -4,6 +4,7 @@ import { SocketProvider } from '../lib/SocketContext';
 import React, { useState, useEffect } from 'react';
 import GameBoard from '../components/GameBoard';
 import AdBanner from '../components/AdBanner';
+import { SpeedInsights } from '@vercel/speed-insights/next';
 import { SystemStatusBanner } from '../components/SystemStatusBanner';
 import { supabase } from '../lib/supabaseClient';
 import { TitleScreen } from '../components/TitleScreen';
@@ -180,6 +181,7 @@ export default function Home() {
     return (
         <SocketProvider userId={user?.id}>
             <SystemStatusBanner lang={lang} />
+            <SpeedInsights />
         <main className="flex min-h-screen flex-col items-center justify-between p-4 bg-[#1E1C19] text-[#E8E5DF] font-serif relative overflow-hidden">
             <div className="z-10 w-full max-w-5xl flex items-center justify-between text-sm mb-4">
                 {/* 右上のコントロール群 */}
