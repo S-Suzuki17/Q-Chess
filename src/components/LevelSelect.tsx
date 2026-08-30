@@ -311,7 +311,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onReplay, onB
         };
     }, []);
     return (
-        <div className="w-full h-[100dvh] flex flex-col bg-[#161513] text-[#E8E2D7] font-sans px-6 py-6 md:px-8 md:py-8 overflow-hidden relative">
+        <div className="w-full h-full flex flex-col bg-[#161513] text-[#E8E2D7] font-sans px-6 py-6 md:px-8 md:py-8 overflow-hidden relative">
             
             {/* Play Menu Modal */}
             {showPlayMenu && (

@@ -193,7 +193,7 @@ export default function Home() {
         <SocketProvider userId={user?.id}>
             <SystemStatusBanner lang={lang} />
             <SpeedInsights />
-        <main className="flex min-h-screen flex-col items-center justify-between p-4 bg-[#1E1C19] text-[#E8E5DF] font-serif relative overflow-hidden">
+        <main className="fixed inset-0 flex flex-col items-center justify-between bg-[#161513] text-[#E8E2D7] font-sans overflow-hidden">
             <div className="z-10 w-full max-w-5xl flex items-center justify-between text-sm mb-4">
                 {/* 右上のコントロール群 */}
                 <div className="fixed right-4 top-4 z-50 flex gap-2 items-center">
@@ -336,20 +336,24 @@ export default function Home() {
                 )}
             </div>
 
-            {/* 広告 */}
-            <div className="w-full max-w-4xl mt-8">
-                <AdBanner 
-                    adClient={process.env.NEXT_PUBLIC_ADSENSE_CLIENT || "ca-pub-1116866075179199"} 
-                    adSlot={process.env.NEXT_PUBLIC_ADSENSE_SLOT || "XXXXXXXXXX"} 
-                />
-            </div>
+            {gameState === 'title' && (
+                <>
+                    {/* AdBanner */}
+                    <div className="w-full max-w-4xl mt-8">
+                        <AdBanner 
+                            adClient={process.env.NEXT_PUBLIC_ADSENSE_CLIENT || "ca-pub-1116866075179199"} 
+                            adSlot={process.env.NEXT_PUBLIC_ADSENSE_SLOT || "XXXXXXXXXX"} 
+                        />
+                    </div>
 
-            {/* Footer */}
-            <footer className="w-full max-w-4xl mt-4 mb-4 text-center text-gray-500 text-xs font-sans">
-                <a href="/privacy" className="hover:text-[#D4B872] transition-colors">Privacy Policy</a>
-                <span className="mx-2">|</span>
-                <span>&copy; 2026 Q-GAMBIT</span>
-            </footer>
+                    {/* Footer */}
+                    <footer className="w-full max-w-4xl mt-4 mb-4 text-center text-gray-500 text-xs font-sans">
+                        <a href="/privacy" className="hover:text-[#D4B872] transition-colors">Privacy Policy</a>
+                        <span className="mx-2">|</span>
+                        <span>&copy; 2026 Q-GAMBIT</span>
+                    </footer>
+                </>
+            )}
         </main></SocketProvider>
     );
 }
