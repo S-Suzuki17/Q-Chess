@@ -84,17 +84,6 @@ export function TitleScreen({ lang, onLogin }: TitleScreenProps) {
     return (
         <div className="flex flex-col items-center justify-center min-h-screen bg-[#11100E] text-[#E8E2D7] p-4 font-sans selection:bg-[#B39A62]/30">
             {/* Minimal Board Pattern Background */}
-            <div className="absolute inset-0 z-0 flex items-center justify-center opacity-[0.03] pointer-events-none scale-[2] rotate-12 blur-[1px]">
-                <div className="grid grid-cols-8 grid-rows-8 border-4 border-[#E8E2D7] w-[800px] h-[800px]">
-                    {Array.from({ length: 64 }).map((_, i) => {
-                        const isBlack = (Math.floor(i / 8) + (i % 8)) % 2 === 1;
-                        return (
-                            <div key={i} className={`w-full h-full ${isBlack ? 'bg-[#E8E2D7]' : 'bg-transparent'}`} />
-                        );
-                    })}
-                </div>
-            </div>
-
             <div className="relative z-10 text-center mb-16">
                 <h1 className="text-5xl md:text-7xl font-serif text-[#E8E2D7] tracking-[0.2em] mb-4">
                     Q-GAMBIT
