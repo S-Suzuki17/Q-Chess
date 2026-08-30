@@ -612,7 +612,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onReplay, onB
                 <button 
                     onClick={() => {
                         if (user.type === 'guest') {
-                            alert(lang === 'ja' ? 'ランクマッチをプレイするにはアカウント登録（IDの入力）が必要です。タイトル画面に戻ってIDを入力してください。' : 'Please register an account (by typing an ID) to play Ranked Matches.');
+                            alert(lang === 'ja' ? 'ランクマッチをプレイするにはアカウント登録が必要です。タイトル画面に戻ってGoogleまたはDiscordでサインインしてください。' : 'Please register an account (Sign in with Google/Discord on Title Screen) to play Ranked Matches.');
                             return;
                         }
                         startRandomMatch('ranked', '10m');
@@ -636,6 +636,20 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onReplay, onB
                 </button>
 
                 {/* Random Match */}
+                <button 
+                    onClick={() => startRandomMatch('random', '10m')}
+                    className="group relative w-full p-4 bg-[#3B342C] border border-[#4A4238] hover:bg-[#4A4238] transition-all rounded text-left overflow-hidden hover:shadow-lg">
+                    <div className="absolute inset-0 w-1 bg-[#D4B872] group-hover:w-full transition-all duration-300 opacity-10" />
+                    <div className="relative z-10 flex justify-between items-center">
+                        <div className="flex flex-col">
+                            <span className="text-xl font-bold text-[#E8E5DF] tracking-wider flex items-baseline gap-2">
+                                🎲 {t.randomMatch}
+                                <span className="text-sm font-mono opacity-80">(10 MIN)</span>
+                            </span>
+                        </div>
+                        <span className="text-xs px-2 py-1 rounded border text-gray-500 border-[#4A4238]">{t.unrated}</span>
+                    </div>
+                </button>
 
 
                 {!showOnlineMenu ? (
