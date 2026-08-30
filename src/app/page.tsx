@@ -4,7 +4,9 @@ import { SocketProvider } from '../lib/SocketContext';
 import React, { useState, useEffect } from 'react';
 import GameBoard from '../components/GameBoard';
 import AdBanner from '../components/AdBanner';
-import { SystemStatusBanner } from '../components/SystemStatusBanner';\nimport { TitleScreen } from '../components/TitleScreen';
+import { SystemStatusBanner } from '../components/SystemStatusBanner';
+import { supabase } from '../lib/supabaseClient';
+import { TitleScreen } from '../components/TitleScreen';
 import { LevelSelect } from '../components/LevelSelect';
 import ReplayBoard from '../components/ReplayBoard';
 import { Language, LANGUAGES, dict } from '../locales/dict';
@@ -22,6 +24,42 @@ export default function Home() {
     const [replayRecord, setReplayRecord] = useState<GameRecord | null>(null);
     const [soundConfig, setSoundConfig] = useState(() => soundManager.getConfig());
     const [showSettings, setShowSettings] = useState(false);
+
+    
+    useEffect(() => {
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+            if (session && event === 'SIGNED_IN') {
+                const u = {
+                    id: session.user.id,
+                    name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || 'Player',
+                    type: 'registered' as const
+                };
+                setUser(u);
+                localStorage.setItem('qg_last_user', JSON.stringify(u));
+                setGameState('level_select');
+            } else if (event === 'SIGNED_OUT') {
+                setUser(null);
+                localStorage.removeItem('qg_last_user');
+                setGameState('title');
+            }
+        });
+        
+        // Check initial session
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            if (session) {
+                const u = {
+                    id: session.user.id,
+                    name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || 'Player',
+                    type: 'registered' as const
+                };
+                setUser(u);
+                localStorage.setItem('qg_last_user', JSON.stringify(u));
+                setGameState('level_select');
+            }
+        });
+
+        return () => subscription.unsubscribe();
+    }, []);
 
     useEffect(() => {
         if (typeof window !== 'undefined') {
@@ -132,7 +170,8 @@ export default function Home() {
         setGameState('playing');
     };
 
-    const handleLogout = () => {
+    const handleLogout = async () => {
+        await supabase.auth.signOut();
         setUser(null);
         localStorage.removeItem('qg_last_user');
         setGameState('title');
