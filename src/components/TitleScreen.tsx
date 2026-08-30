@@ -104,19 +104,18 @@ export function TitleScreen({ lang, onLogin }: TitleScreenProps) {
                 </p>
             </div>
 
-            <div className="relative z-10 w-full max-w-sm flex flex-col gap-8">
+            <div className="relative z-10 w-full max-w-sm flex flex-col gap-6">
                 {mode === 'select' && (
-                    <div className="flex flex-col items-center gap-6">
-                        <button onClick={handleGuest} className="text-xl tracking-[0.2em] hover:text-[#B39A62] transition-colors pb-1 border-b border-transparent hover:border-[#B39A62]">
+                    <div className="flex flex-col gap-4">
+                        <button onClick={handleGuest} className="w-full py-4 bg-[#191714] border border-[#B39A62]/50 hover:bg-[#B39A62] hover:text-[#11100E] transition-colors text-lg tracking-[0.2em] text-[#B39A62]">
                             PLAY AS GUEST
                         </button>
                         
-                        <div className="flex flex-col items-center gap-4 mt-8 w-full border-t border-[#A89C86]/30 pt-8">
-                            <span className="text-xs tracking-widest text-[#A89C86]">ACCOUNT ACCESS</span>
-                            <button onClick={() => { setMode('login'); setError(''); }} className="text-sm tracking-widest hover:text-[#E8E2D7] text-[#A89C86]">
+                        <div className="flex flex-col gap-3 mt-4">
+                            <button onClick={() => { setMode('login'); setError(''); }} className="w-full py-3 bg-[#191714]/80 border border-[#A89C86]/30 hover:bg-[#A89C86]/20 transition-colors text-sm tracking-widest text-[#E8E2D7]">
                                 SIGN IN
                             </button>
-                            <button onClick={() => { setMode('register'); setError(''); }} className="text-sm tracking-widest hover:text-[#E8E2D7] text-[#A89C86]">
+                            <button onClick={() => { setMode('register'); setError(''); }} className="w-full py-3 bg-transparent border border-[#A89C86]/30 hover:bg-[#A89C86]/10 transition-colors text-sm tracking-widest text-[#E8E2D7]">
                                 CREATE ACCOUNT
                             </button>
                         </div>
@@ -124,14 +123,14 @@ export function TitleScreen({ lang, onLogin }: TitleScreenProps) {
                 )}
 
                 {(mode === 'register' || mode === 'login') && (
-                    <form onSubmit={mode === 'register' ? handleRegisterSubmit : handleLoginSubmit} className="flex flex-col gap-6 w-full max-w-xs mx-auto">
+                    <form onSubmit={mode === 'register' ? handleRegisterSubmit : handleLoginSubmit} className="flex flex-col gap-6 w-full mx-auto p-6 bg-[#191714] border border-[#A89C86]/30">
                         <div className="flex flex-col gap-4">
                             <input 
                                 type="text" 
                                 placeholder={(t as any).enterName || "USERNAME"}
                                 value={inputId}
                                 onChange={e => setInputId(e.target.value)}
-                                className="w-full bg-transparent border-b border-[#A89C86]/50 p-2 text-[#E8E2D7] focus:outline-none focus:border-[#E8E2D7] text-center text-sm tracking-widest placeholder:text-[#A89C86]/30"
+                                className="w-full bg-[#11100E] border border-[#A89C86]/30 p-3 text-[#E8E2D7] focus:outline-none focus:border-[#B39A62] text-sm tracking-widest placeholder:text-[#A89C86]/30"
                                 autoFocus
                                 disabled={loading}
                             />
@@ -140,17 +139,17 @@ export function TitleScreen({ lang, onLogin }: TitleScreenProps) {
                                 placeholder={(t as any).password || "PASSWORD"}
                                 value={inputPassword}
                                 onChange={e => setInputPassword(e.target.value)}
-                                className="w-full bg-transparent border-b border-[#A89C86]/50 p-2 text-[#E8E2D7] focus:outline-none focus:border-[#E8E2D7] text-center text-sm tracking-widest placeholder:text-[#A89C86]/30"
+                                className="w-full bg-[#11100E] border border-[#A89C86]/30 p-3 text-[#E8E2D7] focus:outline-none focus:border-[#B39A62] text-sm tracking-widest placeholder:text-[#A89C86]/30"
                                 disabled={loading}
                             />
                         </div>
-                        {error && <p className="text-red-900 text-sm text-center">{error}</p>}
+                        {error && <p className="text-red-400 text-sm text-center bg-red-950/50 p-2 border border-red-900/50">{error}</p>}
                         
-                        <button type="submit" disabled={loading} className="w-full py-2 border-b border-[#A89C86] hover:border-[#E8E2D7] text-[#E8E2D7] tracking-widest transition-all">
+                        <button type="submit" disabled={loading} className="w-full py-3 bg-[#B39A62] hover:bg-[#D0C8B6] text-[#11100E] font-bold tracking-widest transition-colors mt-2">
                             {loading ? "..." : (mode === 'register' ? 'SUBMIT' : 'SIGN IN')}
                         </button>
                         
-                        <div className="flex items-center justify-center gap-4 my-2 opacity-30">
+                        <div className="flex items-center justify-center gap-4 my-2 opacity-50">
                             <div className="h-px w-full bg-[#A89C86]" />
                             <span className="text-[10px] uppercase tracking-widest text-[#A89C86]">OR</span>
                             <div className="h-px w-full bg-[#A89C86]" />
@@ -162,9 +161,9 @@ export function TitleScreen({ lang, onLogin }: TitleScreenProps) {
                                 onClick={async () => {
                                     await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin } });
                                 }} 
-                                className="w-full py-2 border border-[#A89C86]/30 hover:border-[#E8E2D7] text-[#E8E2D7] text-xs tracking-widest transition-all flex items-center justify-center gap-3"
+                                className="w-full py-3 bg-white/5 hover:bg-white/10 border border-[#A89C86]/30 text-[#E8E2D7] text-xs tracking-widest transition-colors flex items-center justify-center gap-3"
                             >
-                                <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" className="w-3 h-3 grayscale opacity-70" />
+                                <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" className="w-4 h-4" />
                                 GOOGLE
                             </button>
                             <button 
@@ -172,14 +171,14 @@ export function TitleScreen({ lang, onLogin }: TitleScreenProps) {
                                 onClick={async () => {
                                     await supabase.auth.signInWithOAuth({ provider: 'discord', options: { redirectTo: window.location.origin } });
                                 }} 
-                                className="w-full py-2 border border-[#A89C86]/30 hover:border-[#E8E2D7] text-[#E8E2D7] text-xs tracking-widest transition-all flex items-center justify-center gap-3"
+                                className="w-full py-3 bg-[#5865F2]/10 hover:bg-[#5865F2]/20 border border-[#A89C86]/30 text-[#E8E2D7] text-xs tracking-widest transition-colors flex items-center justify-center gap-3"
                             >
-                                <img src="https://www.svgrepo.com/show/353655/discord-icon.svg" alt="Discord" className="w-3 h-3 grayscale opacity-70" />
+                                <img src="https://www.svgrepo.com/show/353655/discord-icon.svg" alt="Discord" className="w-4 h-4" />
                                 DISCORD
                             </button>
                         </div>
                         
-                        <button type="button" onClick={() => setMode('select')} disabled={loading} className="text-[#A89C86] hover:text-[#E8E2D7] text-xs tracking-widest mt-4">
+                        <button type="button" onClick={() => setMode('select')} disabled={loading} className="text-[#A89C86] hover:text-[#E8E2D7] text-xs tracking-widest mt-2">
                             CANCEL
                         </button>
                     </form>

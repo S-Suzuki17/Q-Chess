@@ -591,18 +591,18 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onReplay, onB
             <div className="w-full max-w-2xl flex flex-col gap-6">
                 
                 {/* ── VS CPU ── */}
-                <div className="w-full mt-4 mb-2"><h3 className="text-sm tracking-[0.3em] text-[#A89C86] uppercase border-b border-[#A89C86]/30 pb-2">PRACTICE</h3></div>
+                <div className="w-full mt-4 mb-2"><h3 className="text-sm tracking-[0.3em] text-[#B39A62] uppercase mb-4">PRACTICE</h3></div>
                 
                 <button 
                     onClick={handleVsCpuClick}
-                    className="flex flex-col md:flex-row md:items-baseline justify-between w-full py-4 group text-left relative border-b border-[#A89C86]/30 hover:border-[#E8E2D7] transition-all"
+                    className="flex flex-col md:flex-row md:items-baseline justify-between w-full p-4 group text-left relative border border-[#A89C86]/20 bg-[#191714] hover:bg-[#2D2A26] hover:border-[#B39A62] transition-colors mb-3"
                 >
                     <span className="text-xl tracking-widest text-[#E8E2D7] group-hover:text-[#B39A62]">{t.vsCpu}</span>
                     <span className="text-xs tracking-widest text-[#A89C86] group-hover:text-[#E8E2D7] transition-colors">{t.vsCpuDesc}</span>
                 </button>
 
                 {/* ── Online Multiplayer ── */}
-                <div className="w-full mt-12 mb-2"><h3 className="text-sm tracking-[0.3em] text-[#A89C86] uppercase border-b border-[#A89C86]/30 pb-2">{t.onlineMultiplayer}</h3></div>
+                <div className="w-full mt-12 mb-2"><h3 className="text-sm tracking-[0.3em] text-[#B39A62] uppercase mb-4">{t.onlineMultiplayer}</h3></div>
 
                 {/* Ranked Match */}
                 <button 
@@ -629,7 +629,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onReplay, onB
                 {/* Random Match */}
                 <button 
                     onClick={() => startRandomMatch('random', '10m')}
-                    className="flex flex-col md:flex-row md:items-baseline justify-between w-full py-4 group text-left relative border-b border-[#A89C86]/30 hover:border-[#E8E2D7] transition-all"
+                    className="flex flex-col md:flex-row md:items-baseline justify-between w-full p-4 group text-left relative border border-[#A89C86]/20 bg-[#191714] hover:bg-[#2D2A26] hover:border-[#B39A62] transition-colors mb-3"
                 >
                     <span className="text-xl tracking-widest text-[#E8E2D7] group-hover:text-[#B39A62]">{t.randomMatch}</span>
                     <span className="text-xs tracking-widest text-[#A89C86]">{t.unrated} / 10 MIN</span>
@@ -638,7 +638,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onReplay, onB
                 {!showOnlineMenu ? (
                     <button 
                         onClick={() => setShowOnlineMenu(true)}
-                        className="flex flex-col md:flex-row md:items-baseline justify-between w-full py-4 group text-left relative border-b border-[#A89C86]/30 hover:border-[#E8E2D7] transition-all"
+                        className="flex flex-col md:flex-row md:items-baseline justify-between w-full p-4 group text-left relative border border-[#A89C86]/20 bg-[#191714] hover:bg-[#2D2A26] hover:border-[#B39A62] transition-colors mb-3"
                     >
                         <span className="text-xl tracking-widest text-[#E8E2D7] group-hover:text-[#B39A62]">{t.privateMatch}</span>
                         <span className="text-xs tracking-widest text-[#A89C86]">PLAY WITH FRIENDS</span>
@@ -680,25 +680,25 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onReplay, onB
                 )}
 
                 {/* ── Social ── */}
-                <div className="w-full mt-12 mb-2"><h3 className="text-sm tracking-[0.3em] text-[#A89C86] uppercase border-b border-[#A89C86]/30 pb-2">SOCIAL & LIVE</h3></div>
+                <div className="w-full mt-12 mb-2"><h3 className="text-sm tracking-[0.3em] text-[#B39A62] uppercase mb-4">SOCIAL & LIVE</h3></div>
 
                 <div className="flex flex-col w-full">
                     <button 
                         onClick={() => setShowFriends(true)}
-                        className="flex flex-col md:flex-row justify-between w-full py-4 group text-left relative border-b border-[#A89C86]/30 hover:border-[#E8E2D7] transition-all"
+                        className="flex flex-col md:flex-row md:items-baseline justify-between w-full p-4 group text-left relative border border-[#A89C86]/20 bg-[#191714] hover:bg-[#2D2A26] hover:border-[#B39A62] transition-colors mb-3"
                     >
                         <span className="text-lg tracking-widest text-[#E8E2D7] group-hover:text-[#B39A62]">{(t as any).friends || 'FRIENDS'}</span>
                     </button>
                     <button 
                         onClick={() => setShowLiveMatches(true)}
-                        className="flex flex-col md:flex-row justify-between w-full py-4 group text-left relative border-b border-[#A89C86]/30 hover:border-[#E8E2D7] transition-all"
+                        className="flex flex-col md:flex-row md:items-baseline justify-between w-full p-4 group text-left relative border border-[#A89C86]/20 bg-[#191714] hover:bg-[#2D2A26] hover:border-[#B39A62] transition-colors mb-3"
                     >
                         <span className="text-lg tracking-widest text-[#E8E2D7] group-hover:text-[#B39A62]">{(t as any).liveMatch || 'LIVE MATCHES'}</span>
                     </button>
                 </div>
 
                 {/* ── Replays ── */}
-                <div className="w-full mt-12 mb-2"><h3 className="text-sm tracking-[0.3em] text-[#A89C86] uppercase border-b border-[#A89C86]/30 pb-2">{t.gameReplays}</h3></div>
+                <div className="w-full mt-12 mb-2"><h3 className="text-sm tracking-[0.3em] text-[#B39A62] uppercase mb-4">{t.gameReplays}</h3></div>
 
                 {!showReplays ? (
                     <button 
@@ -706,7 +706,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onReplay, onB
                             setShowReplays(true);
                             loadReplays(replayCategory);
                         }}
-                        className="flex flex-col md:flex-row justify-between w-full py-4 group text-left relative border-b border-[#A89C86]/30 hover:border-[#E8E2D7] transition-all"
+                        className="flex flex-col md:flex-row md:items-baseline justify-between w-full p-4 group text-left relative border border-[#A89C86]/20 bg-[#191714] hover:bg-[#2D2A26] hover:border-[#B39A62] transition-colors mb-3"
                     >
                         <span className="text-lg tracking-widest text-[#E8E2D7] group-hover:text-[#B39A62]">{t.watchReplays}</span>
                     </button>

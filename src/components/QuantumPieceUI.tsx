@@ -39,40 +39,55 @@ export const QuantumPieceUI: React.FC<QuantumPieceProps> = ({ player, probabilit
     const symbols = isWhite ? PIECE_SYMBOLS : PIECE_SYMBOLS_BLACK;
 
     return (
-        <div 
-            onClick={onClick}
-            className={`
-                relative w-12 h-12 cursor-pointer transition-transform duration-150
-                flex items-center justify-center border
-                ${confirmedType ? 'rounded' : 'rounded-full'}
-                ${isSelected ? `ring-2 ring-offset-2 ring-offset-[#11100E] ${highlightRing} scale-105 z-10` : 'hover:scale-105'}
-                ${isPromoted 
-                    ? 'bg-[#191714] border-[#B39A62] text-[#B39A62]' 
-                    : baseBg
+        <>
+            <style>{`
+                @keyframes quantum-jitter {
+                    0% { transform: translate(0px, 0px) rotate(0deg); opacity: 0.6; }
+                    33% { transform: translate(0.5px, -0.5px) rotate(1deg); opacity: 0.8; }
+                    66% { transform: translate(-0.5px, 0.5px) rotate(-1deg); opacity: 0.5; }
+                    100% { transform: translate(0px, 0px) rotate(0deg); opacity: 0.6; }
                 }
-            `}
-        >
-            {isPromoted && (
-                <div className="absolute -top-1 -right-1 w-2 h-2 bg-[#B39A62] rounded-full" />
-            )}
+                .quantum-icon {
+                    animation: quantum-jitter 2s infinite alternate ease-in-out;
+                    display: inline-block;
+                }
+            `}</style>
+            <div 
+                onClick={onClick}
+                className={`
+                    relative w-12 h-12 cursor-pointer transition-transform duration-150
+                    flex items-center justify-center border
+                    ${confirmedType ? 'rounded' : 'rounded-full'}
+                    ${isSelected ? `ring-2 ring-offset-2 ring-offset-[#11100E] ${highlightRing} scale-105 z-10` : 'hover:scale-105'}
+                    ${isPromoted 
+                        ? 'bg-[#191714] border-[#B39A62] text-[#B39A62]' 
+                        : baseBg
+                    }
+                `}
+            >
+                {isPromoted && (
+                    <div className="absolute -top-1 -right-1 w-2 h-2 bg-[#B39A62] rounded-full" />
+                )}
 
-            {confirmedType ? (
-                <span className={`text-3xl ${isPromoted ? 'text-[#B39A62]' : iconColor} opacity-90 drop-shadow-sm`}>
-                    {symbols[confirmedType]}
-                </span>
-            ) : (
-                // Superposition: Elegant engraved subtle icons
-                <div className="flex flex-wrap justify-center items-center content-center w-full h-full p-1 opacity-60">
-                    {possibleTypes.map((type) => (
-                        <span 
-                            key={type} 
-                            className={`text-[12px] leading-none m-[1px] ${iconColor}`}
-                        >
-                            {symbols[type]}
-                        </span>
-                    ))}
-                </div>
-            )}
-        </div>
+                {confirmedType ? (
+                    <span className={`text-3xl ${isPromoted ? 'text-[#B39A62]' : iconColor} opacity-90 drop-shadow-sm`}>
+                        {symbols[confirmedType]}
+                    </span>
+                ) : (
+                    // Superposition: Elegant engraved subtle icons with jitter
+                    <div className="flex flex-wrap justify-center items-center content-center w-full h-full p-1">
+                        {possibleTypes.map((type, index) => (
+                            <span 
+                                key={type} 
+                                className={`quantum-icon text-[12px] leading-none m-[1px] ${iconColor}`}
+                                style={{ animationDelay: `${(index * 0.3) % 1}s` }}
+                            >
+                                {symbols[type]}
+                            </span>
+                        ))}
+                    </div>
+                )}
+            </div>
+        </>
     );
 };
