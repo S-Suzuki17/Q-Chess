@@ -52,6 +52,7 @@ export interface Profile {
     rating_10s: number;
     rating_3m: number;
     rating_10m: number;
+    avatar_url?: string;
 }
 
 export async function saveGameRecord(record: GameRecord): Promise<string | null> {

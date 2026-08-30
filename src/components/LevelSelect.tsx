@@ -437,8 +437,29 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onReplay, onB
                         <h3 className="text-2xl font-bold text-[#E8E5DF] mb-6">👤 ACCOUNT</h3>
                         
                         <div className="flex flex-col gap-4 text-left mb-8">
-                            <div>
-                                <p className="text-xs text-[#8C7A5E] font-bold mb-1">NAME</p>
+                                <div className="flex flex-col items-center mb-6">
+                                    <div className="relative group">
+                                        <div className="w-24 h-24 rounded-full border-2 border-[#4A4238] overflow-hidden bg-gray-800 flex items-center justify-center mb-2">
+                                            {userProfile?.avatar_url ? (
+                                                <img src={userProfile.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
+                                            ) : (
+                                                <span className="text-4xl text-gray-600">👤</span>
+                                            )}
+                                        </div>
+                                        {user.type === 'registered' && (
+                                            <label className="absolute inset-0 bg-black/60 rounded-full flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity">
+                                                <span className="text-xs font-bold text-white text-center">
+                                                    {uploadingAvatar ? '...' : 'UPLOAD'}
+                                                </span>
+                                                <input type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} disabled={uploadingAvatar} />
+                                            </label>
+                                        )}
+                                    </div>
+                                    <p className="text-xs text-[#8C7A5E] font-bold">PROFILE PHOTO</p>
+                                </div>
+
+                                <div>
+                                    <p className="text-xs text-[#8C7A5E] font-bold mb-1">NAME</p>
                                 <div className="flex items-center gap-2">
                                     {isEditingName ? (
                                         <div className="flex items-center gap-2">
