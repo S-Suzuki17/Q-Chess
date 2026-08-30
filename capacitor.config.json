@@ -1,5 +1,5 @@
 {
   "appId": "com.qgambit.app",
-  "appName": "Q-Gambit",
-  "webDir": "dist"
+  "appName": "Q-GAMBIT",
+  "webDir": "out"
 }
