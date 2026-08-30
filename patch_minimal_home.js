@@ -1,316 +1,24 @@
-'use client';
-import { useMatchmaking } from '../hooks/useMatchmaking';
-import { AdBanner } from './AdBanner';
+const fs = require('fs');
+let code = fs.readFileSync('src/components/LevelSelect.tsx', 'utf8');
 
-import React from 'react';
-import { dict, Language } from '../locales/dict';
-import { User, TimeControl } from '../types/game';
-import { supabase } from '../lib/supabaseClient';
-import { GameRecord, getGameRecords, Profile, getTopProfiles, UserStats } from '../lib/gameRecordService';
-import { soundManager } from '../lib/SoundService';
-import { getTitleFromRating } from '../lib/rankSystem';
-import { FriendsMenu } from './FriendsMenu';
-import { LiveMatchesMenu } from './LiveMatchesMenu';
-
-interface LevelSelectProps {
-    lang: Language;
-    user: User;
-    onSelect: (level: number, tc: TimeControl) => void;
-    onOnlineMatch?: (roomId: string, role: 'white' | 'black' | 'spectator', matchMode: 'random' | 'private' | 'ranked', tc: TimeControl, opponentId?: string) => void;
-    onReplay?: (record: GameRecord) => void;
-    onBack: () => void;
+if (!code.includes('showPlayMenu')) {
+    code = code.replace(
+        'const [showLiveMatches, setShowLiveMatches] = React.useState(false);',
+        'const [showLiveMatches, setShowLiveMatches] = React.useState(false);\n    const [showPlayMenu, setShowPlayMenu] = React.useState(false);\n    const [recentGames, setRecentGames] = React.useState<any[]>([]);\n    React.useEffect(() => { getGameRecords(3, user.id).then(setRecentGames); }, [user.id]);'
+    );
 }
 
-export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onReplay, onBack }: LevelSelectProps) {
-    const t = dict[lang];
-    const [showAdModal, setShowAdModal] = React.useState(false);
-    const [adProgress, setAdProgress] = React.useState(0);
-    const [showOnlineMenu, setShowOnlineMenu] = React.useState(false);
-    const [joinRoomId, setJoinRoomId] = React.useState('');
-    const [isSearching, setIsSearching] = React.useState(false);
-    const [matchFound, setMatchFound] = React.useState(false);
-    const { isSearching: hookSearching, matchedRoom, startMatchmaking, cancelMatchmaking: hookCancel } = useMatchmaking(user);
-    const [showReplays, setShowReplays] = React.useState(false);
-    const [replays, setReplays] = React.useState<GameRecord[]>([]);
-    const [loadingReplays, setLoadingReplays] = React.useState(false);
-    const [replayCategory, setReplayCategory] = React.useState<'global' | 'mine'>('global');
-    const [showLeaderboard, setShowLeaderboard] = React.useState(false);
-    const [leaderboard, setLeaderboard] = React.useState<Profile[]>([]);
-    const [loadingLeaderboard, setLoadingLeaderboard] = React.useState(false);
-    const [leaderboardCategory, setLeaderboardCategory] = React.useState<TimeControl>('10m');
-    const [pendingAction, setPendingAction] = React.useState<{ type: 'cpu' | 'ranked' | 'random' | 'host' | 'join'; level?: number; roomId?: string } | null>(null);
-    const [userProfile, setUserProfile] = React.useState<Profile | null>(null);
-    const [userStats, setUserStats] = React.useState<UserStats | null>(null);
-    const [showAccount, setShowAccount] = React.useState(false);
-    const [updateEmail, setUpdateEmail] = React.useState('');
-    const [updatePassword, setUpdatePassword] = React.useState('');
-    const [emailMsg, setEmailMsg] = React.useState('');
-    const [emailLoading, setEmailLoading] = React.useState(false);
-    const [isEditingName, setIsEditingName] = React.useState(false);
-    const [newName, setNewName] = React.useState('');
-    const [nameLoading, setNameLoading] = React.useState(false);
-    const [uploadingAvatar, setUploadingAvatar] = React.useState(false);
+const splitRegex = /    \}, \[\]\);\r?\n    return \(/;
+const match = code.match(splitRegex);
 
-    const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        try {
-            setUploadingAvatar(true);
-            if (!e.target.files || e.target.files.length === 0) return;
-            const file = e.target.files[0];
-            const fileExt = file.name.split('.').pop();
-            const filePath = `${user.id}/avatar.${fileExt}`;
+if (!match) {
+    console.error("Could not find the correct 'return ('");
+    process.exit(1);
+}
 
-            // Upload to Supabase Storage
-            const { error: uploadError } = await supabase.storage
-                .from('avatars')
-                .upload(filePath, file, { upsert: true });
+const beforeReturn = code.slice(0, match.index + match[0].indexOf('return ('));
 
-            if (uploadError) throw uploadError;
-
-            // Get public URL
-            const { data: publicUrlData } = supabase.storage
-                .from('avatars')
-                .getPublicUrl(filePath);
-
-            // Update profiles table
-            const { error: updateError } = await supabase.from('profiles')
-                .update({ avatar_url: publicUrlData.publicUrl })
-                .eq('id', user.id);
-
-            if (updateError) throw updateError;
-            
-            // Reload to show new avatar
-            window.location.reload();
-        } catch (error) {
-            alert('Error uploading avatar!');
-            console.error(error);
-        } finally {
-            setUploadingAvatar(false);
-        }
-    };
-
-    const handleUpdateName = async () => {
-        if (!newName.trim() || newName.trim().length > 15) {
-            alert(lang === 'ja' ? '名前は1〜15文字で入力してください。' : 'Name must be between 1 and 15 characters.');
-            return;
-        }
-        setNameLoading(true);
-        try {
-            const { error } = await supabase.from('profiles').update({ name: newName.trim() }).eq('id', user.id);
-            if (error) throw error;
-            window.location.reload();
-        } catch (e) {
-            alert('Error updating name');
-        } finally {
-            setNameLoading(false);
-        }
-    };
-
-    const handleUpdateEmail = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setEmailMsg('');
-        if (!updateEmail || !updatePassword) {
-            setEmailMsg('Email and password required.');
-            return;
-        }
-        setEmailLoading(true);
-        const { data, error } = await supabase.rpc('update_user_email', {
-            p_id: user.id,
-            p_password: updatePassword,
-            p_email: updateEmail
-        });
-        setEmailLoading(false);
-        if (error || !data) {
-            setEmailMsg('Update failed. Incorrect password?');
-        } else {
-            setEmailMsg('Email updated successfully!');
-            setUpdatePassword('');
-        }
-    };
-    const [showFriends, setShowFriends] = React.useState(false);
-    const [showLiveMatches, setShowLiveMatches] = React.useState(false);
-    const [showPlayMenu, setShowPlayMenu] = React.useState(false);
-    const [recentGames, setRecentGames] = React.useState<any[]>([]);
-    React.useEffect(() => { getGameRecords(3, user.id).then(setRecentGames); }, [user.id]);
-    const [onlineCount, setOnlineCount] = React.useState(1);
-    const [onlineUsers, setOnlineUsers] = React.useState<Set<string>>(new Set());
-    const channelRef = React.useRef<ReturnType<typeof supabase.channel> | null>(null);
-    const globalChannelRef = React.useRef<ReturnType<typeof supabase.channel> | null>(null);
-    const adIntervalRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
-
-    React.useEffect(() => {
-        const channel = supabase.channel('global_lobby', {
-            config: { presence: { key: user.id } }
-        });
-        globalChannelRef.current = channel;
-
-        channel.on('presence', { event: 'sync' }, () => {
-            const state = channel.presenceState();
-            setOnlineCount(Object.keys(state).length);
-            setOnlineUsers(new Set(Object.keys(state)));
-        });
-
-        channel.subscribe(async (status) => {
-            if (status === 'SUBSCRIBED') {
-                await channel.track({ online_at: new Date().toISOString() });
-            }
-        });
-
-        return () => {
-            supabase.removeChannel(channel);
-        };
-    }, [user.id]);
-
-    const refreshUserProfile = React.useCallback(async () => {
-        const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single();
-        if (data) {
-            setUserProfile(data as Profile);
-        } else {
-            const { ensureProfile } = await import('../lib/gameRecordService');
-            const p = await ensureProfile(user.id, user.name);
-            if (p) setUserProfile(p);
-        }
-    }, [user.id, user.name]);
-
-    React.useEffect(() => {
-        refreshUserProfile();
-    }, [refreshUserProfile]);
-
-    React.useEffect(() => {
-        if (showAccount) {
-            refreshUserProfile();
-            import('../lib/gameRecordService').then(({ getUserStats }) => {
-                getUserStats(user.id).then(stats => setUserStats(stats));
-            });
-        }
-    }, [showAccount, user.id, refreshUserProfile]);
-
-    React.useEffect(() => {
-        if (showLeaderboard) {
-            loadLeaderboard(leaderboardCategory);
-        }
-    }, [showLeaderboard, leaderboardCategory]);
-
-    React.useEffect(() => {
-        if (showReplays) {
-            loadReplays(replayCategory);
-        }
-    }, [showReplays, replayCategory]);
-
-    React.useEffect(() => {
-        if (isSearching) {
-            soundManager.playBGM('/audio/bgm_waiting.mp3');
-        } else {
-            soundManager.playBGM('/audio/bgm_title.mp3');
-        }
-    }, [isSearching]);
-
-    const loadLeaderboard = async (category: TimeControl = leaderboardCategory) => {
-        setLoadingLeaderboard(true);
-        const data = await getTopProfiles(category);
-        setLeaderboard(data);
-        setLoadingLeaderboard(false);
-    };
-
-    const handleCategoryChange = (category: TimeControl) => {
-        setLeaderboardCategory(category);
-        loadLeaderboard(category);
-    };
-
-    const loadReplays = async (category: 'global' | 'mine') => {
-        setLoadingReplays(true);
-        const data = await getGameRecords(10, category === 'mine' ? user.id : undefined);
-        setReplays(data);
-        setLoadingReplays(false);
-    };
-
-    const handleReplayCategoryChange = (category: 'global' | 'mine') => {
-        setReplayCategory(category);
-        loadReplays(category);
-    };
-
-    const handleVsCpuClick = () => {
-        setShowAdModal(true);
-        setAdProgress(0);
-        
-        if (adIntervalRef.current) clearInterval(adIntervalRef.current);
-        adIntervalRef.current = setInterval(() => {
-            setAdProgress(prev => {
-                if (prev >= 100) {
-                    if (adIntervalRef.current) clearInterval(adIntervalRef.current);
-                    return 100;
-                }
-                return prev + 2;
-            });
-        }, 50);
-    };
-
-    const handleAdFinish = () => {
-        setPendingAction({ type: 'cpu', level: 5 });
-        setShowAdModal(false);
-        if (adIntervalRef.current) clearInterval(adIntervalRef.current);
-    };
-
-    const handleAdCancel = () => {
-        setShowAdModal(false);
-        if (adIntervalRef.current) clearInterval(adIntervalRef.current);
-    };
-
-    
-    React.useEffect(() => {
-        if (matchedRoom) {
-            setMatchFound(true);
-            setIsSearching(false);
-            setTimeout(() => {
-                const tcStr = matchedRoom.timeControl === 180 ? '3m' : matchedRoom.timeControl === 600 ? '10m' : '10m';
-                onOnlineMatch?.(matchedRoom.id, matchedRoom.myColor, 'random', tcStr, matchedRoom.myColor === 'white' ? matchedRoom.joinerId : matchedRoom.hostId);
-                setMatchFound(false);
-            }, 1500);
-        }
-    }, [matchedRoom, onOnlineMatch]);
-
-    const cancelSearch = React.useCallback(() => {
-        if (channelRef.current) {
-            supabase.removeChannel(channelRef.current);
-            channelRef.current = null;
-        }
-        setIsSearching(false);
-        hookCancel();
-    }, [hookCancel]);
-
-    const startRandomMatch = React.useCallback((mode: 'random' | 'ranked', tc: TimeControl) => {
-        setIsSearching(true);
-        const tcSeconds = tc === '3m' ? 180 : tc === '10m' ? 600 : 900;
-        startMatchmaking(tcSeconds);
-    }, [startMatchmaking]);
-
-    const handleTimeControlConfirm = (tc: TimeControl) => {
-        if (!pendingAction) return;
-        const action = pendingAction;
-        setPendingAction(null);
-
-        if (action.type === 'cpu') {
-            onSelect(action.level || 5, tc);
-        } else if (action.type === 'ranked') {
-            startRandomMatch('ranked', tc);
-        } else if (action.type === 'random') {
-            startRandomMatch('random', tc);
-        } else if (action.type === 'host' && action.roomId) {
-            onOnlineMatch?.(action.roomId, 'white', 'private', tc);
-        }
-    };
-
-    // Cleanup on unmount
-    React.useEffect(() => {
-        return () => {
-            if (channelRef.current) {
-                supabase.removeChannel(channelRef.current);
-            }
-            if (adIntervalRef.current) {
-                clearInterval(adIntervalRef.current);
-            }
-        };
-    }, []);
-    return (
+const newReturnBlock = `return (
         <div className="w-full h-[100dvh] flex flex-col bg-[#11100E] text-[#E8E2D7] font-sans px-6 py-6 md:px-8 md:py-8 overflow-hidden relative">
             
             {/* Play Menu Modal */}
@@ -478,8 +186,8 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onReplay, onB
                         </div>
                         
                         <div className="flex gap-2 mb-6 shrink-0">
-                            <button onClick={() => handleReplayCategoryChange('global')} className={`flex-1 py-3 text-[10px] tracking-[0.2em] transition-colors border ${replayCategory === 'global' ? 'border-[#B39A62] bg-[#B39A62]/10 text-[#B39A62]' : 'border-[#A89C86]/30 text-[#A89C86] hover:border-[#E8E2D7]'}`}>GLOBAL</button>
-                            <button onClick={() => handleReplayCategoryChange('mine')} className={`flex-1 py-3 text-[10px] tracking-[0.2em] transition-colors border ${replayCategory === 'mine' ? 'border-[#B39A62] bg-[#B39A62]/10 text-[#B39A62]' : 'border-[#A89C86]/30 text-[#A89C86] hover:border-[#E8E2D7]'}`}>MY GAMES</button>
+                            <button onClick={() => handleReplayCategoryChange('global')} className={\`flex-1 py-3 text-[10px] tracking-[0.2em] transition-colors border \${replayCategory === 'global' ? 'border-[#B39A62] bg-[#B39A62]/10 text-[#B39A62]' : 'border-[#A89C86]/30 text-[#A89C86] hover:border-[#E8E2D7]'}\`}>GLOBAL</button>
+                            <button onClick={() => handleReplayCategoryChange('mine')} className={\`flex-1 py-3 text-[10px] tracking-[0.2em] transition-colors border \${replayCategory === 'mine' ? 'border-[#B39A62] bg-[#B39A62]/10 text-[#B39A62]' : 'border-[#A89C86]/30 text-[#A89C86] hover:border-[#E8E2D7]'}\`}>MY GAMES</button>
                         </div>
 
                         {loadingReplays ? (
@@ -495,10 +203,10 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onReplay, onB
                                                 {r.white_player} <span className="text-[#A89C86] mx-2 text-[10px]">{t.vs}</span> {r.black_player}
                                             </span>
                                             <span className="text-[10px] text-[#A89C86] mt-1 font-mono tracking-widest">
-                                                {new Date(r.created_at!).toLocaleDateString()} / {r.mode.toUpperCase()} {r.time_control ? `/ ${r.time_control}` : ''}
+                                                {new Date(r.created_at!).toLocaleDateString()} / {r.mode.toUpperCase()} {r.time_control ? \`/ \${r.time_control}\` : ''}
                                             </span>
                                         </div>
-                                        <span className={`text-[10px] tracking-widest ${r.winner === 'white_wins' ? 'text-[#E8E2D7]' : r.winner === 'black_wins' ? 'text-red-400' : 'text-[#A89C86]'}`}>
+                                        <span className={\`text-[10px] tracking-widest \${r.winner === 'white_wins' ? 'text-[#E8E2D7]' : r.winner === 'black_wins' ? 'text-red-400' : 'text-[#A89C86]'}\`}>
                                             {r.winner === 'white_wins' ? t.whiteWon : r.winner === 'black_wins' ? t.blackWon : t.draw}
                                         </span>
                                     </button>
@@ -518,7 +226,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onReplay, onB
                         </div>
                         <div className="flex gap-2 mb-6 shrink-0">
                             {[ { id: '10m', label: t.lb10m } ].map(tab => (
-                                <button key={tab.id} onClick={() => handleCategoryChange(tab.id as TimeControl)} className={`flex-1 py-3 text-[10px] tracking-[0.2em] transition-colors border ${leaderboardCategory === tab.id ? 'border-[#B39A62] bg-[#B39A62]/10 text-[#B39A62]' : 'border-[#A89C86]/30 text-[#A89C86] hover:border-[#E8E2D7]'}`}>{tab.label}</button>
+                                <button key={tab.id} onClick={() => handleCategoryChange(tab.id as TimeControl)} className={\`flex-1 py-3 text-[10px] tracking-[0.2em] transition-colors border \${leaderboardCategory === tab.id ? 'border-[#B39A62] bg-[#B39A62]/10 text-[#B39A62]' : 'border-[#A89C86]/30 text-[#A89C86] hover:border-[#E8E2D7]'}\`}>{tab.label}</button>
                             ))}
                         </div>
                         {loadingLeaderboard ? (
@@ -534,7 +242,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onReplay, onB
                                     return (
                                         <div key={p.id} className="w-full flex justify-between items-center py-4 border-b border-[#A89C86]/20">
                                             <div className="flex items-center gap-6">
-                                                <span className={`text-sm font-mono tracking-widest ${index === 0 ? 'text-[#B39A62]' : index === 1 ? 'text-[#E8E2D7]' : index === 2 ? 'text-[#A89C86]' : 'text-[#A89C86]/50'}`}>#{index + 1}</span>
+                                                <span className={\`text-sm font-mono tracking-widest \${index === 0 ? 'text-[#B39A62]' : index === 1 ? 'text-[#E8E2D7]' : index === 2 ? 'text-[#A89C86]' : 'text-[#A89C86]/50'}\`}>#{index + 1}</span>
                                                 <span className="tracking-widest text-[#E8E2D7] text-sm">{p.name}</span>
                                             </div>
                                             <div className="text-[#B39A62] font-mono text-sm tracking-widest">{Math.floor(ratingVal)}</div>
@@ -572,7 +280,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onReplay, onB
                         <h3 className="text-xl font-serif text-[#E8E2D7] mb-2">{(t as any).adCloudTitle || 'Preparing Match'}</h3>
                         <p className="text-[#A89C86] text-[10px] tracking-widest mb-8">{(t as any).adCloudDesc || 'Watch a short ad to start the practice match!'}</p>
                         <div className="w-full h-1 bg-[#11100E] mb-6 overflow-hidden">
-                            <div className="h-full bg-[#B39A62] transition-all duration-[1000ms] ease-linear" style={{ width: `${adProgress}%` }} />
+                            <div className="h-full bg-[#B39A62] transition-all duration-[1000ms] ease-linear" style={{ width: \`\${adProgress}%\` }} />
                         </div>
                         <div className="w-32 h-32 mb-4 bg-transparent border border-[#A89C86]/10 flex items-center justify-center">
                             <AdBanner />
@@ -627,7 +335,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onReplay, onB
                                 return (
                                     <div key={r.id} className="flex justify-between items-center py-3 border-b border-[#A89C86]/10 text-xs tracking-widest">
                                         <span className="text-[#E8E2D7] truncate max-w-[150px]">{opponent}</span>
-                                        <span className={`text-[10px] ${iWon ? 'text-[#B39A62]' : isDraw ? 'text-[#A89C86]' : 'text-[#A89C86]/50'}`}>
+                                        <span className={\`text-[10px] \${iWon ? 'text-[#B39A62]' : isDraw ? 'text-[#A89C86]' : 'text-[#A89C86]/50'}\`}>
                                             {iWon ? 'WIN' : isDraw ? 'DRAW' : 'LOSS'}
                                         </span>
                                     </div>
@@ -649,3 +357,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onReplay, onB
         </div>
     );
 }
+`;
+
+fs.writeFileSync('src/components/LevelSelect.tsx', beforeReturn + newReturnBlock);
+console.log('Rewrote LevelSelect.tsx with new minimalist Home layout');
