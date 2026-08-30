@@ -178,7 +178,8 @@ export default function Home() {
     };
 
     return (
-        <SocketProvider userId={user?.id}>\n            <SystemStatusBanner lang={lang} />
+        <SocketProvider userId={user?.id}>
+            <SystemStatusBanner lang={lang} />
         <main className="flex min-h-screen flex-col items-center justify-between p-4 bg-[#1E1C19] text-[#E8E5DF] font-serif relative overflow-hidden">
             <div className="z-10 w-full max-w-5xl flex items-center justify-between text-sm mb-4">
                 {/* 右上のコントロール群 */}
