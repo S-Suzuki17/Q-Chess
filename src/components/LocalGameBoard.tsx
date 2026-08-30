@@ -854,7 +854,10 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
 
             {/* CPU側の取得駒（取られた味方駒） */}
             <div className="w-full flex gap-2 min-h-[48px] mb-2 p-2 bg-black/40 border border-red-900/30 rounded-lg items-center overflow-x-auto">
-                <span className="text-red-500/70 font-bold text-xs uppercase whitespace-nowrap min-w-[60px]">{opponentName} {t.captured}:</span>
+                <div className="flex items-center gap-2 min-w-[100px] shrink-0 opacity-70">
+                    <div className="w-6 h-6 rounded-full bg-red-950/30 flex items-center justify-center border border-red-900/50"><span className="text-[10px] opacity-50">🤖</span></div>
+                    <span className="text-red-500 font-bold text-xs uppercase whitespace-nowrap">{opponentName} {t.captured}:</span>
+                </div>
                 <div className="flex gap-1">
                     {tokens.filter(t => t.player === 'white' && t.isCaptured).map(token => (
                         <div key={token.id} className="scale-75 origin-left opacity-80">
@@ -918,7 +921,14 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
             
             {/* プレイヤー側の取得駒（取った敵駒） */}
             <div className="w-full flex gap-2 min-h-[48px] mt-2 p-2 bg-black/40 border border-blue-900/30 rounded-lg items-center overflow-x-auto">
-                <span className="text-blue-400/70 font-bold text-xs uppercase whitespace-nowrap min-w-[60px]">{playerName} {t.captured}:</span>
+                <div className="flex items-center gap-2 min-w-[100px] shrink-0">
+                    {user?.avatar_url ? (
+                        <img src={user.avatar_url} alt="" className="w-6 h-6 rounded-full object-cover border border-[#4A4238]" />
+                    ) : (
+                        <div className="w-6 h-6 rounded-full bg-gray-800 flex items-center justify-center border border-[#4A4238]"><span className="text-[10px]">👤</span></div>
+                    )}
+                    <span className="text-[#E8E5DF] font-bold text-sm uppercase whitespace-nowrap">{playerName} {t.captured}:</span>
+                </div>
                 <div className="flex gap-1">
                     {tokens.filter(t => t.player === 'black' && t.isCaptured).map(token => (
                         <div key={token.id} className="scale-75 origin-left opacity-80">

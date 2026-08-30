@@ -22,6 +22,10 @@ export interface InternalGameState {
         host?: string;
         joiner?: string;
     };
+    playerAvatars?: {
+        host?: string;
+        joiner?: string;
+    };
     board: (number | null)[];
     pieces: Piece[];
     turn: number; // 0 for white (host), 1 for black (joiner)
@@ -44,6 +48,10 @@ export interface PublicGameState {
         joiner: string;
     };
     playerNames?: {
+        host?: string;
+        joiner?: string;
+    };
+    playerAvatars?: {
         host?: string;
         joiner?: string;
     };
@@ -96,6 +104,7 @@ export class GameEngine {
             matchId,
             players: { host, joiner },
             playerNames: playerNames || {},
+            playerAvatars: {},
             board: initialBoard.board,
             pieces: initialBoard.pieces,
             turn: 0,
@@ -246,6 +255,7 @@ export class GameEngine {
             matchId: this.state.matchId,
             players: this.state.players,
             playerNames: this.state.playerNames,
+            playerAvatars: this.state.playerAvatars,
             board: this.state.board,
             pieces: filteredPieces,
             turn: this.state.turn,

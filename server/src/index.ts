@@ -145,8 +145,8 @@ io.on('connection', (socket: Socket) => {
     matchmaking.leaveQueue(userId);
   });
 
-  socket.on('connect_match', (data: { matchId: string, userName?: string }) => {
-    const result = matchmaking.connectMatch(userId, data.matchId, data.userName);
+  socket.on('connect_match', (data: { matchId: string, userName?: string, avatarUrl?: string }) => {
+    const result = matchmaking.connectMatch(userId, data.matchId, data.userName, data.avatarUrl);
     
     socket.join(data.matchId);
 

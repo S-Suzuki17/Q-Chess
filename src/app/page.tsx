@@ -30,10 +30,11 @@ export default function Home() {
     useEffect(() => {
         const fetchProfileAndSetUser = async (session: any) => {
             try {
-                const { data: profile } = await supabase.from('profiles').select('name').eq('id', session.user.id).single();
+                const { data: profile } = await supabase.from('profiles').select('name, avatar_url').eq('id', session.user.id).single();
                 const u = {
                     id: session.user.id,
                     name: profile?.name || session.user.user_metadata?.full_name || session.user.user_metadata?.name || 'Player',
+                    avatar_url: profile?.avatar_url,
                     type: 'registered' as const
                 };
                 setUser(u);

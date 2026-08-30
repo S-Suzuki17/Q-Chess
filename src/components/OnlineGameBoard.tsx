@@ -148,7 +148,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
 
         const syncMatch = () => {
             console.log('[OnlineGameBoard] Connecting/Syncing match:', roomId, 'User:', user?.name);
-            socket.emit('connect_match', { matchId: roomId, userName: user?.name });
+            socket.emit('connect_match', { matchId: roomId, userName: user?.name, avatarUrl: user?.avatar_url });
             socket.emit('request_sync', { matchId: roomId });
         };
 
@@ -397,6 +397,8 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
 
     const hostServerName = gameState?.playerNames?.host;
     const joinerServerName = gameState?.playerNames?.joiner;
+    const hostAvatarUrl = (gameState as any)?.playerAvatars?.host;
+    const joinerAvatarUrl = (gameState as any)?.playerAvatars?.joiner;
 
     const guestLabel = lang === 'ja' ? 'ゲスト' : 'Guest';
     const playerLabel = lang === 'ja' ? 'プレイヤー' : 'Player';
@@ -529,7 +531,16 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
 
             {/* Black's captured pieces (CPU/Opponent captured) */}
             <div className="w-full flex gap-2 min-h-[48px] mb-2 p-2 bg-black/40 border border-red-900/30 rounded-lg items-center overflow-x-auto">
-                <span className="text-red-500/70 font-bold text-xs uppercase whitespace-nowrap min-w-[60px]">{opponentName} {t.captured}:</span>
+                <div className="flex items-center gap-2 min-w-[100px] shrink-0 opacity-70">
+                        {onlineRole === 'white' && joinerAvatarUrl ? (
+                            <img src={joinerAvatarUrl} alt="" className="w-6 h-6 rounded-full object-cover border border-red-900/50" />
+                        ) : onlineRole === 'black' && hostAvatarUrl ? (
+                            <img src={hostAvatarUrl} alt="" className="w-6 h-6 rounded-full object-cover border border-red-900/50" />
+                        ) : (
+                            <div className="w-6 h-6 rounded-full bg-red-950/30 flex items-center justify-center border border-red-900/50"><span className="text-[10px] opacity-50">👤</span></div>
+                        )}
+                        <span className="text-red-500 font-bold text-xs uppercase whitespace-nowrap">{opponentName} {t.captured}:</span>
+                    </div>
                 <div className="flex gap-1">
                     {tokens.filter(t => t.player === 'white' && t.isCaptured).map(token => (
                         <div key={token.id} className="scale-75 origin-left opacity-80">

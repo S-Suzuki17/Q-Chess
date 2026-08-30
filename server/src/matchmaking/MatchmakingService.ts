@@ -146,7 +146,7 @@ export class MatchmakingService {
         return { success: false };
     }
 
-    public connectMatch(userId: string, matchId: string, userName?: string): { success: boolean, match?: MatchSession, engine?: GameEngine } {
+    public connectMatch(userId: string, matchId: string, userName?: string, avatarUrl?: string): { success: boolean, match?: MatchSession, engine?: GameEngine } {
         let session = this.players.get(userId);
         const match = this.matches.get(matchId);
 

@@ -421,7 +421,16 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onReplay, onB
                     onClick={() => setShowAccount(true)}
                     className="flex flex-col items-center justify-center gap-1 text-[#D4B872] mb-6 hover:text-[#E8E5DF] transition-colors group"
                 >
-                    <span className="text-lg font-bold">👤 {user.name}</span>
+                    <div className="flex items-center gap-2">
+                        {user.avatar_url || userProfile?.avatar_url ? (
+                            <div className="w-8 h-8 rounded-full overflow-hidden bg-gray-800 border border-[#4A4238]">
+                                <img src={user.avatar_url || userProfile?.avatar_url} alt="" className="w-full h-full object-cover" />
+                            </div>
+                        ) : (
+                            <span className="text-lg">👤</span>
+                        )}
+                        <span className="text-lg font-bold">{user.name}</span>
+                    </div>
                     <span className="text-xs border border-[#4A4238] px-2 py-1 rounded bg-cyan-950/30 group-hover:bg-[#3B342C]">View Account</span>
                     <span className="text-[10px] text-green-400 mt-1 animate-pulse">● {onlineCount} Player(s) Online</span>
                 </button>

@@ -2,6 +2,7 @@ export interface User {
     id: string;
     name: string;
     type: 'guest' | 'registered';
+    avatar_url?: string;
 }
 
 export interface Profile {
