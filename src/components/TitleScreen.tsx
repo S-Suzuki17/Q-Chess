@@ -124,6 +124,34 @@ export function TitleScreen({ lang, onLogin }: TitleScreenProps) {
                             disabled={loading}
                         />
                         {error && <p className="text-red-500 text-sm text-center">{error}</p>}
+                        <div className="flex items-center justify-center gap-2 my-2 opacity-50">
+                            <div className="h-px w-full bg-[#4A4238]" />
+                            <span className="text-xs uppercase tracking-widest text-[#8C7A5E] whitespace-nowrap">OR</span>
+                            <div className="h-px w-full bg-[#4A4238]" />
+                        </div>
+                        <div className="flex flex-col gap-2">
+                            <button 
+                                type="button" 
+                                onClick={async () => {
+                                    await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin } });
+                                }} 
+                                className="w-full py-3 bg-white hover:bg-gray-200 text-black font-bold tracking-widest transition-all rounded flex items-center justify-center gap-2"
+                            >
+                                <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" className="w-5 h-5" />
+                                Continue with Google
+                            </button>
+                            <button 
+                                type="button" 
+                                onClick={async () => {
+                                    await supabase.auth.signInWithOAuth({ provider: 'discord', options: { redirectTo: window.location.origin } });
+                                }} 
+                                className="w-full py-3 bg-[#5865F2] hover:bg-[#4752C4] text-white font-bold tracking-widest transition-all rounded flex items-center justify-center gap-2"
+                            >
+                                <img src="https://www.svgrepo.com/show/353655/discord-icon.svg" alt="Discord" className="w-5 h-5" />
+                                Continue with Discord
+                            </button>
+                        </div>
+
                         <button type="submit" disabled={loading} className="w-full py-3 bg-[#4A4238] hover:bg-[#5C5346] text-[#E8E5DF] font-bold tracking-widest transition-all">
                             {loading ? "..." : (mode === 'register' ? t.submit : t.login)}
                         </button>
