@@ -166,8 +166,11 @@ export class IdentityPool {
                 if (!poss) continue;
                 if (poss.size === 1) {
                     const type = Array.from(poss)[0];
-                    assignment[t.id] = type;
                     usedCounts[type as keyof typeof usedCounts]++;
+                    if (usedCounts[type as keyof typeof usedCounts] > maxPieces[type as keyof typeof maxPieces]) {
+                        return null; // Contradiction: too many pieces of this type
+                    }
+                    assignment[t.id] = type;
                 } else {
                     unresolvedTokens.push(t);
                 }

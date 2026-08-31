@@ -38,7 +38,7 @@ export function deduceMoveTypes(
         let c = token.col + stepC;
         
         while (r !== targetRow || c !== targetCol) {
-            if (tokens.some(t => t.row === r && t.col === c)) {
+            if (tokens.some(t => !t.isCaptured && t.row === r && t.col === c)) {
                 isBlocked = true;
                 break;
             }
