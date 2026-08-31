@@ -360,9 +360,20 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
                             setCurrentTurn('white');
                         }
                     } catch (err) {
-                        console.error("AI fetch failed:", err);
-                        // Fallback to human turn if AI crashes
-                        setCurrentTurn('white');
+                        console.error("AI fetch failed, falling back to local AI:", err);
+                        const { calculateCPUMove } = await import('../lib/AIEngine');
+                        const move = calculateCPUMove(3, tokens, pool, 'black');
+                        if (move) {
+                            const aiToken = tokens.find(t => t.id === move.tokenId);
+                            if (aiToken) {
+                                const targetToken = tokens.find(t => t.row === move.targetRow && t.col === move.targetCol);
+                                executeMove(aiToken, move.targetRow, move.targetCol, move.possibleTypes, targetToken, true, move.promotedTo);
+                            } else {
+                                setCurrentTurn('white');
+                            }
+                        } else {
+                            setCurrentTurn('white');
+                        }
                     }
                 } else {
                     // Level 1~3: ブラウザローカルAI

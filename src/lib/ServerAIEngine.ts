@@ -150,7 +150,7 @@ export function calculateDeepMove(level: number, tokens: Token[], pool: Identity
     const opponent = cpuPlayer === 'white' ? 'black' : 'white';
     let timeoutMs = 1000;
     if (level === 5) {
-        timeoutMs = timeControl === '10s' ? 2000 : 8000;
+        timeoutMs = timeControl === '10s' ? 1500 : 4000;
     }
     const startTime = Date.now();
     

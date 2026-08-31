@@ -51,11 +51,13 @@ export function calculateCPUMove(level: number, tokens: Token[], pool: IdentityP
                 const validTypesForMove = moveTypes.filter(mt => possibilities.has(mt));
 
                 if (validTypesForMove.length > 0) {
+                    const isPromotion = validTypesForMove.includes('Pawn') && ((cpuPlayer === 'white' && r === 0) || (cpuPlayer === 'black' && r === 7));
                     validMoves.push({
                         tokenId: token.id,
                         targetRow: r,
                         targetCol: c,
-                        possibleTypes: validTypesForMove
+                        possibleTypes: validTypesForMove,
+                        promotedTo: isPromotion ? 'Queen' : undefined
                     });
                 }
             }
