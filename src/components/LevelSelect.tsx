@@ -233,30 +233,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onReplay, onB
     };
 
     const handleVsCpuClick = () => {
-        setShowAdModal(true);
-        setAdProgress(0);
-        
-        if (adIntervalRef.current) clearInterval(adIntervalRef.current);
-        adIntervalRef.current = setInterval(() => {
-            setAdProgress(prev => {
-                if (prev >= 100) {
-                    if (adIntervalRef.current) clearInterval(adIntervalRef.current);
-                    return 100;
-                }
-                return prev + 2;
-            });
-        }, 50);
-    };
-
-    const handleAdFinish = () => {
         setPendingAction({ type: 'cpu', level: 5 });
-        setShowAdModal(false);
-        if (adIntervalRef.current) clearInterval(adIntervalRef.current);
-    };
-
-    const handleAdCancel = () => {
-        setShowAdModal(false);
-        if (adIntervalRef.current) clearInterval(adIntervalRef.current);
     };
 
     
@@ -612,26 +589,6 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onReplay, onB
                         onOnlineMatch?.(roomId, 'spectator', 'private', '10m');
                         setShowLiveMatches(false);
                     }} />
-                </div>
-            )}
-
-            {showAdModal && (
-                <div className="fixed inset-0 bg-[#161513]/95 z-[100] flex flex-col items-center justify-center p-4 backdrop-blur-sm">
-                    <div className="bg-[#24211D] border border-[#A89C86]/40 p-8 w-full max-w-sm text-center shadow-2xl flex flex-col items-center">
-                        <h3 className="text-xl font-serif text-[#E8E2D7] mb-2">{(t as any).adCloudTitle || 'Preparing Match'}</h3>
-                        <p className="text-[#A89C86] text-[10px] tracking-widest mb-8">{(t as any).adCloudDesc || 'Watch a short ad to start the practice match!'}</p>
-                        <div className="w-full h-1 bg-[#161513] mb-6 overflow-hidden">
-                            <div className="h-full bg-[#B39A62] transition-all duration-[1000ms] ease-linear" style={{ width: `${adProgress}%` }} />
-                        </div>
-                        <div className="w-32 h-32 mb-4 bg-transparent border border-[#A89C86]/10 flex items-center justify-center">
-                            <AdBanner />
-                        </div>
-                        {adProgress >= 100 ? (
-                            <button onClick={handleAdFinish} className="w-full py-4 bg-[#E8E2D7] text-[#161513] font-bold tracking-[0.2em] text-xs transition-colors mt-4 hover:bg-[#B39A62]">START MATCH</button>
-                        ) : (
-                            <div className="w-full py-4 bg-transparent text-[#A89C86] tracking-[0.2em] text-xs mt-4 border border-[#A89C86]/20">LOADING...</div>
-                        )}
-                    </div>
                 </div>
             )}
 

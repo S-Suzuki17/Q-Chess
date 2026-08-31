@@ -5,6 +5,7 @@ import { useSocket } from '../lib/SocketContext';
 import { User, TimeControl } from '../types/game';
 import { Language, dict } from '../locales/dict';
 import { QuantumPieceUI } from './QuantumPieceUI';
+import { AdBanner } from './AdBanner';
 import { PieceType } from '../config/gameConfig';
 import { v4 as uuidv4 } from 'uuid';
 import { Token, deduceMoveTypes } from '../lib/GameEngine';
@@ -539,8 +540,12 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
                             🏠 {t.home}
                         </button>
                     </div>
-                </div>
-            )}
+                        <div className="w-full max-w-sm mt-12 bg-black/50 p-4 rounded-lg">
+                            <p className="text-[#A89C86] text-[10px] tracking-widest text-center mb-2">Advertisement</p>
+                            <AdBanner adClient="ca-pub-1116866075179199" adSlot="8798363654" />
+                        </div>
+                    </div>
+                )}
 
             {/* Black's captured pieces (CPU/Opponent captured) */}
             <div className="w-full flex gap-2 min-h-[48px] mb-2 p-2 bg-black/40 border border-red-900/30 rounded-lg items-center overflow-x-auto">
@@ -691,8 +696,12 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
                             {lang === 'ja' ? 'キャンセル' : 'Cancel'}
                         </button>
                     </div>
-                </div>
-            )}
+                        <div className="w-full max-w-sm mt-12 bg-black/50 p-4 rounded-lg">
+                            <p className="text-[#A89C86] text-[10px] tracking-widest text-center mb-2">Advertisement</p>
+                            <AdBanner adClient="ca-pub-1116866075179199" adSlot="8798363654" />
+                        </div>
+                    </div>
+                )}
             
             {showResignConfirm && (
                 <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 backdrop-blur-sm animate-fade-in">

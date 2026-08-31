@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { IdentityPool } from '../lib/IdentityPool';
 import { Token, deduceMoveTypes, calculateProbabilities, isPlayerInCheck, checkGameOver, isCheckmate } from '../lib/GameEngine';
 import { QuantumPieceUI } from './QuantumPieceUI';
+import { AdBanner } from './AdBanner';
 import { Language, dict } from '../locales/dict';
 import { User, TimeControl } from '../types/game';
 import { PieceType } from '../config/gameConfig';
@@ -1142,8 +1143,12 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
                             {t.promotionCancel}
                         </button>
                     </div>
-                </div>
-            )}
+                        <div className="w-full max-w-sm mt-12 bg-black/50 p-4 rounded-lg">
+                            <p className="text-[#A89C86] text-[10px] tracking-widest text-center mb-2">Advertisement</p>
+                            <AdBanner adClient="ca-pub-1116866075179199" adSlot="8798363654" />
+                        </div>
+                    </div>
+                )}
         </div>
     );
 }
