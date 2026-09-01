@@ -1,9 +1,9 @@
-import { GameState, Move, QuantumPiece, QuantumState } from './types';
+import { GameState, Move, QuantumPiece } from './types';
 import { resolveQuantumState } from './quantum/candidateSolver';
 import { generateLegalMoves } from './moveGenerator';
-import { InvalidMove, InvalidState } from './errors';
-import { PIECE_PAWN, PIECE_KING, PIECE_ROOK } from './constants';
-import { hasType, removeType } from './quantum/quantumState';
+import { InvalidMove } from './errors';
+import { PIECE_PAWN } from './constants';
+import { hasType } from './quantum/quantumState';
 import { posEquals } from './board';
 
 export function applyMove(state: GameState, move: Move): GameState {
@@ -18,7 +18,6 @@ export function applyMove(state: GameState, move: Move): GameState {
         throw new InvalidMove("Move is not pseudo-legal.");
     }
 
-    // Determine the type used to make this move
     let usedType = candidate.requiredTypes;
     if (move.chosenType !== undefined) {
         if (!hasType(usedType, move.chosenType)) {
@@ -27,12 +26,13 @@ export function applyMove(state: GameState, move: Move): GameState {
         usedType = move.chosenType;
     }
 
-    // Clone pieces
     let nextPieces = state.pieces.map(p => ({ ...p }));
     let movingPiece = nextPieces.find(p => p.id === move.pieceId)!;
 
-    // Apply movement constraint
-    movingPiece.state &= usedType;
+    // Apply movement constraint to original state ONLY if not promoted
+    if (!movingPiece.promotedType) {
+        movingPiece.state &= usedType;
+    }
 
     // Handle captures
     const targetPiece = nextPieces.find(p => p.alive && posEquals(p.position, move.target));
@@ -44,25 +44,22 @@ export function applyMove(state: GameState, move: Move): GameState {
         else capturedWhite++;
     }
 
-    // Handle En Passant / Castling logic omitted for brevity in Phase 1,
-    // assuming standard captures for now.
-
-    // Move the piece
     movingPiece.position = move.target;
 
     // Handle Promotion
-    if (hasType(movingPiece.state, PIECE_PAWN)) {
+    if (!movingPiece.promotedType && hasType(usedType, PIECE_PAWN)) {
         const promotionRow = movingPiece.owner === 'white' ? 0 : 7;
         if (movingPiece.position.row === promotionRow) {
             if (move.promotionTarget === undefined) {
-                throw new InvalidMove("Promotion target required.");
+                throw new InvalidMove("Promotion target required for pawn reaching end rank.");
             }
-            movingPiece.state = move.promotionTarget;
+            movingPiece.state = PIECE_PAWN;
+            movingPiece.promotedType = move.promotionTarget;
             movingPiece.promoted = true;
         }
     }
 
-    // Run Constraint Solver
+    // Run Constraint Solver (Throws QuantumContradiction if state is impossible)
     nextPieces = resolveQuantumState(nextPieces);
 
     return {

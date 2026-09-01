@@ -17,6 +17,7 @@ export interface QuantumPiece {
     readonly position: Position;
     readonly state: QuantumState;
     readonly promoted: boolean;
+    readonly promotedType?: number;
     readonly alive: boolean;
 }
 

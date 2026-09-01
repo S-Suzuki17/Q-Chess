@@ -1,64 +1,90 @@
 import { QuantumPiece } from '../types';
 import { QuantumContradiction } from '../errors';
-import { hasType, isCollapsed, removeType } from './quantumState';
+import { hasType, removeType } from './quantumState';
 import { getPieceLimit } from './constraints';
 import { PIECE_PAWN, PIECE_KNIGHT, PIECE_BISHOP, PIECE_ROOK, PIECE_QUEEN, PIECE_KING, PlayerColor } from '../constants';
 
 const ALL_TYPES_ARRAY = [PIECE_PAWN, PIECE_KNIGHT, PIECE_BISHOP, PIECE_ROOK, PIECE_QUEEN, PIECE_KING];
 
+const SUBSETS: number[] = [];
+for (let i = 1; i < 64; i++) {
+    SUBSETS.push(i);
+}
+
 export function resolveQuantumState(pieces: readonly QuantumPiece[]): QuantumPiece[] {
+    // Clone pieces to avoid mutating original
     const currentPieces = pieces.map(p => ({ ...p }));
     let changed = true;
+    let loopCount = 0;
+    const MAX_LOOPS = 20;
 
-    while (changed) {
+    while (changed && loopCount < MAX_LOOPS) {
         changed = false;
+        loopCount++;
 
-        // Count fully collapsed pieces per player
-        const collapsedCounts: Record<PlayerColor, Record<number, number>> = {
-            white: { [PIECE_PAWN]: 0, [PIECE_KNIGHT]: 0, [PIECE_BISHOP]: 0, [PIECE_ROOK]: 0, [PIECE_QUEEN]: 0, [PIECE_KING]: 0 },
-            black: { [PIECE_PAWN]: 0, [PIECE_KNIGHT]: 0, [PIECE_BISHOP]: 0, [PIECE_ROOK]: 0, [PIECE_QUEEN]: 0, [PIECE_KING]: 0 }
-        };
+        for (const player of ['white', 'black'] as PlayerColor[]) {
+            const playerPieces = currentPieces.filter(p => p.alive && p.owner === player);
 
-        for (const p of currentPieces) {
-            if (p.state === 0) {
-                throw new QuantumContradiction(`Piece ${p.id} has no possible states remaining.`);
-            }
-            if (isCollapsed(p.state)) {
-                collapsedCounts[p.owner][p.state]++;
-            }
-        }
-
-        // Apply constraints
-        for (let i = 0; i < currentPieces.length; i++) {
-            const p = currentPieces[i];
-            if (isCollapsed(p.state)) {
-                // Wait, what if the board already has too many collapsed pieces?
-                if (collapsedCounts[p.owner][p.state] > getPieceLimit(p.state)) {
-                    throw new QuantumContradiction(`Exceeded max piece limit for type ${p.state} for player ${p.owner}`);
+            // If a piece has state 0, it's a contradiction
+            for (const p of playerPieces) {
+                if (p.state === 0) {
+                    throw new QuantumContradiction(`Piece ${p.id} has no possible states remaining.`);
                 }
-                continue;
             }
 
-            let newState = p.state;
-            for (const type of ALL_TYPES_ARRAY) {
-                if (hasType(newState, type)) {
-                    const limit = getPieceLimit(type);
-                    const current = collapsedCounts[p.owner][type];
-                    if (current >= limit) {
-                        // Max pieces of this type reached, so it cannot be this type
-                        newState = removeType(newState, type);
+            for (const subsetMask of SUBSETS) {
+                // Calculate max allowed pieces for this subset
+                let reqCount = 0;
+                for (const type of ALL_TYPES_ARRAY) {
+                    if ((subsetMask & type) !== 0) {
+                        reqCount += getPieceLimit(type);
+                    }
+                }
+
+                // Find pieces whose possible states are entirely contained within this subset
+                // A piece is in the subset if it has NO bits outside the subset mask.
+                // i.e. (p.state & ~subsetMask) === 0
+                const piecesInSubset = playerPieces.filter(p => (p.state & ~subsetMask) === 0);
+
+                if (piecesInSubset.length > reqCount) {
+                    throw new QuantumContradiction(`Exceeded max piece limit for subset mask ${subsetMask} for player ${player}`);
+                }
+
+                if (piecesInSubset.length === reqCount) {
+                    // This subset is fully saturated. 
+                    // No other piece can be any of the types in this subset.
+                    for (const p of playerPieces) {
+                        // If the piece is NOT one of the pieces locked into this subset
+                        if (!piecesInSubset.find(subsetPiece => subsetPiece.id === p.id)) {
+                            const overlap = p.state & subsetMask;
+                            if (overlap !== 0) {
+                                p.state = p.state & ~subsetMask;
+                                changed = true;
+                                if (p.state === 0) {
+                                    throw new QuantumContradiction(`Piece ${p.id} state reduced to 0 by subset exhaustion.`);
+                                }
+                            }
+                        }
                     }
                 }
             }
-
-            if (newState !== p.state) {
-                if (newState === 0) {
-                    throw new QuantumContradiction(`Piece ${p.id} was reduced to 0 possible states due to exhaustion.`);
-                }
-                currentPieces[i].state = newState;
-                changed = true;
-            }
         }
+    }
+
+    if (loopCount >= MAX_LOOPS) {
+        // Technically should be fine, but just in case of infinite loop logic errors
+        throw new QuantumContradiction("Solver reached max loops (unresolvable circular dependency)");
+    }
+
+    // Post-solver validation: Both players MUST have at least one potential King
+    const whiteHasKing = currentPieces.some(p => p.alive && p.owner === 'white' && hasType(p.state, PIECE_KING));
+    const blackHasKing = currentPieces.some(p => p.alive && p.owner === 'black' && hasType(p.state, PIECE_KING));
+    
+    if (!whiteHasKing) {
+        throw new QuantumContradiction("White has no potential Kings remaining.");
+    }
+    if (!blackHasKing) {
+        throw new QuantumContradiction("Black has no potential Kings remaining.");
     }
 
     return currentPieces;

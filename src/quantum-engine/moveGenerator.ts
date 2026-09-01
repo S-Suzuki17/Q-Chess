@@ -53,7 +53,11 @@ export function generateLegalMoves(state: GameState, pieceId: string): MoveCandi
             let requiredTypes = deduceMoveTypesGeometry(piece.position, targetPos, piece.owner, isCapture, hasMoved);
 
             // Filter out types that the piece does not have
-            requiredTypes = requiredTypes & piece.state;
+            if (piece.promotedType) {
+                requiredTypes = requiredTypes & piece.promotedType;
+            } else {
+                requiredTypes = requiredTypes & piece.state;
+            }
 
             if (requiredTypes === 0) continue;
 
