@@ -46,7 +46,7 @@ export function AdBanner({ adClient, adSlot, adFormat = 'auto', className = '', 
                 data-ad-client={publisherId}
                 data-ad-slot={slot}
                 data-ad-format={adFormat}
-                data-full-width-responsive="true"
+                data-full-width-responsive="false"
             />
         </div>
     );

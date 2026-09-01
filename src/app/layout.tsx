@@ -57,7 +57,7 @@ export default function RootLayout({
   return (
     <html
       lang="ja"
-      className={`${geistSans.variable} ${geistMono.variable} ${playfair.variable} ${cinzel.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${playfair.variable} ${cinzel.variable} h-full antialiased overflow-x-hidden`}
     >
       <head>
         {adClient && (
@@ -78,7 +78,7 @@ export default function RootLayout({
             `}
         </Script>
       </head>
-      <body className="h-full bg-[#11100E] text-[#E8E2D7] selection:bg-[#B39A62]/30 font-sans">
+      <body className="h-full bg-[#11100E] text-[#E8E2D7] selection:bg-[#B39A62]/30 font-sans overflow-x-hidden">
         <main className="h-full">{children}</main>
         <Analytics />
       </body>
