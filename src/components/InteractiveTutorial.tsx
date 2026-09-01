@@ -95,7 +95,7 @@ export function InteractiveTutorial({ lang, onClose }: Props) {
 
     return (
         <div className="fixed inset-0 bg-[#11100E]/95 z-[200] flex flex-col items-center justify-center p-4 backdrop-blur-md">
-            <div className="w-full max-w-2xl bg-[#191714] border-2 border-[#B39A62]/30 rounded-xl p-8 flex flex-col items-center shadow-2xl relative min-h-[500px]">
+            <div className="w-full max-w-2xl bg-[#191714] border-2 border-[#B39A62]/30 rounded-xl p-8 flex flex-col items-center shadow-2xl relative min-h-[300px] max-h-[90vh] overflow-y-auto">
                 <button onClick={onClose} className="absolute top-4 right-4 text-gray-500 hover:text-white text-2xl font-bold">×</button>
                 
                 <div className="flex gap-2 mb-8">

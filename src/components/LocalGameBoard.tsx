@@ -884,7 +884,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
             )}
 
             {/* CPU側の取得駒（取られた味方駒） */}
-            <div className="w-full flex gap-2 min-h-[48px] mb-2 p-2 bg-black/40 border border-red-900/30 rounded-lg items-center overflow-x-auto">
+            <div className="w-full flex gap-2 min-h-[48px] mb-2 p-2 bg-black/40 border border-red-900/30 rounded-lg items-center overflow-x-auto shrink-0">
                 <div className="flex items-center gap-2 min-w-[100px] shrink-0 opacity-70">
                     <div className="w-6 h-6 rounded-full bg-red-950/30 flex items-center justify-center border border-red-900/50"><span className="text-[10px] opacity-50">🤖</span></div>
                     <span className="text-red-900 font-bold text-xs uppercase whitespace-nowrap">{opponentName} {t.captured}:</span>
@@ -898,10 +898,11 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
                 </div>
             </div>
 
-            <div className={`
-                grid grid-cols-8 grid-rows-8 border-4 bg-[#0b0c10] shadow-2xl w-full max-w-[calc(100dvh-260px)] aspect-square relative transition-all duration-300
-                ${showCheckWarning ? 'border-red-900/50 shadow-red-900/50' : 'border-gray-700 shadow-gray-900'}
-            `}>
+            <div className="w-full flex-1 min-h-0 flex items-center justify-center">
+                <div className={`
+                    grid grid-cols-8 grid-rows-8 border-4 bg-[#0b0c10] shadow-2xl w-full max-w-[calc(100dvh-260px)] aspect-square relative transition-all duration-300
+                    ${showCheckWarning ? 'border-red-900/50 shadow-red-900/50' : 'border-gray-700 shadow-gray-900'}
+                `}>
                 {Array.from({ length: 64 }).map((_, index) => {
                     const isFlipped = onlineRole === 'black';
                     const visualRow = Math.floor(index / 8);
@@ -949,9 +950,10 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
                     );
                 })}
             </div>
+            </div>
             
             {/* プレイヤー側の取得駒（取った敵駒） */}
-            <div className="w-full flex gap-2 min-h-[48px] mt-2 p-2 bg-black/40 border border-blue-900/30 rounded-lg items-center overflow-x-auto">
+            <div className="w-full flex gap-2 min-h-[48px] mt-2 p-2 bg-black/40 border border-blue-900/30 rounded-lg items-center overflow-x-auto shrink-0">
                 <div className="flex items-center gap-2 min-w-[100px] shrink-0">
                     {user?.avatar_url ? (
                         <img src={user.avatar_url} alt="" className="w-6 h-6 rounded-full object-cover border border-[#4A4238]" />
@@ -1106,7 +1108,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
             )}
 
             {promotionPending && (
-                <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+                <div className="fixed inset-0 z-50 bg-black/80 flex flex-col items-center justify-center p-4">
                     <div className="bg-gray-900 border-2 border-cyan-500/50 p-6 rounded-lg max-w-sm w-full text-center">
                         <h3 className="text-xl font-bold text-cyan-300 mb-2">{t.promotionTitle}</h3>
                         <p className="text-cyan-500/70 text-sm mb-6">{t.promotionDesc}</p>

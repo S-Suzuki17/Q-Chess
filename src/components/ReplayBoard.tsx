@@ -103,7 +103,7 @@ export default function ReplayBoard({ lang, record, onHome }: ReplayBoardProps) 
     }, [tokens]);
 
     return (
-        <div className="flex flex-col items-center justify-center w-full h-full max-w-lg mx-auto relative select-none">
+        <div className="flex flex-col items-center justify-center w-full h-full max-h-[100dvh] max-w-lg mx-auto relative select-none overflow-hidden pb-4">
             {/* Top Info */}
             <div className="w-full flex justify-between items-end mb-1 px-2">
                 <div className="text-lg font-bold text-red-500 drop-shadow-[0_0_5px_currentColor]">
@@ -115,6 +115,7 @@ export default function ReplayBoard({ lang, record, onHome }: ReplayBoardProps) 
             </div>
 
             {/* Board */}
+            <div className="w-full flex-1 min-h-0 flex items-center justify-center">
             <div className="w-full max-w-[calc(100dvh-260px)] aspect-square border-4 border-gray-800 bg-[#0a0a0a] relative rounded shadow-2xl flex flex-col">
                 {grid.map((row, r) => (
                     <div key={`row-${r}`} className="flex flex-1 w-full">
@@ -146,6 +147,7 @@ export default function ReplayBoard({ lang, record, onHome }: ReplayBoardProps) 
                         })}
                     </div>
                 ))}
+            </div>
             </div>
 
             <div className="w-full flex justify-between items-center mt-1 px-2">

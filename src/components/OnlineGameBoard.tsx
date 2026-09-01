@@ -548,7 +548,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
                 )}
 
             {/* Black's captured pieces (CPU/Opponent captured) */}
-            <div className="w-full flex gap-2 min-h-[48px] mb-2 p-2 bg-black/40 border border-red-900/30 rounded-lg items-center overflow-x-auto">
+            <div className="w-full flex gap-2 min-h-[48px] mb-2 p-2 bg-black/40 border border-red-900/30 rounded-lg items-center overflow-x-auto shrink-0">
                 <div className="flex items-center gap-2 min-w-[100px] shrink-0 opacity-70">
                         {onlineRole === 'white' && joinerAvatarUrl ? (
                             <img src={joinerAvatarUrl} alt="" className="w-6 h-6 rounded-full object-cover border border-red-900/50" />
@@ -568,10 +568,11 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
                 </div>
             </div>
 
-            <div className={`
-                grid grid-cols-8 grid-rows-8 border-4 bg-[#0b0c10] shadow-2xl w-full max-w-[calc(100dvh-260px)] aspect-square relative transition-all duration-300
-                border-gray-700 shadow-gray-900
-            `}>
+            <div className="w-full flex-1 min-h-0 flex items-center justify-center">
+                <div className={`
+                    grid grid-cols-8 grid-rows-8 border-4 bg-[#0b0c10] shadow-2xl w-full max-w-[calc(100dvh-260px)] aspect-square relative transition-all duration-300
+                    border-gray-700 shadow-gray-900
+                `}>
                 {Array.from({ length: 64 }).map((_, index) => {
                     const isFlipped = onlineRole !== 'black';
                     const visualRow = Math.floor(index / 8);
@@ -611,9 +612,10 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
                     );
                 })}
             </div>
+            </div>
             
             {/* White's captured pieces */}
-            <div className="w-full flex gap-2 min-h-[48px] mt-2 p-2 bg-black/40 border border-blue-900/30 rounded-lg items-center overflow-x-auto">
+            <div className="w-full flex gap-2 min-h-[48px] mt-2 p-2 bg-black/40 border border-blue-900/30 rounded-lg items-center overflow-x-auto shrink-0">
                 <span className="text-blue-400/70 font-bold text-xs uppercase whitespace-nowrap min-w-[60px]">{playerName} {t.captured}:</span>
                 <div className="flex gap-1">
                     {tokens.filter(t => t.player === 'black' && t.isCaptured).map(token => (
@@ -654,7 +656,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
             {/* Resign Confirmation Modal */}
             {/* Promotion Modal */}
             {promotionPending && (
-                <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+                <div className="fixed inset-0 z-50 bg-black/80 flex flex-col items-center justify-center p-4">
                     <div className="bg-gray-900 border-2 border-cyan-500/50 p-6 rounded-lg max-w-sm w-full text-center">
                         <h3 className="text-xl font-bold text-cyan-300 mb-2">{lang === 'ja' ? 'プロモーション' : 'Promotion'}</h3>
                         <p className="text-cyan-500/70 text-sm mb-6">{lang === 'ja' ? 'どの駒に昇格しますか？' : 'Choose a piece to promote to:'}</p>
