@@ -15,8 +15,7 @@ export function createInitialState(): GameState {
                 origin: { row: r, col: c },
                 position: { row: r, col: c },
                 state: ALL_PIECE_TYPES,
-                promoted: false,
-                alive: true
+                promoted: false, alive: true, hasMoved: false
             });
         }
     }
@@ -30,8 +29,7 @@ export function createInitialState(): GameState {
                 origin: { row: r, col: c },
                 position: { row: r, col: c },
                 state: ALL_PIECE_TYPES,
-                promoted: false,
-                alive: true
+                promoted: false, alive: true, hasMoved: false
             });
         }
     }

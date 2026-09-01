@@ -1,6 +1,7 @@
 import { GameState, QuantumPiece, MoveCandidate } from './types';
 import { deduceMoveTypesGeometry } from './move';
-import { posEquals, isOutOfBounds } from './board';
+import { posEquals } from './board';
+import { PIECE_KING, PIECE_KNIGHT, PIECE_PAWN } from './constants';
 import { hasType } from './quantum/quantumState';
 
 export function isBlocked(
@@ -35,8 +36,10 @@ export function generateLegalMoves(state: GameState, pieceId: string): MoveCandi
     if (!piece || !piece.alive || piece.owner !== state.sideToMove) return [];
 
     const candidates: MoveCandidate[] = [];
+    const hasMoved = piece.hasMoved;
+    const kingStartRow = piece.owner === 'white' ? 7 : 0;
+    const forwardDir = piece.owner === 'white' ? -1 : 1;
     
-    // Check every square on the board
     for (let r = 0; r < 8; r++) {
         for (let c = 0; c < 8; c++) {
             const targetPos = { row: r, col: c };
@@ -48,27 +51,48 @@ export function generateLegalMoves(state: GameState, pieceId: string): MoveCandi
             }
 
             const isCapture = !!targetPiece;
-            const hasMoved = piece.position.row !== piece.origin.row || piece.position.col !== piece.origin.col;
-
             let requiredTypes = deduceMoveTypesGeometry(piece.position, targetPos, piece.owner, isCapture, hasMoved);
+
+            // Castling Extra Validation
+            if (hasType(requiredTypes, PIECE_KING) && Math.abs(targetPos.col - piece.position.col) === 2 && Math.abs(targetPos.row - piece.position.row) === 0) {
+                const cornerCol = targetPos.col > piece.position.col ? 7 : 0;
+                const cornerToken = state.pieces.find(p => p.alive && p.owner === piece.owner && p.position.row === kingStartRow && p.position.col === cornerCol);
+                
+                // If corner piece has moved or doesn't exist, invalidate castling
+                if (!cornerToken || cornerToken.hasMoved) {
+                    requiredTypes &= ~PIECE_KING;
+                }
+            }
+
+            // En Passant Extra Validation
+            if (!isCapture && Math.abs(targetPos.col - piece.position.col) === 1 && (targetPos.row - piece.position.row) === forwardDir) {
+                const lastMove = state.lastMove;
+                if (lastMove) {
+                    const lastMovePiece = state.pieces.find(p => p.id === lastMove.pieceId);
+                    if (lastMovePiece && lastMovePiece.owner !== piece.owner && lastMovePiece.position.row === piece.position.row && lastMovePiece.position.col === targetPos.col) {
+                        // Check if it moved 2 squares (from original pawn start)
+                        // Actually, we don't store fromRow in lastMove right now.
+                        // But if it's on row 3 (white's EP rank) or 4 (black's EP rank) 
+                        // and it's the last moved piece, it must have been a 2-square pawn move if its state was pawn.
+                        const isPawnStartRankEP = (piece.owner === 'white' && piece.position.row === 3) || (piece.owner === 'black' && piece.position.row === 4);
+                        if (isPawnStartRankEP) {
+                            requiredTypes |= PIECE_PAWN;
+                        }
+                    }
+                }
+            }
 
             // Filter out types that the piece does not have
             if (piece.promotedType) {
-                requiredTypes = requiredTypes & piece.promotedType;
+                requiredTypes &= piece.promotedType;
             } else {
-                requiredTypes = requiredTypes & piece.state;
+                requiredTypes &= piece.state;
             }
 
             if (requiredTypes === 0) continue;
 
-            // Check if path is blocked (for sliding pieces / pawn)
             if (isBlocked(piece.position, targetPos, state.pieces)) {
-                // If path is blocked, only Knight can jump
-                // Wait, if it's blocked, castling is also blocked.
-                // We just mask out everything except Knight.
-                // NOTE: Castling is tricky, it cannot jump over pieces.
-                // So if blocked, we strictly keep KNIGHT.
-                requiredTypes &= 2; // PIECE_KNIGHT is 2
+                requiredTypes &= PIECE_KNIGHT;
             }
 
             if (requiredTypes !== 0) {

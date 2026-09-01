@@ -18,6 +18,7 @@ export interface QuantumPiece {
     readonly state: QuantumState;
     readonly promoted: boolean;
     readonly promotedType?: number;
+    readonly hasMoved: boolean;
     readonly alive: boolean;
 }
 
@@ -33,6 +34,7 @@ export interface GameState {
     readonly hash: string;
     // 'white', 'black', 'draw', or null if ongoing
     readonly winner: PlayerColor | 'draw' | null;
+    readonly lastMove?: Move;
 }
 
 export interface Move {

@@ -2,7 +2,7 @@ import { GameState, Move, QuantumPiece } from './types';
 import { resolveQuantumState } from './quantum/candidateSolver';
 import { generateLegalMoves } from './moveGenerator';
 import { InvalidMove } from './errors';
-import { PIECE_PAWN } from './constants';
+import { PIECE_PAWN, PIECE_KING, PIECE_ROOK } from './constants';
 import { hasType } from './quantum/quantumState';
 import { posEquals } from './board';
 
@@ -29,24 +29,56 @@ export function applyMove(state: GameState, move: Move): GameState {
     let nextPieces = state.pieces.map(p => ({ ...p }));
     let movingPiece = nextPieces.find(p => p.id === move.pieceId)!;
 
-    // Apply movement constraint to original state ONLY if not promoted
     if (!movingPiece.promotedType) {
         movingPiece.state &= usedType;
     }
 
-    // Handle captures
-    const targetPiece = nextPieces.find(p => p.alive && posEquals(p.position, move.target));
     let capturedWhite = state.captured.white;
     let capturedBlack = state.captured.black;
+
+    // Normal Capture
+    const targetPiece = nextPieces.find(p => p.alive && posEquals(p.position, move.target));
     if (targetPiece) {
         targetPiece.alive = false;
         if (targetPiece.owner === 'white') capturedBlack++;
         else capturedWhite++;
     }
 
-    movingPiece.position = move.target;
+    // Castling Side Effect
+    if (hasType(usedType, PIECE_KING) && Math.abs(move.target.col - movingPiece.position.col) === 2) {
+        const isKingside = move.target.col > movingPiece.position.col;
+        const rookCol = isKingside ? 7 : 0;
+        const newRookCol = isKingside ? move.target.col - 1 : move.target.col + 1;
+        const rookToken = nextPieces.find(p => p.alive && p.owner === movingPiece.owner && p.position.row === movingPiece.position.row && p.position.col === rookCol);
+        if (rookToken) {
+            rookToken.position = { row: movingPiece.position.row, col: newRookCol };
+            rookToken.hasMoved = true;
+            if (!rookToken.promotedType) {
+                rookToken.state &= PIECE_ROOK;
+            }
+        }
+    }
 
-    // Handle Promotion
+    // En Passant Side Effect
+    if (hasType(usedType, PIECE_PAWN) && !targetPiece && move.target.col !== movingPiece.position.col) {
+        const capturedRow = movingPiece.position.row;
+        const capturedCol = move.target.col;
+        const epPiece = nextPieces.find(p => p.alive && p.owner !== movingPiece.owner && p.position.row === capturedRow && p.position.col === capturedCol);
+        if (epPiece) {
+            epPiece.alive = false;
+            if (epPiece.owner === 'white') capturedBlack++;
+            else capturedWhite++;
+            // En Passant target MUST have been a pawn
+            if (!epPiece.promotedType) {
+                epPiece.state &= PIECE_PAWN;
+            }
+        }
+    }
+
+    movingPiece.position = move.target;
+    movingPiece.hasMoved = true;
+
+    // Promotion
     if (!movingPiece.promotedType && hasType(usedType, PIECE_PAWN)) {
         const promotionRow = movingPiece.owner === 'white' ? 0 : 7;
         if (movingPiece.position.row === promotionRow) {
@@ -59,8 +91,22 @@ export function applyMove(state: GameState, move: Move): GameState {
         }
     }
 
-    // Run Constraint Solver (Throws QuantumContradiction if state is impossible)
-    nextPieces = resolveQuantumState(nextPieces);
+    try {
+        nextPieces = resolveQuantumState(nextPieces);
+    } catch (e: any) {
+        if (e.name === 'QuantumContradiction') {
+            return {
+                pieces: nextPieces,
+                sideToMove: state.sideToMove,
+                ply: state.ply + 1,
+                captured: { white: capturedWhite, black: capturedBlack },
+                winner: state.sideToMove,
+                lastMove: move,
+                hash: ''
+            };
+        }
+        throw e;
+    }
 
     return {
         pieces: nextPieces,
@@ -68,6 +114,7 @@ export function applyMove(state: GameState, move: Move): GameState {
         ply: state.ply + 1,
         captured: { white: capturedWhite, black: capturedBlack },
         winner: null,
+        lastMove: move,
         hash: ''
     };
 }

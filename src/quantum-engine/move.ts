@@ -56,7 +56,8 @@ export function deduceMoveTypesGeometry(
     }
     
     // Castling geometry (King moving 2 cols horizontally)
-    if (absDr === 0 && absDc === 2 && !hasMoved && start.row === startRow) {
+    const kingStartRow = color === 'white' ? 7 : 0;
+    if (absDr === 0 && absDc === 2 && !hasMoved && start.row === kingStartRow) {
         types |= PIECE_KING;
     }
 
