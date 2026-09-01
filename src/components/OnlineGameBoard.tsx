@@ -445,7 +445,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
     }
 
     return (
-        <div className="flex flex-col items-center w-full max-w-[800px] relative">
+        <div className="flex flex-col items-center w-full h-full max-h-[100dvh] max-w-[800px] mx-auto relative select-none touch-none overflow-hidden pb-4">
             {/* Disconnection Banner */}
             {disconnectTimeLeft !== null && (
                 <div className="w-full mb-3 p-3 bg-red-950/80 border border-red-500 rounded-lg flex flex-col items-center justify-center animate-pulse shadow-[0_0_15px_rgba(239,68,68,0.5)]">

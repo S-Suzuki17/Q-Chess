@@ -775,7 +775,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
     const blackRatingToDisplay = onlineRole === 'spectator' ? null : (myRole === 'black' ? myRating : opponentRating);
 
     return (
-        <div className="flex flex-col items-center w-full max-w-[800px] relative">
+        <div className="flex flex-col items-center w-full h-full max-h-[100dvh] max-w-[800px] mx-auto relative select-none touch-none overflow-hidden pb-4">
             
 
             {disconnectTimeLeft !== null && (
