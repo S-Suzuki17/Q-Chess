@@ -16,14 +16,15 @@ function createCustomState(piecesInit: Partial<QuantumPiece>[]): GameState {
         state: p.state !== undefined ? p.state : ALL_PIECE_TYPES,
         promoted: p.promoted || false,
         promotedType: p.promotedType,
-        alive: p.alive !== undefined ? p.alive : true
+        alive: p.alive !== undefined ? p.alive : true,
+        hasMoved: false
     }));
     
     if (!pieces.some(p => p.owner === 'white' && hasType(p.state, PIECE_KING))) {
-        pieces.push({ id: 'wK', owner: 'white', origin: {row:7,col:4}, position: {row:7,col:4}, state: PIECE_KING, promoted: false, alive: true });
+        pieces.push({ id: 'wK', owner: 'white', origin: {row:7,col:4}, position: {row:7,col:4}, state: PIECE_KING, promoted: false, alive: true, hasMoved: false });
     }
     if (!pieces.some(p => p.owner === 'black' && hasType(p.state, PIECE_KING))) {
-        pieces.push({ id: 'bK', owner: 'black', origin: {row:0,col:4}, position: {row:0,col:4}, state: PIECE_KING, promoted: false, alive: true });
+        pieces.push({ id: 'bK', owner: 'black', origin: {row:0,col:4}, position: {row:0,col:4}, state: PIECE_KING, promoted: false, alive: true, hasMoved: false });
     }
 
     return {

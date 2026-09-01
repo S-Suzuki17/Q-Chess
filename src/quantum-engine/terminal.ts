@@ -1,5 +1,5 @@
-import { GameState, PlayerColor, QuantumPiece } from './types';
-import { PIECE_KING } from './constants';
+import { GameState, QuantumPiece } from './types';
+import { PIECE_KING, PIECE_PAWN, PIECE_QUEEN, PlayerColor } from './constants';
 import { generateLegalMoves } from './moveGenerator';
 import { hasType } from './quantum/quantumState';
 import { applyMove } from './stateTransition';
