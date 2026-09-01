@@ -2,7 +2,7 @@ import { Token } from './GameEngine';
 import { IdentityPool } from './IdentityPool';
 import { PieceType } from '../config/gameConfig';
 import { legacyToQuantumState, quantumToLegacyMove } from '../quantum-engine/adapter';
-import { getRandomMove, getGreedyMove } from '../quantum-engine/ai';
+import { getRandomMove, getGreedyMove, MCTSEngine, EvalV0 } from '../quantum-engine/ai';
 
 export interface AIMove {
     tokenId: string;
@@ -18,8 +18,13 @@ export function calculateCPUMove(level: number, tokens: Token[], pool: IdentityP
     let qMove = null;
     if (level === 1) {
         qMove = getRandomMove(qState);
-    } else {
+    } else if (level === 2 || level === 3) {
         qMove = getGreedyMove(qState);
+    } else {
+        // Level 4 (or higher) -> MCTS + EvalV0
+        const evaluator = new EvalV0();
+        const mcts = new MCTSEngine(evaluator, { timeLimitMs: 1500, maxIterations: 10000 });
+        qMove = mcts.search(qState, { timeLimitMs: 1500 });
     }
 
     if (!qMove) return null;
