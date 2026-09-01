@@ -1,4 +1,5 @@
-import { GameState, Move, PlayerColor } from '../types';
+import { GameState, Move } from '../types';
+import { PlayerColor } from '../constants';
 import { createInitialState } from '../initialState';
 import { getRandomMove } from './random';
 import { getGreedyMove } from './greedy';
@@ -24,7 +25,7 @@ export function wrapGreedy(): Agent {
         const move = getGreedyMove(state);
         return {
             move,
-            stats: { move, iterations: 1, nodes: 1, timeMs: performance.now() - start, nodesPerSec: 0, maxDepth: 1, ttHits: 0 }
+            stats: { move, iterations: 1, nodes: 1, timeMs: performance.now() - start, nodesPerSec: 0, maxDepth: 1, ttStats: {lookupCount:0, hitCount:0, missCount:0, hitRate:0, tableSize:0} }
         };
     };
 }
@@ -89,11 +90,11 @@ export function playMatch(agentWhite: Agent, agentBlack: Agent): MatchResult {
 }
 
 function aggregateStats(statsList: SearchStats[]) {
-    if (statsList.length === 0) return { avgIters: 0, avgNodes: 0, avgNodesPerSec: 0, avgDepth: 0, avgTime: 0, ttHits: 0 };
+    if (statsList.length === 0) return { avgIters: 0, avgNodes: 0, avgNodesPerSec: 0, avgDepth: 0, avgTime: 0, ttStats: 0 };
     let iters = 0, nodes = 0, nps = 0, depth = 0, time = 0, tt = 0;
     for (const s of statsList) {
         iters += s.iterations; nodes += s.nodes; nps += s.nodesPerSec;
-        depth += s.maxDepth; time += s.timeMs; tt += s.ttHits;
+        depth += s.maxDepth; time += s.timeMs; tt += s.ttStats.hitCount;
     }
     const len = statsList.length;
     return {

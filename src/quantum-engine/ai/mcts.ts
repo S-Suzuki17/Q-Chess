@@ -1,11 +1,12 @@
-import { GameState, Move, PlayerColor } from '../types';
+import { GameState, Move } from '../types';
+import { PlayerColor } from '../constants';
 import { applyMove } from '../stateTransition';
 import { getWinner } from '../terminal';
 import { Evaluator } from './eval';
 import { getAllConcreteMoves } from './random';
 import { PRNG } from './prng';
 import { hashState } from '../hash';
-import { TranspositionTable } from './tt';
+import { TranspositionTable, TTEntry } from './tt';
 
 export interface MCTSOptions {
     timeLimitMs?: number;
@@ -13,6 +14,7 @@ export interface MCTSOptions {
     explorationConstant?: number;
     seed?: number;
     useTT?: boolean;
+    clearTT?: boolean; // For Fresh Search
 }
 
 export interface SearchStats {
@@ -22,7 +24,7 @@ export interface SearchStats {
     timeMs: number;
     nodesPerSec: number;
     maxDepth: number;
-    ttHits: number;
+    ttStats: ReturnType<TranspositionTable['getStats']>;
 }
 
 export class MCTSNode {
@@ -59,25 +61,25 @@ export class MCTSEngine {
     private evalFn: Evaluator;
     private c: number;
     private prng: PRNG;
-    private tt: TranspositionTable;
+    public tt: TranspositionTable; // Expose TT for persistent mode
     private useTT: boolean;
     private nodeCount: number = 0;
-    private ttHitCount: number = 0;
 
     constructor(evalFn: Evaluator, options: MCTSOptions = {}) {
         this.evalFn = evalFn;
         this.c = options.explorationConstant || Math.SQRT2;
         this.prng = new PRNG(options.seed !== undefined ? options.seed : Math.floor(Math.random() * 1000000));
         this.tt = new TranspositionTable();
-        this.useTT = options.useTT !== false; // Default true
+        this.useTT = options.useTT !== false;
     }
 
     public search(initialState: GameState, options: MCTSOptions): SearchStats {
         this.nodeCount = 1;
-        this.ttHitCount = 0;
-        // Don't clear TT between searches if we want to share cross-turn stats! 
-        // But for pure deterministic 1-turn evaluation stats, clearing is safer. We'll leave it persisting for now.
         
+        if (options.clearTT !== false) {
+            this.tt.clear();
+        }
+
         const root = new MCTSNode(initialState);
         const timeLimit = options.timeLimitMs || 1000;
         const maxIters = options.maxIterations || 10000;
@@ -95,7 +97,7 @@ export class MCTSEngine {
                 node = this.expand(node);
                 if (node.depth > maxDepth) maxDepth = node.depth;
             }
-            const reward = this.simulate(node.state, node.parent ? node.parent.playerToMove : root.playerToMove);
+            const reward = this.simulate(node.state);
             this.backpropagate(node, reward);
             iterations++;
         }
@@ -164,19 +166,14 @@ export class MCTSEngine {
             const child = new MCTSNode(nextState, move, node);
             this.nodeCount++;
             node.children.push(child);
-            
-            if (this.useTT && this.tt.get(child.stateHash)) {
-                this.ttHitCount++;
-            }
-            
             return child;
         } catch (e) {
             return node; 
         }
     }
 
-    private simulate(state: GameState, perspective: PlayerColor): number {
-        const rawScore = this.evalFn.evaluate(state, perspective);
+    private simulate(state: GameState): number {
+        const rawScore = this.evalFn.evaluate(state, state.sideToMove);
         let normalized = 0.5 + (rawScore / 40.0);
         if (normalized > 1) normalized = 1;
         if (normalized < 0) normalized = 0;
@@ -185,6 +182,7 @@ export class MCTSEngine {
 
     private backpropagate(node: MCTSNode | null, reward: number): void {
         while (node !== null) {
+            reward = 1.0 - reward; 
             node.localVisits++;
             node.localScore += reward;
             
@@ -192,7 +190,6 @@ export class MCTSEngine {
                 this.tt.record(node.stateHash, reward);
             }
             
-            reward = 1.0 - reward;
             node = node.parent;
         }
     }
@@ -206,7 +203,7 @@ export class MCTSEngine {
             timeMs,
             nodesPerSec: this.nodeCount / (timeMs / 1000 || 1),
             maxDepth,
-            ttHits: this.ttHitCount
+            ttStats: this.tt.getStats()
         };
     }
 }

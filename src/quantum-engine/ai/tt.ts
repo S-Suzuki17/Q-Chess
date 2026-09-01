@@ -5,13 +5,23 @@ export interface TTEntry {
 
 export class TranspositionTable {
     private table: Map<string, TTEntry>;
+    private lookups: number = 0;
+    private hits: number = 0;
+    private misses: number = 0;
 
     constructor() {
         this.table = new Map();
     }
 
     get(hash: string): TTEntry | undefined {
-        return this.table.get(hash);
+        this.lookups++;
+        const entry = this.table.get(hash);
+        if (entry) {
+            this.hits++;
+        } else {
+            this.misses++;
+        }
+        return entry;
     }
 
     record(hash: string, value: number) {
@@ -24,11 +34,20 @@ export class TranspositionTable {
         entry.totalValue += value;
     }
 
-    getHits(): number {
-        return this.table.size;
+    getStats() {
+        return {
+            lookupCount: this.lookups,
+            hitCount: this.hits,
+            missCount: this.misses,
+            hitRate: this.lookups > 0 ? this.hits / this.lookups : 0,
+            tableSize: this.table.size
+        };
     }
     
     clear() {
         this.table.clear();
+        this.lookups = 0;
+        this.hits = 0;
+        this.misses = 0;
     }
 }

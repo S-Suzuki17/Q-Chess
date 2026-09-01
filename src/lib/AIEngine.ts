@@ -21,10 +21,10 @@ export function calculateCPUMove(level: number, tokens: Token[], pool: IdentityP
     } else if (level === 2 || level === 3) {
         qMove = getGreedyMove(qState);
     } else {
-        // Level 4 (or higher) -> MCTS + EvalV0
         const evaluator = new EvalV0();
         const mcts = new MCTSEngine(evaluator, { timeLimitMs: 1500, maxIterations: 10000 });
-        qMove = mcts.search(qState, { timeLimitMs: 1500 });
+        const stats = mcts.search(qState, { timeLimitMs: 1500 });
+        qMove = stats.move;
     }
 
     if (!qMove) return null;

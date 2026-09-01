@@ -1,4 +1,5 @@
-import { GameState, PlayerColor, QuantumPiece } from '../types';
+import { GameState, QuantumPiece } from '../types';
+import { PlayerColor } from '../constants';
 import { PIECE_PAWN, PIECE_KNIGHT, PIECE_BISHOP, PIECE_ROOK, PIECE_QUEEN, PIECE_KING } from '../constants';
 import { hasType } from '../quantum/quantumState';
 
