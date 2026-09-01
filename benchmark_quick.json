@@ -1,0 +1,226 @@
+[
+  {
+    "task": {
+      "white": "mcts",
+      "black": "greedy",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 3,
+      "bWins": 22,
+      "draws": 0
+    }
+  },
+  {
+    "task": {
+      "white": "greedy",
+      "black": "mcts",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 19,
+      "bWins": 6,
+      "draws": 0
+    }
+  },
+  {
+    "task": {
+      "white": "random",
+      "black": "mcts",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 13,
+      "bWins": 11,
+      "draws": 1
+    }
+  },
+  {
+    "task": {
+      "white": "mcts",
+      "black": "random",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 10,
+      "bWins": 12,
+      "draws": 3
+    }
+  },
+  {
+    "task": {
+      "white": "greedy",
+      "black": "mcts",
+      "budgetMs": 500,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 25,
+      "bWins": 0,
+      "draws": 0
+    }
+  },
+  {
+    "task": {
+      "white": "mcts",
+      "black": "greedy",
+      "budgetMs": 500,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 0,
+      "bWins": 25,
+      "draws": 0
+    }
+  },
+  {
+    "task": {
+      "white": "mcts",
+      "black": "greedy",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v1"
+    },
+    "res": {
+      "wWins": 3,
+      "bWins": 22,
+      "draws": 0
+    }
+  },
+  {
+    "task": {
+      "white": "random",
+      "black": "mcts",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v1"
+    },
+    "res": {
+      "wWins": 10,
+      "bWins": 14,
+      "draws": 1
+    }
+  },
+  {
+    "task": {
+      "white": "mcts",
+      "black": "random",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v1"
+    },
+    "res": {
+      "wWins": 12,
+      "bWins": 10,
+      "draws": 3
+    }
+  },
+  {
+    "task": {
+      "white": "greedy",
+      "black": "mcts",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v1"
+    },
+    "res": {
+      "wWins": 23,
+      "bWins": 2,
+      "draws": 0
+    }
+  },
+  {
+    "task": {
+      "white": "mcts",
+      "black": "greedy",
+      "budgetMs": 500,
+      "games": 25,
+      "evalVersion": "v1"
+    },
+    "res": {
+      "wWins": 0,
+      "bWins": 25,
+      "draws": 0
+    }
+  },
+  {
+    "task": {
+      "white": "greedy",
+      "black": "mcts",
+      "budgetMs": 500,
+      "games": 25,
+      "evalVersion": "v1"
+    },
+    "res": {
+      "wWins": 22,
+      "bWins": 3,
+      "draws": 0
+    }
+  },
+  {
+    "task": {
+      "white": "random",
+      "black": "mcts",
+      "budgetMs": 500,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 11,
+      "bWins": 12,
+      "draws": 2
+    }
+  },
+  {
+    "task": {
+      "white": "mcts",
+      "black": "random",
+      "budgetMs": 500,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 7,
+      "bWins": 15,
+      "draws": 3
+    }
+  },
+  {
+    "task": {
+      "white": "mcts",
+      "black": "random",
+      "budgetMs": 500,
+      "games": 25,
+      "evalVersion": "v1"
+    },
+    "res": {
+      "wWins": 5,
+      "bWins": 17,
+      "draws": 3
+    }
+  },
+  {
+    "task": {
+      "white": "random",
+      "black": "mcts",
+      "budgetMs": 500,
+      "games": 25,
+      "evalVersion": "v1"
+    },
+    "res": {
+      "wWins": 18,
+      "bWins": 6,
+      "draws": 1
+    }
+  }
+]

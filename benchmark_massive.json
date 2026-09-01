@@ -1,0 +1,1982 @@
+[
+  {
+    "task": {
+      "id": 1,
+      "white": "random",
+      "black": "mcts",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 12,
+      "bWins": 12,
+      "draws": 1,
+      "plies": 1421,
+      "time": 82311.00729999998,
+      "mctsMoves": 704,
+      "mctsIters": 19983,
+      "mctsNodes": 20639,
+      "mctsNps": 201984.21184601486,
+      "mctsDepth": 872
+    }
+  },
+  {
+    "task": {
+      "id": 6,
+      "white": "mcts",
+      "black": "random",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 12,
+      "bWins": 13,
+      "draws": 0,
+      "plies": 1552,
+      "time": 90817.2876,
+      "mctsMoves": 782,
+      "mctsIters": 19898,
+      "mctsNodes": 20658,
+      "mctsNps": 201634.79887578948,
+      "mctsDepth": 900
+    }
+  },
+  {
+    "task": {
+      "id": 2,
+      "white": "mcts",
+      "black": "random",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 10,
+      "bWins": 12,
+      "draws": 3,
+      "plies": 1705,
+      "time": 98550.15550000001,
+      "mctsMoves": 859,
+      "mctsIters": 29844,
+      "mctsNodes": 30589,
+      "mctsNps": 299584.1735769684,
+      "mctsDepth": 1186
+    }
+  },
+  {
+    "task": {
+      "id": 0,
+      "white": "mcts",
+      "black": "random",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 7,
+      "bWins": 16,
+      "draws": 2,
+      "plies": 1685,
+      "time": 104352.45870000003,
+      "mctsMoves": 847,
+      "mctsIters": 19921,
+      "mctsNodes": 20723,
+      "mctsNps": 200668.89398625353,
+      "mctsDepth": 1032
+    }
+  },
+  {
+    "task": {
+      "id": 4,
+      "white": "mcts",
+      "black": "random",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 14,
+      "bWins": 11,
+      "draws": 0,
+      "plies": 1770,
+      "time": 106954.28099999999,
+      "mctsMoves": 892,
+      "mctsIters": 21664,
+      "mctsNodes": 22460,
+      "mctsNps": 217092.1854758071,
+      "mctsDepth": 1092
+    }
+  },
+  {
+    "task": {
+      "id": 5,
+      "white": "random",
+      "black": "mcts",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 12,
+      "bWins": 10,
+      "draws": 3,
+      "plies": 1869,
+      "time": 107023.71599999999,
+      "mctsMoves": 927,
+      "mctsIters": 31654,
+      "mctsNodes": 32489,
+      "mctsNps": 318444.92639612855,
+      "mctsDepth": 1238
+    }
+  },
+  {
+    "task": {
+      "id": 3,
+      "white": "random",
+      "black": "mcts",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 11,
+      "bWins": 13,
+      "draws": 1,
+      "plies": 1816,
+      "time": 109225.9188,
+      "mctsMoves": 902,
+      "mctsIters": 18559,
+      "mctsNodes": 19437,
+      "mctsNps": 187266.40048144304,
+      "mctsDepth": 1030
+    }
+  },
+  {
+    "task": {
+      "id": 7,
+      "white": "random",
+      "black": "mcts",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 14,
+      "bWins": 9,
+      "draws": 2,
+      "plies": 1886,
+      "time": 112799.3959,
+      "mctsMoves": 935,
+      "mctsIters": 22768,
+      "mctsNodes": 23649,
+      "mctsNps": 227993.923040343,
+      "mctsDepth": 1142
+    }
+  },
+  {
+    "task": {
+      "id": 9,
+      "white": "random",
+      "black": "mcts",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 13,
+      "bWins": 12,
+      "draws": 0,
+      "plies": 1327,
+      "time": 82112.72590000005,
+      "mctsMoves": 657,
+      "mctsIters": 18043,
+      "mctsNodes": 18666,
+      "mctsNps": 180013.8610053687,
+      "mctsDepth": 799
+    }
+  },
+  {
+    "task": {
+      "id": 13,
+      "white": "random",
+      "black": "mcts",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 8,
+      "bWins": 15,
+      "draws": 2,
+      "plies": 1430,
+      "time": 93442.59289999992,
+      "mctsMoves": 710,
+      "mctsIters": 13554,
+      "mctsNodes": 14241,
+      "mctsNps": 132788.7737912707,
+      "mctsDepth": 815
+    }
+  },
+  {
+    "task": {
+      "id": 12,
+      "white": "mcts",
+      "black": "random",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 14,
+      "bWins": 11,
+      "draws": 0,
+      "plies": 1562,
+      "time": 120772.59689999997,
+      "mctsMoves": 788,
+      "mctsIters": 12047,
+      "mctsNodes": 12728,
+      "mctsNps": 120258.48212169837,
+      "mctsDepth": 887
+    }
+  },
+  {
+    "task": {
+      "id": 14,
+      "white": "mcts",
+      "black": "random",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 8,
+      "bWins": 13,
+      "draws": 4,
+      "plies": 1976,
+      "time": 124047.76110000005,
+      "mctsMoves": 994,
+      "mctsIters": 28495,
+      "mctsNodes": 29403,
+      "mctsNps": 278705.6105935351,
+      "mctsDepth": 1312
+    }
+  },
+  {
+    "task": {
+      "id": 10,
+      "white": "mcts",
+      "black": "random",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 12,
+      "bWins": 10,
+      "draws": 3,
+      "plies": 2333,
+      "time": 146570.26460000002,
+      "mctsMoves": 1174,
+      "mctsIters": 29937,
+      "mctsNodes": 31036,
+      "mctsNps": 296635.0841611475,
+      "mctsDepth": 1454
+    }
+  },
+  {
+    "task": {
+      "id": 15,
+      "white": "random",
+      "black": "mcts",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 9,
+      "bWins": 15,
+      "draws": 1,
+      "plies": 1836,
+      "time": 132545.01750000002,
+      "mctsMoves": 913,
+      "mctsIters": 12883,
+      "mctsNodes": 13787,
+      "mctsNps": 127920.67322619623,
+      "mctsDepth": 1027
+    }
+  },
+  {
+    "task": {
+      "id": 8,
+      "white": "mcts",
+      "black": "random",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 10,
+      "bWins": 11,
+      "draws": 4,
+      "plies": 2384,
+      "time": 166545.69810000004,
+      "mctsMoves": 1199,
+      "mctsIters": 19152,
+      "mctsNodes": 20328,
+      "mctsNps": 192122.01591234753,
+      "mctsDepth": 1377
+    }
+  },
+  {
+    "task": {
+      "id": 11,
+      "white": "random",
+      "black": "mcts",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 9,
+      "bWins": 12,
+      "draws": 4,
+      "plies": 2423,
+      "time": 170502.48680000007,
+      "mctsMoves": 1205,
+      "mctsIters": 18832,
+      "mctsNodes": 20027,
+      "mctsNps": 188041.22514576328,
+      "mctsDepth": 1419
+    }
+  },
+  {
+    "task": {
+      "id": 17,
+      "white": "random",
+      "black": "mcts",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 13,
+      "bWins": 12,
+      "draws": 0,
+      "plies": 1381,
+      "time": 88417.07740000007,
+      "mctsMoves": 684,
+      "mctsIters": 9985,
+      "mctsNodes": 10651,
+      "mctsNps": 101974.85839642999,
+      "mctsDepth": 752
+    }
+  },
+  {
+    "task": {
+      "id": 18,
+      "white": "mcts",
+      "black": "random",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 14,
+      "bWins": 10,
+      "draws": 1,
+      "plies": 1729,
+      "time": 111262.86439999993,
+      "mctsMoves": 872,
+      "mctsIters": 17166,
+      "mctsNodes": 17995,
+      "mctsNps": 173158.38415359685,
+      "mctsDepth": 1023
+    }
+  },
+  {
+    "task": {
+      "id": 16,
+      "white": "mcts",
+      "black": "random",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 10,
+      "bWins": 12,
+      "draws": 3,
+      "plies": 2259,
+      "time": 176105.94729999997,
+      "mctsMoves": 1136,
+      "mctsIters": 10137,
+      "mctsNodes": 11271,
+      "mctsNps": 103449.17253499945,
+      "mctsDepth": 1204
+    }
+  },
+  {
+    "task": {
+      "id": 19,
+      "white": "random",
+      "black": "mcts",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 13,
+      "bWins": 11,
+      "draws": 1,
+      "plies": 1502,
+      "time": 118673.08029999994,
+      "mctsMoves": 744,
+      "mctsIters": 6420,
+      "mctsNodes": 7164,
+      "mctsNps": 64801.477200043526,
+      "mctsDepth": 806
+    }
+  },
+  {
+    "task": {
+      "id": 22,
+      "white": "mcts",
+      "black": "random",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 12,
+      "bWins": 11,
+      "draws": 2,
+      "plies": 1790,
+      "time": 115004.74850000005,
+      "mctsMoves": 902,
+      "mctsIters": 17650,
+      "mctsNodes": 18493,
+      "mctsNps": 177429.1798197714,
+      "mctsDepth": 1090
+    }
+  },
+  {
+    "task": {
+      "id": 21,
+      "white": "random",
+      "black": "mcts",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 14,
+      "bWins": 9,
+      "draws": 2,
+      "plies": 1996,
+      "time": 125430.30309999996,
+      "mctsMoves": 990,
+      "mctsIters": 16640,
+      "mctsNodes": 17620,
+      "mctsNps": 168777.93096108706,
+      "mctsDepth": 1141
+    }
+  },
+  {
+    "task": {
+      "id": 20,
+      "white": "mcts",
+      "black": "random",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 12,
+      "bWins": 10,
+      "draws": 3,
+      "plies": 1943,
+      "time": 149926.49749999994,
+      "mctsMoves": 979,
+      "mctsIters": 9825,
+      "mctsNodes": 10803,
+      "mctsNps": 96598.80818311324,
+      "mctsDepth": 1055
+    }
+  },
+  {
+    "task": {
+      "id": 23,
+      "white": "random",
+      "black": "mcts",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 13,
+      "bWins": 11,
+      "draws": 1,
+      "plies": 1778,
+      "time": 132699.13620000007,
+      "mctsMoves": 882,
+      "mctsIters": 10114,
+      "mctsNodes": 10978,
+      "mctsNps": 99521.16050847787,
+      "mctsDepth": 1003
+    }
+  },
+  {
+    "task": {
+      "id": 24,
+      "white": "mcts",
+      "black": "random",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 9,
+      "bWins": 14,
+      "draws": 2,
+      "plies": 1839,
+      "time": 139051.74600000016,
+      "mctsMoves": 925,
+      "mctsIters": 10618,
+      "mctsNodes": 11518,
+      "mctsNps": 104268.72363451192,
+      "mctsDepth": 1018
+    }
+  },
+  {
+    "task": {
+      "id": 27,
+      "white": "random",
+      "black": "mcts",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 10,
+      "bWins": 14,
+      "draws": 1,
+      "plies": 1495,
+      "time": 89676.805,
+      "mctsMoves": 742,
+      "mctsIters": 15894,
+      "mctsNodes": 16598,
+      "mctsNps": 160078.04416720683,
+      "mctsDepth": 873
+    }
+  },
+  {
+    "task": {
+      "id": 25,
+      "white": "random",
+      "black": "mcts",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 13,
+      "bWins": 11,
+      "draws": 1,
+      "plies": 1480,
+      "time": 113610.87459999992,
+      "mctsMoves": 733,
+      "mctsIters": 7320,
+      "mctsNodes": 8049,
+      "mctsNps": 70470.79479017365,
+      "mctsDepth": 789
+    }
+  },
+  {
+    "task": {
+      "id": 28,
+      "white": "mcts",
+      "black": "random",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 8,
+      "bWins": 16,
+      "draws": 1,
+      "plies": 1545,
+      "time": 94161.93260000006,
+      "mctsMoves": 777,
+      "mctsIters": 17649,
+      "mctsNodes": 18355,
+      "mctsNps": 177765.58379226303,
+      "mctsDepth": 897
+    }
+  },
+  {
+    "task": {
+      "id": 29,
+      "white": "random",
+      "black": "mcts",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 10,
+      "bWins": 14,
+      "draws": 1,
+      "plies": 1371,
+      "time": 102373.49070000008,
+      "mctsMoves": 680,
+      "mctsIters": 8135,
+      "mctsNodes": 8812,
+      "mctsNps": 78238.3916846034,
+      "mctsDepth": 748
+    }
+  },
+  {
+    "task": {
+      "id": 26,
+      "white": "mcts",
+      "black": "random",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 9,
+      "bWins": 14,
+      "draws": 2,
+      "plies": 1793,
+      "time": 134455.5792999998,
+      "mctsMoves": 902,
+      "mctsIters": 10300,
+      "mctsNodes": 11175,
+      "mctsNps": 100108.57541155578,
+      "mctsDepth": 991
+    }
+  },
+  {
+    "task": {
+      "id": 31,
+      "white": "random",
+      "black": "mcts",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 16,
+      "bWins": 8,
+      "draws": 1,
+      "plies": 1601,
+      "time": 96303.85260000016,
+      "mctsMoves": 792,
+      "mctsIters": 17564,
+      "mctsNodes": 18318,
+      "mctsNps": 176027.2420865693,
+      "mctsDepth": 959
+    }
+  },
+  {
+    "task": {
+      "id": 32,
+      "white": "mcts",
+      "black": "random",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 12,
+      "bWins": 13,
+      "draws": 0,
+      "plies": 1370,
+      "time": 84105.86909999995,
+      "mctsMoves": 691,
+      "mctsIters": 15609,
+      "mctsNodes": 16271,
+      "mctsNps": 157453.75240397872,
+      "mctsDepth": 799
+    }
+  },
+  {
+    "task": {
+      "id": 30,
+      "white": "mcts",
+      "black": "random",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 19,
+      "bWins": 4,
+      "draws": 2,
+      "plies": 1795,
+      "time": 134240.22099999996,
+      "mctsMoves": 908,
+      "mctsIters": 11057,
+      "mctsNodes": 11959,
+      "mctsNps": 104633.64410428722,
+      "mctsDepth": 997
+    }
+  },
+  {
+    "task": {
+      "id": 35,
+      "white": "random",
+      "black": "mcts",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 16,
+      "bWins": 7,
+      "draws": 2,
+      "plies": 1740,
+      "time": 102591.99150000018,
+      "mctsMoves": 861,
+      "mctsIters": 24530,
+      "mctsNodes": 25340,
+      "mctsNps": 247043.08575555953,
+      "mctsDepth": 1120
+    }
+  },
+  {
+    "task": {
+      "id": 33,
+      "white": "random",
+      "black": "mcts",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 10,
+      "bWins": 15,
+      "draws": 0,
+      "plies": 1556,
+      "time": 120178.86909999978,
+      "mctsMoves": 773,
+      "mctsIters": 7206,
+      "mctsNodes": 7978,
+      "mctsNps": 68823.32363887453,
+      "mctsDepth": 789
+    }
+  },
+  {
+    "task": {
+      "id": 40,
+      "white": "mcts",
+      "black": "greedy",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 2,
+      "bWins": 23,
+      "draws": 0,
+      "plies": 560,
+      "time": 37235.11780000001,
+      "mctsMoves": 281,
+      "mctsIters": 3308,
+      "mctsNodes": 3589,
+      "mctsNps": 34172.16896300324,
+      "mctsDepth": 281
+    }
+  },
+  {
+    "task": {
+      "id": 34,
+      "white": "mcts",
+      "black": "random",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 6,
+      "bWins": 19,
+      "draws": 0,
+      "plies": 1708,
+      "time": 130966.45269999985,
+      "mctsMoves": 857,
+      "mctsIters": 10079,
+      "mctsNodes": 10925,
+      "mctsNps": 96816.67542749758,
+      "mctsDepth": 951
+    }
+  },
+  {
+    "task": {
+      "id": 36,
+      "white": "mcts",
+      "black": "random",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 10,
+      "bWins": 12,
+      "draws": 3,
+      "plies": 1893,
+      "time": 113208.48749999999,
+      "mctsMoves": 953,
+      "mctsIters": 28932,
+      "mctsNodes": 29811,
+      "mctsNps": 291417.7140032753,
+      "mctsDepth": 1250
+    }
+  },
+  {
+    "task": {
+      "id": 37,
+      "white": "random",
+      "black": "mcts",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 11,
+      "bWins": 14,
+      "draws": 0,
+      "plies": 1583,
+      "time": 117700.64979999996,
+      "mctsMoves": 786,
+      "mctsIters": 8360,
+      "mctsNodes": 9146,
+      "mctsNps": 82404.85931089878,
+      "mctsDepth": 814
+    }
+  },
+  {
+    "task": {
+      "id": 43,
+      "white": "greedy",
+      "black": "mcts",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 23,
+      "bWins": 2,
+      "draws": 0,
+      "plies": 611,
+      "time": 40690.76950000005,
+      "mctsMoves": 294,
+      "mctsIters": 3100,
+      "mctsNodes": 3372,
+      "mctsNps": 32079.91754240621,
+      "mctsDepth": 299
+    }
+  },
+  {
+    "task": {
+      "id": 42,
+      "white": "mcts",
+      "black": "greedy",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 1,
+      "bWins": 24,
+      "draws": 0,
+      "plies": 565,
+      "time": 49042.64959999977,
+      "mctsMoves": 283,
+      "mctsIters": 1640,
+      "mctsNodes": 1918,
+      "mctsNps": 17354.287654290158,
+      "mctsDepth": 284
+    }
+  },
+  {
+    "task": {
+      "id": 41,
+      "white": "greedy",
+      "black": "mcts",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 23,
+      "bWins": 2,
+      "draws": 0,
+      "plies": 619,
+      "time": 52582.040700000245,
+      "mctsMoves": 298,
+      "mctsIters": 1759,
+      "mctsNodes": 2035,
+      "mctsNps": 18447.070712990215,
+      "mctsDepth": 300
+    }
+  },
+  {
+    "task": {
+      "id": 44,
+      "white": "mcts",
+      "black": "greedy",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 2,
+      "bWins": 23,
+      "draws": 0,
+      "plies": 618,
+      "time": 41409.49090000009,
+      "mctsMoves": 310,
+      "mctsIters": 3766,
+      "mctsNodes": 4068,
+      "mctsNps": 38791.90331262786,
+      "mctsDepth": 315
+    }
+  },
+  {
+    "task": {
+      "id": 45,
+      "white": "greedy",
+      "black": "mcts",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 24,
+      "bWins": 1,
+      "draws": 0,
+      "plies": 608,
+      "time": 50211.145200000145,
+      "mctsMoves": 292,
+      "mctsIters": 1677,
+      "mctsNodes": 1954,
+      "mctsNps": 17192.06802976841,
+      "mctsDepth": 293
+    }
+  },
+  {
+    "task": {
+      "id": 46,
+      "white": "mcts",
+      "black": "greedy",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 2,
+      "bWins": 23,
+      "draws": 0,
+      "plies": 560,
+      "time": 36681.70139999979,
+      "mctsMoves": 281,
+      "mctsIters": 3512,
+      "mctsNodes": 3793,
+      "mctsNps": 36197.77343525739,
+      "mctsDepth": 281
+    }
+  },
+  {
+    "task": {
+      "id": 39,
+      "white": "random",
+      "black": "mcts",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 8,
+      "bWins": 13,
+      "draws": 4,
+      "plies": 2180,
+      "time": 128452.2611,
+      "mctsMoves": 1084,
+      "mctsIters": 35580,
+      "mctsNodes": 36537,
+      "mctsNps": 357906.3841891288,
+      "mctsDepth": 1474
+    }
+  },
+  {
+    "task": {
+      "id": 38,
+      "white": "mcts",
+      "black": "random",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 11,
+      "bWins": 12,
+      "draws": 2,
+      "plies": 1919,
+      "time": 137698.3034000002,
+      "mctsMoves": 966,
+      "mctsIters": 11633,
+      "mctsNodes": 12598,
+      "mctsNps": 115864.13322721032,
+      "mctsDepth": 1044
+    }
+  },
+  {
+    "task": {
+      "id": 49,
+      "white": "greedy",
+      "black": "mcts",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 23,
+      "bWins": 2,
+      "draws": 0,
+      "plies": 615,
+      "time": 37841.41810000001,
+      "mctsMoves": 296,
+      "mctsIters": 4066,
+      "mctsNodes": 4338,
+      "mctsNps": 41579.35909701879,
+      "mctsDepth": 299
+    }
+  },
+  {
+    "task": {
+      "id": 48,
+      "white": "mcts",
+      "black": "greedy",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 5,
+      "bWins": 20,
+      "draws": 0,
+      "plies": 561,
+      "time": 47784.329799999716,
+      "mctsMoves": 283,
+      "mctsIters": 1677,
+      "mctsNodes": 1960,
+      "mctsNps": 16748.67421745428,
+      "mctsDepth": 283
+    }
+  },
+  {
+    "task": {
+      "id": 47,
+      "white": "greedy",
+      "black": "mcts",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 18,
+      "bWins": 7,
+      "draws": 0,
+      "plies": 664,
+      "time": 53746.61819999968,
+      "mctsMoves": 323,
+      "mctsIters": 2001,
+      "mctsNodes": 2277,
+      "mctsNps": 19494.810196817965,
+      "mctsDepth": 325
+    }
+  },
+  {
+    "task": {
+      "id": 50,
+      "white": "mcts",
+      "black": "greedy",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 3,
+      "bWins": 22,
+      "draws": 0,
+      "plies": 597,
+      "time": 39008.73900000029,
+      "mctsMoves": 300,
+      "mctsIters": 4097,
+      "mctsNodes": 4208,
+      "mctsNps": 40370.75601593178,
+      "mctsDepth": 305
+    }
+  },
+  {
+    "task": {
+      "id": 54,
+      "white": "mcts",
+      "black": "greedy",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 3,
+      "bWins": 22,
+      "draws": 0,
+      "plies": 579,
+      "time": 39365.21409999975,
+      "mctsMoves": 291,
+      "mctsIters": 3137,
+      "mctsNodes": 3428,
+      "mctsNps": 32644.469093926335,
+      "mctsDepth": 291
+    }
+  },
+  {
+    "task": {
+      "id": 53,
+      "white": "greedy",
+      "black": "mcts",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 20,
+      "bWins": 5,
+      "draws": 0,
+      "plies": 640,
+      "time": 41805.23389999976,
+      "mctsMoves": 310,
+      "mctsIters": 3930,
+      "mctsNodes": 4085,
+      "mctsNps": 39025.013365146326,
+      "mctsDepth": 318
+    }
+  },
+  {
+    "task": {
+      "id": 52,
+      "white": "mcts",
+      "black": "greedy",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 4,
+      "bWins": 21,
+      "draws": 0,
+      "plies": 606,
+      "time": 50962.42900000012,
+      "mctsMoves": 305,
+      "mctsIters": 1881,
+      "mctsNodes": 2186,
+      "mctsNps": 19061.89881659506,
+      "mctsDepth": 305
+    }
+  },
+  {
+    "task": {
+      "id": 51,
+      "white": "greedy",
+      "black": "mcts",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 22,
+      "bWins": 3,
+      "draws": 0,
+      "plies": 666,
+      "time": 53895.29989999975,
+      "mctsMoves": 322,
+      "mctsIters": 2152,
+      "mctsNodes": 2420,
+      "mctsNps": 21073.815966954055,
+      "mctsDepth": 326
+    }
+  },
+  {
+    "task": {
+      "id": 58,
+      "white": "mcts",
+      "black": "greedy",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 4,
+      "bWins": 21,
+      "draws": 0,
+      "plies": 528,
+      "time": 34976.92029999988,
+      "mctsMoves": 266,
+      "mctsIters": 3335,
+      "mctsNodes": 3601,
+      "mctsNps": 34497.81194617944,
+      "mctsDepth": 266
+    }
+  },
+  {
+    "task": {
+      "id": 57,
+      "white": "greedy",
+      "black": "mcts",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 24,
+      "bWins": 1,
+      "draws": 0,
+      "plies": 618,
+      "time": 39497.155199999805,
+      "mctsMoves": 297,
+      "mctsIters": 3723,
+      "mctsNodes": 3943,
+      "mctsNps": 37856.99411951602,
+      "mctsDepth": 298
+    }
+  },
+  {
+    "task": {
+      "id": 55,
+      "white": "greedy",
+      "black": "mcts",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 21,
+      "bWins": 4,
+      "draws": 0,
+      "plies": 637,
+      "time": 51131.124399999855,
+      "mctsMoves": 308,
+      "mctsIters": 1844,
+      "mctsNodes": 2152,
+      "mctsNps": 18783.846681450614,
+      "mctsDepth": 308
+    }
+  },
+  {
+    "task": {
+      "id": 56,
+      "white": "mcts",
+      "black": "greedy",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 2,
+      "bWins": 23,
+      "draws": 0,
+      "plies": 584,
+      "time": 46876.94250000024,
+      "mctsMoves": 293,
+      "mctsIters": 1944,
+      "mctsNodes": 2232,
+      "mctsNps": 19549.258929610274,
+      "mctsDepth": 295
+    }
+  },
+  {
+    "task": {
+      "id": 61,
+      "white": "greedy",
+      "black": "mcts",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 24,
+      "bWins": 1,
+      "draws": 0,
+      "plies": 624,
+      "time": 37791.12600000028,
+      "mctsMoves": 300,
+      "mctsIters": 4306,
+      "mctsNodes": 4606,
+      "mctsNps": 44309.319374889485,
+      "mctsDepth": 304
+    }
+  },
+  {
+    "task": {
+      "id": 62,
+      "white": "mcts",
+      "black": "greedy",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 3,
+      "bWins": 22,
+      "draws": 0,
+      "plies": 571,
+      "time": 36192.575399999856,
+      "mctsMoves": 287,
+      "mctsIters": 4011,
+      "mctsNodes": 4298,
+      "mctsNps": 41374.468179149815,
+      "mctsDepth": 291
+    }
+  },
+  {
+    "task": {
+      "id": 60,
+      "white": "mcts",
+      "black": "greedy",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 0,
+      "bWins": 25,
+      "draws": 0,
+      "plies": 606,
+      "time": 46150.23700000008,
+      "mctsMoves": 303,
+      "mctsIters": 2145,
+      "mctsNodes": 2399,
+      "mctsNps": 20776.746948472388,
+      "mctsDepth": 306
+    }
+  },
+  {
+    "task": {
+      "id": 59,
+      "white": "greedy",
+      "black": "mcts",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 22,
+      "bWins": 3,
+      "draws": 0,
+      "plies": 674,
+      "time": 50038.01839999994,
+      "mctsMoves": 326,
+      "mctsIters": 2530,
+      "mctsNodes": 2745,
+      "mctsNps": 23433.465327802474,
+      "mctsDepth": 335
+    }
+  },
+  {
+    "task": {
+      "id": 65,
+      "white": "greedy",
+      "black": "mcts",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 21,
+      "bWins": 4,
+      "draws": 0,
+      "plies": 639,
+      "time": 39028.116299999645,
+      "mctsMoves": 309,
+      "mctsIters": 4581,
+      "mctsNodes": 4714,
+      "mctsNps": 45346.26517111252,
+      "mctsDepth": 313
+    }
+  },
+  {
+    "task": {
+      "id": 66,
+      "white": "mcts",
+      "black": "greedy",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 1,
+      "bWins": 24,
+      "draws": 0,
+      "plies": 587,
+      "time": 37013.58380000037,
+      "mctsMoves": 294,
+      "mctsIters": 4338,
+      "mctsNodes": 4462,
+      "mctsNps": 43006.41064955778,
+      "mctsDepth": 300
+    }
+  },
+  {
+    "task": {
+      "id": 64,
+      "white": "mcts",
+      "black": "greedy",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 2,
+      "bWins": 23,
+      "draws": 0,
+      "plies": 564,
+      "time": 43678.50529999973,
+      "mctsMoves": 283,
+      "mctsIters": 1868,
+      "mctsNodes": 2141,
+      "mctsNps": 18240.29110942742,
+      "mctsDepth": 285
+    }
+  },
+  {
+    "task": {
+      "id": 63,
+      "white": "greedy",
+      "black": "mcts",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 24,
+      "bWins": 1,
+      "draws": 0,
+      "plies": 614,
+      "time": 46342.6525000002,
+      "mctsMoves": 295,
+      "mctsIters": 2124,
+      "mctsNodes": 2377,
+      "mctsNps": 20394.239320978184,
+      "mctsDepth": 299
+    }
+  },
+  {
+    "task": {
+      "id": 70,
+      "white": "mcts",
+      "black": "greedy",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 0,
+      "bWins": 25,
+      "draws": 0,
+      "plies": 552,
+      "time": 35272.561600000015,
+      "mctsMoves": 276,
+      "mctsIters": 3631,
+      "mctsNodes": 3900,
+      "mctsNps": 37461.076008993914,
+      "mctsDepth": 277
+    }
+  },
+  {
+    "task": {
+      "id": 69,
+      "white": "greedy",
+      "black": "mcts",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 25,
+      "bWins": 0,
+      "draws": 0,
+      "plies": 639,
+      "time": 38885.138600000064,
+      "mctsMoves": 307,
+      "mctsIters": 4597,
+      "mctsNodes": 4750,
+      "mctsNps": 45675.71051171948,
+      "mctsDepth": 319
+    }
+  },
+  {
+    "task": {
+      "id": 68,
+      "white": "mcts",
+      "black": "greedy",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 1,
+      "bWins": 24,
+      "draws": 0,
+      "plies": 541,
+      "time": 43179.72389999998,
+      "mctsMoves": 271,
+      "mctsIters": 1808,
+      "mctsNodes": 2079,
+      "mctsNps": 17415.76638194008,
+      "mctsDepth": 271
+    }
+  },
+  {
+    "task": {
+      "id": 67,
+      "white": "greedy",
+      "black": "mcts",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 21,
+      "bWins": 4,
+      "draws": 0,
+      "plies": 619,
+      "time": 48172.106699999655,
+      "mctsMoves": 299,
+      "mctsIters": 1925,
+      "mctsNodes": 2224,
+      "mctsNps": 18532.420139093727,
+      "mctsDepth": 299
+    }
+  },
+  {
+    "task": {
+      "id": 73,
+      "white": "greedy",
+      "black": "mcts",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 25,
+      "bWins": 0,
+      "draws": 0,
+      "plies": 635,
+      "time": 38542.787800000166,
+      "mctsMoves": 305,
+      "mctsIters": 4506,
+      "mctsNodes": 4607,
+      "mctsNps": 44291.06049064253,
+      "mctsDepth": 311
+    }
+  },
+  {
+    "task": {
+      "id": 74,
+      "white": "mcts",
+      "black": "greedy",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 4,
+      "bWins": 21,
+      "draws": 0,
+      "plies": 594,
+      "time": 37793.185599999735,
+      "mctsMoves": 299,
+      "mctsIters": 4073,
+      "mctsNodes": 4348,
+      "mctsNps": 41760.22247833294,
+      "mctsDepth": 301
+    }
+  },
+  {
+    "task": {
+      "id": 72,
+      "white": "mcts",
+      "black": "greedy",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 2,
+      "bWins": 23,
+      "draws": 0,
+      "plies": 582,
+      "time": 46684.27119999984,
+      "mctsMoves": 292,
+      "mctsIters": 1999,
+      "mctsNodes": 2279,
+      "mctsNps": 19017.70760785776,
+      "mctsDepth": 293
+    }
+  },
+  {
+    "task": {
+      "id": 71,
+      "white": "greedy",
+      "black": "mcts",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 21,
+      "bWins": 4,
+      "draws": 0,
+      "plies": 641,
+      "time": 49747.36370000034,
+      "mctsMoves": 310,
+      "mctsIters": 2113,
+      "mctsNodes": 2372,
+      "mctsNps": 19839.696956385647,
+      "mctsDepth": 312
+    }
+  },
+  {
+    "task": {
+      "id": 77,
+      "white": "greedy",
+      "black": "mcts",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 20,
+      "bWins": 5,
+      "draws": 0,
+      "plies": 636,
+      "time": 39043.09019999998,
+      "mctsMoves": 308,
+      "mctsIters": 4354,
+      "mctsNodes": 4537,
+      "mctsNps": 43461.140089754444,
+      "mctsDepth": 312
+    }
+  },
+  {
+    "task": {
+      "id": 76,
+      "white": "mcts",
+      "black": "greedy",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 1,
+      "bWins": 24,
+      "draws": 0,
+      "plies": 579,
+      "time": 45402.83479999937,
+      "mctsMoves": 290,
+      "mctsIters": 1962,
+      "mctsNodes": 2252,
+      "mctsNps": 19302.23346570427,
+      "mctsDepth": 290
+    }
+  },
+  {
+    "task": {
+      "id": 78,
+      "white": "mcts",
+      "black": "greedy",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 0,
+      "bWins": 25,
+      "draws": 0,
+      "plies": 610,
+      "time": 38357.33840000001,
+      "mctsMoves": 305,
+      "mctsIters": 4520,
+      "mctsNodes": 4699,
+      "mctsNps": 45176.46222755304,
+      "mctsDepth": 309
+    }
+  },
+  {
+    "task": {
+      "id": 75,
+      "white": "greedy",
+      "black": "mcts",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 24,
+      "bWins": 1,
+      "draws": 0,
+      "plies": 652,
+      "time": 49739.9014999998,
+      "mctsMoves": 314,
+      "mctsIters": 2029,
+      "mctsNodes": 2343,
+      "mctsNps": 19882.962768385198,
+      "mctsDepth": 314
+    }
+  },
+  {
+    "task": {
+      "id": 79,
+      "white": "greedy",
+      "black": "mcts",
+      "budgetMs": 100,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 21,
+      "bWins": 4,
+      "draws": 0,
+      "plies": 629,
+      "time": 47384.854200000525,
+      "mctsMoves": 304,
+      "mctsIters": 2175,
+      "mctsNodes": 2434,
+      "mctsNps": 21061.970628557414,
+      "mctsDepth": 306
+    }
+  },
+  {
+    "task": {
+      "id": 80,
+      "white": "mcts",
+      "black": "random",
+      "budgetMs": 500,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 11,
+      "bWins": 13,
+      "draws": 1,
+      "plies": 1322,
+      "time": 350854.6465999995,
+      "mctsMoves": 667,
+      "mctsIters": 60552,
+      "mctsNodes": 60488,
+      "mctsNps": 119939.19636359668,
+      "mctsDepth": 1015
+    }
+  },
+  {
+    "task": {
+      "id": 82,
+      "white": "mcts",
+      "black": "random",
+      "budgetMs": 500,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 11,
+      "bWins": 14,
+      "draws": 0,
+      "plies": 1437,
+      "time": 375755.3448000001,
+      "mctsMoves": 724,
+      "mctsIters": 76361,
+      "mctsNodes": 76195,
+      "mctsNps": 151384.61865371952,
+      "mctsDepth": 1127
+    }
+  },
+  {
+    "task": {
+      "id": 81,
+      "white": "random",
+      "black": "mcts",
+      "budgetMs": 500,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 11,
+      "bWins": 13,
+      "draws": 1,
+      "plies": 1720,
+      "time": 442184.5506000003,
+      "mctsMoves": 854,
+      "mctsIters": 114231,
+      "mctsNodes": 113096,
+      "mctsNps": 225154.42995430712,
+      "mctsDepth": 1414
+    }
+  },
+  {
+    "task": {
+      "id": 87,
+      "white": "random",
+      "black": "mcts",
+      "budgetMs": 500,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 15,
+      "bWins": 9,
+      "draws": 1,
+      "plies": 1664,
+      "time": 428981.2041000002,
+      "mctsMoves": 824,
+      "mctsIters": 89955,
+      "mctsNodes": 90102,
+      "mctsNps": 178937.317813227,
+      "mctsDepth": 1293
+    }
+  },
+  {
+    "task": {
+      "id": 84,
+      "white": "mcts",
+      "black": "random",
+      "budgetMs": 500,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 8,
+      "bWins": 15,
+      "draws": 2,
+      "plies": 1762,
+      "time": 463012.8952000007,
+      "mctsMoves": 886,
+      "mctsIters": 101590,
+      "mctsNodes": 101745,
+      "mctsNps": 201945.00261387278,
+      "mctsDepth": 1441
+    }
+  },
+  {
+    "task": {
+      "id": 86,
+      "white": "mcts",
+      "black": "random",
+      "budgetMs": 500,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 7,
+      "bWins": 17,
+      "draws": 1,
+      "plies": 2144,
+      "time": 555682.1882,
+      "mctsMoves": 1076,
+      "mctsIters": 149214,
+      "mctsNodes": 147502,
+      "mctsNps": 293620.118795632,
+      "mctsDepth": 1902
+    }
+  },
+  {
+    "task": {
+      "id": 83,
+      "white": "random",
+      "black": "mcts",
+      "budgetMs": 500,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 12,
+      "bWins": 8,
+      "draws": 5,
+      "plies": 2365,
+      "time": 609880.1935000003,
+      "mctsMoves": 1174,
+      "mctsIters": 154912,
+      "mctsNodes": 154422,
+      "mctsNps": 306995.10282813996,
+      "mctsDepth": 2029
+    }
+  },
+  {
+    "task": {
+      "id": 85,
+      "white": "random",
+      "black": "mcts",
+      "budgetMs": 500,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 13,
+      "bWins": 10,
+      "draws": 2,
+      "plies": 2479,
+      "time": 634698.8640000003,
+      "mctsMoves": 1232,
+      "mctsIters": 183012,
+      "mctsNodes": 181867,
+      "mctsNps": 362057.7544927041,
+      "mctsDepth": 2223
+    }
+  },
+  {
+    "task": {
+      "id": 88,
+      "white": "mcts",
+      "black": "random",
+      "budgetMs": 500,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 9,
+      "bWins": 15,
+      "draws": 1,
+      "plies": 1754,
+      "time": 462613.5711000003,
+      "mctsMoves": 882,
+      "mctsIters": 93006,
+      "mctsNodes": 92833,
+      "mctsNps": 184217.46069815053,
+      "mctsDepth": 1392
+    }
+  },
+  {
+    "task": {
+      "id": 90,
+      "white": "mcts",
+      "black": "random",
+      "budgetMs": 500,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 9,
+      "bWins": 15,
+      "draws": 1,
+      "plies": 1428,
+      "time": 372470.3652000001,
+      "mctsMoves": 719,
+      "mctsIters": 86154,
+      "mctsNodes": 86299,
+      "mctsNps": 171663.1960234607,
+      "mctsDepth": 1123
+    }
+  }
+]

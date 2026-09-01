@@ -1,4 +1,8 @@
 const fs = require('fs');
-let code = fs.readFileSync('src/components/OnlineGameBoard.tsx', 'utf8');
-code = code.replace(/\[isConnected, socket, roomId, gameState\]/, '[isConnected, socket, roomId]');
-fs.writeFileSync('src/components/OnlineGameBoard.tsx', code);
+let code = fs.readFileSync('src/quantum-engine/adapter.ts', 'utf8');
+const lines = code.split('\n');
+const newLines = lines.filter((line, index) => {
+    if (index >= 80 && line.startsWith('import {')) return false;
+    return true;
+});
+fs.writeFileSync('src/quantum-engine/adapter.ts', newLines.join('\n'), 'utf8');

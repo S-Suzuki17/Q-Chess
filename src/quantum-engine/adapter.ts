@@ -1,3 +1,6 @@
+import { generateLegalMoves } from './moveGenerator';
+import { posEquals } from './board';
+import { hasType } from './quantum/quantumState';
 import { Token } from '../lib/GameEngine';
 import { IdentityPool } from '../lib/IdentityPool';
 import { PieceType } from '../config/gameConfig';
@@ -75,10 +78,25 @@ export function legacyToQuantumState(tokens: Token[], pool: IdentityPool, sideTo
     };
 }
 
-export function quantumToLegacyMove(move: Move): any {
-    const types: PieceType[] = [];
+
+export function quantumToLegacyMove(move: Move, state: GameState): any {
+    let requiredBits = 0;
     if (move.chosenType !== undefined) {
-        types.push(BIT_TO_TYPE[move.chosenType]);
+        requiredBits = move.chosenType;
+    } else if (state) {
+        const legalMoves = generateLegalMoves(state, move.pieceId);
+        const candidate = legalMoves.find(m => posEquals(m.target, move.target));
+        if (candidate) requiredBits = candidate.requiredTypes;
+    }
+
+    const types: PieceType[] = [];
+    if (requiredBits > 0) {
+        const allTypes = [PIECE_PAWN, PIECE_KNIGHT, PIECE_BISHOP, PIECE_ROOK, PIECE_QUEEN, PIECE_KING];
+        for (const t of allTypes) {
+            if (hasType(requiredBits, t)) {
+                types.push(BIT_TO_TYPE[t]);
+            }
+        }
     }
     
     return {

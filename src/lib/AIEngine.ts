@@ -29,5 +29,5 @@ export function calculateCPUMove(level: number, tokens: Token[], pool: IdentityP
 
     if (!qMove) return null;
 
-    return quantumToLegacyMove(qMove);
+    return quantumToLegacyMove(qMove, qState);
 }
