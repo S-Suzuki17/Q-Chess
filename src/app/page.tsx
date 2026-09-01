@@ -13,6 +13,36 @@ import ReplayBoard from '../components/ReplayBoard';
 import { Language, LANGUAGES, dict } from '../locales/dict';
 import { User, GameState, TimeControl } from '../types/game';
 import { GameRecord } from '../lib/gameRecordService';
+
+import { useMatchmaking } from '../hooks/useMatchmaking';
+
+function MatchmakingManager({ user, onMatchFound, isSearchingGlobally, cancelSearchGlobally, timeControlTarget }: { user: any, onMatchFound: (room: any) => void, isSearchingGlobally: boolean, cancelSearchGlobally: () => void, timeControlTarget: number }) {
+    const { isSearching, matchedRoom, startMatchmaking, cancelMatchmaking } = useMatchmaking(user);
+    
+    React.useEffect(() => {
+        if (isSearchingGlobally && !isSearching) {
+            startMatchmaking(timeControlTarget);
+        } else if (!isSearchingGlobally && isSearching) {
+            cancelMatchmaking();
+        }
+    }, [isSearchingGlobally, startMatchmaking, cancelMatchmaking, timeControlTarget, isSearching]);
+
+    React.useEffect(() => {
+        if (matchedRoom) {
+            onMatchFound(matchedRoom);
+        }
+    }, [matchedRoom, onMatchFound]);
+
+    if (!isSearchingGlobally) return null;
+    return (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] bg-blue-900/80 border border-blue-500 rounded-full px-6 py-2 shadow-2xl backdrop-blur-sm flex items-center gap-4 cursor-pointer hover:bg-red-900/80 transition-colors group" onClick={cancelSearchGlobally} title="Click to cancel matchmaking">
+            <span className="w-2 h-2 bg-blue-400 rounded-full animate-ping"></span>
+            <span className="text-blue-100 text-xs tracking-widest font-bold group-hover:hidden">SEARCHING FOR OPPONENT...</span>
+            <span className="text-red-100 text-xs tracking-widest font-bold hidden group-hover:block">CANCEL SEARCH</span>
+        </div>
+    );
+}
+
 import { soundManager } from '../lib/SoundService';
 
 export default function Home() {
@@ -25,6 +55,8 @@ export default function Home() {
     const [replayRecord, setReplayRecord] = useState<GameRecord | null>(null);
     const [soundConfig, setSoundConfig] = useState(() => soundManager.getConfig());
     const [showSettings, setShowSettings] = useState(false);
+    const [isSearchingGlobally, setIsSearchingGlobally] = useState(false);
+    const [timeControlTarget, setTimeControlTarget] = useState(600);
 
     
     useEffect(() => {
@@ -167,6 +199,7 @@ export default function Home() {
     };
 
     const handleOnlineMatch = (roomId: string, role: 'white' | 'black' | 'spectator', matchMode: 'random' | 'private' | 'ranked', tc: TimeControl, opponentId?: string) => {
+        setIsSearchingGlobally(false);
         setOnlineInfo({ roomId, role, matchMode, opponentId });
         setTimeControl(tc);
         if (typeof window !== 'undefined' && role !== 'spectator') {
@@ -192,6 +225,15 @@ export default function Home() {
     return (
         <SocketProvider userId={user?.id}>
             <SystemStatusBanner lang={lang} />
+            <MatchmakingManager 
+                user={user} 
+                isSearchingGlobally={isSearchingGlobally} 
+                cancelSearchGlobally={() => setIsSearchingGlobally(false)} 
+                timeControlTarget={timeControlTarget}
+                onMatchFound={(room) => {
+                    handleOnlineMatch(room.id, room.myColor, 'random', (room.timeControl === 10 ? '10s' : room.timeControl === 180 ? '3m' : '10m') as TimeControl, room.joinerId === user?.id ? room.hostId : room.joinerId);
+                }} 
+            />
             <SpeedInsights />
         <main className="fixed inset-0 flex flex-col items-center justify-between bg-[#11100E] text-[#E8E2D7] font-sans overflow-hidden">
             <div className="z-10 w-full max-w-5xl flex items-center justify-between text-sm mb-4">
@@ -310,6 +352,7 @@ export default function Home() {
                         user={user} 
                         onSelect={handleSelectLevel} 
                         onOnlineMatch={handleOnlineMatch}
+                        onStartGlobalMatch={(tcSeconds) => { setIsSearchingGlobally(true); setTimeControlTarget(tcSeconds); handleSelectLevel(3, tcSeconds === 10 ? '10s' : tcSeconds === 180 ? '3m' : '10m'); }}
                         onReplay={(record) => {
                             setReplayRecord(record);
                             setGameState('replay');

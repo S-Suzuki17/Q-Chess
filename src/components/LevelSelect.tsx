@@ -19,11 +19,12 @@ interface LevelSelectProps {
     user: User;
     onSelect: (level: number, tc: TimeControl) => void;
     onOnlineMatch?: (roomId: string, role: 'white' | 'black' | 'spectator', matchMode: 'random' | 'private' | 'ranked', tc: TimeControl, opponentId?: string) => void;
+    onStartGlobalMatch?: (tcSeconds: number) => void;
     onReplay?: (record: GameRecord) => void;
     onBack: () => void;
 }
 
-export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onReplay, onBack }: LevelSelectProps) {
+export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobalMatch, onReplay, onBack }: LevelSelectProps) {
     const t = { ...dict['en'], ...(dict[lang] || {}) } as any;
     const [showAdModal, setShowAdModal] = React.useState(false);
     const [adProgress, setAdProgress] = React.useState(0);
@@ -31,7 +32,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onReplay, onB
     const [joinRoomId, setJoinRoomId] = React.useState('');
     const [isSearching, setIsSearching] = React.useState(false);
     const [matchFound, setMatchFound] = React.useState(false);
-    const { isSearching: hookSearching, matchedRoom, startMatchmaking, cancelMatchmaking: hookCancel } = useMatchmaking(user);
+    
     const { queueStats } = useSocket();
     const [showReplays, setShowReplays] = React.useState(false);
     const [replays, setReplays] = React.useState<GameRecord[]>([]);
@@ -237,17 +238,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onReplay, onB
     };
 
     
-    React.useEffect(() => {
-        if (matchedRoom) {
-            setMatchFound(true);
-            setIsSearching(false);
-            setTimeout(() => {
-                const tcStr = matchedRoom.timeControl === 180 ? '3m' : matchedRoom.timeControl === 600 ? '10m' : '10s';
-                onOnlineMatch?.(matchedRoom.id, matchedRoom.myColor, 'random', tcStr, matchedRoom.myColor === 'white' ? matchedRoom.joinerId : matchedRoom.hostId);
-                setMatchFound(false);
-            }, 1500);
-        }
-    }, [matchedRoom, onOnlineMatch]);
+    
 
     const cancelSearch = React.useCallback(() => {
         if (channelRef.current) {
@@ -255,14 +246,12 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onReplay, onB
             channelRef.current = null;
         }
         setIsSearching(false);
-        hookCancel();
-    }, [hookCancel]);
+        }, []);
 
     const startRandomMatch = React.useCallback((mode: 'random' | 'ranked', tc: TimeControl) => {
-        setIsSearching(true);
         const tcSeconds = tc === '3m' ? 180 : tc === '10m' ? 600 : 10;
-        startMatchmaking(tcSeconds);
-    }, [startMatchmaking]);
+        onStartGlobalMatch?.(tcSeconds);
+    }, [onStartGlobalMatch]);
 
     const handleTimeControlConfirm = (tc: TimeControl) => {
         if (!pendingAction) return;
