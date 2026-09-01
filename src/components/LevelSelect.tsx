@@ -597,7 +597,13 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onReplay, onB
             
             <div className="flex justify-between items-center w-full max-w-lg mx-auto shrink-0 z-10 pt-4">
                 <span className="text-xl md:text-2xl tracking-[0.2em] font-serif text-[#E8E2D7]">Q-GAMBIT</span>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-4">
+                    {queueStats && queueStats[-1] !== undefined && (
+                        <div className="flex items-center gap-1.5 opacity-80" title="Online Players">
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#A89C86] animate-pulse"></span>
+                            <span className="text-[10px] tracking-widest text-[#A89C86] font-mono">{queueStats[-1]} ONLINE</span>
+                        </div>
+                    )}
                     <span className="font-mono text-[#B39A62] text-sm">{userProfile?.rating_10m ? Math.floor(userProfile.rating_10m) : '---'}</span>
                 </div>
             </div>
