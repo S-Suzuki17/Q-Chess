@@ -1978,5 +1978,137 @@
       "mctsNps": 171663.1960234607,
       "mctsDepth": 1123
     }
+  },
+  {
+    "task": {
+      "id": 91,
+      "white": "random",
+      "black": "mcts",
+      "budgetMs": 500,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 13,
+      "bWins": 11,
+      "draws": 1,
+      "plies": 1474,
+      "time": 382606.78919999977,
+      "mctsMoves": 730,
+      "mctsIters": 91835,
+      "mctsNodes": 89088,
+      "mctsNps": 176844.0026426401,
+      "mctsDepth": 1199
+    }
+  },
+  {
+    "task": {
+      "id": 92,
+      "white": "mcts",
+      "black": "random",
+      "budgetMs": 500,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 13,
+      "bWins": 12,
+      "draws": 0,
+      "plies": 1455,
+      "time": 386371.1272,
+      "mctsMoves": 734,
+      "mctsIters": 56071,
+      "mctsNodes": 56324,
+      "mctsNps": 111404.99334872981,
+      "mctsDepth": 1074
+    }
+  },
+  {
+    "task": {
+      "id": 89,
+      "white": "random",
+      "black": "mcts",
+      "budgetMs": 500,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 15,
+      "bWins": 7,
+      "draws": 3,
+      "plies": 2190,
+      "time": 560297.7697999997,
+      "mctsMoves": 1086,
+      "mctsIters": 192283,
+      "mctsNodes": 192032,
+      "mctsNps": 382311.0754390108,
+      "mctsDepth": 2021
+    }
+  },
+  {
+    "task": {
+      "id": 93,
+      "white": "random",
+      "black": "mcts",
+      "budgetMs": 500,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 15,
+      "bWins": 8,
+      "draws": 2,
+      "plies": 1711,
+      "time": 438340.1717999999,
+      "mctsMoves": 847,
+      "mctsIters": 130953,
+      "mctsNodes": 130255,
+      "mctsNps": 259373.96692657017,
+      "mctsDepth": 1435
+    }
+  },
+  {
+    "task": {
+      "id": 95,
+      "white": "random",
+      "black": "mcts",
+      "budgetMs": 500,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 16,
+      "bWins": 9,
+      "draws": 0,
+      "plies": 1466,
+      "time": 378224.3426000003,
+      "mctsMoves": 725,
+      "mctsIters": 73735,
+      "mctsNodes": 73402,
+      "mctsNps": 145556.8927026895,
+      "mctsDepth": 1142
+    }
+  },
+  {
+    "task": {
+      "id": 94,
+      "white": "mcts",
+      "black": "random",
+      "budgetMs": 500,
+      "games": 25,
+      "evalVersion": "v0"
+    },
+    "res": {
+      "wWins": 9,
+      "bWins": 13,
+      "draws": 3,
+      "plies": 1942,
+      "time": 505906.9953000003,
+      "mctsMoves": 977,
+      "mctsIters": 136621,
+      "mctsNodes": 136492,
+      "mctsNps": 271606.807752024,
+      "mctsDepth": 1686
+    }
   }
 ]

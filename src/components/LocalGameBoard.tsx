@@ -899,7 +899,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
             </div>
 
             <div className={`
-                grid grid-cols-8 grid-rows-8 border-4 bg-[#0b0c10] shadow-2xl w-full aspect-square relative transition-all duration-300
+                grid grid-cols-8 grid-rows-8 border-4 bg-[#0b0c10] shadow-2xl w-full max-w-[calc(100dvh-260px)] aspect-square relative transition-all duration-300
                 ${showCheckWarning ? 'border-red-900/50 shadow-red-900/50' : 'border-gray-700 shadow-gray-900'}
             `}>
                 {Array.from({ length: 64 }).map((_, index) => {
