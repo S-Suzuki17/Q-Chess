@@ -109,10 +109,8 @@ export class EvalQoppelia implements Evaluator {
         return score;
     }
 
-    // 5. King Candidate (King Ambiguity & Reveal Penalty)
+    // 5. King Candidate (Non-linear Ambiguity & Stealth Evaluation)
     private evalKingCandidate(state: GameState, player: PlayerColor): number {
-        let score = 0;
-        
         let whiteKingRevealed = false;
         let blackKingRevealed = false;
         let whiteKingCandidates = 0;
@@ -132,28 +130,19 @@ export class EvalQoppelia implements Evaluator {
             }
         }
 
-        const KING_AMBIGUITY_BONUS = 400;
-        const OWN_KING_REVEAL_PENALTY = 1200;
+        const getSafetyScore = (candidates: number, revealed: boolean): number => {
+            if (candidates === 0 && !revealed) return -99999; // King dead/missing
+            if (revealed || candidates === 1) return -1200;   // Fully revealed or only 1 option
+            if (candidates === 2) return 300;                 // 50/50 ambiguity
+            if (candidates >= 3) return 800;                  // Highly stealthy
+            return 0;
+        };
 
-        if (!whiteKingRevealed && whiteKingCandidates > 1) {
-            if (player === 'white') score += KING_AMBIGUITY_BONUS;
-            else score -= KING_AMBIGUITY_BONUS;
-        }
-        if (!blackKingRevealed && blackKingCandidates > 1) {
-            if (player === 'black') score += KING_AMBIGUITY_BONUS;
-            else score -= KING_AMBIGUITY_BONUS;
-        }
+        const whiteSafety = getSafetyScore(whiteKingCandidates, whiteKingRevealed);
+        const blackSafety = getSafetyScore(blackKingCandidates, blackKingRevealed);
 
-        if (whiteKingRevealed) {
-            if (player === 'white') score -= OWN_KING_REVEAL_PENALTY;
-            else score += OWN_KING_REVEAL_PENALTY;
-        }
-        if (blackKingRevealed) {
-            if (player === 'black') score -= OWN_KING_REVEAL_PENALTY;
-            else score += OWN_KING_REVEAL_PENALTY;
-        }
-
-        return score;
+        let score = whiteSafety - blackSafety;
+        return player === 'white' ? score : -score;
     }
 
     evaluate(state: GameState, player: PlayerColor): number {
