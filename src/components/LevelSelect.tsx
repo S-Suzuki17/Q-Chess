@@ -378,37 +378,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
             )}
 
             
-            {/* Matchmaking Overlay */}
-            {isSearching && (
-                <div className="fixed inset-0 bg-[#161513]/95 z-[100] flex flex-col items-center justify-center p-4 backdrop-blur-sm">
-                    <div className="bg-[#161513] border border-[#A89C86]/40 p-8 w-full max-w-sm text-center shadow-2xl">
-                        {matchFound ? (
-                            <>
-                                <h3 className="text-xl tracking-[0.2em] text-[#B39A62] mb-4 animate-pulse font-serif">
-                                    MATCH FOUND
-                                </h3>
-                                <p className="text-[#A89C86] text-[10px] tracking-widest">
-                                    PREPARING...
-                                </p>
-                            </>
-                        ) : (
-                            <>
-                                <h3 className="text-xl tracking-[0.2em] text-[#E8E2D7] mb-4 font-serif uppercase">
-                                    {t.searchingOpponent}
-                                </h3>
-                                <div className="flex justify-center mb-8 gap-2">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-[#B39A62] animate-bounce" style={{ animationDelay: '0ms' }} />
-                                    <div className="w-1.5 h-1.5 rounded-full bg-[#B39A62] animate-bounce" style={{ animationDelay: '150ms' }} />
-                                    <div className="w-1.5 h-1.5 rounded-full bg-[#B39A62] animate-bounce" style={{ animationDelay: '300ms' }} />
-                                </div>
-                                <button onClick={cancelSearch} className="text-[10px] tracking-widest text-[#A89C86] hover:text-[#E8E2D7] transition-colors uppercase">
-                                    {t.cancel}
-                                </button>
-                            </>
-                        )}
-                    </div>
-                </div>
-            )}
+            
 
             {showAccount && (
                 <div className="fixed inset-0 bg-[#161513]/95 z-50 flex flex-col items-center justify-center p-4 backdrop-blur-sm">

@@ -116,7 +116,7 @@ export default function ReplayBoard({ lang, record, onHome }: ReplayBoardProps) 
 
             {/* Board */}
             <div className="w-full flex-1 min-h-0 flex items-center justify-center">
-            <div className="w-full max-w-[calc(100dvh-260px)] aspect-square border-4 border-gray-800 bg-[#0a0a0a] relative rounded shadow-2xl flex flex-col">
+            <div className="w-full max-w-[min(100%,_calc(100dvh-320px))] aspect-square border-4 border-gray-800 bg-[#0a0a0a] relative rounded shadow-2xl flex flex-col">
                 {grid.map((row, r) => (
                     <div key={`row-${r}`} className="flex flex-1 w-full">
                         {row.map((cellToken, c) => {

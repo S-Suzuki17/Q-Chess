@@ -858,7 +858,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
 
             <div className="w-full flex-1 min-h-0 flex items-center justify-center">
                 <div className={`
-                    grid grid-cols-8 grid-rows-8 border-4 bg-[#0b0c10] shadow-2xl w-full max-w-[calc(100dvh-260px)] aspect-square relative transition-all duration-300
+                    grid grid-cols-8 grid-rows-8 border-4 bg-[#0b0c10] shadow-2xl w-full max-w-[min(100%,_calc(100dvh-320px))] aspect-square relative transition-all duration-300
                     ${showCheckWarning ? 'border-[#B39A62]/70 shadow-[#B39A62]/20' : 'border-[#A89C86]/30 shadow-gray-900'}
                 `}>
                 {Array.from({ length: 64 }).map((_, index) => {
