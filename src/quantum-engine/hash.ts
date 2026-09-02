@@ -15,13 +15,8 @@ import { GameState } from './types';
  *    - promotedType (its movement capabilities if promoted)
  *    - hasMoved (affects castling and pawn double-move rights)
  */
+import { computeZobristHash } from './zobrist';
+
 export function hashState(state: GameState): string {
-    const pStr = [...state.pieces]
-        .sort((a, b) => a.id.localeCompare(b.id))
-        .map(p => `${p.id}:${p.alive?1:0}:${p.position.row},${p.position.col}:${p.state}:${p.promotedType||0}:${p.hasMoved?1:0}`)
-        .join('|');
-        
-    const lm = state.lastMove ? `${state.lastMove.pieceId}:${state.lastMove.target.row},${state.lastMove.target.col}` : 'none';
-    
-    return `${state.sideToMove}|cw:${state.captured.white}|cb:${state.captured.black}|lm:${lm}|${pStr}`;
+    return computeZobristHash(state).toString(16);
 }
