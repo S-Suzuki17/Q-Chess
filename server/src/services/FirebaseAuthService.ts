@@ -24,6 +24,7 @@ export class FirebaseAuthService {
         
         // Allow guest tokens to bypass Firebase auth
         if (token.startsWith('GUEST-')) return token;
+        if (token.startsWith('SUPABASE-')) return token.replace('SUPABASE-', '');
         
         try {
             const decodedToken = await getAuth().verifyIdToken(token);
