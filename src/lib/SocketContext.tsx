@@ -22,8 +22,8 @@ export function SocketProvider({ children, userId }: { children: React.ReactNode
     useEffect(() => {
         if (!userId) return;
 
-        // Use anon_ prefix so the backend accepts our mock token
-        const token = userId.startsWith('anon_') ? userId : `anon_${userId}`;
+        // Use GUEST- prefix so the backend accepts our mock token
+        const token = userId.startsWith('GUEST-') ? userId : `GUEST-${userId}`;
         const SERVER_URL = process.env.NEXT_PUBLIC_SERVER_URL || 'https://q-chess.onrender.com';
         
         const newSocket = io(SERVER_URL, {

@@ -1,16 +1,16 @@
 const fs = require('fs');
-let code = fs.readFileSync('src/components/LevelSelect.tsx', 'utf8');
+let content = fs.readFileSync('src/components/OnlineGameBoard.tsx', 'utf8');
 
-code = code.replace(
-    `const startRandomMatch = React.useCallback((mode: 'random' | 'ranked', tc: TimeControl) => {
-        setIsSearching(true);
-        const tcSeconds = tc === '3m' ? 180 : tc === '10m' ? 600 : 10;
-        startMatchmaking(tcSeconds);
-    }, [startMatchmaking]);`,
-    `const startRandomMatch = React.useCallback((mode: 'random' | 'ranked', tc: TimeControl) => {
-        const tcSeconds = tc === '3m' ? 180 : tc === '10m' ? 600 : 10;
-        onStartGlobalMatch?.(tcSeconds);
-    }, [onStartGlobalMatch]);`
+// Fix 1: targetId guest check
+content = content.replace(
+    /const cleanId = targetId\.replace\('GUEST-', ''\);\s*if \(cleanId\.startsWith\('GUEST-'\)\) \{/g,
+    `const isGuest = targetId.startsWith('GUEST-');\n        if (isGuest) {`
 );
 
-fs.writeFileSync('src/components/LevelSelect.tsx', code, 'utf8');
+// Fix 2: id guest check
+content = content.replace(
+    /const clean = id\.replace\('GUEST-', ''\);\s*if \(clean\.startsWith\('GUEST-'\)\) return guestLabel;/g,
+    `if (id.startsWith('GUEST-')) return guestLabel;`
+);
+
+fs.writeFileSync('src/components/OnlineGameBoard.tsx', content, 'utf8');

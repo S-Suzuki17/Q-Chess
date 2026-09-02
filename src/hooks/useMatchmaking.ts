@@ -35,7 +35,7 @@ export function useMatchmaking(user: User | null) {
 
             setMatchedRoom({
                 id: data.matchId,
-                myColor: data.hostId === (user?.id?.startsWith('anon_') ? user.id : 'anon_' + user?.id) ? 'white' : 'black',
+                myColor: data.hostId === (user?.id?.startsWith('GUEST-') ? user.id : 'GUEST-' + user?.id) ? 'white' : 'black',
                 timeControl: data.timeControl,
                 hostId: data.hostId,
                 joinerId: data.joinerId

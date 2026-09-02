@@ -138,16 +138,16 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
         let targetId = opponentId;
         if (!targetId && gameState?.players) {
             const myId = user?.id || '';
-            const myClean = myId.replace('anon_', '');
-            const hostClean = (gameState.players.host || '').replace('anon_', '');
-            const joinerClean = (gameState.players.joiner || '').replace('anon_', '');
+            const myClean = myId.replace('GUEST-', '');
+            const hostClean = (gameState.players.host || '').replace('GUEST-', '');
+            const joinerClean = (gameState.players.joiner || '').replace('GUEST-', '');
             targetId = myClean === hostClean ? joinerClean : hostClean;
         }
 
         if (!targetId) return;
 
-        const cleanId = targetId.replace('anon_', '');
-        if (cleanId.startsWith('GUEST-')) {
+        const isGuest = targetId.startsWith('GUEST-');
+        if (isGuest) {
             setFetchedOpponentName(lang === 'ja' ? 'ゲスト' : 'Guest');
             return;
         }
@@ -441,8 +441,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
         if (fetchedName) return fetchedName;
         if (serverName) return serverName;
         if (!id) return playerLabel;
-        const clean = id.replace('anon_', '');
-        if (clean.startsWith('GUEST-')) return guestLabel;
+        if (id.startsWith('GUEST-')) return guestLabel;
         return playerLabel;
     };
 

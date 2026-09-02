@@ -152,9 +152,25 @@ io.on('connection', (socket: Socket) => {
     socket.join(data.matchId);
 
     if (result.success && result.engine) {
-      const publicState = result.engine.getPublicState(userId);
-      socket.emit('match_start', publicState);
-      socket.emit('sync_state', publicState);
+      if (result.justStarted) {
+          const room = io.sockets.adapter.rooms.get(data.matchId);
+          if (room) {
+              for (const sid of room) {
+                  const clientSocket = io.sockets.sockets.get(sid);
+                  if (clientSocket) {
+                      const uid = clientSocket.data.userId;
+                      const pState = result.engine.getPublicState(uid);
+                      clientSocket.emit('match_start', pState);
+                      clientSocket.emit('sync_state', pState);
+                  }
+              }
+          }
+          if (result.match) result.match.justStartedFlag = false;
+      } else {
+          const publicState = result.engine.getPublicState(userId);
+          socket.emit('match_start', publicState);
+          socket.emit('sync_state', publicState);
+      }
     }
   });
 

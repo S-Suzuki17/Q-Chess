@@ -16,6 +16,7 @@ export interface PlayerSession {
 }
 
 export interface MatchSession {
+    justStartedFlag?: boolean;
     matchId: string;
     state: MatchState;
     timeControl: number;
@@ -214,7 +215,7 @@ export class MatchmakingService {
         return { success: false };
     }
 
-        public connectMatch(userId: string, matchId: string, userName?: string, avatarUrl?: string): { success: boolean, match?: MatchSession, engine?: GameEngine } {
+        public connectMatch(userId: string, matchId: string, userName?: string, avatarUrl?: string): { success: boolean, match?: MatchSession, engine?: GameEngine, justStarted?: boolean } {
         let session = this.players.get(userId);
         let match = this.matches.get(matchId);
 
@@ -280,6 +281,7 @@ export class MatchmakingService {
             match.state = 'IN_GAME';
             const initialBoard = createInitialBoard();
             match.engine = new GameEngine(matchId, match.players.host, match.players.joiner, initialBoard, match.timeControl, match.playerNames);
+            match.justStartedFlag = true;
         }
 
         // If reconnected to an ongoing match, broadcast to opponent
@@ -298,7 +300,7 @@ export class MatchmakingService {
             }
         }
 
-        return { success: true, match: updatedMatch, engine: updatedMatch.engine };
+        return { success: true, match: updatedMatch, engine: updatedMatch.engine, justStarted: updatedMatch.justStartedFlag };
     }
 
     public clearDisconnectTimer(userId: string) {
