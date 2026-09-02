@@ -22,8 +22,8 @@ export class FirebaseAuthService {
     public static async verifyToken(token: string): Promise<string | null> {
         if (!token) return null;
         
-        // Mock token for testing/dev
-        if (token.startsWith('anon_')) return token;
+        // Allow guest tokens to bypass Firebase auth
+        if (token.startsWith('GUEST-')) return token;
         
         try {
             const decodedToken = await getAuth().verifyIdToken(token);

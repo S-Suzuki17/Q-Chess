@@ -39,10 +39,30 @@ export class MatchmakingService {
     private players = new Map<string, PlayerSession>(); // userId -> PlayerSession
     private matches = new Map<string, MatchSession>(); // matchId -> MatchSession
     private waitingQueue = new Set<string>(); // userIds
+    private disconnectTimers = new Map<string, NodeJS.Timeout>(); // userId -> Timer
     private io: Server;
 
     constructor(io: Server) {
         this.io = io;
+        
+        // Cleanup dead matches and idle players every 10 minutes
+        setInterval(() => {
+            const now = Date.now();
+            // Cleanup matches
+            for (const [matchId, match] of this.matches.entries()) {
+                if (match.state === 'FINISHED' || match.state === 'CANCELLED') {
+                    if (now - match.createdAt > 60 * 60 * 1000) { // 1 hour old
+                        this.matches.delete(matchId);
+                    }
+                }
+            }
+            // Cleanup disconnected players
+            for (const [userId, session] of this.players.entries()) {
+                if (session.state === 'IDLE' && !this.io.sockets.sockets.has(session.socketId)) {
+                    this.players.delete(userId);
+                }
+            }
+        }, 10 * 60 * 1000);
     }
 
     public registerSocket(userId: string, socketId: string, userName?: string) {
@@ -69,6 +89,47 @@ export class MatchmakingService {
         }
     }
 
+    private handleMatchDisconnect(userId: string, matchId: string) {
+        const match = this.matches.get(matchId);
+        if (!match || match.state === 'FINISHED' || match.state === 'CANCELLED') return;
+
+        const isHost = match.players.host === userId;
+        const opponentId = isHost ? match.players.joiner : match.players.host;
+        
+        if (isHost) match.connected.host = false;
+        else match.connected.joiner = false;
+
+        // Notify opponent
+        const oppSession = this.players.get(opponentId);
+        if (oppSession) {
+            const oppSock = this.io.sockets.sockets.get(oppSession.socketId);
+            if (oppSock) {
+                oppSock.emit('opponent_disconnected');
+            }
+        }
+
+        // Start disconnect timer (allow 30 seconds for reconnect)
+        const timer = setTimeout(() => {
+            const currentMatch = this.matches.get(matchId);
+            if (currentMatch && currentMatch.state === 'IN_GAME') {
+                currentMatch.state = 'FINISHED';
+                if (currentMatch.engine) {
+                    (currentMatch.engine as any).state.gameOver = isHost ? 'BLACK' : 'WHITE';
+                }
+                this.io.to(matchId).emit('match_forfeited', { winner: isHost ? 'joiner' : 'host', reason: 'abandonment' });
+                
+                // Cleanup sessions
+                const hSession = this.players.get(currentMatch.players.host);
+                const jSession = this.players.get(currentMatch.players.joiner);
+                if (hSession) { hSession.state = 'IDLE'; hSession.currentMatchId = undefined; }
+                if (jSession) { jSession.state = 'IDLE'; jSession.currentMatchId = undefined; }
+            }
+            this.disconnectTimers.delete(userId);
+        }, 30000);
+
+        this.disconnectTimers.set(userId, timer);
+    }
+
     public joinQueue(userId: string, timeControl: number, userName?: string): { success: boolean, match?: MatchSession } {
         const session = this.players.get(userId);
         if (!session) return { success: false };
@@ -81,6 +142,8 @@ export class MatchmakingService {
         session.timeControl = timeControl;
         if (userName) session.userName = userName;
         this.waitingQueue.add(userId);
+        
+        this.broadcastQueueStats();
 
         return this.tryMatch(timeControl);
     }
@@ -90,7 +153,12 @@ export class MatchmakingService {
         if (session && session.state === 'WAITING') {
             session.state = 'IDLE';
             this.waitingQueue.delete(userId);
+            this.broadcastQueueStats();
         }
+    }
+    
+    public broadcastQueueStats() {
+        this.io.emit('queue_stats', this.getQueueStats());
     }
 
     private tryMatch(timeControl: number): { success: boolean, match?: MatchSession } {

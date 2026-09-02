@@ -43,8 +43,8 @@ export class SupabaseService {
         history: any[]
     ): Promise<boolean> {
         try {
-            let realWhite = whiteId.startsWith('anon_') ? whiteId.replace('anon_', '') : whiteId;
-            let realBlack = blackId.startsWith('anon_') ? blackId.replace('anon_', '') : blackId;
+            let realWhite = whiteId;
+            let realBlack = blackId;
 
             if (realWhite === 'ai' || realBlack === 'ai' || realWhite.startsWith('GUEST-') || realBlack.startsWith('GUEST-') || realWhite === '' || realBlack === '') {
                 console.log(`[DB] Skipping DB rating update for AI/Guest match ${matchId}`);

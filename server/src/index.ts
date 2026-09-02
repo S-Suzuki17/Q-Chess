@@ -104,6 +104,7 @@ io.on('connection', (socket: Socket) => {
 
   matchmaking.registerSocket(userId, socket.id);
   matchmaking.clearDisconnectTimer(userId);
+  socket.emit('queue_stats', matchmaking.getQueueStats());
 
   // If reconnected while in an active game, join the room immediately and push state
   const existingSession = matchmaking.getPlayerSession(userId);
@@ -254,6 +255,10 @@ io.on('connection', (socket: Socket) => {
       socket.join(data.matchId);
       socket.emit('sync_state', match.engine.getPublicState(userId));
     }
+  });
+
+  socket.on('ping', (data: { clientTime: number }) => {
+      socket.emit('pong', { clientTime: data.clientTime, serverTime: Date.now() });
   });
 
   socket.on('disconnect', () => {

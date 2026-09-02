@@ -56,6 +56,30 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
         targetRow: number;
         targetCol: number;
     } | null>(null);
+
+    // Latency Measurement
+    const [latency, setLatency] = useState<number | null>(null);
+
+    useEffect(() => {
+        if (!socket || !isConnected) return;
+        
+        const onPong = (data: { clientTime: number, serverTime: number }) => {
+            const currentLatency = Date.now() - data.clientTime;
+            setLatency(currentLatency);
+        };
+        
+        socket.on('pong', onPong);
+        
+        const pingInterval = setInterval(() => {
+            socket.emit('ping', { clientTime: Date.now() });
+        }, 2000);
+
+        return () => {
+            socket.off('pong', onPong);
+            clearInterval(pingInterval);
+        };
+    }, [socket, isConnected]);
+
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
     const [castlingPending, setCastlingPending] = useState<{
@@ -302,7 +326,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
             }
 
             socket?.emit('player_action', {
-                actionId: Date.now().toString(),
+                actionId: crypto.randomUUID(),
                 version: gameState.version,
                 action: {
                     type: 'MOVE',
@@ -476,8 +500,15 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
                     )}
                 </div>
 
-                <div className="text-sm font-bold text-red-900 min-h-[20px] mx-4 text-center">
-                    {errorMsg}
+                <div className="flex flex-col items-center justify-center gap-1">
+                    {latency !== null && (
+                        <div className={`text-[10px] font-mono px-2 py-0.5 rounded ${latency < 100 ? 'text-green-400 bg-green-900/20' : latency < 300 ? 'text-yellow-400 bg-yellow-900/20' : 'text-red-400 bg-red-900/20'}`}>
+                            {latency}ms
+                        </div>
+                    )}
+                    <div className="text-sm font-bold text-red-900 min-h-[20px] mx-4 text-center">
+                        {errorMsg}
+                    </div>
                 </div>
 
                 {/* Black Player Info */}
@@ -667,7 +698,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
                                     onClick={() => {
                                         const pTo = pt === 'Queen' ? 'Q' : pt === 'Rook' ? 'R' : pt === 'Bishop' ? 'B' : 'N';
                                         socket?.emit('player_action', {
-                                            actionId: Date.now().toString(),
+                                            actionId: crypto.randomUUID(),
                                             version: gameState.version,
                                             action: {
                                                 type: 'MOVE',

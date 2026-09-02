@@ -46,6 +46,10 @@ export function SocketProvider({ children, userId }: { children: React.ReactNode
 
         setSocket(newSocket);
 
+        newSocket.on('queue_stats', (stats) => {
+            setQueueStats(stats);
+        });
+
         return () => {
             newSocket.disconnect();
         };
