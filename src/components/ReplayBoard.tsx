@@ -155,10 +155,10 @@ export default function ReplayBoard({ lang, record, onHome }: ReplayBoardProps) 
             </div>
 
             {/* Controls */}
-            <div className="mt-4 flex flex-col gap-3 bg-gray-900/50 p-3 rounded-lg border border-gray-700 w-full">
-                <div className="flex justify-between items-center text-xs text-gray-400">
+            <div className="mt-4 flex flex-col gap-3 bg-[#191714] p-4 rounded-lg border border-[#A89C86]/20 shadow-lg w-full">
+                <div className="flex justify-between items-center text-xs text-[#A89C86]">
                     <span>{t.replay}: {record.winner === 'white_wins' ? t.whiteWon : record.winner === 'black_wins' ? t.blackWon : t.draw}</span>
-                    <button onClick={onHome} className="px-4 py-1 bg-cyan-900/40 hover:bg-cyan-800/60 border border-cyan-500/50 text-cyan-300 rounded font-bold">
+                    <button onClick={onHome} className="px-4 py-1 bg-transparent hover:bg-[#2A2621] border border-[#A89C86]/30 text-[#E8E2D7] transition-colors rounded font-bold">
                         🏠 {t.home}
                     </button>
                 </div>

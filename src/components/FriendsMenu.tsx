@@ -80,44 +80,44 @@ export function FriendsMenu({ user, lang, onlineUsers, onClose, onChallenge }: F
 
     return (
         <div className="fixed inset-0 bg-black/90 z-50 flex flex-col items-center justify-center p-4">
-            <div className="bg-gray-900 border border-purple-500/50 p-6 rounded-lg max-w-md w-full shadow-[0_0_50px_rgba(168,85,247,0.2)] max-h-[80vh] overflow-y-auto">
+            <div className="bg-[#11100E] border border-[#B39A62]/30 p-6 rounded-lg max-w-md w-full shadow-2xl max-h-[80vh] overflow-y-auto">
                 <div className="flex justify-between items-center mb-6">
-                    <h3 className="text-2xl font-bold text-purple-300">👥 Friends</h3>
-                    <button onClick={onClose} className="text-gray-500 hover:text-white">✕</button>
+                    <h3 className="text-2xl font-bold text-[#E8E2D7] font-serif tracking-widest">👥 Friends</h3>
+                    <button onClick={onClose} className="text-[#A89C86] hover:text-[#E8E2D7]">✕</button>
                 </div>
 
                 {/* Add Friend Section */}
-                <div className="mb-6 p-4 bg-black/50 border border-purple-900/50 rounded">
-                    <h4 className="text-sm font-bold text-purple-400 mb-2">Add Friend</h4>
+                <div className="mb-6 p-4 bg-[#191714] border border-[#A89C86]/20 rounded">
+                    <h4 className="text-sm font-bold text-[#B39A62] font-serif tracking-widest mb-2">Add Friend</h4>
                     <div className="flex gap-2">
                         <input
                             type="text"
                             placeholder="Enter User ID (e.g. QG-...)"
                             value={searchId}
                             onChange={(e) => setSearchId(e.target.value)}
-                            className="flex-1 bg-gray-900 border border-purple-800 rounded px-3 py-2 text-white focus:outline-none focus:border-purple-400 text-sm"
+                            className="flex-1 bg-[#11100E] border border-[#A89C86]/30 rounded px-3 py-2 text-[#E8E2D7] focus:outline-none focus:border-[#B39A62] text-sm"
                         />
                         <button
                             onClick={handleSendRequest}
-                            className="px-4 py-2 bg-purple-900/50 hover:bg-purple-800 border border-purple-500 rounded text-purple-300 font-bold transition-colors text-sm"
+                            className="px-4 py-2 bg-purple-900/50 hover:bg-purple-800 border border-purple-500 rounded text-[#E8E2D7] font-serif tracking-widest font-bold transition-colors text-sm"
                         >
                             Send
                         </button>
                     </div>
-                    {msg && <p className="text-xs text-purple-400 mt-2">{msg}</p>}
+                    {msg && <p className="text-xs text-[#B39A62] font-serif tracking-widest mt-2">{msg}</p>}
                 </div>
 
                 {/* Friend Requests (Received) */}
                 {pendingRequestsMe.length > 0 && (
                     <div className="mb-6">
-                        <h4 className="text-sm font-bold text-yellow-500 mb-2">Friend Requests</h4>
+                        <h4 className="text-sm font-bold text-[#E8E2D7] font-serif tracking-widest mb-2">Friend Requests</h4>
                         <div className="flex flex-col gap-2">
                             {pendingRequestsMe.map(req => (
-                                <div key={req.id} className="flex justify-between items-center p-3 bg-yellow-950/30 border border-yellow-900/50 rounded">
-                                    <span className="text-yellow-300">{profiles[req.user_id]?.name || req.user_id}</span>
+                                <div key={req.id} className="flex justify-between items-center p-3 bg-[#191714] border border-[#A89C86]/20 rounded">
+                                    <span className="text-[#E8E2D7]">{profiles[req.user_id]?.name || req.user_id}</span>
                                     <div className="flex gap-2">
-                                        <button onClick={() => handleAccept(req.user_id)} className="px-3 py-1 bg-green-900/50 text-green-400 rounded text-xs border border-green-700">Accept</button>
-                                        <button onClick={() => handleRemove(req.user_id)} className="px-3 py-1 bg-red-900/50 text-red-400 rounded text-xs border border-red-700">Decline</button>
+                                        <button onClick={() => handleAccept(req.user_id)} className="px-3 py-1 bg-[#B39A62] text-[#11100E] rounded text-xs font-bold border border-[#B39A62]">Accept</button>
+                                        <button onClick={() => handleRemove(req.user_id)} className="px-3 py-1 bg-transparent text-[#A89C86] hover:text-[#E8E2D7] rounded text-xs border border-[#A89C86]/30 hover:border-[#A89C86]">Decline</button>
                                     </div>
                                 </div>
                             ))}
@@ -127,7 +127,7 @@ export function FriendsMenu({ user, lang, onlineUsers, onClose, onChallenge }: F
 
                 {/* Friends List */}
                 <div>
-                    <h4 className="text-sm font-bold text-purple-400 mb-2">My Friends ({acceptedFriends.length})</h4>
+                    <h4 className="text-sm font-bold text-[#B39A62] font-serif tracking-widest mb-2">My Friends ({acceptedFriends.length})</h4>
                     {loading ? (
                         <p className="text-gray-500 text-sm text-center py-4">Loading...</p>
                     ) : acceptedFriends.length === 0 ? (
@@ -140,11 +140,11 @@ export function FriendsMenu({ user, lang, onlineUsers, onClose, onChallenge }: F
                                 const profile = profiles[otherId];
                                 
                                 return (
-                                    <div key={f.id} className="flex justify-between items-center p-3 bg-black/40 border border-purple-900/30 rounded group">
+                                    <div key={f.id} className="flex justify-between items-center p-3 bg-[#191714] border border-[#A89C86]/20 rounded group">
                                         <div className="flex flex-col">
                                             <div className="flex items-center gap-2">
                                                 <span className={`w-2 h-2 rounded-full ${isOnline ? 'bg-green-500' : 'bg-gray-600'}`}></span>
-                                                <span className="font-bold text-purple-200">{profile?.name || otherId}</span>
+                                                <span className="font-bold text-[#E8E2D7]">{profile?.name || otherId}</span>
                                             </div>
                                             <span className="text-[10px] text-gray-500 ml-4">ID: {otherId}</span>
                                         </div>
@@ -152,14 +152,14 @@ export function FriendsMenu({ user, lang, onlineUsers, onClose, onChallenge }: F
                                             {isOnline && onChallenge && (
                                                 <button 
                                                     onClick={() => onChallenge(otherId)}
-                                                    className="px-2 py-1 bg-blue-900/50 text-blue-400 rounded text-xs border border-blue-700 hover:bg-blue-800"
+                                                    className="px-2 py-1 bg-[#B39A62] text-[#11100E] rounded text-xs font-bold border border-[#B39A62] hover:bg-[#D0C8B6]"
                                                 >
                                                     Challenge
                                                 </button>
                                             )}
                                             <button 
                                                 onClick={() => handleRemove(otherId)}
-                                                className="px-2 py-1 bg-red-900/50 text-red-400 rounded text-xs border border-red-900 hover:bg-red-800"
+                                                className="px-2 py-1 bg-transparent text-[#A89C86] hover:text-[#E8E2D7] rounded text-xs border border-[#A89C86]/30 hover:border-[#A89C86]"
                                             >
                                                 Remove
                                             </button>

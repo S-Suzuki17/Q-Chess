@@ -734,7 +734,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
 
             {disconnectTimeLeft !== null && (
                 <div className="w-full mb-3 p-3 bg-red-950/80 border border-red-500 rounded-lg flex flex-col items-center justify-center animate-pulse shadow-[0_0_15px_rgba(239,68,68,0.5)]">
-                    <span className="text-red-400 font-bold text-sm md:text-base">
+                    <span className="text-[#E8E2D7] font-bold text-sm md:text-base">
                         {lang === 'ja' ? '⚠️ 相手の通信が切断されました。再接続を待っています...' : '⚠️ Opponent disconnected. Waiting for reconnection...'}
                     </span>
                     <span className="text-red-300 font-mono text-xl mt-1 font-black">
@@ -743,12 +743,12 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
                 </div>
             )}
 
-            <div className="flex justify-between w-full mb-4 px-4 items-center bg-gray-900/40 py-2 border-b border-cyan-900/50 relative">
+            <div className="flex justify-between w-full mb-4 px-4 items-center bg-[#191714]/80 py-3 border-b border-[#B39A62]/20 shadow-lg relative">
                 {/* White Player Info */}
-                <div className={`text-xl font-bold flex flex-col items-start gap-1 ${currentTurn === 'white' ? 'text-blue-400 drop-shadow-[0_0_5px_currentColor]' : 'text-[#A89C86]'} relative`}>
+                <div className={`text-xl font-bold flex flex-col items-start gap-1 ${currentTurn === 'white' ? 'text-[#E8E2D7] drop-shadow-[0_0_8px_rgba(232,226,215,0.4)]' : 'text-[#A89C86]'} relative`}>
                     <div className="flex items-center gap-2">
-                        {user?.avatar_url ? <img src={user.avatar_url} alt="" className="w-7 h-7 rounded-full object-cover border border-blue-400/50" /> : <div className="w-7 h-7 rounded-full bg-[#191714] border border-blue-400/50 flex items-center justify-center"><span className="text-xs">👤</span></div>} {whiteName} {whiteRatingToDisplay !== null && <span className="text-gray-400 text-sm">({whiteRatingToDisplay})</span>}
-                        {isCheck && currentTurn === 'white' && <span className="text-red-900 text-sm animate-pulse">(CHECK)</span>}
+                        {user?.avatar_url ? <img src={user.avatar_url} alt="" className="w-7 h-7 rounded-full object-cover border border-[#E8E2D7]/50" /> : <div className="w-7 h-7 rounded-full bg-[#191714] border border-[#E8E2D7]/50 flex items-center justify-center"><span className="text-xs">👤</span></div>} {whiteName} {whiteRatingToDisplay !== null && <span className="text-gray-400 text-sm">({whiteRatingToDisplay})</span>}
+                        {isCheck && currentTurn === 'white' && <span className="text-[#B39A62] text-sm animate-pulse font-serif tracking-widest">(CHECK)</span>}
                     </div>
                     <span className="text-2xl font-mono">{formatTime(timeLeftWhite)}</span>
                     {/* White Emote */}
@@ -766,7 +766,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
                 {/* Black Player Info */}
                 <div className={`text-xl font-bold flex flex-col items-end gap-1 ${currentTurn === 'black' ? 'text-red-900 drop-shadow-[0_0_5px_currentColor]' : 'text-[#A89C86]'} relative`}>
                     <div className="flex items-center gap-2">
-                        {isCheck && currentTurn === 'black' && <span className="text-red-900 text-sm animate-pulse">(CHECK)</span>}
+                        {isCheck && currentTurn === 'black' && <span className="text-[#B39A62] text-sm animate-pulse font-serif tracking-widest">(CHECK)</span>}
                         {blackRatingToDisplay !== null && <span className="text-gray-400 text-sm">({blackRatingToDisplay})</span>} {blackName} <div className="w-7 h-7 rounded-full bg-[#191714] border border-red-500/50 flex items-center justify-center"><span className="text-xs">🤖</span></div>
                     </div>
                     <span className="text-2xl font-mono">{formatTime(timeLeftBlack)}</span>
@@ -859,7 +859,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
             <div className="w-full flex-1 min-h-0 flex items-center justify-center">
                 <div className={`
                     grid grid-cols-8 grid-rows-8 border-4 bg-[#0b0c10] shadow-2xl w-full max-w-[calc(100dvh-260px)] aspect-square relative transition-all duration-300
-                    ${showCheckWarning ? 'border-[#B39A62]/70 shadow-[#B39A62]/20' : 'border-gray-700 shadow-gray-900'}
+                    ${showCheckWarning ? 'border-[#B39A62]/70 shadow-[#B39A62]/20' : 'border-[#A89C86]/30 shadow-gray-900'}
                 `}>
                 {Array.from({ length: 64 }).map((_, index) => {
                     const isFlipped = onlineRole === 'black';
@@ -937,7 +937,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
                         type="checkbox" 
                         checked={showMoveHints} 
                         onChange={(e) => setShowMoveHints(e.target.checked)} 
-                        className="rounded border-gray-700 bg-[#191714] text-cyan-500 focus:ring-cyan-500/50 w-4 h-4 cursor-pointer" 
+                        className="rounded border-[#A89C86]/30 bg-[#191714] text-cyan-500 focus:ring-cyan-500/50 w-4 h-4 cursor-pointer" 
                     />
                     {lang === 'ja' ? 'コマの移動範囲を表示' : 'Show movable range'}
                 </label>
@@ -945,7 +945,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
                 {!winner && onlineRole !== 'spectator' && (
                     <button
                         onClick={() => setShowResignConfirm(true)}
-                        className="px-3 py-1.5 bg-red-950/50 hover:bg-red-900/80 border border-red-800/80 hover:border-red-900/50 rounded text-xs text-red-400 hover:text-red-200 font-bold transition-all flex items-center gap-1.5 shadow-sm"
+                        className="px-3 py-1.5 bg-red-950/50 hover:bg-red-900/80 border border-red-800/80 hover:border-red-900/50 rounded text-xs text-[#E8E2D7] hover:text-red-200 font-bold transition-all flex items-center gap-1.5 shadow-sm"
                     >
                         <span>🏳️</span>
                         <span>{lang === 'ja' ? '投了' : 'Resign'}</span>
@@ -960,7 +960,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
             {/* Resign Confirmation Modal */}
             {showResignConfirm && (
                 <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 backdrop-blur-sm animate-fade-in">
-                    <div className="bg-gray-900 border border-red-500/50 rounded-xl p-6 max-w-sm w-full shadow-2xl flex flex-col items-center text-center">
+                    <div className="bg-[#161513] border border-[#B39A62]/30 rounded-xl p-8 max-w-sm w-full shadow-2xl flex flex-col items-center text-center">
                         <span className="text-4xl mb-3">🏳️</span>
                         <h3 className="text-lg font-bold text-[#E8E2D7] mb-2">
                             {lang === 'ja' ? '投了しますか？' : 'Resign Match?'}
@@ -971,7 +971,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
                         <div className="flex gap-3 w-full">
                             <button
                                 onClick={() => setShowResignConfirm(false)}
-                                className="flex-1 py-2.5 bg-[#191714] hover:bg-gray-700 border border-gray-600 rounded-lg text-sm text-gray-300 font-bold transition-colors"
+                                className="flex-1 py-2.5 bg-[#191714] hover:bg-gray-700 border border-gray-600 rounded-lg text-sm text-[#E8E2D7] font-bold transition-colors"
                             >
                                 {lang === 'ja' ? 'キャンセル' : 'Cancel'}
                             </button>
@@ -995,20 +995,20 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
                 <div className="fixed bottom-4 right-4 z-40">
                     <button
                         onClick={() => setShowEmoteMenu(prev => !prev)}
-                        className="w-14 h-14 bg-indigo-900 border-2 border-indigo-500 rounded-full flex items-center justify-center text-3xl shadow-[0_0_15px_rgba(99,102,241,0.5)] hover:scale-110 transition-transform"
+                        className="w-14 h-14 bg-[#191714] border-2 border-[#B39A62]/50 rounded-full flex items-center justify-center text-3xl shadow-[0_0_15px_rgba(179,154,98,0.3)] hover:scale-110 transition-transform"
                     >
                         💬
                     </button>
                     {showEmoteMenu && (
-                        <div className="absolute bottom-16 right-0 bg-gray-900 border border-indigo-500 rounded-xl p-2 flex flex-col gap-2 shadow-[0_0_20px_rgba(99,102,241,0.3)]">
+                        <div className="absolute bottom-16 right-0 bg-[#11100E] border border-[#B39A62]/30 rounded-xl p-2 flex flex-col gap-2 shadow-[0_0_20px_rgba(179,154,98,0.2)]">
                             {(Object.keys(EMOTES) as EmoteType[]).map(key => (
                                 <button
                                     key={key}
                                     onClick={() => sendEmote(key)}
-                                    className="flex items-center gap-3 px-4 py-2 hover:bg-indigo-900/50 rounded transition-colors whitespace-nowrap text-left"
+                                    className="flex items-center gap-3 px-4 py-2 hover:bg-[#2A2621] rounded transition-colors whitespace-nowrap text-left"
                                 >
                                     <span className="text-2xl">{EMOTES[key].emoji}</span>
-                                    <span className="text-gray-300 text-sm font-bold">{lang === 'ja' ? EMOTES[key].labelJa : EMOTES[key].labelEn}</span>
+                                    <span className="text-[#E8E2D7] text-sm font-bold">{lang === 'ja' ? EMOTES[key].labelJa : EMOTES[key].labelEn}</span>
                                 </button>
                             ))}
                         </div>
@@ -1067,9 +1067,9 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
 
             {promotionPending && (
                 <div className="fixed inset-0 z-50 bg-black/80 flex flex-col items-center justify-center p-4">
-                    <div className="bg-gray-900 border-2 border-cyan-500/50 p-6 rounded-lg max-w-sm w-full text-center">
-                        <h3 className="text-xl font-bold text-cyan-300 mb-2">{t.promotionTitle}</h3>
-                        <p className="text-cyan-500/70 text-sm mb-6">{t.promotionDesc}</p>
+                    <div className="bg-[#161513] border border-[#B39A62]/30 p-8 rounded-lg max-w-sm w-full text-center shadow-2xl">
+                        <h3 className="text-xl tracking-[0.2em] font-serif text-[#E8E2D7] mb-2">{t.promotionTitle}</h3>
+                        <p className="text-[#A89C86] text-xs tracking-widest mb-6 font-serif">{t.promotionDesc}</p>
                         <div className="grid grid-cols-2 gap-3 mb-6">
                             {(['Queen', 'Rook', 'Bishop', 'Knight'] as PieceType[]).map(pt => (
                                 <button
@@ -1086,7 +1086,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
                                         );
                                         setPromotionPending(null);
                                     }}
-                                    className="p-3 bg-cyan-950/40 border border-cyan-500/30 hover:bg-cyan-800/50 hover:border-cyan-400 rounded text-cyan-300 font-bold transition-all"
+                                    className="p-4 bg-[#191714] border border-[#B39A62]/30 hover:bg-[#B39A62] hover:text-[#11100E] rounded text-[#E8E2D7] font-serif tracking-widest transition-all"
                                 >
                                     {pt}
                                 </button>
@@ -1109,7 +1109,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
                                 }
                                 setPromotionPending(null);
                             }}
-                            className="w-full p-3 bg-red-950/40 border border-red-500/30 hover:bg-red-900/20 hover:border-red-400 rounded text-red-300 font-bold transition-all text-sm"
+                            className="w-full p-3 bg-red-950/40 border border-red-500/30 hover:bg-[#2A2621] hover:border-red-400 rounded text-red-300 font-bold transition-all text-sm"
                         >
                             {t.promotionCancel}
                         </button>

@@ -44,17 +44,17 @@ export function LiveMatchesMenu({ lang, onClose, onSpectate }: LiveMatchesMenuPr
 
     return (
         <div className="fixed inset-0 bg-black/90 z-50 flex flex-col items-center justify-center p-4">
-            <div className="bg-gray-900 border border-red-500/50 p-6 rounded-lg max-w-md w-full shadow-[0_0_50px_rgba(239,68,68,0.2)] max-h-[80vh] overflow-y-auto">
+            <div className="bg-[#11100E] border border-[#B39A62]/30 p-6 rounded-lg max-w-md w-full shadow-2xl max-h-[80vh] overflow-y-auto">
                 <div className="flex justify-between items-center mb-6">
-                    <h3 className="text-2xl font-bold text-red-300 flex items-center gap-2">
-                        <span className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></span>
+                    <h3 className="text-2xl font-bold text-[#E8E2D7] font-serif tracking-widest flex items-center gap-2">
+                        <span className="w-3 h-3 bg-[#B39A62] rounded-full animate-pulse"></span>
                         Live Matches
                     </h3>
-                    <button onClick={onClose} className="text-gray-500 hover:text-white">✕</button>
+                    <button onClick={onClose} className="text-[#A89C86] hover:text-[#E8E2D7]">✕</button>
                 </div>
 
                 {loading && matches.length === 0 ? (
-                    <p className="text-gray-500 text-sm text-center py-4">Loading active matches...</p>
+                    <p className="text-[#A89C86] text-sm text-center py-4">Loading active matches...</p>
                 ) : matches.length === 0 ? (
                     <p className="text-gray-600 text-sm text-center py-4">No active matches at the moment.</p>
                 ) : (
@@ -72,11 +72,11 @@ export function LiveMatchesMenu({ lang, onClose, onSpectate }: LiveMatchesMenuPr
                                 >
                                     <div className="flex flex-col">
                                         <div className="flex items-center gap-3 text-sm">
-                                            <span className="font-bold text-gray-300">⚪ {whiteName}</span>
+                                            <span className="font-bold text-[#E8E2D7]">⚪ {whiteName}</span>
                                             <span className="text-red-500 font-bold text-[10px]">VS</span>
-                                            <span className="font-bold text-gray-300">⚫ {blackName}</span>
+                                            <span className="font-bold text-[#E8E2D7]">⚫ {blackName}</span>
                                         </div>
-                                        <span className="text-[10px] text-gray-500 mt-1">Playing for {duration} min</span>
+                                        <span className="text-[10px] text-[#A89C86] mt-1">Playing for {duration} min</span>
                                     </div>
                                     <span className="text-red-400 font-bold text-xs opacity-0 group-hover:opacity-100 transition-opacity">
                                         Spectate ▶
