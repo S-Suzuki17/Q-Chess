@@ -22,10 +22,10 @@ export class EvalV3 extends EvalV1 {
             // Check if the piece's identity is fully collapsed to exactly KING
             if (p.state === PIECE_KING) {
                 if (p.owner === player) {
+                    // 自玉が確定するのは一番ダメ (ペナルティ)
                     score -= KING_CONFIRMED_VALUE;
-                } else {
-                    score += KING_CONFIRMED_VALUE;
                 }
+                // 相手の玉を確定させるボーナスはユーザーの要望により削除
             }
         }
 
