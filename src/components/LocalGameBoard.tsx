@@ -826,60 +826,64 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
             </div>
             
             {showCheckWarning && !winner && (
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 pointer-events-none animate-shake">
-                    <div className="text-6xl md:text-7xl font-black text-red-900 whitespace-nowrap tracking-[0.2em] glitch-text drop-shadow-[0_0_20px_rgba(239,68,68,1)]" data-text={t.quantumCheck}>
-                        {t.quantumCheck}
+                <div className="absolute inset-0 z-40 pointer-events-none flex items-center justify-center">
+                    <div className="bg-black/60 backdrop-blur-sm px-8 py-3 border border-[#B39A62]/50 rounded animate-stamp">
+                        <span className="text-xl md:text-2xl font-serif font-bold text-[#B39A62] tracking-[0.3em] uppercase">
+                            {t.quantumCheck}
+                        </span>
                     </div>
                 </div>
             )}
 
             {winner && (
-                <div className="absolute inset-0 bg-black/80 flex flex-col items-center justify-center z-50 backdrop-blur-md rounded-lg border-2 border-gray-700 animate-shake">
-                    <div className="text-4xl sm:text-5xl md:text-8xl font-black text-[#E8E2D7] drop-shadow-[0_0_30px_rgba(255,255,255,1)] mb-8 tracking-widest md:tracking-[0.3em] animate-stamp glitch-text text-center px-4" data-text={winner === 'draw' ? 'DRAW' : 'CHECKMATE'}>
-                        {winner === 'draw' ? 'DRAW' : 'CHECKMATE'}
-                    </div>
-                    <div className={`text-xl sm:text-3xl md:text-4xl font-bold mb-12 px-4 ${winner === 'draw' ? 'text-gray-400 drop-shadow-[0_0_15px_rgba(156,163,175,0.8)]' : winner === 'white_wins' ? 'text-blue-400 drop-shadow-[0_0_15px_rgba(96,165,250,0.8)]' : 'text-red-900 drop-shadow-[0_0_15px_rgba(239,68,68,0.8)]'}`}>
-                        {winner === 'draw' 
-                            ? 'Draw (Stalemate)' 
-                            : winner === 'white_wins' 
-                                ? `${whiteName} (${t.whiteWon})` 
-                                : `${blackName} (${t.blackWon})`}
-                    </div>
-                    <div className="flex gap-4 mt-8">
-                        <button 
-                            onClick={onHome || (() => window.location.reload())}
-                            className="px-6 py-4 bg-gray-900/50 hover:bg-[#191714]/80 border border-gray-500/50 rounded-lg text-lg font-bold tracking-wider transition-all text-gray-300"
-                        >
-                            🏠 {t.home}
-                        </button>
-                        <button 
-                            onClick={() => window.location.reload()}
-                            className="px-8 py-4 bg-white/10 hover:bg-white/20 border-2 border-white/50 rounded-lg text-2xl font-bold tracking-wider transition-all hover:scale-105 hover:shadow-[0_0_20px_rgba(255,255,255,0.3)]"
-                        >
-                            {t.rematch}
-                        </button>
-                        <button 
-                            onClick={() => {
-                                const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(moveHistory, null, 2));
-                                const downloadAnchorNode = document.createElement('a');
-                                downloadAnchorNode.setAttribute("href", dataStr);
-                                downloadAnchorNode.setAttribute("download", `quantum_chess_record_${Date.now()}.json`);
-                                document.body.appendChild(downloadAnchorNode); // required for firefox
-                                downloadAnchorNode.click();
-                                downloadAnchorNode.remove();
-                            }}
-                            className="px-6 py-4 bg-cyan-900/30 hover:bg-cyan-800/50 border border-cyan-500/50 rounded-lg text-lg font-bold tracking-wider transition-all text-cyan-300 flex flex-col items-center justify-center"
-                        >
-                            <span className="text-sm opacity-70">{t.saveReplay}</span>
-                            {t.downloadJson}
-                        </button>
-                    </div>
-                    {savedRecordId && (
-                        <div className="mt-8 text-sm text-gray-400 flex flex-col items-center gap-2 bg-black/40 p-4 rounded-lg border border-gray-700">
-                            <span>{t.cloudRecordSaved}</span>
-                            <span className="font-mono text-xs select-all text-cyan-500 bg-black p-2 rounded">{savedRecordId}</span>
+                <div className="absolute inset-0 bg-[#11100E]/90 flex flex-col items-center justify-center z-50 backdrop-blur-sm rounded-lg border border-[#B39A62]/20">
+                    <div className="flex flex-col items-center gap-6 px-6 max-w-full">
+                        <div className="text-3xl sm:text-4xl md:text-5xl font-serif font-bold text-[#E8E2D7] tracking-[0.2em] text-center animate-stamp">
+                            {winner === 'draw' ? 'DRAW' : 'CHECKMATE'}
                         </div>
-                    )}
+                        <div className="w-16 h-px bg-[#B39A62]/50"></div>
+                        <div className={`text-base sm:text-lg md:text-xl font-serif tracking-widest text-center ${winner === 'draw' ? 'text-[#A89C86]' : winner === 'white_wins' ? 'text-[#E8E2D7]' : 'text-[#A89C86]'}`}>
+                            {winner === 'draw' 
+                                ? 'Draw (Stalemate)' 
+                                : winner === 'white_wins' 
+                                    ? `${whiteName} (${t.whiteWon})` 
+                                    : `${blackName} (${t.blackWon})`}
+                        </div>
+                        <div className="flex flex-wrap gap-3 mt-4 justify-center">
+                            <button 
+                                onClick={onHome || (() => window.location.reload())}
+                                className="px-5 py-3 bg-[#191714] hover:bg-[#2A2621] border border-[#A89C86]/30 rounded text-sm font-serif tracking-widest transition-colors text-[#A89C86] hover:text-[#E8E2D7]"
+                            >
+                                {t.home}
+                            </button>
+                            <button 
+                                onClick={() => window.location.reload()}
+                                className="px-5 py-3 bg-[#B39A62] hover:bg-[#D0C8B6] text-[#11100E] rounded text-sm font-serif font-bold tracking-widest transition-colors"
+                            >
+                                {t.rematch}
+                            </button>
+                            <button 
+                                onClick={() => {
+                                    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(moveHistory, null, 2));
+                                    const downloadAnchorNode = document.createElement('a');
+                                    downloadAnchorNode.setAttribute("href", dataStr);
+                                    downloadAnchorNode.setAttribute("download", `quantum_chess_record_${Date.now()}.json`);
+                                    document.body.appendChild(downloadAnchorNode);
+                                    downloadAnchorNode.click();
+                                    downloadAnchorNode.remove();
+                                }}
+                                className="px-5 py-3 bg-[#191714] hover:bg-[#2A2621] border border-[#A89C86]/30 rounded text-sm font-serif tracking-widest transition-colors text-[#A89C86] hover:text-[#E8E2D7]"
+                            >
+                                {t.downloadJson}
+                            </button>
+                        </div>
+                        {savedRecordId && (
+                            <div className="mt-2 text-xs text-[#A89C86] flex flex-col items-center gap-1 bg-black/30 p-3 rounded border border-[#A89C86]/10">
+                                <span>{t.cloudRecordSaved}</span>
+                                <span className="font-mono text-[10px] select-all text-[#B39A62] bg-black/50 px-2 py-1 rounded">{savedRecordId}</span>
+                            </div>
+                        )}
+                    </div>
                 </div>
             )}
 
@@ -901,7 +905,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
             <div className="w-full flex-1 min-h-0 flex items-center justify-center">
                 <div className={`
                     grid grid-cols-8 grid-rows-8 border-4 bg-[#0b0c10] shadow-2xl w-full max-w-[calc(100dvh-260px)] aspect-square relative transition-all duration-300
-                    ${showCheckWarning ? 'border-red-900/50 shadow-red-900/50' : 'border-gray-700 shadow-gray-900'}
+                    ${showCheckWarning ? 'border-[#B39A62]/70 shadow-[#B39A62]/20' : 'border-gray-700 shadow-gray-900'}
                 `}>
                 {Array.from({ length: 64 }).map((_, index) => {
                     const isFlipped = onlineRole === 'black';
