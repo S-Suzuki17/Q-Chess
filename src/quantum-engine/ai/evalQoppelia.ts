@@ -52,12 +52,26 @@ export class EvalQoppelia implements Evaluator {
         return maxVal;
     }
 
-    // 1. Piece Value (Base material logic considering quantum superposition)
+    // 1. Piece Value (Expected value based on superposition probabilities)
     private evalPieceValue(state: GameState, player: PlayerColor): number {
         let score = 0;
         for (const p of state.pieces) {
             if (!p.alive) continue;
-            const val = this.getMaxVal(p.state); // Baseline greedy valuation
+            
+            let expectedValue = 0;
+            let possibleTypesCount = 0;
+            const types = [PIECE_PAWN, PIECE_KNIGHT, PIECE_BISHOP, PIECE_ROOK, PIECE_QUEEN, PIECE_KING];
+            
+            for (const t of types) {
+                if (hasType(p.state, t)) {
+                    expectedValue += PIECE_VALUES[t];
+                    possibleTypesCount++;
+                }
+            }
+            
+            // Average value of possibilities
+            const val = possibleTypesCount > 0 ? (expectedValue / possibleTypesCount) : 0;
+            
             if (p.owner === player) score += val;
             else score -= val;
         }
@@ -78,53 +92,67 @@ export class EvalQoppelia implements Evaluator {
 
     // 3. Mobility (Number of legal moves available)
     private evalMobility(state: GameState, player: PlayerColor): number {
-        let score = 0;
-        
-        // Evaluate for current side to move
-        for (const p of state.pieces) {
-            if (!p.alive || p.owner !== state.sideToMove) continue;
-            const movesCount = generateLegalMoves(state, p.id).length;
-            if (p.owner === player) score += movesCount;
-            else score -= movesCount;
-        }
-        
-        // Temporarily swap sideToMove to evaluate opponent mobility
-        const tempState = { ...state, sideToMove: state.sideToMove === 'white' ? 'black' as PlayerColor : 'white' as PlayerColor };
-        for (const p of tempState.pieces) {
-            if (!p.alive || p.owner !== tempState.sideToMove) continue;
-            const movesCount = generateLegalMoves(tempState, p.id).length;
-            if (p.owner === player) score += movesCount;
-            else score -= movesCount;
-        }
-
-        return score;
+        // Simplified for performance in MCTS
+        return 0;
     }
 
-    // 4. Candidate Allocation (How flexible the pieces are)
+    // 4. Candidate Allocation (Superposition Bonus)
     private evalCandidateAllocation(state: GameState, player: PlayerColor): number {
         let score = 0;
         for (const p of state.pieces) {
             if (!p.alive) continue;
             const c = this.getCount(p.state);
-            // Non-linear allocation bonus: Count 6 is incredibly valuable. Count 1 or 2 is poor.
-            // Using a simple square or cubic scale gives massive bonus to high candidates.
-            const flexValue = c * c; 
+            const flexValue = c * 60; // SUPERPOSITION_BONUS equivalent
             if (p.owner === player) score += flexValue;
             else score -= flexValue;
         }
         return score;
     }
 
-    // 5. King Candidate (Safety and presence of King possibilities)
+    // 5. King Candidate (King Ambiguity & Reveal Penalty)
     private evalKingCandidate(state: GameState, player: PlayerColor): number {
         let score = 0;
+        
+        let whiteKingRevealed = false;
+        let blackKingRevealed = false;
+        let whiteKingCandidates = 0;
+        let blackKingCandidates = 0;
+
         for (const p of state.pieces) {
             if (!p.alive) continue;
-            if (hasType(p.state, PIECE_KING)) {
-                if (p.owner === player) score += 1.0;
-                else score -= 1.0;
+            const isKing = p.state === PIECE_KING;
+            const couldBeKing = hasType(p.state, PIECE_KING);
+
+            if (isKing) {
+                if (p.owner === 'white') whiteKingRevealed = true;
+                else blackKingRevealed = true;
+            } else if (couldBeKing) {
+                if (p.owner === 'white') whiteKingCandidates++;
+                else blackKingCandidates++;
             }
         }
+
+        const KING_AMBIGUITY_BONUS = 400;
+        const OWN_KING_REVEAL_PENALTY = 1200;
+
+        if (!whiteKingRevealed && whiteKingCandidates > 1) {
+            if (player === 'white') score += KING_AMBIGUITY_BONUS;
+            else score -= KING_AMBIGUITY_BONUS;
+        }
+        if (!blackKingRevealed && blackKingCandidates > 1) {
+            if (player === 'black') score += KING_AMBIGUITY_BONUS;
+            else score -= KING_AMBIGUITY_BONUS;
+        }
+
+        if (whiteKingRevealed) {
+            if (player === 'white') score -= OWN_KING_REVEAL_PENALTY;
+            else score += OWN_KING_REVEAL_PENALTY;
+        }
+        if (blackKingRevealed) {
+            if (player === 'black') score -= OWN_KING_REVEAL_PENALTY;
+            else score += OWN_KING_REVEAL_PENALTY;
+        }
+
         return score;
     }
 
