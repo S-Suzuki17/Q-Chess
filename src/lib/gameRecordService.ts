@@ -181,7 +181,7 @@ export async function getTopProfiles(timeControl?: string): Promise<Profile[]> {
     const { data, error } = await supabase
         .from('profiles')
         .select('*')
-        .not('id', 'like', 'GUEST-%')
+        .not('id', 'like', 'GUEST-%').not('id', 'like', 'anon_%')
         .order(ratingColumn, { ascending: false })
         .limit(10);
     
