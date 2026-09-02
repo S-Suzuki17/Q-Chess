@@ -57,17 +57,22 @@ export class EvalV3 implements Evaluator {
 
         if (count === 0) return 0;
 
-        // 【修正点】
-        // 以前は (maxVal * 0.7) + (avgVal * 0.3) だったため、
-        // 「可能性（count）が減るほど、平均値が上がり、評価値が高くなる」というバグがあった。
-        // これにより、AIは自分のコマの正体をわざと明かして評価値を稼ごうとしていた。
-        //
-        // 【新しい評価ロジック】
-        // コマの価値は「最大ポテンシャル（maxVal）」をベースとする。
-        // さらに、「正体が隠されている（countが多い）ほど価値が高い」とする。
-        // 1つの正体につき +0.5 の「秘匿ボーナス」を与える。
+        const isConfirmed = count === 1;
+        const advancement = piece.owner === 'white' ? (7 - piece.position.row) : piece.position.row;
+
+        // 1. 基本の秘匿ボーナス (可能性が多く残っていること自体へのボーナス)
         const hiddenBonus = (count - 1) * 0.5;
 
-        return maxVal + hiddenBonus;
+        // 2. 前進ボーナス (敵陣へ攻め込むことの評価)
+        // ユーザー要望: 「自分の駒の種類を確定させないで敵陣を責めるのが最善」
+        // 正体を確定させてしまったコマが前進しても少ししか評価されないが、
+        // 未確定（可能性を残した状態）で前進すると非常に高く評価される。
+        let positionalBonus = advancement * 0.3;
+        if (!isConfirmed) {
+            // 未確定のまま進軍すると大きなボーナス (+0.7追加で 合計1.0/マス)
+            positionalBonus += advancement * 0.7;
+        }
+
+        return maxVal + hiddenBonus + positionalBonus;
     }
 }
