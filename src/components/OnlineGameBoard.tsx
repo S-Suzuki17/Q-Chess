@@ -157,7 +157,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
                 const { data } = await supabase
                     .from('profiles')
                     .select('name')
-                    .eq('id', cleanId)
+                    .eq('id', targetId)
                     .single();
                 if (data?.name) {
                     setFetchedOpponentName(data.name);
