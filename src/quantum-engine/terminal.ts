@@ -98,14 +98,16 @@ export function getWinner(state: GameState): PlayerColor | 'draw' | null {
                 const type = 1 << i;
                 if ((move.requiredTypes & type) !== 0) {
                     try {
-                        applyMove(state, {
+                        const nextState = applyMove(state, {
                             pieceId: piece.id,
                             target: move.target,
                             chosenType: type,
                             promotionTarget: (type === PIECE_PAWN && (move.target.row === 0 || move.target.row === 7)) ? PIECE_QUEEN : undefined
                         });
-                        hasAnyMove = true;
-                        break checkMoves;
+                        if (!isPlayerInCheck(state.sideToMove, nextState)) {
+                            hasAnyMove = true;
+                            break checkMoves;
+                        }
                     } catch (e) {}
                 }
             }

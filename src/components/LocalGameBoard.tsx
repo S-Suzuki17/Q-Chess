@@ -319,76 +319,30 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
         };
     }, [roomId, user, onlineRole, triggerEmote, playMoveSound, opponentId]);
 
-    // CPUターンの処理
+    // CPU
     useEffect(() => {
         if (currentTurn === 'black' && !winner && !roomId) {
             const timer = setTimeout(async () => {
-                if (cpuLevel && cpuLevel >= 4) {
-                    // Level 4, 5: サーバーレスAI（深い読み）
-                    try {
-                        const poolData = {
-                            piecePossibilities: Object.fromEntries(
-                                Array.from(pool.piecePossibilities.entries()).map(([k, v]) => [k, Array.from(v)])
-                            )
-                        };
-                        const res = await fetch('/api/ai-move', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                level: cpuLevel,
-                                tokens,
-                                poolData,
-                                cpuPlayer: 'black',
-                                timeControl
-                            })
-                        });
-                        const data = await res.json();
-                        if (data.move) {
-                            const aiToken = tokens.find(t => t.id === data.move.tokenId);
-                            if (!aiToken) return;
-                            executeMove(
-                                aiToken,
-                                data.move.targetRow,
-                                data.move.targetCol,
-                                data.move.possibleTypes,
-                                tokens.find(t => t.row === data.move.targetRow && t.col === data.move.targetCol),
-                                true,
-                                data.move.promotedTo
-                            );
-                        } else {
-                            // If CPU has no valid moves, it passes (e.g. stalemate)
-                            setCurrentTurn('white');
-                        }
-                    } catch (err) {
-                        console.error("AI fetch failed, falling back to local AI:", err);
-                        const { calculateCPUMove } = await import('../lib/AIEngine');
-                        const move = calculateCPUMove(3, tokens, pool, 'black');
-                        if (move) {
-                            const aiToken = tokens.find(t => t.id === move.tokenId);
-                            if (aiToken) {
-                                const targetToken = tokens.find(t => t.row === move.targetRow && t.col === move.targetCol);
-                                executeMove(aiToken, move.targetRow, move.targetCol, move.possibleTypes, targetToken, true, move.promotedTo);
-                            } else {
-                                setCurrentTurn('white');
-                            }
-                        } else {
-                            setCurrentTurn('white');
-                        }
-                    }
-                } else {
-                    // Level 1~3: ブラウザローカルAI
+                try {
                     const { calculateCPUMove } = await import('../lib/AIEngine');
                     const move = calculateCPUMove(cpuLevel || 1, tokens, pool, 'black');
+                    
                     if (move) {
                         const aiToken = tokens.find(t => t.id === move.tokenId);
-                        if (!aiToken) return;
-                        const targetToken = tokens.find(t => t.row === move.targetRow && t.col === move.targetCol);
-                        executeMove(aiToken, move.targetRow, move.targetCol, move.possibleTypes, targetToken, true, move.promotedTo);
+                        if (aiToken) {
+                            const targetToken = tokens.find(t => t.row === move.targetRow && t.col === move.targetCol);
+                            executeMove(aiToken, move.targetRow, move.targetCol, move.possibleTypes, targetToken, true, move.promotedTo);
+                        } else {
+                            setCurrentTurn('white');
+                        }
                     } else {
                         setCurrentTurn('white');
                     }
+                } catch (err) {
+                    console.error("AI execution failed:", err);
+                    setCurrentTurn('white');
                 }
-            }, 500); // サーバーレス呼び出しの場合はレスポンス時間が追加されるので少し短めに
+            }, 50);
             return () => clearTimeout(timer);
         }
     }, [currentTurn, winner, tokens, pool, cpuLevel]);
