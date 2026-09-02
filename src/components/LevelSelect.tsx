@@ -17,7 +17,7 @@ import { InteractiveTutorial } from './InteractiveTutorial';
 interface LevelSelectProps {
     lang: Language;
     user: User;
-    onSelect: (level: number, tc: TimeControl) => void;
+    onSelect: (tc: TimeControl) => void;
     onOnlineMatch?: (roomId: string, role: 'white' | 'black' | 'spectator', matchMode: 'random' | 'private' | 'ranked', tc: TimeControl, opponentId?: string) => void;
     onStartGlobalMatch?: (tcSeconds: number) => void;
     onReplay?: (record: GameRecord) => void;
@@ -42,7 +42,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
     const [leaderboard, setLeaderboard] = React.useState<Profile[]>([]);
     const [loadingLeaderboard, setLoadingLeaderboard] = React.useState(false);
     const [leaderboardCategory, setLeaderboardCategory] = React.useState<TimeControl>('10m');
-    const [pendingAction, setPendingAction] = React.useState<{ type: 'cpu' | 'ranked' | 'random' | 'host' | 'join'; level?: number; roomId?: string } | null>(null);
+    const [pendingAction, setPendingAction] = React.useState<{ type: 'cpu' | 'ranked' | 'random' | 'host' | 'join'; roomId?: string } | null>(null);
     const [userProfile, setUserProfile] = React.useState<Profile | null>(null);
     const [userStats, setUserStats] = React.useState<UserStats | null>(null);
     const [showAccount, setShowAccount] = React.useState(false);
@@ -234,7 +234,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
     };
 
     const handleVsCpuClick = () => {
-        setPendingAction({ type: 'cpu', level: 5 });
+        setPendingAction({ type: 'cpu' });
     };
 
     
@@ -259,7 +259,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
         setPendingAction(null);
 
         if (action.type === 'cpu') {
-            onSelect(action.level || 5, tc);
+            onSelect(tc);
         } else if (action.type === 'ranked') {
             startRandomMatch('ranked', tc);
         } else if (action.type === 'random') {

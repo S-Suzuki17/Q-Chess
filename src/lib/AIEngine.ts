@@ -12,7 +12,7 @@ export interface AIMove {
     promotedTo?: PieceType;
 }
 
-export function calculateCPUMove(level: number, tokens: Token[], pool: IdentityPool, cpuPlayer: 'white' | 'black' = 'black'): AIMove | null {
+export function calculateCPUMove(tokens: Token[], pool: IdentityPool, cpuPlayer: 'white' | 'black' = 'black'): AIMove | null {
     const qState = legacyToQuantumState(tokens, pool, cpuPlayer);
     
     // CPU level is locked to MAX power for all difficulties
