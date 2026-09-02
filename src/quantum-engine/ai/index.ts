@@ -5,3 +5,4 @@ export * from './evalV2';
 export * from './mcts';
 export * from './tt';
 export * from './evalV3';
+export * from './evalQoppelia';
