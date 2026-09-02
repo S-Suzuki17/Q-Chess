@@ -265,16 +265,20 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
 
     // Timer sync
     useEffect(() => {
-        if (!gameState || gameState.gameOver) {
-            if (gameState?.gameOver && typeof window !== 'undefined') {
+        if (!gameState) return;
+        
+        if (gameState.gameOver) {
+            setTimeLeftWhite(Math.max(0, Math.floor(gameState.clock.white / 1000)));
+            setTimeLeftBlack(Math.max(0, Math.floor(gameState.clock.black / 1000)));
+            if (typeof window !== 'undefined') {
                 localStorage.removeItem('qg_active_online_match');
             }
             return;
         }
-        
+
+        const localStartTime = Date.now();
         const updateClocks = () => {
-            const now = Date.now();
-            const elapsed = now - gameState.clock.lastMoveAt;
+            const elapsed = Date.now() - localStartTime;
             let w = gameState.clock.white;
             let b = gameState.clock.black;
             if (gameState.turn === 0) w -= elapsed;
