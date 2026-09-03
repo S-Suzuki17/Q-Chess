@@ -9,9 +9,9 @@ export const metadata: Metadata = {
 
 export default function RulesPage() {
   return (
-    <div className="min-h-screen bg-[#050505] text-gray-300 font-sans p-6 md:p-12 overflow-y-auto">
+    <div className="min-h-screen bg-[#050505] text-gray-300 font-mono p-6 md:p-12 overflow-y-auto">
       <div className="max-w-4xl mx-auto pb-16">
-        <Link href="/" className="text-cyan-500 hover:text-cyan-400 text-sm mb-8 inline-block tracking-widest font-bold">
+        <Link href="/" className="text-[#D4B872] hover:text-white transition-colors text-sm mb-8 inline-block tracking-widest font-bold">
           &larr; BACK TO Q-GAMBIT
         </Link>
 
@@ -107,9 +107,9 @@ export default function RulesPage() {
           </div>
         </section>
 
-        <div className="mt-16 pt-8 border-t border-gray-900 text-center text-sm text-gray-500">
+        <div className="mt-16 pt-8 border-t border-[#3A3224] text-center text-sm text-gray-500">
           <p className="mb-4">For inquiries, bug reports, or feature requests, please visit our GitHub repository.</p>
-          <a href="https://github.com/S-Suzuki17/Q-Chess" target="_blank" rel="noopener noreferrer" className="text-cyan-500 hover:text-cyan-400">
+          <a href="https://github.com/S-Suzuki17/Q-Chess" target="_blank" rel="noopener noreferrer" className="text-[#D4B872] hover:text-white transition-colors">
             github.com/S-Suzuki17/Q-Chess
           </a>
         </div>
