@@ -323,7 +323,9 @@ export const dict = {
         global: "GLOBAL",
         mine: "MY GAMES",
     },
-    zh: {
+zh: {
+        privacyPolicy: 'Privacy Policy',
+        rulesGuide: 'READ RULES & STRATEGY GUIDE',
         timeLimit: "用时限制",
         tc10s: "每步10秒",
         tc3m: "每方3分钟",
@@ -472,7 +474,9 @@ export const dict = {
         global: "全局",
         mine: "我的比赛",
     },
-    ru: {
+ru: {
+        privacyPolicy: 'Privacy Policy',
+        rulesGuide: 'READ RULES & STRATEGY GUIDE',
         timeLimit: "Контроль времени",
         tc10s: "10 сек / ход",
         tc3m: "3 мин на партию",
@@ -621,7 +625,9 @@ export const dict = {
         global: "ГЛОБАЛЬНЫЙ",
         mine: "МОИ ИГРЫ",
     },
-    fr: {
+fr: {
+        privacyPolicy: 'Privacy Policy',
+        rulesGuide: 'READ RULES & STRATEGY GUIDE',
         timeLimit: "Limite de temps",
         tc10s: "10s / coup",
         tc3m: "3 min / joueur",
@@ -770,7 +776,9 @@ export const dict = {
         global: "GLOBAL",
         mine: "MES JEUX",
     },
-    de: {
+de: {
+        privacyPolicy: 'Privacy Policy',
+        rulesGuide: 'READ RULES & STRATEGY GUIDE',
         timeLimit: "Bedenkzeit",
         tc10s: "10s / Zug",
         tc3m: "3 Min / Spieler",
@@ -919,7 +927,9 @@ export const dict = {
         global: "GLOBAL",
         mine: "MEINE SPIELE",
     },
-    es: {
+es: {
+        privacyPolicy: 'Privacy Policy',
+        rulesGuide: 'READ RULES & STRATEGY GUIDE',
         timeLimit: "Límite de tiempo",
         tc10s: "10s / jugada",
         tc3m: "3 min / jugador",
