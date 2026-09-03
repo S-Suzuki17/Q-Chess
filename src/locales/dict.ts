@@ -12,6 +12,8 @@ export const LANGUAGES: { code: Language; label: string; flag: string }[] = [
 
 export const dict = {
     en: {
+        privacyPolicy: 'Privacy Policy',
+        rulesGuide: 'READ RULES & STRATEGY GUIDE',
         timeLimit: "TIME LIMIT",
         tc10s: "10s / move",
         tc3m: "3 min / player",
@@ -168,6 +170,8 @@ export const dict = {
         mine: "MY GAMES",
     },
     ja: {
+        privacyPolicy: 'プライバシーポリシー',
+        rulesGuide: 'ルール＆戦略ガイドを読む',
         timeLimit: "持ち時間",
         tc10s: "一手10秒",
         tc3m: "3分切れ負け",

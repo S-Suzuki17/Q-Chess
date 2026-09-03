@@ -451,7 +451,7 @@ export default function Home() {
 
                     {/* Footer */}
                     <footer className="w-full max-w-4xl mt-4 mb-4 text-center text-gray-500 text-xs font-sans relative z-[200]">
-                        <Link href="/privacy" className="hover:text-[#D4B872] transition-colors relative z-[200] cursor-pointer pointer-events-auto">Privacy Policy</Link>
+                        <Link href="/privacy" className="hover:text-[#D4B872] transition-colors relative z-[200] cursor-pointer pointer-events-auto">{dict[lang]?.privacyPolicy || 'Privacy Policy'}</Link>
                         <span className="mx-2">|</span>
                         <span>&copy; 2026 Q-GAMBIT</span>
                     </footer>

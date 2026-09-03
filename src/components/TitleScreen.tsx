@@ -222,7 +222,7 @@ export function TitleScreen({ lang, onLogin }: TitleScreenProps) {
                 </p>
                 <div className="flex gap-4">
                     <Link href="/rules" className="text-[#D4B872] hover:text-white transition-colors text-sm font-bold tracking-widest underline underline-offset-4 decoration-[#D4B872]/50 hover:decoration-white relative z-[200] cursor-pointer">
-                        READ RULES & STRATEGY GUIDE
+                        {(t as any)?.rulesGuide || 'READ RULES & STRATEGY GUIDE'}
                     </Link>
                 </div>
             </div>
