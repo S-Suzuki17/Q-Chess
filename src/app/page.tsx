@@ -446,13 +446,7 @@ export default function Home() {
 
             {gameState === 'title' && (
                 <>
-                    {/* AdBanner */}
-                    <div className="w-full max-w-4xl mt-8">
-                        <AdBanner 
-                            adClient={process.env.NEXT_PUBLIC_ADSENSE_CLIENT || "ca-pub-1116866075179199"} 
-                            adSlot={process.env.NEXT_PUBLIC_ADSENSE_SLOT || "XXXXXXXXXX"} 
-                        />
-                    </div>
+                    {/* Removed AdBanner to comply with Google AdSense Policies (No ads on login/navigation screens) */}
 
                     {/* Footer */}
                     <footer className="w-full max-w-4xl mt-4 mb-4 text-center text-gray-500 text-xs font-sans">
