@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 
 export default function RulesPage() {
   return (
-    <div className="min-h-screen bg-[#050505] text-gray-300 font-mono p-6 md:p-12 overflow-y-auto">
+    <div className="h-[100dvh] w-full bg-[#050505] text-gray-300 font-mono p-6 md:p-12 overflow-y-auto">
       <div className="max-w-4xl mx-auto pb-16">
         <Link href="/" className="text-[#D4B872] hover:text-white transition-colors text-sm mb-8 inline-block tracking-widest font-bold">
           &larr; BACK TO Q-GAMBIT

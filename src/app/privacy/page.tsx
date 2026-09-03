@@ -8,8 +8,8 @@ export const metadata: Metadata = {
 
 export default function PrivacyPolicy() {
   return (
-    <div className="min-h-screen bg-[#050505] text-gray-300 font-mono p-6 md:p-12 overflow-y-auto h-screen">
-      <div className="max-w-3xl mx-auto">
+    <div className="h-[100dvh] w-full bg-[#050505] text-gray-300 font-mono p-6 md:p-12 overflow-y-auto">
+      <div className="max-w-3xl mx-auto pb-16">
         <Link href="/" className="text-[#D4B872] hover:text-white transition-colors tracking-widest font-bold text-sm mb-8 inline-block">&larr; Back to Q-GAMBIT</Link>
 
         <h1 className="text-3xl md:text-4xl font-bold text-[#D4B872] tracking-wider mb-2">Privacy Policy</h1>
