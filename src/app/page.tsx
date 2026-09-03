@@ -2,6 +2,7 @@
 import { SocketProvider, useSocket } from '../lib/SocketContext';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import GameBoard from '../components/GameBoard';
 import AdBanner from '../components/AdBanner';
 import { SpeedInsights } from '@vercel/speed-insights/next';
@@ -449,8 +450,8 @@ export default function Home() {
                     {/* Removed AdBanner to comply with Google AdSense Policies (No ads on login/navigation screens) */}
 
                     {/* Footer */}
-                    <footer className="w-full max-w-4xl mt-4 mb-4 text-center text-gray-500 text-xs font-sans">
-                        <a href="/privacy" className="hover:text-[#D4B872] transition-colors">Privacy Policy</a>
+                    <footer className="w-full max-w-4xl mt-4 mb-4 text-center text-gray-500 text-xs font-sans relative z-[200]">
+                        <Link href="/privacy" className="hover:text-[#D4B872] transition-colors relative z-[200] cursor-pointer pointer-events-auto">Privacy Policy</Link>
                         <span className="mx-2">|</span>
                         <span>&copy; 2026 Q-GAMBIT</span>
                     </footer>

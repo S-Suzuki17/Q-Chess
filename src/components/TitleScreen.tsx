@@ -4,6 +4,7 @@ import { User } from '../types/game';
 import { dict, Language } from '../locales/dict';
 import { AdBanner } from './AdBanner';
 import { supabase } from '../lib/supabaseClient';
+import Link from 'next/link';
 
 import { Capacitor } from '@capacitor/core';
 import { App as CapApp } from '@capacitor/app';
@@ -215,19 +216,19 @@ export function TitleScreen({ lang, onLogin }: TitleScreenProps) {
             </div>
             
             {/* SEO & User Content Section for AdSense Quality */}
-            <div className="absolute bottom-16 w-full z-20 flex flex-col items-center max-w-2xl px-6 text-center">
-                <p className="text-gray-400 text-xs md:text-sm mb-2 font-sans">
+            <div className="absolute bottom-16 w-full z-[100] flex flex-col items-center max-w-2xl px-6 text-center pointer-events-auto">
+                <p className="text-gray-400 text-xs md:text-sm mb-2 font-sans pointer-events-none">
                     Q-GAMBIT is a revolutionary Quantum Chess experience where pieces exist in a state of superposition. Master the art of information warfare and quantum collapse.
                 </p>
                 <div className="flex gap-4">
-                    <a href="/rules" className="text-[#D4B872] hover:text-white transition-colors text-sm font-bold tracking-widest underline underline-offset-4 decoration-[#D4B872]/50 hover:decoration-white">
+                    <Link href="/rules" className="text-[#D4B872] hover:text-white transition-colors text-sm font-bold tracking-widest underline underline-offset-4 decoration-[#D4B872]/50 hover:decoration-white relative z-[200] cursor-pointer">
                         READ RULES & STRATEGY GUIDE
-                    </a>
+                    </Link>
                 </div>
             </div>
 
-            <div className="absolute bottom-2 w-full z-20 flex flex-col items-center">
-                <div className="mb-2 opacity-20 hover:opacity-100 grayscale hover:grayscale-0 transition-all duration-300">
+            <div className="absolute bottom-2 w-full z-20 flex flex-col items-center pointer-events-none">
+                <div className="mb-2 opacity-20 hover:opacity-100 grayscale hover:grayscale-0 transition-all duration-300 pointer-events-auto">
                     <a href="https://pixelpicked.com/game/7TmlOxj21Ub/q-gambit/" target="_blank" rel="noopener noreferrer">
                         <img src="https://api.pixelpicked.com/api/badges/7TmlOxj21Ub/live.png?theme=dark"
                             width="100" alt="Approved on PixelPicked" className="h-auto" />
