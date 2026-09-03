@@ -5,6 +5,10 @@ import { dict, Language } from '../locales/dict';
 import { AdBanner } from './AdBanner';
 import { supabase } from '../lib/supabaseClient';
 
+import { Capacitor } from '@capacitor/core';
+import { App as CapApp } from '@capacitor/app';
+import { Browser } from '@capacitor/browser';
+
 interface TitleScreenProps {
     lang: Language;
     onLogin: (u: User) => void;
@@ -17,6 +21,50 @@ export function TitleScreen({ lang, onLogin }: TitleScreenProps) {
     const [inputPassword, setInputPassword] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+
+    React.useEffect(() => {
+        if (Capacitor.isNativePlatform()) {
+            CapApp.addListener('appUrlOpen', async (data) => {
+                if (data.url.includes('qgambit://login-callback')) {
+                    await Browser.close().catch(() => {});
+                    const url = new URL(data.url);
+                    const code = url.searchParams.get('code');
+                    if (code) {
+                        await supabase.auth.exchangeCodeForSession(code);
+                    }
+                    const hash = url.hash;
+                    if (hash) {
+                        const params = new URLSearchParams(hash.substring(1));
+                        const accessToken = params.get('access_token');
+                        const refreshToken = params.get('refresh_token');
+                        if (accessToken && refreshToken) {
+                            await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+                        }
+                    }
+                }
+            });
+        }
+    }, []);
+
+    const handleOAuthLogin = async (provider: 'google' | 'discord') => {
+        if (Capacitor.isNativePlatform()) {
+            const { data, error } = await supabase.auth.signInWithOAuth({
+                provider,
+                options: {
+                    redirectTo: 'qgambit://login-callback',
+                    skipBrowserRedirect: true,
+                },
+            });
+            if (data?.url) {
+                await Browser.open({ url: data.url });
+            }
+        } else {
+            await supabase.auth.signInWithOAuth({
+                provider,
+                options: { redirectTo: window.location.origin },
+            });
+        }
+    };
 
     const handleGuest = () => {
         const guestId = `GUEST-${Math.floor(Math.random() * 10000)}`;
@@ -142,7 +190,7 @@ export function TitleScreen({ lang, onLogin }: TitleScreenProps) {
                             <button 
                                 type="button" 
                                 onClick={async () => {
-                                    await supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin } });
+                                    await handleOAuthLogin('google');
                                 }} 
                                 className="w-full py-3 bg-white/5 hover:bg-white/10 border border-[#A89C86]/30 text-[#E8E2D7] text-xs tracking-widest transition-colors flex items-center justify-center gap-3"
                             >
@@ -152,7 +200,7 @@ export function TitleScreen({ lang, onLogin }: TitleScreenProps) {
                             <button 
                                 type="button" 
                                 onClick={async () => {
-                                    await supabase.auth.signInWithOAuth({ provider: 'discord', options: { redirectTo: window.location.origin } });
+                                    await handleOAuthLogin('discord');
                                 }} 
                                 className="w-full py-3 bg-[#5865F2]/10 hover:bg-[#5865F2]/20 border border-[#A89C86]/30 text-[#E8E2D7] text-xs tracking-widest transition-colors flex items-center justify-center gap-3"
                             >

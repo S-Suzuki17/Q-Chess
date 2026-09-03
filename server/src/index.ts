@@ -16,13 +16,9 @@ app.get('/health', (req, res) => {
 });
 
 const server = http.createServer(app);
-const ALLOWED_ORIGINS = process.env.NODE_ENV === 'production' 
-    ? ['https://q-gambit.com', 'https://www.q-gambit.com'] // Update with real domains
-    : '*';
-
 const io = new Server(server, {
-  cors: { 
-      origin: ALLOWED_ORIGINS, 
+  cors: {
+      origin: '*',
       methods: ['GET', 'POST'],
       credentials: true
   }

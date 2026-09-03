@@ -28,6 +28,7 @@ export function SocketProvider({ children, userId }: { children: React.ReactNode
         
         const newSocket = io(SERVER_URL, {
             auth: { token },
+            transports: ['websocket', 'polling'],
             reconnection: true,
             reconnectionAttempts: Infinity,
             reconnectionDelay: 1000,

@@ -1,5 +1,5 @@
 'use client';
-import { SocketProvider } from '../lib/SocketContext';
+import { SocketProvider, useSocket } from '../lib/SocketContext';
 
 import React, { useState, useEffect } from 'react';
 import GameBoard from '../components/GameBoard';
@@ -17,7 +17,8 @@ import { GameRecord } from '../lib/gameRecordService';
 import { useMatchmaking } from '../hooks/useMatchmaking';
 
 function MatchmakingManager({ user, onMatchFound, isSearchingGlobally, cancelSearchGlobally, timeControlTarget }: { user: any, onMatchFound: (room: any) => void, isSearchingGlobally: boolean, cancelSearchGlobally: () => void, timeControlTarget: number }) {
-    const { isSearching, matchedRoom, startMatchmaking, cancelMatchmaking } = useMatchmaking(user);
+    const { isSearching, matchedRoom, error, waitTime, startMatchmaking, cancelMatchmaking } = useMatchmaking(user);
+    const { queueStats, isConnected } = useSocket();
     
     React.useEffect(() => {
         if (isSearchingGlobally && !isSearching) {
@@ -34,6 +35,11 @@ function MatchmakingManager({ user, onMatchFound, isSearchingGlobally, cancelSea
     }, [matchedRoom, onMatchFound]);
 
     if (!isSearchingGlobally) return null;
+
+    const formattedMinutes = String(Math.floor(waitTime / 60000)).padStart(2, '0');
+    const formattedSeconds = String(Math.floor((waitTime % 60000) / 1000)).padStart(2, '0');
+    const waitingCount = queueStats?.[timeControlTarget] || 0;
+
     return (
         <div className="fixed inset-0 bg-[#11100E]/95 z-[100] flex flex-col items-center justify-center p-4 backdrop-blur-sm">
             <div className="bg-[#161513] border border-[#B39A62]/30 p-8 w-full max-w-sm text-center shadow-[0_0_40px_rgba(179,154,98,0.1)] rounded-xl">
@@ -48,10 +54,29 @@ function MatchmakingManager({ user, onMatchFound, isSearchingGlobally, cancelSea
                     </>
                 ) : (
                     <>
-                        <h3 className="text-xl tracking-[0.2em] text-[#E8E2D7] mb-6 font-serif uppercase drop-shadow-[0_0_8px_rgba(232,226,215,0.4)]">
+                        <h3 className="text-xl tracking-[0.2em] text-[#E8E2D7] mb-2 font-serif uppercase drop-shadow-[0_0_8px_rgba(232,226,215,0.4)]">
                             SEARCHING OPPONENT
                         </h3>
-                        <div className="flex justify-center mb-10 gap-3">
+
+                        {/* Real-time Timer */}
+                        <div className="text-2xl font-mono text-[#B39A62] tracking-widest my-2">
+                            {formattedMinutes}:{formattedSeconds}
+                        </div>
+
+                        {/* Real-time Queue Stats & Connection Status */}
+                        <div className="text-xs text-[#A89C86] tracking-wider mb-6 flex flex-col items-center gap-1">
+                            {!isConnected ? (
+                                <span className="text-yellow-500/80 animate-pulse text-[11px]">CONNECTING TO SERVER...</span>
+                            ) : (
+                                <div className="flex items-center gap-2">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                                    <span className="text-[11px] font-mono">{waitingCount} PLAYERS WAITING</span>
+                                </div>
+                            )}
+                            {error && <span className="text-red-400 text-[11px] mt-1">{error}</span>}
+                        </div>
+
+                        <div className="flex justify-center mb-8 gap-3">
                             <div className="w-2 h-2 rounded-full bg-[#B39A62] animate-bounce" style={{ animationDelay: '0ms' }} />
                             <div className="w-2 h-2 rounded-full bg-[#B39A62] animate-bounce" style={{ animationDelay: '150ms' }} />
                             <div className="w-2 h-2 rounded-full bg-[#B39A62] animate-bounce" style={{ animationDelay: '300ms' }} />
