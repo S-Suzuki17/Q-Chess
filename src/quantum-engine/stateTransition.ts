@@ -1,10 +1,11 @@
 import { GameState, Move, QuantumPiece } from './types';
 import { resolveQuantumState } from './quantum/candidateSolver';
 import { generateLegalMoves } from './moveGenerator';
-import { InvalidMove } from './errors';
+import { InvalidMove, QuantumContradiction } from './errors';
 import { PIECE_PAWN, PIECE_KING, PIECE_ROOK } from './constants';
 import { hasType } from './quantum/quantumState';
 import { posEquals } from './board';
+import { isPlayerInCheck } from './terminal';
 
 export function applyMove(state: GameState, move: Move): GameState {
     const piece = state.pieces.find(p => p.id === move.pieceId);
@@ -20,7 +21,7 @@ export function applyMove(state: GameState, move: Move): GameState {
 
     let usedType = candidate.requiredTypes;
     if (move.chosenType !== undefined) {
-        if (!hasType(usedType, move.chosenType)) {
+        if (move.chosenType === 0 || (usedType & move.chosenType) !== move.chosenType) {
             throw new InvalidMove("Chosen type is not valid for this move.");
         }
         usedType = move.chosenType;
@@ -40,6 +41,7 @@ export function applyMove(state: GameState, move: Move): GameState {
     const targetPiece = nextPieces.find(p => p.alive && posEquals(p.position, move.target));
     if (targetPiece) {
         targetPiece.alive = false;
+        targetPiece.position = { row: -1, col: -1 };
         targetPiece.state &= ~PIECE_KING;
         if (targetPiece.owner === 'white') capturedBlack++;
         else capturedWhite++;
@@ -67,6 +69,7 @@ export function applyMove(state: GameState, move: Move): GameState {
         const epPiece = nextPieces.find(p => p.alive && p.owner !== movingPiece.owner && p.position.row === capturedRow && p.position.col === capturedCol);
         if (epPiece) {
             epPiece.alive = false;
+            epPiece.position = { row: -1, col: -1 };
             epPiece.state &= ~PIECE_KING;
             if (epPiece.owner === 'white') capturedBlack++;
             else capturedWhite++;
@@ -93,43 +96,30 @@ export function applyMove(state: GameState, move: Move): GameState {
         }
     }
 
+    const nextTurn = state.sideToMove === 'white' ? 'black' : 'white';
+    const recordedMove = { ...move, from: piece.position, chosenType: usedType };
+    let winner: GameState['winner'] = null;
     try {
         nextPieces = resolveQuantumState(nextPieces);
-    } catch (e: any) {
-        if (e.name === 'QuantumContradiction') {
-            let winner = state.sideToMove;
-            const msg = e.message || '';
-            if (msg.includes('White has no potential Kings')) {
-                winner = 'black';
-            } else if (msg.includes('Black has no potential Kings')) {
-                winner = 'white';
-            } else {
-                const movingHasKing = nextPieces.some(p => p.alive && p.owner === state.sideToMove && hasType(p.state, PIECE_KING));
-                if (!movingHasKing) {
-                    winner = state.sideToMove === 'white' ? 'black' : 'white';
-                }
-            }
-
-            return {
-                pieces: nextPieces,
-                sideToMove: state.sideToMove,
-                ply: state.ply + 1,
-                captured: { white: capturedWhite, black: capturedBlack },
-                winner: winner,
-                lastMove: move,
-                hash: ''
-            };
-        }
-        throw e;
+    } catch (error) {
+        if (!(error instanceof QuantumContradiction) || !error.player) throw error;
+        // A player cannot discard their own last King or exceed their own quota.
+        if (error.player === state.sideToMove) throw new InvalidMove(error.message);
+        winner = state.sideToMove;
+        nextPieces = error.pieces ?? nextPieces;
     }
 
-    return {
+    const nextState: GameState = {
         pieces: nextPieces,
-        sideToMove: state.sideToMove === 'white' ? 'black' : 'white',
+        sideToMove: nextTurn,
         ply: state.ply + 1,
         captured: { white: capturedWhite, black: capturedBlack },
-        winner: null,
-        lastMove: move,
+        winner,
+        lastMove: recordedMove,
         hash: ''
     };
+    if (!winner && isPlayerInCheck(state.sideToMove, nextState)) {
+        throw new InvalidMove('The move leaves your last possible King in check.');
+    }
+    return nextState;
 }

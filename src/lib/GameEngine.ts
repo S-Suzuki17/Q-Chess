@@ -10,6 +10,7 @@ export interface Token {
     isCaptured?: boolean;
     promotedTo?: PieceType;
     hasMoved?: boolean;
+    origin?: { row: number; col: number };
 }
 
 export function deduceMoveTypes(

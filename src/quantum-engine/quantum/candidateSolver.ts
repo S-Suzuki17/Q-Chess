@@ -1,6 +1,6 @@
 import { QuantumPiece } from '../types';
 import { QuantumContradiction } from '../errors';
-import { hasType, removeType } from './quantumState';
+import { hasType } from './quantumState';
 import { getPieceLimit } from './constraints';
 import { PIECE_PAWN, PIECE_KNIGHT, PIECE_BISHOP, PIECE_ROOK, PIECE_QUEEN, PIECE_KING, PlayerColor } from '../constants';
 
@@ -28,7 +28,7 @@ export function resolveQuantumState(pieces: readonly QuantumPiece[]): QuantumPie
             // If a piece has state 0, it's a contradiction
             for (const p of playerPieces) {
                 if (p.state === 0) {
-                    throw new QuantumContradiction(`Piece ${p.id} has no possible states remaining.`);
+                    throw new QuantumContradiction(`Piece ${p.id} has no possible states remaining.`, player, currentPieces);
                 }
             }
 
@@ -47,7 +47,7 @@ export function resolveQuantumState(pieces: readonly QuantumPiece[]): QuantumPie
                 const piecesInSubset = playerPieces.filter(p => (p.state & ~subsetMask) === 0);
 
                 if (piecesInSubset.length > reqCount) {
-                    throw new QuantumContradiction(`Exceeded max piece limit for subset mask ${subsetMask} for player ${player}`);
+                    throw new QuantumContradiction(`Exceeded max piece limit for subset mask ${subsetMask} for player ${player}`, player, currentPieces);
                 }
 
                 if (piecesInSubset.length === reqCount) {
@@ -61,7 +61,7 @@ export function resolveQuantumState(pieces: readonly QuantumPiece[]): QuantumPie
                                 p.state = p.state & ~subsetMask;
                                 changed = true;
                                 if (p.state === 0) {
-                                    throw new QuantumContradiction(`Piece ${p.id} state reduced to 0 by subset exhaustion.`);
+                                    throw new QuantumContradiction(`Piece ${p.id} state reduced to 0 by subset exhaustion.`, player, currentPieces);
                                 }
                             }
                         }
@@ -71,7 +71,7 @@ export function resolveQuantumState(pieces: readonly QuantumPiece[]): QuantumPie
         }
     }
 
-    if (loopCount >= MAX_LOOPS) {
+    if (changed && loopCount >= MAX_LOOPS) {
         // Technically should be fine, but just in case of infinite loop logic errors
         throw new QuantumContradiction("Solver reached max loops (unresolvable circular dependency)");
     }
@@ -81,10 +81,10 @@ export function resolveQuantumState(pieces: readonly QuantumPiece[]): QuantumPie
     const blackHasKing = currentPieces.some(p => p.alive && p.owner === 'black' && hasType(p.state, PIECE_KING));
     
     if (!whiteHasKing) {
-        throw new QuantumContradiction("White has no potential Kings remaining.");
+        throw new QuantumContradiction("White has no potential Kings remaining.", "white", currentPieces);
     }
     if (!blackHasKing) {
-        throw new QuantumContradiction("Black has no potential Kings remaining.");
+        throw new QuantumContradiction("Black has no potential Kings remaining.", "black", currentPieces);
     }
 
     return currentPieces;

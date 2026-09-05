@@ -64,8 +64,10 @@ describe('Phase 1-C Rule Completeness Tests', () => {
     it('2. En Passant logic and side-effects', () => {
         let state = createCustomState([
             { id: 'wP', owner: 'white', position: { row: 3, col: 4 }, state: ALL_PIECE_TYPES },
-            { id: 'bP', owner: 'black', position: { row: 3, col: 3 }, origin: { row: 1, col: 3 }, state: ALL_PIECE_TYPES }
-        ], 'white', { pieceId: 'bP', target: { row: 3, col: 3 } });
+            { id: 'bP', owner: 'black', position: { row: 3, col: 3 }, origin: { row: 1, col: 3 }, state: ALL_PIECE_TYPES },
+            { id: 'wK', owner: 'white', position: { row: 7, col: 4 }, state: PIECE_KING },
+            { id: 'bK', owner: 'black', position: { row: 0, col: 7 }, state: PIECE_KING }
+        ], 'white', { pieceId: 'bP', from: { row: 1, col: 3 }, target: { row: 3, col: 3 } });
 
         const moves = generateLegalMoves(state, 'wP');
         const epMove = moves.find(m => m.target.row === 2 && m.target.col === 3);
