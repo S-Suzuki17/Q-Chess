@@ -9,29 +9,20 @@ interface Props {
 
 const START_PROBS = { King: 1/16, Queen: 1/16, Rook: 2/16, Bishop: 2/16, Knight: 2/16, Pawn: 8/16 };
 const DIAG_PROBS = { King: 0, Queen: 0.5, Rook: 0, Bishop: 0.5, Knight: 0, Pawn: 0 };
-const KING_PROBS = { King: 1, Queen: 0, Rook: 0, Bishop: 0, Knight: 0, Pawn: 0 };
+const ROOK_QUEEN_PROBS = { King: 0, Queen: 0.5, Rook: 0.5, Bishop: 0, Knight: 0, Pawn: 0 };
+const KNIGHT_PROBS = { King: 0, Queen: 0, Rook: 0, Bishop: 0, Knight: 1, Pawn: 0 };
 
 export function InteractiveTutorial({ lang, onClose }: Props) {
     const t = { ...dict['en'], ...(dict[lang] || {}) } as any;
-    
-    // State machine steps
-    // 0: Initial state, wait for user to click White piece
-    // 1: White piece selected, wait for user to click diagonal target
-    // 2: Piece moved, probability collapsed. Show Next button.
-    // 3: Capture scenario setup. Wait for user to click Black piece.
-    // 4: Black piece selected, wait for user to click White piece target.
-    // 5: Capture happened. Show Next button.
-    // 6: Collapse scenario setup. Wait for user to click White piece.
-    // 7: White piece selected, wait for user to click target.
-    // 8: Collapse happened. Show Finish.
     
     const [step, setStep] = useState(0);
     const [selectedPieceId, setSelectedPieceId] = useState<string | null>(null);
 
     // Board State
+    // b1 is at [1, 7] so that moving to [3, 7] to capture is a vertical move of length 2
     const [pieces, setPieces] = useState<DemoPiece[]>([
         { id: 'w1', player: 'white', row: 6, col: 4, probabilities: START_PROBS },
-        { id: 'b1', player: 'black', row: 1, col: 4, probabilities: START_PROBS },
+        { id: 'b1', player: 'black', row: 1, col: 7, probabilities: START_PROBS },
     ]);
 
     // Handle Clicks
@@ -61,14 +52,14 @@ export function InteractiveTutorial({ lang, onClose }: Props) {
             setSelectedPieceId(null);
             setStep(2);
         } else if (step === 4 && selectedPieceId === 'b1' && row === 3 && col === 7) {
-            // Valid capture
+            // Valid capture (vertical 2 squares: Rook or Queen)
             capturePiece('w1');
-            movePiece('b1', 3, 7, START_PROBS);
+            movePiece('b1', 3, 7, ROOK_QUEEN_PROBS);
             setSelectedPieceId(null);
             setStep(5);
-        } else if (step === 7 && selectedPieceId === 'w2' && row === 6 && col === 3) {
-            // Valid collapse move
-            movePiece('w2', 6, 3, KING_PROBS);
+        } else if (step === 7 && selectedPieceId === 'w2' && row === 5 && col === 5) {
+            // Valid collapse move (L-shape move for Knight)
+            movePiece('w2', 5, 5, KNIGHT_PROBS);
             setSelectedPieceId(null);
             setStep(8);
         } else {
@@ -108,24 +99,24 @@ export function InteractiveTutorial({ lang, onClose }: Props) {
             : "Excellent! The identity was deduced from the path, triggering a 'Wavefunction Collapse'.";
     } else if (step === 3 || step === 4) {
         instructions = lang === 'ja' 
-            ? "2. 駒取り\n\n次に、黒い駒をクリックして、先ほどの白い駒を取ってみましょう。"
-            : "2. Capturing\n\nNow, click the Black piece and move it to capture the White piece.";
-        if (step === 3) validMoves = [{ row: 1, col: 4 }];
+            ? "2. 駒取り\n\n次に、黒い駒をクリックして、先ほどの白い駒を取ってみましょう。縦に2マス動いたため、ルークかクイーンに絞り込まれます。"
+            : "2. Capturing\n\nNow, click the Black piece and move it to capture the White piece. Moving vertically 2 squares eliminates everything except Rook and Queen.";
+        if (step === 3) validMoves = [{ row: 1, col: 7 }];
         if (step === 4) validMoves = [{ row: 3, col: 7 }];
     } else if (step === 5) {
         instructions = lang === 'ja' 
-            ? "駒を取りました！取られた駒は正体が判明する前に盤面から消滅します。"
-            : "Piece captured! Captured pieces are removed before their true identity is ever revealed.";
+            ? "駒を取りました！取られた駒は正体が完全に判明する前に盤面から消滅します。"
+            : "Piece captured! Captured pieces are removed before their true identity is ever fully revealed.";
     } else if (step === 6 || step === 7) {
         instructions = lang === 'ja' 
-            ? "3. 完全な確定\n\n新しい白駒が現れました。これを光っているマスへ動かしてください。これは「キング」にしかできない動きです。"
-            : "3. Absolute Collapse\n\nA new White piece appeared. Move it to the highlighted square. This move is ONLY possible for a King.";
+            ? "3. 完全な確定\n\n新しい白駒が現れました。これを光っているマスへ動かしてください。このL字型の動きは「ナイト」にしかできません。"
+            : "3. Absolute Collapse\n\nA new White piece appeared. Move it to the highlighted square. This L-shape move is ONLY possible for a Knight.";
         if (step === 6) validMoves = [{ row: 7, col: 4 }];
-        if (step === 7) validMoves = [{ row: 6, col: 3 }];
+        if (step === 7) validMoves = [{ row: 5, col: 5 }];
     } else if (step === 8) {
         instructions = lang === 'ja'
-            ? "キングが確定しました！可能性が1つに絞られると、正体が全員に公開されます。このように相手のキングをあぶり出し、追い詰めるのがゲームの目的です。"
-            : "The King is revealed! When probability drops to exactly one type, the piece is fully revealed. Forcing the enemy King to reveal itself is key to victory.";
+            ? "ナイトが確定しました！可能性が1つに絞られると、正体が全員に公開されます。このように相手のキングをあぶり出し、追い詰めるのがゲームの目的です。"
+            : "The Knight is revealed! When probability drops to exactly one type, the piece is fully revealed. Forcing the enemy King to reveal itself is key to victory.";
     }
 
     const nextScenario = () => {
