@@ -141,8 +141,8 @@ export function InteractiveTutorial({ lang, onClose }: Props) {
             : "The Knight is revealed! When probability drops to exactly one type, the piece is fully revealed.";
     } else if (step === 9 || step === 10) {
         instructions = lang === 'ja'
-            ? "4. 数手による確定と連鎖\n\n盤面に別の黒駒が現れました（これもルークかクイーン）。\n先ほど動かした黒駒を、光っているマスへ斜めに動かして白駒を取ってください。"
-            : "4. Multi-step & Constraint Collapse\n\nAnother Black piece appeared (also Rook or Queen).\nMove the original Black piece diagonally to capture the White piece.";
+            ? "4. 数手による確定と連鎖\n\n盤面に別の黒駒が現れました（これもルークかクイーン）。\n先ほど動かした黒駒を、白のナイトのマスへ斜めに動かして白駒を取ってください。"
+            : "4. Multi-step & Constraint Collapse\n\nAnother Black piece appeared (also Rook or Queen).\nMove the original Black piece diagonally to the White Knight's square to capture it.";
         if (step === 9) validMoves = [{ row: 3, col: 7 }];
         if (step === 10) validMoves = [{ row: 5, col: 5 }];
     } else if (step === 11) {
