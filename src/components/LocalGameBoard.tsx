@@ -40,6 +40,11 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
     const poolRef = useRef<IdentityPool>(pool);
     useEffect(() => { poolRef.current = pool; }, [pool]);
     const [tokens, setTokens] = useState<Token[]>([]);
+    const [capturedTokens, setCapturedTokens] = useState<Token[]>([]);
+
+    // Animation state
+    const [movingPiece, setMovingPiece] = useState<{ id: string, fromRow: number, fromCol: number, toRow: number, toCol: number } | null>(null);
+
     const tokensRef = useRef<Token[]>([]);
     const executeMoveRef = useRef<any>(null);
     useEffect(() => { tokensRef.current = tokens; executeMoveRef.current = executeMove; }, [tokens]);
@@ -489,7 +494,12 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
             const dx = Math.abs(targetCol - token.col);
             const dy = Math.abs(targetRow - token.row);
             
-            if (dx === dy && dx > 0) {
+            const p = pool.piecePossibilities.get(token.id);
+            const intersection = possibleTypesForMove.filter(pt => p?.has(pt));
+            
+            if (intersection.length === 1) {
+                setTutorialHint((t as any).tutorialConfirmed || `💡 ${intersection[0]} confirmed!`);
+            } else if (dx === dy && dx > 0) {
                 setTutorialHint((t as any).tutorialDiagonal || '💡 Moved diagonally! This piece must be a Bishop or Queen.');
             } else if ((dx > 0 && dy === 0) || (dx === 0 && dy > 0)) {
                 if (dx > 1 || dy > 1) {
@@ -518,26 +528,9 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
             pool.restrictIdentity(token.id, possibleTypesForMove);
         }
         
-        // Record move in history
-        const newTurn = turnCount + 1;
-        setTurnCount(newTurn);
-        const moveRecord: MoveRecord = {
-            turn: newTurn,
-            player: currentTurn,
-            tokenId: token.id,
-            from: [token.row, token.col],
-            to: [targetRow, targetCol],
-            possibleTypes: possibleTypesForMove,
-            capturedTokenId: targetToken?.id,
-            promotedTo,
-        };
-        setMoveHistory(prev => [...prev, moveRecord]);
-
-        playMoveSound();
-
+        // Compute updated positions immediately for logic
         let updatedTokens = tokens.map(t => {
             if (targetToken && t.id === targetToken.id) {
-                // 取られた駒からは「キングの可能性」を明示的に除外する
                 const p = pool.piecePossibilities.get(t.id);
                 if (p) p.delete('King');
                 return { ...t, isCaptured: true, row: -1, col: -1 };
@@ -562,8 +555,8 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
         }
 
         // Handle En Passant Side-Effects
+        let actualCapturedTokenId = targetToken?.id;
         if (possibleTypesForMove.includes('Pawn') && !targetToken && targetCol !== token.col) {
-            // Diagonal move without targetToken = En Passant
             const capturedRow = token.row;
             const capturedCol = targetCol;
             const epToken = updatedTokens.find(t => t.row === capturedRow && t.col === capturedCol && t.player !== token.player);
@@ -575,55 +568,85 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
                 const p = pool.piecePossibilities.get(epToken.id);
                 if (p) p.delete('King');
                 pool.restrictIdentity(epToken.id, ['Pawn']);
-                moveRecord.capturedTokenId = epToken.id;
+                actualCapturedTokenId = epToken.id;
             }
         }
 
-        // 全体プールで矛盾（取った駒が絶対に玉だった、などの矛盾）が発生したかチェック
+        // Resolve global constraints immediately
         const isValid = pool.resolveGlobalConstraints(updatedTokens);
 
-        const nextTurn = currentTurn === 'white' ? 'black' : 'white';
-        const activeTokens = updatedTokens.filter(t => !t.isCaptured);
+        // Pre-update probabilities on the existing tokens state so the UI reflects them during the animation
+        setTokens(tokens.map(t => ({
+            ...t,
+            probabilities: calculateProbabilities(pool, t.id)
+        })));
 
-        if (!isValid) {
-            // 矛盾が発生＝「取った駒が実は玉だった」ため、全体制約を満たせなくなった
-            setWinner(currentTurn === 'white' ? 'white_wins' : 'black_wins');
-        } else {
-            const gameResult = checkGameOver(activeTokens, pool);
-            if (gameResult) {
-                setWinner(gameResult);
+        // Record move in history
+        const newTurn = turnCount + 1;
+        setTurnCount(newTurn);
+        const moveRecordObj: MoveRecord = {
+            turn: newTurn,
+            player: currentTurn,
+            tokenId: token.id,
+            from: [token.row, token.col],
+            to: [targetRow, targetCol],
+            possibleTypes: possibleTypesForMove,
+            capturedTokenId: actualCapturedTokenId,
+            promotedTo,
+        };
+        setMoveHistory(prev => [...prev, moveRecordObj]);
+
+        playMoveSound();
+
+        // Animate move
+        setMovingPiece({ id: token.id, fromRow: token.row, fromCol: token.col, toRow: targetRow, toCol: targetCol });
+        
+        // Let the animation play before updating the actual grid position and evaluating game over logic
+        setTimeout(() => {
+            setMovingPiece(null);
+
+            const nextTurn = currentTurn === 'white' ? 'black' : 'white';
+            const activeTokens = updatedTokens.filter(t => !t.isCaptured);
+
+            if (!isValid) {
+                // 矛盾が発生＝「取った駒が実は玉だった」ため、全体制約を満たせなくなった
+                setWinner(currentTurn === 'white' ? 'white_wins' : 'black_wins');
             } else {
-                const checkStatus = isPlayerInCheck(nextTurn, activeTokens, pool);
-                setIsCheck(checkStatus);
-                
-                // チェックされていて、逃げ道がないならチェックメイト
-                if (checkStatus) {
-                    const mate = isCheckmate(nextTurn, activeTokens, pool);
-                    if (mate) {
-                        setWinner(currentTurn === 'white' ? 'white_wins' : 'black_wins');
-                    }
+                const gameResult = checkGameOver(activeTokens, pool);
+                if (gameResult) {
+                    setWinner(gameResult);
                 } else {
-                    // Stalemate detection
-                    if (isCheckmate(nextTurn, activeTokens, pool)) {
-                        setWinner('draw');
+                    const checkStatus = isPlayerInCheck(nextTurn, activeTokens, pool);
+                    setIsCheck(checkStatus);
+                    
+                    if (checkStatus) {
+                        const mate = isCheckmate(nextTurn, activeTokens, pool);
+                        if (mate) {
+                            setWinner(currentTurn === 'white' ? 'white_wins' : 'black_wins');
+                        }
+                    } else {
+                        if (isCheckmate(nextTurn, activeTokens, pool)) {
+                            setWinner('draw');
+                        }
                     }
                 }
             }
-        }
 
-        updatedTokens = updatedTokens.map(t => ({
-            ...t,
-            probabilities: calculateProbabilities(pool, t.id)
-        }));
+            // Final token update with correct row/col positions
+            updatedTokens = updatedTokens.map(t => ({
+                ...t,
+                probabilities: calculateProbabilities(pool, t.id)
+            }));
 
-        setTokens(updatedTokens);
-        setSelectedTokenId(null);
-        setCurrentTurn(nextTurn);
-        
-        if (timeControl === '10s') {
-            if (nextTurn === 'white') setTimeLeftWhite(10);
-            else setTimeLeftBlack(10);
-        }
+            setTokens(updatedTokens);
+            setSelectedTokenId(null);
+            setCurrentTurn(nextTurn);
+            
+            if (timeControl === '10s') {
+                if (nextTurn === 'white') setTimeLeftWhite(10);
+                else setTimeLeftBlack(10);
+            }
+        }, 400); // Wait 400ms for animation
     };
 
     const handleSquareClick = (targetRow: number, targetCol: number) => {
@@ -912,12 +935,23 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
                     const visualRow = isFlipped ? 7 - token.row : token.row;
                     const visualCol = isFlipped ? 7 - token.col : token.col;
                     const isSelected = token.id === selectedTokenId;
+                    const isMoving = movingPiece?.id === token.id;
                     
                     let transformStyle = '';
                     if (isSelected) {
                         transformStyle = 'translateY(-15px) scale(1.15)';
+                    } else if (isMoving) {
+                        transformStyle = 'translateY(-10px) scale(1.1)';
                     } else {
                         transformStyle = 'scale(1)';
+                    }
+
+                    // During animation, use the target coordinates
+                    let renderRow = visualRow;
+                    let renderCol = visualCol;
+                    if (isMoving && movingPiece) {
+                        renderRow = isFlipped ? 7 - movingPiece.toRow : movingPiece.toRow;
+                        renderCol = isFlipped ? 7 - movingPiece.toCol : movingPiece.toCol;
                     }
 
                     return (
@@ -927,12 +961,12 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
                             style={{
                                 width: '12.5%',
                                 height: '12.5%',
-                                left: `${visualCol * 12.5}%`,
-                                top: `${visualRow * 12.5}%`,
-                                zIndex: isSelected ? 50 : 20,
+                                left: `${renderCol * 12.5}%`,
+                                top: `${renderRow * 12.5}%`,
+                                zIndex: isSelected || isMoving ? 50 : 20,
                                 transition: 'left 0.4s cubic-bezier(0.4, 0, 0.2, 1), top 0.4s cubic-bezier(0.4, 0, 0.2, 1), transform 0.2s ease',
                                 transform: transformStyle,
-                                filter: isSelected ? 'drop-shadow(0 20px 15px rgba(0,0,0,0.9))' : 'none',
+                                filter: isSelected || isMoving ? 'drop-shadow(0 20px 15px rgba(0,0,0,0.9))' : 'none',
                             }}
                         >
                             <div className="w-full h-full scale-[0.85] flex items-center justify-center pointer-events-auto cursor-pointer" onClick={(e) => { e.stopPropagation(); handleSquareClick(token.row, token.col); }}>
