@@ -23,7 +23,7 @@ export function resolveQuantumState(pieces: readonly QuantumPiece[]): QuantumPie
         loopCount++;
 
         for (const player of ['white', 'black'] as PlayerColor[]) {
-            const playerPieces = currentPieces.filter(p => p.alive && p.owner === player);
+            const playerPieces = currentPieces.filter(p => p.owner === player);
 
             // If a piece has state 0, it's a contradiction
             for (const p of playerPieces) {

@@ -102,7 +102,7 @@ export class EvalQoppelia implements Evaluator {
         for (const p of state.pieces) {
             if (!p.alive) continue;
             const c = this.getCount(p.state);
-            const flexValue = c * 60; // SUPERPOSITION_BONUS equivalent
+            const flexValue = c * 0.5; // Scaled down drastically from 60 to be comparable to piece values
             if (p.owner === player) score += flexValue;
             else score -= flexValue;
         }

@@ -326,7 +326,8 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
             const timer = setTimeout(async () => {
                 try {
                     const { calculateCPUMove } = await import('../lib/AIEngine');
-                    const move = calculateCPUMove(tokens, pool, 'black');
+                    const lastMove = moveHistory.length > 0 ? moveHistory[moveHistory.length - 1] : null;
+                    const move = calculateCPUMove(tokens, pool, 'black', moveHistory.length, lastMove);
                     
                     if (move) {
                         const aiToken = tokens.find(t => t.id === move.tokenId);

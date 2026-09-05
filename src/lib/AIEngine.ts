@@ -12,8 +12,8 @@ export interface AIMove {
     promotedTo?: PieceType;
 }
 
-export function calculateCPUMove(tokens: Token[], pool: IdentityPool, cpuPlayer: 'white' | 'black' = 'black'): AIMove | null {
-    const qState = legacyToQuantumState(tokens, pool, cpuPlayer);
+export function calculateCPUMove(tokens: Token[], pool: IdentityPool, cpuPlayer: 'white' | 'black' = 'black', ply: number = 0, lastMove: any = null): AIMove | null {
+    const qState = legacyToQuantumState(tokens, pool, cpuPlayer, ply, lastMove);
     
     // CPU level is locked to MAX power for all difficulties
     const timeBudget = 4000; // 4 seconds max
@@ -26,8 +26,8 @@ export function calculateCPUMove(tokens: Token[], pool: IdentityPool, cpuPlayer:
         originValue: 0.2
     });
 
-    const mcts = new MCTSEngine(evaluator, { timeLimitMs: timeBudget, maxIterations: 100000 });
-    const stats = mcts.search(qState, { timeLimitMs: timeBudget });
+    const mcts = new MCTSEngine(evaluator, { timeLimitMs: timeBudget });
+    const stats = mcts.search(qState, { timeLimitMs: timeBudget, maxIterations: 100000 });
     console.log(`[CPU MAX MODE] MCTS Stats: ${stats.iterations} iters, ${stats.maxDepth} depth, ${stats.nodesPerSec.toFixed(1)} nps`);
     const qMove = stats.move;
 

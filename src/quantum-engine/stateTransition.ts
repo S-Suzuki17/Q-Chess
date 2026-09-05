@@ -40,6 +40,7 @@ export function applyMove(state: GameState, move: Move): GameState {
     const targetPiece = nextPieces.find(p => p.alive && posEquals(p.position, move.target));
     if (targetPiece) {
         targetPiece.alive = false;
+        targetPiece.state &= ~PIECE_KING;
         if (targetPiece.owner === 'white') capturedBlack++;
         else capturedWhite++;
     }
@@ -66,6 +67,7 @@ export function applyMove(state: GameState, move: Move): GameState {
         const epPiece = nextPieces.find(p => p.alive && p.owner !== movingPiece.owner && p.position.row === capturedRow && p.position.col === capturedCol);
         if (epPiece) {
             epPiece.alive = false;
+            epPiece.state &= ~PIECE_KING;
             if (epPiece.owner === 'white') capturedBlack++;
             else capturedWhite++;
             // En Passant target MUST have been a pawn
@@ -95,12 +97,25 @@ export function applyMove(state: GameState, move: Move): GameState {
         nextPieces = resolveQuantumState(nextPieces);
     } catch (e: any) {
         if (e.name === 'QuantumContradiction') {
+            let winner = state.sideToMove;
+            const msg = e.message || '';
+            if (msg.includes('White has no potential Kings')) {
+                winner = 'black';
+            } else if (msg.includes('Black has no potential Kings')) {
+                winner = 'white';
+            } else {
+                const movingHasKing = nextPieces.some(p => p.alive && p.owner === state.sideToMove && hasType(p.state, PIECE_KING));
+                if (!movingHasKing) {
+                    winner = state.sideToMove === 'white' ? 'black' : 'white';
+                }
+            }
+
             return {
                 pieces: nextPieces,
                 sideToMove: state.sideToMove,
                 ply: state.ply + 1,
                 captured: { white: capturedWhite, black: capturedBlack },
-                winner: state.sideToMove,
+                winner: winner,
                 lastMove: move,
                 hash: ''
             };

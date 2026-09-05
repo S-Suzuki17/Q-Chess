@@ -27,7 +27,7 @@ export function getGreedyMove(state: GameState): Move | null {
     if (allMoves.length === 0) return null;
 
     const myColor = state.sideToMove;
-    let bestMove: Move | null = null;
+    let bestMoves: Move[] = [];
     let bestScore = -Infinity;
 
     for (const move of allMoves) {
@@ -37,17 +37,17 @@ export function getGreedyMove(state: GameState): Move | null {
 
             if (score > bestScore) {
                 bestScore = score;
-                bestMove = move;
+                bestMoves = [move];
             } else if (score === bestScore) {
-                // Random tie breaking to avoid repeating the exact same deterministic moves
-                if (Math.random() > 0.5) {
-                    bestMove = move;
-                }
+                bestMoves.push(move);
             }
         } catch (e) {
             // Ignore illegal interpretation
         }
     }
 
-    return bestMove || allMoves[0]; // fallback to first legal
+    if (bestMoves.length === 0) return allMoves[0];
+    
+    // Uniform random tie-breaking
+    return bestMoves[Math.floor(Math.random() * bestMoves.length)];
 }

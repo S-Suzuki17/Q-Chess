@@ -14,21 +14,50 @@ export function getAllConcreteMoves(state: GameState): Move[] {
         const candidates = generateLegalMoves(state, piece.id);
         
         for (const candidate of candidates) {
-            // Explode requiredTypes bitmask into individual move options
-            // Keep the full superposition of the move
-            const isPromotion = (candidate.requiredTypes & PIECE_PAWN) !== 0 && (candidate.target.row === 0 || candidate.target.row === 7);
+            let handledTypes = candidate.requiredTypes;
+            
+            // Castling branch
+            const isCastling = (handledTypes & PIECE_KING) !== 0 && Math.abs(candidate.target.col - piece.position.col) === 2 && Math.abs(candidate.target.row - piece.position.row) === 0;
+            if (isCastling) {
+                moves.push({
+                    pieceId: piece.id,
+                    target: candidate.target,
+                    chosenType: PIECE_KING
+                });
+                handledTypes &= ~PIECE_KING;
+            }
+            
+            // En Passant branch
+            const forwardDir = piece.owner === 'white' ? -1 : 1;
+            const targetPiece = state.pieces.find(p => p.alive && p.position.row === candidate.target.row && p.position.col === candidate.target.col);
+            const isEnPassant = (handledTypes & PIECE_PAWN) !== 0 && Math.abs(candidate.target.col - piece.position.col) === 1 && (candidate.target.row - piece.position.row) === forwardDir && !targetPiece;
+            if (isEnPassant) {
+                moves.push({
+                    pieceId: piece.id,
+                    target: candidate.target,
+                    chosenType: PIECE_PAWN
+                });
+                handledTypes &= ~PIECE_PAWN;
+            }
+
+            // Promotion branch
+            const isPromotion = (handledTypes & PIECE_PAWN) !== 0 && (candidate.target.row === 0 || candidate.target.row === 7);
             if (isPromotion) {
                 moves.push({
                     pieceId: piece.id,
                     target: candidate.target,
-                    chosenType: candidate.requiredTypes,
+                    chosenType: PIECE_PAWN,
                     promotionTarget: PIECE_QUEEN
                 });
-            } else {
+                handledTypes &= ~PIECE_PAWN;
+            }
+
+            // Standard branch for remaining types
+            if (handledTypes !== 0) {
                 moves.push({
                     pieceId: piece.id,
                     target: candidate.target,
-                    chosenType: candidate.requiredTypes
+                    chosenType: handledTypes
                 });
             }
         }

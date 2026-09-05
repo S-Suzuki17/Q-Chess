@@ -52,8 +52,11 @@ export class MCTSNode {
         this.depth = parent ? parent.depth + 1 : 0;
         
         const winner = state.winner || getWinner(state);
+        if (!state.winner && winner) {
+            this.state = { ...state, winner };
+        }
         this.isTerminal = winner !== null;
-        this.untriedMoves = this.isTerminal ? [] : getAllConcreteMoves(state);
+        this.untriedMoves = this.isTerminal ? [] : getAllConcreteMoves(this.state);
     }
 }
 
@@ -174,10 +177,7 @@ export class MCTSEngine {
 
     private simulate(state: GameState): number {
         const rawScore = this.evalFn.evaluate(state, state.sideToMove);
-        let normalized = 0.5 + (rawScore / 40.0);
-        if (normalized > 1) normalized = 1;
-        if (normalized < 0) normalized = 0;
-        return normalized;
+        return 1.0 / (1.0 + Math.exp(-rawScore / 10.0));
     }
 
     private backpropagate(node: MCTSNode | null, reward: number): void {

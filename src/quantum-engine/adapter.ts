@@ -25,7 +25,7 @@ const BIT_TO_TYPE: Record<number, PieceType> = {
     [PIECE_KING]: 'King'
 };
 
-export function legacyToQuantumState(tokens: Token[], pool: IdentityPool, sideToMove: 'white' | 'black'): GameState {
+export function legacyToQuantumState(tokens: Token[], pool: IdentityPool, sideToMove: 'white' | 'black', ply: number = 0, lastMove: any = null): GameState {
     const pieces: QuantumPiece[] = tokens.map(t => {
         let stateBits = 0;
         const p = pool.piecePossibilities.get(t.id);
@@ -44,8 +44,6 @@ export function legacyToQuantumState(tokens: Token[], pool: IdentityPool, sideTo
         return {
             id: t.id,
             owner: t.player,
-            // We don't have origin tracking in legacy Token, but we can guess or it doesn't matter for non-pawns
-            // Actually, castling requires origin. But in legacy, token.hasMoved handles it.
             origin: { row: t.player === 'white' ? 7 : 0, col: 0 },
             position: { row: t.row, col: t.col },
             state: stateBits === 0 ? ALL_PIECE_TYPES : stateBits,
@@ -65,15 +63,21 @@ export function legacyToQuantumState(tokens: Token[], pool: IdentityPool, sideTo
         }
     }
 
+    let qLastMove: Move | undefined = undefined;
+    if (lastMove) {
+        qLastMove = {
+            pieceId: lastMove.tokenId || lastMove.pieceId,
+            target: { row: lastMove.targetRow || lastMove.toRow || 0, col: lastMove.targetCol || lastMove.toCol || 0 }
+        };
+    }
+
     return {
         pieces,
         sideToMove,
-        ply: 0,
+        ply,
         captured: { white: whiteCaptured, black: blackCaptured },
         winner: null,
-        // En Passant requires lastMove. The UI passes it into GameEngine? 
-        // No, UI tracks moveHistory but doesn't pass lastMove to AI right now.
-        // That means AI won't see EP. We'll leave it undefined for now.
+        lastMove: qLastMove,
         hash: ''
     };
 }
