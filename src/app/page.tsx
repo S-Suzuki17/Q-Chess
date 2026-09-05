@@ -240,8 +240,8 @@ export default function Home() {
         setGameState('level_select');
     };
 
-    const handleSelectLevel = (tc: TimeControl) => {
-        setCpuLevel(5);
+    const handleSelectLevel = (tc: TimeControl, level: number) => {
+        setCpuLevel(level);
         setTimeControl(tc);
         setOnlineInfo(null);
         if (typeof window !== 'undefined') {

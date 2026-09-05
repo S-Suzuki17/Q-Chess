@@ -11,6 +11,7 @@ import { PieceType } from '../config/gameConfig';
 import { supabase } from '../lib/supabaseClient';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import { MoveRecord, saveGameRecord, GameRecord } from '../lib/gameRecordService';
+import { cpuDifficulty } from '../config/cpuDifficulty';
 import { requestCPUSearch } from '../lib/cpuClient';
 import { legacyToQuantumState, quantumToLegacyMove } from '../quantum-engine/adapter';
 import { getWinner } from '../quantum-engine/terminal';
@@ -339,7 +340,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
         const controller = new AbortController();
         setCpuFailed(false);
         const state = legacyToQuantumState(tokens, pool, 'black', moveHistory.length, moveHistory.at(-1) ?? null);
-        requestCPUSearch(state, controller.signal).then(stats => {
+        requestCPUSearch(state, controller.signal, cpuLevel).then(stats => {
             if (controller.signal.aborted) return;
             if (!stats.move) {
                 const result = getWinner(state);
@@ -357,7 +358,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
             setCpuFailed(true);
         });
         return () => controller.abort();
-    }, [currentTurn, winner, tokens, pool, roomId, moveHistory, cpuRetry, movingPiece]);
+    }, [currentTurn, winner, tokens, pool, roomId, moveHistory, cpuRetry, movingPiece, cpuLevel]);
 
     useEffect(() => {
         if (isCheck && !winner) {
@@ -637,7 +638,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
 
     const playerName = user?.name || 'Player';
     const fallbackOpponent = (opponentId && opponentId.startsWith('GUEST-')) ? 'Guest' : 'Opponent';
-    const opponentName = roomId ? (fetchedOpponentName || fallbackOpponent) : `CPU`;
+    const opponentName = roomId ? (fetchedOpponentName || fallbackOpponent) : `CPU (${cpuDifficulty(cpuLevel)[lang === 'ja' ? 'ja' : 'en']})`;
     const myRole = onlineRole === 'spectator' ? 'white' : (onlineRole || 'white');
     const whiteName = onlineRole === 'spectator' ? 'White Player' : (myRole === 'white' ? playerName : opponentName);
     const blackName = onlineRole === 'spectator' ? 'Black Player' : (myRole === 'black' ? playerName : opponentName);

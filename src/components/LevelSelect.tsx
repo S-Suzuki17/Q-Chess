@@ -13,12 +13,13 @@ import { soundManager } from '../lib/SoundService';
 import { getTitleFromRating } from '../lib/rankSystem';
 import { FriendsMenu } from './FriendsMenu';
 import { LiveMatchesMenu } from './LiveMatchesMenu';
+import { CPU_LEVELS, cpuDifficulty, type CPULevel } from '../config/cpuDifficulty';
 import { InteractiveTutorial } from './InteractiveTutorial';
 
 interface LevelSelectProps {
     lang: Language;
     user: User;
-    onSelect: (tc: TimeControl) => void;
+    onSelect: (tc: TimeControl, level: CPULevel) => void;
     onOnlineMatch?: (roomId: string, role: 'white' | 'black' | 'spectator', matchMode: 'random' | 'private' | 'ranked', tc: TimeControl, opponentId?: string) => void;
     onStartGlobalMatch?: (tcSeconds: number) => void;
     onReplay?: (record: GameRecord) => void;
@@ -27,6 +28,7 @@ interface LevelSelectProps {
 
 export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobalMatch, onReplay, onBack }: LevelSelectProps) {
     const t = { ...dict['en'], ...(dict[lang] || {}) } as any;
+    const [practiceLevel, setPracticeLevel] = React.useState<CPULevel>(3);
     const [showAdModal, setShowAdModal] = React.useState(false);
     const [adProgress, setAdProgress] = React.useState(0);
     const [showOnlineMenu, setShowOnlineMenu] = React.useState(false);
@@ -274,7 +276,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
         setPendingAction(null);
 
         if (action.type === 'cpu') {
-            onSelect(tc);
+            onSelect(tc, practiceLevel);
         } else if (action.type === 'ranked') {
             startRandomMatch('ranked', tc);
         } else if (action.type === 'random') {
@@ -361,6 +363,20 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
             {pendingAction && (
                 <div className="fixed inset-0 bg-[#161513]/95 z-50 flex flex-col items-center justify-center p-4 backdrop-blur-sm">
                     <div className="bg-[#161513] border border-[#A89C86]/40 p-8 w-full max-w-sm text-center shadow-2xl">
+                        {pendingAction.type === 'cpu' && (
+                            <fieldset className="mb-6">
+                                <legend className="text-sm text-[#E8E2D7] mb-3">{lang === 'ja' ? 'CPUの強さ' : 'CPU difficulty'}</legend>
+                                <div className="flex gap-2">
+                                    {CPU_LEVELS.map(level => (
+                                        <button key={level} type="button" aria-pressed={practiceLevel === level}
+                                            onClick={() => setPracticeLevel(level)}
+                                            className={`flex-1 py-3 border transition-colors ${practiceLevel === level ? 'border-[#B39A62] bg-[#B39A62]/20 text-[#E8E2D7]' : 'border-[#A89C86]/40 text-[#A89C86]'}`}>
+                                            {cpuDifficulty(level)[lang === 'ja' ? 'ja' : 'en']}
+                                        </button>
+                                    ))}
+                                </div>
+                            </fieldset>
+                        )}
                         <h3 className="text-xl tracking-[0.2em] text-[#E8E2D7] mb-2">{t.selectTimeLimit}</h3>
                         <p className="text-[#A89C86] text-xs tracking-widest mb-8">{t.timeLimit}</p>
                         <div className="flex flex-col gap-4">
@@ -377,9 +393,9 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
                                             {(t as any).ratingLabel}: {Math.floor(tc === '10s' ? userProfile.rating_10s : tc === '3m' ? userProfile.rating_3m : userProfile.rating_10m)}
                                         </span>
                                     )}
-                                    <span className="text-[#A89C86] text-[10px] tracking-widest ml-auto group-hover:text-[#D4B872] transition-colors">
+                                    {pendingAction.type !== 'cpu' && <span className="text-[#A89C86] text-[10px] tracking-widest ml-auto group-hover:text-[#D4B872] transition-colors">
                                         {queueStats?.[tc === '10s' ? 10 : tc === '3m' ? 180 : 600] || 0} waiting
-                                    </span>
+                                    </span>}
 
                                     <span className="text-xs text-[#A89C86]">→</span>
                                 </button>
