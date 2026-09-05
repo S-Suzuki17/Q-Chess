@@ -897,7 +897,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
                         >
                             {/* 移動先候補のハイライト描画 */}
                             {isMoveCandidate && !tokenHere && (
-                                <div className="absolute w-4 h-4 rounded-full bg-[#B39A62]/40 pointer-events-none animate-pulse" />
+                                <div className="absolute inset-0 border-4 border-[#B39A62]/60 shadow-[inset_0_0_15px_rgba(179,154,98,0.5)] pointer-events-none animate-pulse" />
                             )}
                             {isMoveCandidate && tokenHere && (
                                 <div className={`absolute inset-1 border-4 ${isCapturable ? 'border-red-600/60' : 'border-[#B39A62]/60'} rounded pointer-events-none animate-pulse`} />

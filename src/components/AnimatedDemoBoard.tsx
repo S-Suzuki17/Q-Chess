@@ -45,10 +45,10 @@ export function AnimatedDemoBoard({
                         <div 
                             key={i} 
                             onClick={() => onSquareClick?.(row, col)}
-                            className={`w-full h-full relative cursor-pointer ${isDark ? 'bg-[#11100E]' : 'bg-[#191714]'} ${isMoveCandidate ? 'hover:bg-[#B39A62]/20' : ''}`} 
+                            className={`w-full h-full relative cursor-pointer transition-colors ${isDark ? 'bg-[#11100E]' : 'bg-[#191714]'} ${isMoveCandidate ? 'hover:bg-[#B39A62]/10' : ''}`} 
                         >
                             {isMoveCandidate && (
-                                <div className="absolute inset-0 m-auto w-4 h-4 rounded-full bg-[#B39A62]/50 pointer-events-none animate-pulse" />
+                                <div className="absolute inset-0 border-4 border-[#B39A62]/60 shadow-[inset_0_0_15px_rgba(179,154,98,0.5)] pointer-events-none animate-pulse" />
                             )}
                         </div>
                     );

@@ -591,7 +591,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
                     border-[#A89C86]/30 shadow-gray-900
                 `}>
                 {Array.from({ length: 64 }).map((_, index) => {
-                    const isFlipped = onlineRole !== 'black';
+                    const isFlipped = onlineRole === 'black';
                     const visualRow = Math.floor(index / 8);
                     const visualCol = index % 8;
                     const row = isFlipped ? 7 - visualRow : visualRow;
@@ -629,7 +629,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
                             `}
                         >
                             {isMoveCandidate && !tokenHere && (
-                                <div className="absolute w-4 h-4 rounded-full bg-[#B39A62]/40 pointer-events-none animate-pulse" />
+                                <div className="absolute inset-0 border-4 border-[#B39A62]/60 shadow-[inset_0_0_15px_rgba(179,154,98,0.5)] pointer-events-none animate-pulse" />
                             )}
                             {isMoveCandidate && tokenHere && (
                                 <div className={`absolute inset-1 border-4 ${isCapturable ? 'border-red-600/60' : 'border-[#B39A62]/60'} rounded pointer-events-none animate-pulse`} />
