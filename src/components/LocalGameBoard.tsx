@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { IdentityPool } from '../lib/IdentityPool';
-import { Token, deduceMoveTypes, calculateProbabilities, isPlayerInCheck, checkGameOver, isCheckmate } from '../lib/GameEngine';
+import { Token, deduceMoveTypes, isPlayerInCheck } from '../lib/GameEngine';
 import { QuantumPieceUI } from './QuantumPieceUI';
 import { AdBanner } from './AdBanner';
 import { Language, dict } from '../locales/dict';
@@ -11,6 +11,10 @@ import { PieceType } from '../config/gameConfig';
 import { supabase } from '../lib/supabaseClient';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import { MoveRecord, saveGameRecord, GameRecord } from '../lib/gameRecordService';
+import { requestCPUSearch } from '../lib/cpuClient';
+import { legacyToQuantumState, quantumToLegacyMove } from '../quantum-engine/adapter';
+import { getWinner } from '../quantum-engine/terminal';
+import { createLocalPosition, applyLocalMove } from '../lib/localGame';
 import { soundManager } from '../lib/SoundService';
 
 export type EmoteType = 'hello' | 'well_played' | 'wow' | 'thinking' | 'resign';
@@ -36,21 +40,25 @@ interface GameBoardProps {
 
 export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, matchMode, opponentId, timeControl = '10m', onHome }: GameBoardProps) {
     const t = { ...dict['en'], ...(dict[lang] || {}) } as any;
-    const [pool, setPool] = useState(() => new IdentityPool());
+    const [initialPosition] = useState(createLocalPosition);
+    const [pool, setPool] = useState(initialPosition.pool);
     const poolRef = useRef<IdentityPool>(pool);
     useEffect(() => { poolRef.current = pool; }, [pool]);
-    const [tokens, setTokens] = useState<Token[]>([]);
-    const [capturedTokens, setCapturedTokens] = useState<Token[]>([]);
-
-    // Animation state
+    const [tokens, setTokens] = useState<Token[]>(initialPosition.tokens);
     const [movingPiece, setMovingPiece] = useState<{ id: string, fromRow: number, fromCol: number, toRow: number, toCol: number } | null>(null);
-
+    useEffect(() => {
+        if (!movingPiece) return;
+        const timer = setTimeout(() => setMovingPiece(null), 400);
+        return () => clearTimeout(timer);
+    }, [movingPiece]);
     const tokensRef = useRef<Token[]>([]);
     const executeMoveRef = useRef<any>(null);
-    useEffect(() => { tokensRef.current = tokens; executeMoveRef.current = executeMove; }, [tokens]);
+    useEffect(() => { tokensRef.current = tokens; executeMoveRef.current = executeMove; });
     const [selectedTokenId, setSelectedTokenId] = useState<string | null>(null);
     const [tutorialHint, setTutorialHint] = useState<string | null>(null);
     const [showRules, setShowRules] = useState(false);
+    const [cpuRetry, setCpuRetry] = useState(0);
+    const [cpuFailed, setCpuFailed] = useState(false);
     const [currentTurn, setCurrentTurn] = useState<'white' | 'black'>('white');
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
     const [fetchedOpponentName, setFetchedOpponentName] = useState<string | null>(null);
@@ -325,51 +333,31 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
         };
     }, [roomId, user, onlineRole, triggerEmote, playMoveSound, opponentId]);
 
-    // CPU
+    // A worker keeps the board responsive; cancellation discards stale replies.
     useEffect(() => {
-        if (currentTurn === 'black' && !winner && !roomId) {
-            const timer = setTimeout(async () => {
-                try {
-                    const { calculateCPUMove } = await import('../lib/AIEngine');
-                    const lastMove = moveHistory.length > 0 ? moveHistory[moveHistory.length - 1] : null;
-                    const move = calculateCPUMove(tokens, pool, 'black', moveHistory.length, lastMove);
-                    
-                    if (move) {
-                        const aiToken = tokens.find(t => t.id === move.tokenId);
-                        if (aiToken) {
-                            const targetToken = tokens.find(t => t.row === move.targetRow && t.col === move.targetCol);
-                            executeMove(aiToken, move.targetRow, move.targetCol, move.possibleTypes, targetToken, true, move.promotedTo);
-                        } else {
-                            setCurrentTurn('white');
-                        }
-                    } else {
-                        setCurrentTurn('white');
-                    }
-                } catch (err) {
-                    console.error("AI execution failed:", err);
-                    setCurrentTurn('white');
-                }
-            }, 500);
-            return () => clearTimeout(timer);
-        }
-    }, [currentTurn, winner, tokens, pool, cpuLevel]);
-
-    useEffect(() => {
-        const initialTokens: Token[] = [];
-        let idCounter = 1;
-        [0, 1, 6, 7].forEach(row => {
-            const player = row <= 1 ? 'black' : 'white';
-            for (let col = 0; col < 8; col++) {
-                const id = `token_${idCounter++}`;
-                pool.registerPiece(id);
-                initialTokens.push({
-                    id, player, row, col,
-                    probabilities: calculateProbabilities(pool, id)
-                });
+        if (currentTurn !== 'black' || winner || roomId || movingPiece || tokens.length === 0) return;
+        const controller = new AbortController();
+        setCpuFailed(false);
+        const state = legacyToQuantumState(tokens, pool, 'black', moveHistory.length, moveHistory.at(-1) ?? null);
+        requestCPUSearch(state, controller.signal).then(stats => {
+            if (controller.signal.aborted) return;
+            if (!stats.move) {
+                const result = getWinner(state);
+                setWinner(result === 'draw' ? 'draw' : result ? `${result}_wins` : 'draw');
+                return;
             }
+            const move = quantumToLegacyMove(stats.move, state);
+            const aiToken = tokens.find(token => token.id === move.tokenId);
+            if (aiToken) executeMoveRef.current?.(aiToken, move.targetRow, move.targetCol,
+                move.possibleTypes, tokens.find(token => !token.isCaptured && token.row === move.targetRow && token.col === move.targetCol),
+                true, move.promotedTo);
+        }).catch(error => {
+            if (controller.signal.aborted) return;
+            console.error('CPU search failed:', error);
+            setCpuFailed(true);
         });
-        setTokens(initialTokens);
-    }, [pool]);
+        return () => controller.abort();
+    }, [currentTurn, winner, tokens, pool, roomId, moveHistory, cpuRetry, movingPiece]);
 
     useEffect(() => {
         if (isCheck && !winner) {
@@ -486,7 +474,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
             }
         }
         return moves;
-    }, [selectedTokenId, tokens, winner, moveHistory]); // tokensが変わる（ターンが進む）か選択が切り替わったら再計算
+    }, [selectedTokenId, tokens, pool, winner, moveHistory]); // tokensが変わる（ターンが進む）か選択が切り替わったら再計算
 
     const executeMove = (token: Token, targetRow: number, targetCol: number, possibleTypesForMove: PieceType[], targetToken?: Token, isLocalMove: boolean = true, promotedTo?: PieceType) => {
         // Tutorial hint logic (VS CPU only)
@@ -512,145 +500,49 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
             setTimeout(() => setTutorialHint(null), 7000);
         }
 
-        if (winner) return;
+        if (winner || movingPiece) return;
+        let result;
+        try {
+            result = applyLocalMove(tokens, pool, {
+                tokenId: token.id, targetRow, targetCol,
+                possibleTypes: possibleTypesForMove, promotedTo
+            }, currentTurn, moveHistory);
+        } catch {
+            setErrorMsg(t.errInvalidMove);
+            return;
+        }
         if (isLocalMove && channelRef.current) {
-            channelRef.current.send({
-                type: 'broadcast',
-                event: 'move',
-                payload: { userId: user?.id, tokenId: token.id, targetRow, targetCol, possibleTypes: possibleTypesForMove, promotedTo }
-            });
+            channelRef.current.send({ type: 'broadcast', event: 'move',
+                payload: { userId: user?.id, tokenId: token.id, targetRow, targetCol,
+                    possibleTypes: possibleTypesForMove, promotedTo } });
         }
-        
-        if (promotedTo) {
-            // Promotion forces the piece to be a Pawn originally
-            pool.restrictIdentity(token.id, ['Pawn']);
-        } else {
-            pool.restrictIdentity(token.id, possibleTypesForMove);
-        }
-        
-        // Compute updated positions immediately for logic
-        let updatedTokens = tokens.map(t => {
-            if (targetToken && t.id === targetToken.id) {
-                const p = pool.piecePossibilities.get(t.id);
-                if (p) p.delete('King');
-                return { ...t, isCaptured: true, row: -1, col: -1 };
-            }
-            if (t.id === token.id) return { ...t, row: targetRow, col: targetCol, hasMoved: true, promotedTo: promotedTo || t.promotedTo };
-            return t;
-        });
-
-        // Handle Castling Side-Effects
-        if (possibleTypesForMove.includes('King') && Math.abs(targetCol - token.col) === 2) {
-            const isKingside = targetCol > token.col;
-            const rookCol = isKingside ? 7 : 0;
-            const newRookCol = isKingside ? targetCol - 1 : targetCol + 1;
-            const rookToken = updatedTokens.find(t => t.row === token.row && t.col === rookCol && t.player === token.player);
-            if (rookToken) {
-                const rookIndex = updatedTokens.findIndex(t => t.id === rookToken.id);
-                if (rookIndex !== -1) {
-                    updatedTokens[rookIndex] = { ...updatedTokens[rookIndex], col: newRookCol, hasMoved: true };
-                }
-                pool.restrictIdentity(rookToken.id, ['Rook']);
-            }
-        }
-
-        // Handle En Passant Side-Effects
-        let actualCapturedTokenId = targetToken?.id;
-        if (possibleTypesForMove.includes('Pawn') && !targetToken && targetCol !== token.col) {
-            const capturedRow = token.row;
-            const capturedCol = targetCol;
-            const epToken = updatedTokens.find(t => t.row === capturedRow && t.col === capturedCol && t.player !== token.player);
-            if (epToken) {
-                const epIndex = updatedTokens.findIndex(t => t.id === epToken.id);
-                if (epIndex !== -1) {
-                    updatedTokens[epIndex] = { ...updatedTokens[epIndex], isCaptured: true, row: -1, col: -1 };
-                }
-                const p = pool.piecePossibilities.get(epToken.id);
-                if (p) p.delete('King');
-                pool.restrictIdentity(epToken.id, ['Pawn']);
-                actualCapturedTokenId = epToken.id;
-            }
-        }
-
-        // Resolve global constraints immediately
-        const isValid = pool.resolveGlobalConstraints(updatedTokens);
-
-        // Pre-update probabilities on the existing tokens state so the UI reflects them during the animation
-        setTokens(tokens.map(t => ({
-            ...t,
-            probabilities: calculateProbabilities(pool, t.id)
-        })));
-
-        // Record move in history
-        const newTurn = turnCount + 1;
-        setTurnCount(newTurn);
-        const moveRecordObj: MoveRecord = {
-            turn: newTurn,
-            player: currentTurn,
-            tokenId: token.id,
-            from: [token.row, token.col],
-            to: [targetRow, targetCol],
-            possibleTypes: possibleTypesForMove,
-            capturedTokenId: actualCapturedTokenId,
-            promotedTo,
+        const moveRecord: MoveRecord = {
+            turn: turnCount + 1, player: currentTurn, tokenId: token.id,
+            from: [token.row, token.col], to: [targetRow, targetCol],
+            possibleTypes: possibleTypesForMove, capturedTokenId: result.capturedId, promotedTo
         };
-        setMoveHistory(prev => [...prev, moveRecordObj]);
-
+        setTurnCount(turnCount + 1);
+        setMoveHistory(prev => [...prev, moveRecord]);
         playMoveSound();
-
-        // Animate move
+        const nextTurn = result.state.sideToMove;
+        // Replace both snapshots; never mutate React's current pool in place.
+        setPool(result.pool);
+        setTokens(result.tokens);
         setMovingPiece({ id: token.id, fromRow: token.row, fromCol: token.col, toRow: targetRow, toCol: targetCol });
-        
-        // Let the animation play before updating the actual grid position and evaluating game over logic
-        setTimeout(() => {
-            setMovingPiece(null);
+        setWinner(result.state.winner === 'draw' ? 'draw' : result.state.winner ? `${result.state.winner}_wins` : null);
+        setIsCheck(isPlayerInCheck(nextTurn, result.tokens, result.pool));
 
-            const nextTurn = currentTurn === 'white' ? 'black' : 'white';
-            const activeTokens = updatedTokens.filter(t => !t.isCaptured);
+        setSelectedTokenId(null);
+        setCurrentTurn(nextTurn);
 
-            if (!isValid) {
-                // 矛盾が発生＝「取った駒が実は玉だった」ため、全体制約を満たせなくなった
-                setWinner(currentTurn === 'white' ? 'white_wins' : 'black_wins');
-            } else {
-                const gameResult = checkGameOver(activeTokens, pool);
-                if (gameResult) {
-                    setWinner(gameResult);
-                } else {
-                    const checkStatus = isPlayerInCheck(nextTurn, activeTokens, pool);
-                    setIsCheck(checkStatus);
-                    
-                    if (checkStatus) {
-                        const mate = isCheckmate(nextTurn, activeTokens, pool);
-                        if (mate) {
-                            setWinner(currentTurn === 'white' ? 'white_wins' : 'black_wins');
-                        }
-                    } else {
-                        if (isCheckmate(nextTurn, activeTokens, pool)) {
-                            setWinner('draw');
-                        }
-                    }
-                }
-            }
-
-            // Final token update with correct row/col positions
-            updatedTokens = updatedTokens.map(t => ({
-                ...t,
-                probabilities: calculateProbabilities(pool, t.id)
-            }));
-
-            setTokens(updatedTokens);
-            setSelectedTokenId(null);
-            setCurrentTurn(nextTurn);
-            
-            if (timeControl === '10s') {
-                if (nextTurn === 'white') setTimeLeftWhite(10);
-                else setTimeLeftBlack(10);
-            }
-        }, 400); // Wait 400ms for animation
+        if (timeControl === '10s') {
+            if (nextTurn === 'white') setTimeLeftWhite(10);
+            else setTimeLeftBlack(10);
+        }
     };
 
     const handleSquareClick = (targetRow: number, targetCol: number) => {
-        if (winner || onlineRole === 'spectator') return;
+        if (winner || movingPiece || onlineRole === 'spectator') return;
         
         // Prevent human player from interacting during CPU's turn
         if (!roomId && currentTurn === 'black') return;
@@ -1041,6 +933,9 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
                 {t.tips}
             </div>
 
+            {cpuFailed && <button onClick={() => setCpuRetry(value => value + 1)} className="my-2 rounded border border-amber-400 px-4 py-2 text-amber-200">
+                {lang === 'ja' ? 'CPUの思考を再試行' : 'Retry CPU turn'}
+            </button>}
             {/* Resign Confirmation Modal */}
             {showResignConfirm && (
                 <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 backdrop-blur-sm animate-fade-in">

@@ -6,8 +6,9 @@ import { IdentityPool } from '../lib/IdentityPool';
 import { PieceType } from '../config/gameConfig';
 import { GameState, QuantumPiece, Move } from './types';
 import { ALL_PIECE_TYPES, PIECE_PAWN, PIECE_KNIGHT, PIECE_BISHOP, PIECE_ROOK, PIECE_QUEEN, PIECE_KING } from './constants';
+import type { MoveRecord } from '../lib/gameRecordService';
 
-const TYPE_TO_BIT: Record<PieceType, number> = {
+export const TYPE_TO_BIT: Record<PieceType, number> = {
     'Pawn': PIECE_PAWN,
     'Knight': PIECE_KNIGHT,
     'Bishop': PIECE_BISHOP,
@@ -25,7 +26,7 @@ const BIT_TO_TYPE: Record<number, PieceType> = {
     [PIECE_KING]: 'King'
 };
 
-export function legacyToQuantumState(tokens: Token[], pool: IdentityPool, sideToMove: 'white' | 'black', ply: number = 0, lastMove: any = null): GameState {
+export function legacyToQuantumState(tokens: Token[], pool: IdentityPool, sideToMove: 'white' | 'black', ply: number = 0, lastMove: MoveRecord | null = null): GameState {
     const pieces: QuantumPiece[] = tokens.map(t => {
         let stateBits = 0;
         const p = pool.piecePossibilities.get(t.id);
@@ -44,9 +45,9 @@ export function legacyToQuantumState(tokens: Token[], pool: IdentityPool, sideTo
         return {
             id: t.id,
             owner: t.player,
-            origin: { row: t.player === 'white' ? 7 : 0, col: 0 },
+            origin: t.origin ?? { row: t.row, col: t.col },
             position: { row: t.row, col: t.col },
-            state: stateBits === 0 ? ALL_PIECE_TYPES : stateBits,
+            state: p === undefined ? ALL_PIECE_TYPES : stateBits,
             promoted: !!t.promotedTo,
             promotedType: promotedTypeBits,
             alive: !t.isCaptured,
@@ -66,8 +67,10 @@ export function legacyToQuantumState(tokens: Token[], pool: IdentityPool, sideTo
     let qLastMove: Move | undefined = undefined;
     if (lastMove) {
         qLastMove = {
-            pieceId: lastMove.tokenId || lastMove.pieceId,
-            target: { row: lastMove.targetRow || lastMove.toRow || 0, col: lastMove.targetCol || lastMove.toCol || 0 }
+            pieceId: lastMove.tokenId,
+            from: { row: lastMove.from[0], col: lastMove.from[1] },
+            target: { row: lastMove.to[0], col: lastMove.to[1] },
+            chosenType: lastMove.possibleTypes.reduce((bits, type) => bits | TYPE_TO_BIT[type], 0)
         };
     }
 

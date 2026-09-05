@@ -39,6 +39,7 @@ export interface GameState {
 
 export interface Move {
     readonly pieceId: string;
+    readonly from?: Position;
     readonly target: Position;
     // If multiple interpretation types are valid, which one is chosen?
     readonly chosenType?: number;

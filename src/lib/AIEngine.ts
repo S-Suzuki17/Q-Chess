@@ -2,7 +2,9 @@ import { Token } from './GameEngine';
 import { IdentityPool } from './IdentityPool';
 import { PieceType } from '../config/gameConfig';
 import { legacyToQuantumState, quantumToLegacyMove } from '../quantum-engine/adapter';
-import { MCTSEngine, EvalQoppelia } from '../quantum-engine/ai';
+import { EvalQoppelia } from '../quantum-engine/ai/evalQoppelia';
+import { searchBestMove } from '../quantum-engine/ai/search';
+import type { MoveRecord } from './gameRecordService';
 
 export interface AIMove {
     tokenId: string;
@@ -12,23 +14,11 @@ export interface AIMove {
     promotedTo?: PieceType;
 }
 
-export function calculateCPUMove(tokens: Token[], pool: IdentityPool, cpuPlayer: 'white' | 'black' = 'black', ply: number = 0, lastMove: any = null): AIMove | null {
+export function calculateCPUMove(tokens: Token[], pool: IdentityPool, cpuPlayer: 'white' | 'black' = 'black', ply: number = 0, lastMove: MoveRecord | null = null): AIMove | null {
     const qState = legacyToQuantumState(tokens, pool, cpuPlayer, ply, lastMove);
     
-    // CPU level is locked to MAX power for all difficulties
-    const timeBudget = 4000; // 4 seconds max
-    
-    // Using the Qoppelia optimized weights (proven via ai_arena testing)
-    const evaluator = new EvalQoppelia({
-        pieceValue: 1.0,
-        candidateAllocation: 0.5,
-        mobility: 0.1,
-        originValue: 0.2
-    });
-
-    const mcts = new MCTSEngine(evaluator, { timeLimitMs: timeBudget });
-    const stats = mcts.search(qState, { timeLimitMs: timeBudget, maxIterations: 100000 });
-    console.log(`[CPU MAX MODE] MCTS Stats: ${stats.iterations} iters, ${stats.maxDepth} depth, ${stats.nodesPerSec.toFixed(1)} nps`);
+    const stats = searchBestMove(qState, new EvalQoppelia(), { timeLimitMs: 4000, maxDepth: 6 });
+    console.info(`[CPU] completed depth ${stats.depth}, ${stats.nodes} nodes, ${stats.timeMs.toFixed(0)} ms`);
     const qMove = stats.move;
 
     if (!qMove) return null;

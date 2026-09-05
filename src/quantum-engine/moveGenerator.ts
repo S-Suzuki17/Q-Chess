@@ -9,6 +9,7 @@ export function isBlocked(
     target: {row: number, col: number}, 
     pieces: readonly QuantumPiece[]
 ): boolean {
+    if (posEquals(start, target)) return false;
     const dr = target.row - start.row;
     const dc = target.col - start.col;
     const absDr = Math.abs(dr);
@@ -70,12 +71,11 @@ export function generateLegalMoves(state: GameState, pieceId: string): MoveCandi
                 if (lastMove) {
                     const lastMovePiece = state.pieces.find(p => p.id === lastMove.pieceId);
                     if (lastMovePiece && lastMovePiece.owner !== piece.owner && lastMovePiece.position.row === piece.position.row && lastMovePiece.position.col === targetPos.col) {
-                        // Check if it moved 2 squares (from original pawn start)
-                        // Actually, we don't store fromRow in lastMove right now.
-                        // But if it's on row 3 (white's EP rank) or 4 (black's EP rank) 
-                        // and it's the last moved piece, it must have been a 2-square pawn move if its state was pawn.
-                        const isPawnStartRankEP = (piece.owner === 'white' && piece.position.row === 3) || (piece.owner === 'black' && piece.position.row === 4);
-                        if (isPawnStartRankEP) {
+                        const from = lastMove.from;
+                        const startedOnPawnRank = from?.row === (lastMovePiece.owner === 'white' ? 6 : 1);
+                        if (from && startedOnPawnRank && from.col === lastMove.target.col &&
+                            Math.abs(lastMove.target.row - from.row) === 2 &&
+                            hasType(lastMovePiece.state, PIECE_PAWN) && !lastMovePiece.promotedType) {
                             requiredTypes |= PIECE_PAWN;
                         }
                     }

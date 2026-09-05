@@ -1,5 +1,8 @@
+import type { PlayerColor } from './constants';
+import type { QuantumPiece } from './types';
+
 export class QuantumContradiction extends Error {
-    constructor(message: string) {
+    constructor(message: string, public readonly player?: PlayerColor, public readonly pieces?: QuantumPiece[]) {
         super(message);
         this.name = 'QuantumContradiction';
     }
