@@ -394,6 +394,11 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
         if (!selectedTokenId || !gameState) return [];
         const token = tokens.find(t => t.id === selectedTokenId);
         if (!token) return [];
+
+        // The server's White moves toward increasing y; the shared hint engine
+        // expects White at rows 6-7. Convert only for hint calculation.
+        const hintTokens = tokens.map(t => ({ ...t, row: 7 - t.row }));
+        const hintToken = hintTokens.find(t => t.id === token.id)!;
         
         const moves: {r: number, c: number}[] = [];
         const currentPossibilities = new Set(Object.keys(token.probabilities).filter(k => token.probabilities[k as PieceType] > 0));
@@ -407,7 +412,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
                 const targetToken = tokens.find(t => !t.isCaptured && t.row === r && t.col === c);
                 if (targetToken && targetToken.player === token.player) continue;
 
-                const possibleTypes = deduceMoveTypes(token, r, c, tokens, lastMoveObj);
+                const possibleTypes = deduceMoveTypes(hintToken, 7 - r, c, hintTokens, lastMoveObj);
                 if (possibleTypes.some(type => currentPossibilities.has(type))) {
                     moves.push({r, c});
                 }
@@ -419,6 +424,10 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
     const currentTurn = gameState?.turn === 0 ? 'white' : 'black';
     const myRole = onlineRole || 'white';
     const isMyTurn = myRole === currentTurn;
+    const bottomPlayer = myRole === 'black' ? 'black' : 'white';
+    // Server team 0 (White) starts at y=0-1, unlike the local CPU board.
+    // Share one orientation for squares, clicks, highlights and animated pieces.
+    const isFlipped = bottomPlayer === 'white';
 
     // Robust winner calculation
     const winner = useMemo(() => {
@@ -564,7 +573,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
                 </div>
             )}
 
-            {/* Black's captured pieces (CPU/Opponent captured) */}
+            {/* Pieces captured by the opponent */}
             <div className="w-full flex gap-2 min-h-[48px] mb-2 p-2 bg-black/40 border border-red-900/30 rounded-lg items-center overflow-x-auto shrink-0">
                 <div className="flex items-center gap-2 min-w-[100px] shrink-0 opacity-70">
                         {onlineRole === 'white' && joinerAvatarUrl ? (
@@ -577,7 +586,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
                         <span className="text-red-900 font-bold text-xs uppercase whitespace-nowrap">{opponentName} {t.captured}:</span>
                     </div>
                 <div className="flex gap-1">
-                    {tokens.filter(t => t.player === 'white' && t.isCaptured).map(token => (
+                    {tokens.filter(t => t.player === bottomPlayer && t.isCaptured).map(token => (
                         <div key={token.id} className="scale-75 origin-left opacity-80">
                             <QuantumPieceUI id={token.id} player={token.player} probabilities={token.probabilities} isSelected={false} onClick={() => {}} />
                         </div>
@@ -591,7 +600,6 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
                     border-[#A89C86]/30 shadow-gray-900
                 `}>
                 {Array.from({ length: 64 }).map((_, index) => {
-                    const isFlipped = onlineRole === 'black';
                     const visualRow = Math.floor(index / 8);
                     const visualCol = index % 8;
                     const row = isFlipped ? 7 - visualRow : visualRow;
@@ -640,7 +648,6 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
 
                 {/* Draw Animated Pieces */}
                 {tokens.filter(t => !t.isCaptured).map(token => {
-                    const isFlipped = onlineRole === 'black';
                     const visualRow = isFlipped ? 7 - token.row : token.row;
                     const visualCol = isFlipped ? 7 - token.col : token.col;
                     const isSelected = token.id === selectedTokenId;
@@ -682,11 +689,11 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
             </div>
             </div>
             
-            {/* White's captured pieces */}
+            {/* Pieces captured by the player at the bottom */}
             <div className="w-full flex gap-2 min-h-[48px] mt-2 p-2 bg-black/40 border border-blue-900/30 rounded-lg items-center overflow-x-auto shrink-0">
                 <span className="text-blue-400/70 font-bold text-xs uppercase whitespace-nowrap min-w-[60px]">{playerName} {t.captured}:</span>
                 <div className="flex gap-1">
-                    {tokens.filter(t => t.player === 'black' && t.isCaptured).map(token => (
+                    {tokens.filter(t => t.player !== bottomPlayer && t.isCaptured).map(token => (
                         <div key={token.id} className="scale-75 origin-left opacity-80">
                             <QuantumPieceUI id={token.id} player={token.player} probabilities={token.probabilities} isSelected={false} onClick={() => {}} />
                         </div>
