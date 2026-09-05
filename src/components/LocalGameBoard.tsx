@@ -344,7 +344,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
                     console.error("AI execution failed:", err);
                     setCurrentTurn('white');
                 }
-            }, 50);
+            }, 500);
             return () => clearTimeout(timer);
         }
     }, [currentTurn, winner, tokens, pool, cpuLevel]);
