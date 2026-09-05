@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { User } from '../types/game';
 import { Friend, getFriends, sendFriendRequest, acceptFriendRequest, removeFriend, Profile, ensureProfile } from '../lib/gameRecordService';
 import { dict, Language } from '../locales/dict';
+import { useRealtimeRefresh } from '../hooks/useRealtimeRefresh';
 
 interface FriendsMenuProps {
     user: User;
@@ -41,6 +42,8 @@ export function FriendsMenu({ user, lang, onlineUsers, onClose, onChallenge }: F
     useEffect(() => {
         loadFriends();
     }, [user.id]);
+
+    useRealtimeRefresh(['friends', 'profiles'], loadFriends);
 
     const handleSendRequest = async () => {
         if (!searchId.trim()) return;

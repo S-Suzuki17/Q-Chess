@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { ActiveMatch, getActiveMatches, Profile, ensureProfile } from '../lib/gameRecordService';
 import { dict, Language } from '../locales/dict';
+import { useRealtimeRefresh } from '../hooks/useRealtimeRefresh';
 
 interface LiveMatchesMenuProps {
     lang: Language;
@@ -38,9 +39,9 @@ export function LiveMatchesMenu({ lang, onClose, onSpectate }: LiveMatchesMenuPr
 
     useEffect(() => {
         loadMatches();
-        const interval = setInterval(loadMatches, 15000); // refresh every 15s
-        return () => clearInterval(interval);
     }, []);
+
+    useRealtimeRefresh(['active_matches', 'profiles'], loadMatches);
 
     return (
         <div className="fixed inset-0 bg-black/90 z-50 flex flex-col items-center justify-center p-4">

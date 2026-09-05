@@ -7,7 +7,8 @@ import React from 'react';
 import { dict, Language } from '../locales/dict';
 import { User, TimeControl } from '../types/game';
 import { supabase } from '../lib/supabaseClient';
-import { GameRecord, getGameRecords, Profile, getTopProfiles, UserStats } from '../lib/gameRecordService';
+import { GameRecord, getGameRecords, Profile, getTopProfiles, UserStats, PUBLIC_PROFILE_COLUMNS } from '../lib/gameRecordService';
+import { useRealtimeRefresh } from '../hooks/useRealtimeRefresh';
 import { soundManager } from '../lib/SoundService';
 import { getTitleFromRating } from '../lib/rankSystem';
 import { FriendsMenu } from './FriendsMenu';
@@ -166,7 +167,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
     }, [user.id]);
 
     const refreshUserProfile = React.useCallback(async () => {
-        const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+        const { data } = await supabase.from('profiles').select(PUBLIC_PROFILE_COLUMNS).eq('id', user.id).single();
         if (data) {
             setUserProfile(data as Profile);
         } else {
@@ -232,6 +233,20 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
         setReplayCategory(category);
         loadReplays(category);
     };
+
+    useRealtimeRefresh(['profiles'], async () => {
+        await Promise.all([
+            refreshUserProfile(),
+            showLeaderboard ? loadLeaderboard(leaderboardCategory) : Promise.resolve()
+        ]);
+    });
+    useRealtimeRefresh(['game_records'], async () => {
+        await Promise.all([
+            getGameRecords(3, user.id).then(setRecentGames),
+            showReplays ? loadReplays(replayCategory) : Promise.resolve(),
+            showAccount ? import('../lib/gameRecordService').then(({ getUserStats }) => getUserStats(user.id)).then(setUserStats) : Promise.resolve()
+        ]);
+    });
 
     const handleVsCpuClick = () => {
         setPendingAction({ type: 'cpu' });

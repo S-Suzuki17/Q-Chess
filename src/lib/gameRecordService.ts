@@ -3,6 +3,8 @@
 import { supabase } from './supabaseClient';
 import { PieceType } from '../config/gameConfig';
 
+export const PUBLIC_PROFILE_COLUMNS = 'id,name,rating,created_at,rating_10s,rating_3m,rating_10m,avatar_url';
+
 export interface MoveRecord {
     turn: number;
     player: 'white' | 'black';
@@ -180,7 +182,7 @@ export async function getTopProfiles(timeControl?: string): Promise<Profile[]> {
                        : 'rating_10m';
     const { data, error } = await supabase
         .from('profiles')
-        .select('*')
+        .select(PUBLIC_PROFILE_COLUMNS)
         .not('id', 'like', 'GUEST-%').not('id', 'like', 'anon_%')
         .order(ratingColumn, { ascending: false })
         .limit(10);
@@ -195,7 +197,7 @@ export async function getTopProfiles(timeControl?: string): Promise<Profile[]> {
 export async function ensureProfile(id: string, name: string): Promise<Profile | null> {
     const { data: existing } = await supabase
         .from('profiles')
-        .select('*')
+        .select(PUBLIC_PROFILE_COLUMNS)
         .eq('id', id)
         .single();
         
@@ -204,7 +206,7 @@ export async function ensureProfile(id: string, name: string): Promise<Profile |
     const { data, error } = await supabase
         .from('profiles')
         .insert({ id, name, rating: 2000, rating_10s: 2000, rating_3m: 2000, rating_10m: 2000 })
-        .select()
+        .select(PUBLIC_PROFILE_COLUMNS)
         .single();
         
     if (error) {
