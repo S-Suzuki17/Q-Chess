@@ -771,7 +771,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
                 <div className="flex gap-1">
                     {tokens.filter(t => t.player === 'white' && t.isCaptured).map(token => (
                         <div key={token.id} className="scale-75 origin-left opacity-80">
-                            <QuantumPieceUI id={token.id} player={token.player} probabilities={token.probabilities} isSelected={false} onClick={() => {}} promotedTo={token.promotedTo} />
+                            <QuantumPieceUI id={token.id} player={token.player} probabilities={token.probabilities} candidates={pool.piecePossibilities.get(token.id)} isSelected={false} onClick={() => {}} promotedTo={token.promotedTo} />
                         </div>
                     ))}
                 </div>
@@ -865,7 +865,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
                                 <QuantumPieceUI 
                                     id={token.id}
                                     player={token.player}
-                                    probabilities={token.probabilities}
+                                    probabilities={token.probabilities} candidates={pool.piecePossibilities.get(token.id)}
                                     isSelected={false} // lifting animation is handled by wrapper
                                     onClick={() => {}} 
                                     promotedTo={token.promotedTo}
@@ -890,7 +890,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
                 <div className="flex gap-1">
                     {tokens.filter(t => t.player === 'black' && t.isCaptured).map(token => (
                         <div key={token.id} className="scale-75 origin-left opacity-80">
-                            <QuantumPieceUI id={token.id} player={token.player} probabilities={token.probabilities} isSelected={false} onClick={() => {}} promotedTo={token.promotedTo} />
+                            <QuantumPieceUI id={token.id} player={token.player} probabilities={token.probabilities} candidates={pool.piecePossibilities.get(token.id)} isSelected={false} onClick={() => {}} promotedTo={token.promotedTo} />
                         </div>
                     ))}
                 </div>

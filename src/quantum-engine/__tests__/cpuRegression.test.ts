@@ -1,3 +1,7 @@
+import React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { QuantumPieceUI } from '../../components/QuantumPieceUI';
+import { resolveQuantumState } from '../quantum/candidateSolver';
 import { describe, expect, it } from 'vitest';
 import { createInitialState } from '../initialState';
 import { applyMove } from '../stateTransition';
@@ -16,6 +20,32 @@ const piece = (id: string, owner: 'white' | 'black', state: number, row: number,
 const position = (pieces: QuantumPiece[]): GameState => ({ pieces, sideToMove: 'white', ply: 10, winner: null, hash: '', captured: { white: 0, black: 0 } });
 
 describe('CPU search and full-board candidate propagation', () => {
+    it('removes exhausted Rook/Queen icons from unmoved CPU pieces even with stale probabilities', () => {
+        const initial = createInitialState();
+        const cpu = initial.pieces.filter(p => p.owner === 'black');
+        const reservedIds = new Set(cpu.slice(0, 3).map(p => p.id));
+        const stale = positionForDisplay(initial);
+        const resolved = resolveQuantumState(initial.pieces.map(p =>
+            reservedIds.has(p.id) ? { ...p, state: R | Q, hasMoved: true } : p));
+        const display = positionForDisplay({ ...initial, pieces: resolved });
+        for (const token of stale.tokens.filter(p => p.player === 'black' && !reservedIds.has(p.id))) {
+            const candidates = display.pool.piecePossibilities.get(token.id)!;
+            expect(candidates.has('Rook')).toBe(false);
+            expect(candidates.has('Queen')).toBe(false);
+            expect(token.hasMoved).toBe(false);
+            const html = renderToStaticMarkup(React.createElement(QuantumPieceUI, {
+                id: token.id, player: token.player, probabilities: token.probabilities,
+                candidates, isSelected: false, onClick: () => {}
+            }));
+            expect(html).not.toContain('♜');
+            expect(html).not.toContain('♛');
+            expect(html).toContain('♞');
+        }
+        const oneReserved = resolveQuantumState(initial.pieces.map(p =>
+            p.id === cpu[0].id ? { ...p, state: R | Q, hasMoved: true } : p));
+        expect(oneReserved.find(p => p.id === cpu[3].id)!.state & (R | Q)).toBe(R | Q);
+    });
+
     it('updates unmoved CPU pieces after Queen confirmation and preserves the captured quota', () => {
         let state = createInitialState();
         let history: MoveRecord[] = [];

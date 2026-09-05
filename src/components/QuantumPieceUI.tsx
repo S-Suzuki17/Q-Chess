@@ -7,6 +7,7 @@ interface QuantumPieceProps {
     id: string;
     player: 'white' | 'black';
     probabilities: Record<PieceType, number>;
+    candidates?: ReadonlySet<PieceType>;
     isSelected: boolean;
     onClick: () => void;
     promotedTo?: PieceType;
@@ -20,8 +21,8 @@ const PIECE_SYMBOLS_BLACK: Record<PieceType, string> = {
     King: '♚', Queen: '♛', Rook: '♜', Bishop: '♝', Knight: '♞', Pawn: '♟'
 };
 
-export const QuantumPieceUI: React.FC<QuantumPieceProps> = ({ player, probabilities, isSelected, onClick, promotedTo }) => {
-    const possibleTypes = (Object.keys(probabilities) as PieceType[]).filter(type => probabilities[type] > 0);
+export const QuantumPieceUI: React.FC<QuantumPieceProps> = ({ player, probabilities, candidates, isSelected, onClick, promotedTo }) => {
+    const possibleTypes = (Object.keys(probabilities) as PieceType[]).filter(type => candidates ? candidates.has(type) : probabilities[type] > 0);
     
     const isPromoted = !!promotedTo;
     const confirmedType = promotedTo ? promotedTo : (possibleTypes.length === 1 ? possibleTypes[0] : null);
