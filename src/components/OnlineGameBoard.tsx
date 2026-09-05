@@ -48,8 +48,10 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
     const { socket, isConnected } = useSocket();
 
     const [gameState, setGameState] = useState<any>(null);
+    const prevGameStateRef = useRef<any>(null);
     const [selectedTokenId, setSelectedTokenId] = useState<string | null>(null);
     const [showMoveHints, setShowMoveHints] = useState<boolean>(true);
+    const [showRules, setShowRules] = useState(false);
     const [showResignConfirm, setShowResignConfirm] = useState<boolean>(false);
     const [promotionPending, setPromotionPending] = useState<{
         pieceId: number;
@@ -59,6 +61,10 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
 
     // Latency Measurement
     const [latency, setLatency] = useState<number | null>(null);
+
+    useEffect(() => {
+        prevGameStateRef.current = gameState;
+    }, [gameState]);
 
     useEffect(() => {
         if (!socket || !isConnected) return;
@@ -595,6 +601,21 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
                     const isSelected = tokenHere?.id === selectedTokenId;
                     const isMoveCandidate = showMoveHints && validMoves.some(m => m.r === row && m.c === col);
 
+                    const lastMove = gameState?.lastMove;
+                    let lastMoveFrom: {row: number, col: number} | null = null;
+                    if (lastMove && prevGameStateRef.current) {
+                        const oldPiece = prevGameStateRef.current.pieces?.find((p: any) => p.id === lastMove.pieceId);
+                        if (oldPiece) {
+                            lastMoveFrom = oldPiece.position;
+                        }
+                    }
+
+                    const isLastMoveSquare = lastMove && (
+                        (lastMove.target.row === row && lastMove.target.col === col) ||
+                        (lastMoveFrom && lastMoveFrom.row === row && lastMoveFrom.col === col)
+                    );
+                    const isCapturable = isMoveCandidate && tokenHere && tokenHere.player !== currentTurn;
+
                     return (
                         <div 
                             key={index}
@@ -603,11 +624,15 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
                                 relative flex justify-center items-center cursor-pointer transition-colors
                                 aspect-square w-full h-full
                                 ${isDark ? 'bg-[#11100E]' : 'bg-[#191714]'}
-                                ${isMoveCandidate ? 'hover:bg-[#B39A62]/20' : 'hover:bg-[#E8E2D7]/5'}
+                                ${isLastMoveSquare ? (isDark ? 'bg-[#B39A62]/20' : 'bg-[#B39A62]/30') : ''}
+                                ${isMoveCandidate ? (isCapturable ? 'hover:bg-red-900/30' : 'hover:bg-[#B39A62]/20') : 'hover:bg-[#E8E2D7]/5'}
                             `}
                         >
                             {isMoveCandidate && !tokenHere && (
                                 <div className="absolute w-4 h-4 rounded-full bg-[#B39A62]/40 pointer-events-none animate-pulse" />
+                            )}
+                            {isMoveCandidate && tokenHere && (
+                                <div className={`absolute inset-1 border-4 ${isCapturable ? 'border-red-600/60' : 'border-[#B39A62]/60'} rounded pointer-events-none animate-pulse`} />
                             )}
                             {tokens.filter(t => !t.isCaptured && t.row === row && t.col === col).map(token => (
                                 <QuantumPieceUI 
@@ -649,15 +674,24 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
                     {lang === 'ja' ? 'コマの移動範囲を表示' : 'Show movable range'}
                 </label>
 
-                {!winner && onlineRole !== 'spectator' && (
+                <div className="flex gap-2">
                     <button
-                        onClick={() => setShowResignConfirm(true)}
-                        className="px-3 py-1.5 bg-red-950/50 hover:bg-red-900/80 border border-red-800/80 hover:border-red-900/50 rounded text-xs text-[#E8E2D7] hover:text-red-200 font-bold transition-all flex items-center gap-1.5 shadow-sm"
+                        onClick={() => setShowRules(true)}
+                        className="px-3 py-1.5 bg-[#191714] hover:bg-[#2A2621] border border-[#B39A62]/50 rounded text-xs text-[#E8E2D7] font-bold transition-all flex items-center gap-1.5 shadow-sm"
                     >
-                        <span>🏳️</span>
-                        <span>{lang === 'ja' ? '投了' : 'Resign'}</span>
+                        <span>❓</span>
+                        <span>{lang === 'ja' ? 'ルール' : 'Rules'}</span>
                     </button>
-                )}
+                    {!winner && onlineRole !== 'spectator' && (
+                        <button
+                            onClick={() => setShowResignConfirm(true)}
+                            className="px-3 py-1.5 bg-red-950/50 hover:bg-red-900/80 border border-red-800/80 hover:border-red-900/50 rounded text-xs text-[#E8E2D7] hover:text-red-200 font-bold transition-all flex items-center gap-1.5 shadow-sm"
+                        >
+                            <span>🏳️</span>
+                            <span>{lang === 'ja' ? '投了' : 'Resign'}</span>
+                        </button>
+                    )}
+                </div>
             </div>
 
             <div className="mt-4 text-[#00ff41] text-sm opacity-80 text-center px-4">
@@ -742,6 +776,38 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
                             >
                                 {lang === 'ja' ? '投了する' : 'Resign'}
                             </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Rules Modal */}
+            {showRules && (
+                <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 backdrop-blur-sm animate-fade-in">
+                    <div className="bg-[#161513] border border-[#B39A62]/30 rounded-xl p-8 max-w-md w-full shadow-2xl flex flex-col gap-4 text-center">
+                        <h3 className="text-xl font-bold text-[#E8E2D7] tracking-widest uppercase">
+                            {lang === 'ja' ? '遊び方' : 'How to Play'}
+                        </h3>
+                        <div className="text-sm text-gray-400 text-left space-y-3">
+                            <p>• <strong>{lang === 'ja' ? '勝利条件:' : 'Victory:'}</strong> {lang === 'ja' ? '相手のキングを取るか、チェックメイトすると勝利です。' : 'Capture the enemy King or Checkmate them.'}</p>
+                            <p>• <strong>{lang === 'ja' ? '重ね合わせ:' : 'Superposition:'}</strong> {lang === 'ja' ? '駒は初期状態では複数の正体（可能性）を持っています。駒を動かすことで、その動き方に基づいて可能性が絞り込まれていきます。' : 'All pieces start with multiple possible identities. Moving a piece collapses its possibilities based on how it moved.'}</p>
+                            <p>• <strong>{lang === 'ja' ? '正体の確定:' : 'Discovery:'}</strong> {lang === 'ja' ? '正体が確定していない敵の駒は、実はキングかもしれません。慎重に攻めましょう！' : 'Be careful! Any unknown enemy piece could turn out to be their King when revealed.'}</p>
+                        </div>
+                        <div className="flex gap-3 w-full mt-4">
+                            <button
+                                onClick={() => setShowRules(false)}
+                                className="flex-1 py-2.5 bg-[#191714] hover:bg-gray-700 border border-gray-600 rounded-lg text-sm text-[#E8E2D7] font-bold transition-colors"
+                            >
+                                {lang === 'ja' ? '閉じる' : 'Close'}
+                            </button>
+                            <a
+                                href="/rules"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex-1 py-2.5 bg-[#B39A62] hover:bg-[#D0C8B6] rounded-lg text-sm text-[#11100E] font-bold transition-colors shadow-lg shadow-[#B39A62]/30 block text-center"
+                            >
+                                {lang === 'ja' ? '詳しいルール' : 'Full Rules Guide'}
+                            </a>
                         </div>
                     </div>
                 </div>
