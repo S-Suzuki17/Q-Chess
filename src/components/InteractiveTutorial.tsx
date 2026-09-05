@@ -11,6 +11,8 @@ const START_PROBS = { King: 1/16, Queen: 1/16, Rook: 2/16, Bishop: 2/16, Knight:
 const DIAG_PROBS = { King: 0, Queen: 0.5, Rook: 0, Bishop: 0.5, Knight: 0, Pawn: 0 };
 const ROOK_QUEEN_PROBS = { King: 0, Queen: 0.5, Rook: 0.5, Bishop: 0, Knight: 0, Pawn: 0 };
 const KNIGHT_PROBS = { King: 0, Queen: 0, Rook: 0, Bishop: 0, Knight: 1, Pawn: 0 };
+const QUEEN_PROBS = { King: 0, Queen: 1, Rook: 0, Bishop: 0, Knight: 0, Pawn: 0 };
+const ROOK_PROBS = { King: 0, Queen: 0, Rook: 1, Bishop: 0, Knight: 0, Pawn: 0 };
 
 export function InteractiveTutorial({ lang, onClose }: Props) {
     const t = { ...dict['en'], ...(dict[lang] || {}) } as any;
@@ -19,7 +21,6 @@ export function InteractiveTutorial({ lang, onClose }: Props) {
     const [selectedPieceId, setSelectedPieceId] = useState<string | null>(null);
 
     // Board State
-    // b1 is at [1, 7] so that moving to [3, 7] to capture is a vertical move of length 2
     const [pieces, setPieces] = useState<DemoPiece[]>([
         { id: 'w1', player: 'white', row: 6, col: 4, probabilities: START_PROBS },
         { id: 'b1', player: 'black', row: 1, col: 7, probabilities: START_PROBS },
@@ -36,6 +37,9 @@ export function InteractiveTutorial({ lang, onClose }: Props) {
         } else if (step === 6 && id === 'w2') {
             setSelectedPieceId('w2');
             setStep(7);
+        } else if (step === 9 && id === 'b1') {
+            setSelectedPieceId('b1');
+            setStep(10);
         } else if (selectedPieceId) {
             // Clicked another piece while having one selected. Is it a capture?
             const targetPiece = pieces.find(p => p.id === id);
@@ -62,12 +66,30 @@ export function InteractiveTutorial({ lang, onClose }: Props) {
             movePiece('w2', 5, 5, KNIGHT_PROBS);
             setSelectedPieceId(null);
             setStep(8);
+        } else if (step === 10 && selectedPieceId === 'b1' && row === 5 && col === 5) {
+            // Valid multi-step collapse move (Diagonal move for piece that is Rook or Queen -> Queen)
+            capturePiece('w2'); // capture the knight just for fun
+            
+            setPieces(prev => prev.map(p => {
+                if (p.id === 'b1') {
+                    return { ...p, row: 5, col: 5, probabilities: QUEEN_PROBS };
+                }
+                if (p.id === 'b2') {
+                    // Constraint collapse: b1 is Queen, so b2 must be Rook
+                    return { ...p, probabilities: ROOK_PROBS };
+                }
+                return p;
+            }));
+            
+            setSelectedPieceId(null);
+            setStep(11);
         } else {
             // Invalid click, deselect
             setSelectedPieceId(null);
             if (step === 1) setStep(0);
             if (step === 4) setStep(3);
             if (step === 7) setStep(6);
+            if (step === 10) setStep(9);
         }
     };
 
@@ -115,8 +137,18 @@ export function InteractiveTutorial({ lang, onClose }: Props) {
         if (step === 7) validMoves = [{ row: 5, col: 5 }];
     } else if (step === 8) {
         instructions = lang === 'ja'
-            ? "ナイトが確定しました！可能性が1つに絞られると、正体が全員に公開されます。このように相手のキングをあぶり出し、追い詰めるのがゲームの目的です。"
-            : "The Knight is revealed! When probability drops to exactly one type, the piece is fully revealed. Forcing the enemy King to reveal itself is key to victory.";
+            ? "ナイトが確定しました！可能性が1つに絞られると、正体が全員に公開されます。"
+            : "The Knight is revealed! When probability drops to exactly one type, the piece is fully revealed.";
+    } else if (step === 9 || step === 10) {
+        instructions = lang === 'ja'
+            ? "4. 数手による確定と連鎖\n\n盤面に別の黒駒が現れました（これもルークかクイーン）。\n先ほど動かした黒駒を、光っているマスへ斜めに動かして白駒を取ってください。"
+            : "4. Multi-step & Constraint Collapse\n\nAnother Black piece appeared (also Rook or Queen).\nMove the original Black piece diagonally to capture the White piece.";
+        if (step === 9) validMoves = [{ row: 3, col: 7 }];
+        if (step === 10) validMoves = [{ row: 5, col: 5 }];
+    } else if (step === 11) {
+        instructions = lang === 'ja'
+            ? "素晴らしい！前回「縦」に動いた黒駒が今回「斜め」に動いたため、両方可能な「クイーン」に確定しました！\n\nさらに、クイーンは1人しか存在できないため、もう1つの黒駒は一切動かしていないのに「ルーク」に自動確定しました。このように盤面全体で正体は連鎖的に絞り込まれます。"
+            : "Brilliant! The Black piece moved vertically before, and diagonally now. Only a Queen can do both, so it collapsed into a Queen!\n\nFurthermore, since there can only be one Queen, the other Black piece instantly collapsed into a Rook without even moving. The entire board is entangled!";
     }
 
     const nextScenario = () => {
@@ -130,6 +162,13 @@ export function InteractiveTutorial({ lang, onClose }: Props) {
             ]);
             setStep(6);
         } else if (step === 8) {
+            // Spawn b2 at [1, 0] with ROOK_QUEEN_PROBS
+            setPieces(prev => [
+                ...prev,
+                { id: 'b2', player: 'black', row: 1, col: 0, probabilities: ROOK_QUEEN_PROBS }
+            ]);
+            setStep(9);
+        } else if (step === 11) {
             onClose();
         }
     };
@@ -157,17 +196,17 @@ export function InteractiveTutorial({ lang, onClose }: Props) {
                         {lang === 'ja' ? 'インタラクティブ・チュートリアル' : 'Interactive Tutorial'}
                     </h2>
 
-                    <div className="text-gray-300 leading-relaxed text-lg flex-1 min-h-[120px] whitespace-pre-wrap">
+                    <div className="text-gray-300 leading-relaxed text-lg flex-1 min-h-[160px] whitespace-pre-wrap">
                         {instructions}
                     </div>
 
                     <div className="flex justify-end mt-8 pt-6 border-t border-gray-800">
-                        {(step === 2 || step === 5 || step === 8) && (
+                        {(step === 2 || step === 5 || step === 8 || step === 11) && (
                             <button 
                                 onClick={nextScenario}
                                 className="px-8 py-3 bg-[#B39A62]/20 border border-[#B39A62] text-[#D4B872] hover:bg-[#B39A62] hover:text-[#11100E] transition-colors font-bold tracking-widest"
                             >
-                                {step === 8 ? (lang === 'ja' ? 'プレイ開始！' : 'START PLAYING!') : (lang === 'ja' ? '次へ' : 'NEXT')}
+                                {step === 11 ? (lang === 'ja' ? 'プレイ開始！' : 'START PLAYING!') : (lang === 'ja' ? '次へ' : 'NEXT')}
                             </button>
                         )}
                     </div>

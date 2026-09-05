@@ -634,16 +634,48 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
                             {isMoveCandidate && tokenHere && (
                                 <div className={`absolute inset-1 border-4 ${isCapturable ? 'border-red-600/60' : 'border-[#B39A62]/60'} rounded pointer-events-none animate-pulse`} />
                             )}
-                            {tokens.filter(t => !t.isCaptured && t.row === row && t.col === col).map(token => (
+                        </div>
+                    );
+                })}
+
+                {/* Draw Animated Pieces */}
+                {tokens.filter(t => !t.isCaptured).map(token => {
+                    const isFlipped = onlineRole === 'black';
+                    const visualRow = isFlipped ? 7 - token.row : token.row;
+                    const visualCol = isFlipped ? 7 - token.col : token.col;
+                    const isSelected = token.id === selectedTokenId;
+                    
+                    let transformStyle = '';
+                    if (isSelected) {
+                        transformStyle = 'translateY(-15px) scale(1.15)';
+                    } else {
+                        transformStyle = 'scale(1)';
+                    }
+
+                    return (
+                        <div 
+                            key={token.id}
+                            className="absolute flex items-center justify-center pointer-events-none"
+                            style={{
+                                width: '12.5%',
+                                height: '12.5%',
+                                left: `${visualCol * 12.5}%`,
+                                top: `${visualRow * 12.5}%`,
+                                zIndex: isSelected ? 50 : 20,
+                                transition: 'left 0.4s cubic-bezier(0.4, 0, 0.2, 1), top 0.4s cubic-bezier(0.4, 0, 0.2, 1), transform 0.2s ease',
+                                transform: transformStyle,
+                                filter: isSelected ? 'drop-shadow(0 20px 15px rgba(0,0,0,0.9))' : 'none',
+                            }}
+                        >
+                            <div className="w-full h-full scale-[0.85] flex items-center justify-center pointer-events-auto cursor-pointer" onClick={(e) => { e.stopPropagation(); handleSquareClick(token.row, token.col); }}>
                                 <QuantumPieceUI 
-                                    key={token.id}
                                     id={token.id}
                                     player={token.player}
                                     probabilities={token.probabilities}
-                                    isSelected={token.id === selectedTokenId}
+                                    isSelected={false} // lifting animation is handled by wrapper
                                     onClick={() => {}} 
                                 />
-                            ))}
+                            </div>
                         </div>
                     );
                 })}
