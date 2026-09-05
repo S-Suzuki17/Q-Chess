@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { AdBanner } from '../../components/AdBanner';
+import { InteractiveRulesDemo } from '../../components/InteractiveRulesDemo';
 
 export default function RulesPage() {
   const [lang, setLang] = useState<'en' | 'ja'>('en');
@@ -91,6 +92,10 @@ export default function RulesPage() {
 
         <div className="mb-12">
            <AdBanner adClient="ca-pub-1116866075179199" adSlot="8798363654" />
+        </div>
+
+        <div className="mb-16">
+          <InteractiveRulesDemo lang={lang} />
         </div>
 
         <section className="mb-16">
