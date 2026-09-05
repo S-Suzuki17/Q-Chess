@@ -1,134 +1,185 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Language, dict } from '../locales/dict';
-import { QuantumPieceUI } from './QuantumPieceUI';
+import { AnimatedDemoBoard, DemoPiece } from './AnimatedDemoBoard';
 
 interface Props {
     lang: Language;
     onClose: () => void;
 }
 
+const START_PROBS = { King: 1/16, Queen: 1/16, Rook: 2/16, Bishop: 2/16, Knight: 2/16, Pawn: 8/16 };
+const DIAG_PROBS = { King: 0, Queen: 0.5, Rook: 0, Bishop: 0.5, Knight: 0, Pawn: 0 };
+const KING_PROBS = { King: 1, Queen: 0, Rook: 0, Bishop: 0, Knight: 0, Pawn: 0 };
+
 export function InteractiveTutorial({ lang, onClose }: Props) {
     const t = { ...dict['en'], ...(dict[lang] || {}) } as any;
+    
+    // State machine steps
+    // 0: Initial state, wait for user to click White piece
+    // 1: White piece selected, wait for user to click diagonal target
+    // 2: Piece moved, probability collapsed. Show Next button.
+    // 3: Capture scenario setup. Wait for user to click Black piece.
+    // 4: Black piece selected, wait for user to click White piece target.
+    // 5: Capture happened. Show Next button.
+    // 6: Collapse scenario setup. Wait for user to click White piece.
+    // 7: White piece selected, wait for user to click target.
+    // 8: Collapse happened. Show Finish.
+    
     const [step, setStep] = useState(0);
+    const [selectedPieceId, setSelectedPieceId] = useState<string | null>(null);
 
-    const steps = [
-        {
-            title: lang === 'ja' ? '量子チェスへようこそ' : 'Welcome to Q-GAMBIT',
-            desc: lang === 'ja' ? 'すべての駒は裏返った状態（重ね合わせ）でスタートします。最初はどれがキングでどれがポーンなのか、誰にもわかりません。' : 'All pieces start face-down in a quantum superposition. No one knows which piece is the King or a Pawn.',
-            board: (
-                <div className="grid grid-cols-3 grid-rows-3 gap-1 w-48 h-48 bg-[#B39A62]/10 p-2 border border-[#B39A62]/30">
-                    <div className="col-start-2 row-start-2 relative">
-                        <QuantumPieceUI id="tut1" player="white" probabilities={{ King: 1/16, Queen: 1/16, Rook: 2/16, Bishop: 2/16, Knight: 2/16, Pawn: 8/16 }} isSelected={false} onClick={() => {}} />
-                    </div>
-                </div>
-            )
-        },
-        {
-            title: lang === 'ja' ? '移動＝観測（正体の推論）' : 'Movement = Observation',
-            desc: lang === 'ja' ? '駒を「斜め」に移動させてみましょう。チェスのルール上、斜めに長距離移動できるのは「ビショップ」か「クイーン」だけです。' : 'Let\'s move a piece diagonally. In chess, only a Bishop or Queen can move diagonally from a distance.',
-            board: (
-                <div className="grid grid-cols-3 grid-rows-3 gap-1 w-48 h-48 bg-[#B39A62]/10 p-2 border border-[#B39A62]/30 relative">
-                    <div className="col-start-1 row-start-3 relative opacity-30">
-                        <QuantumPieceUI id="tut2a" player="white" probabilities={{ King: 1/16, Queen: 1/16, Rook: 2/16, Bishop: 2/16, Knight: 2/16, Pawn: 8/16 }} isSelected={false} onClick={() => {}} />
-                    </div>
-                    <div className="col-start-3 row-start-1 relative">
-                        <QuantumPieceUI id="tut2b" player="white" probabilities={{ King: 0, Rook: 0, Knight: 0, Pawn: 0, Bishop: 0.5, Queen: 0.5 }} isSelected={true} onClick={() => {}} />
-                    </div>
-                    {/* Arrow */}
-                    <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-                        <svg className="w-full h-full text-[#D4B872] opacity-50" fill="none" stroke="currentColor" viewBox="0 0 100 100">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M 20 80 L 75 25 M 75 25 L 55 25 M 75 25 L 75 45" />
-                        </svg>
-                    </div>
-                </div>
-            )
-        },
-        {
-            title: lang === 'ja' ? '確率の収縮' : 'Wavefunction Collapse',
-            desc: lang === 'ja' ? 'このように、移動した軌跡から「あり得ない駒」の可能性が排除（収縮）されます。移動するたびに正体が絞られていきます。' : 'By moving, impossible identities are eliminated (collapsed). Every move narrows down what the piece could be.',
-            board: (
-                <div className="grid grid-cols-3 grid-rows-3 gap-1 w-48 h-48 bg-[#B39A62]/10 p-2 border border-[#B39A62]/30 relative">
-                    <div className="col-start-2 row-start-2 relative">
-                        <QuantumPieceUI id="tut3" player="white" probabilities={{ King: 0, Queen: 0, Rook: 0, Bishop: 0, Pawn: 0, Knight: 1.0 }} isSelected={false} onClick={() => {}} />
-                    </div>
-                    <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-                        <svg className="w-full h-full text-[#D4B872] opacity-50" fill="none" stroke="currentColor" viewBox="0 0 100 100">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M 20 80 L 20 20 L 50 20" />
-                        </svg>
-                    </div>
-                </div>
-            )
-        },
-        {
-            title: lang === 'ja' ? 'グローバル推論' : 'Global Deduction',
-            desc: lang === 'ja' ? '盤上にはキングとクイーンは1つずつしか存在しません。ある駒が「クイーン」として確定すると、他のすべての味方の駒からはクイーンの可能性が消滅します。' : 'There is only 1 King and 1 Queen per side. If a piece is revealed as the Queen, the probability of Queen is removed from all other friendly pieces.',
-            board: (
-                <div className="flex gap-4 items-center">
-                    <div className="w-24 h-24 relative">
-                        <QuantumPieceUI id="tut4a" player="black" probabilities={{ King: 0, Rook: 0, Bishop: 0, Knight: 0, Pawn: 0, Queen: 1.0 }} isSelected={true} onClick={() => {}} />
-                        <div className="absolute -bottom-6 w-full text-center text-[10px] text-red-400">QUEEN (100%)</div>
-                    </div>
-                    <div className="w-24 h-24 relative">
-                        <QuantumPieceUI id="tut4b" player="black" probabilities={{ King: 1/15, Queen: 0, Rook: 2/15, Bishop: 2/15, Knight: 2/15, Pawn: 8/15 }} isSelected={false} onClick={() => {}} />
-                        <div className="absolute -bottom-6 w-full text-center text-[10px] text-gray-400">QUEEN (0%)</div>
-                    </div>
-                </div>
-            )
-        },
-        {
-            title: lang === 'ja' ? '勝利条件' : 'Victory Condition',
-            desc: lang === 'ja' ? '相手の「キング」を捕獲するか、チェックメイトすれば勝利です。未確定の駒の中にキングが潜んでいるかもしれない緊張感を楽しんでください！' : 'Capture the enemy King or Checkmate them to win. Enjoy the tension of knowing the enemy King could be hiding anywhere!',
-            board: (
-                <div className="flex flex-col items-center gap-4">
-                    <div className="text-4xl sm:text-5xl font-black text-[#E8E2D7] drop-shadow-[0_0_15px_rgba(255,255,255,1)] animate-stamp">
-                        CHECKMATE
-                    </div>
-                    <button onClick={onClose} className="mt-8 px-12 py-4 bg-[#B39A62] text-[#11100E] font-bold tracking-widest hover:bg-[#D0C8B6] transition-colors rounded">
-                        {lang === 'ja' ? 'プレイ開始！' : 'START PLAYING!'}
-                    </button>
-                </div>
-            )
+    // Board State
+    const [pieces, setPieces] = useState<DemoPiece[]>([
+        { id: 'w1', player: 'white', row: 6, col: 4, probabilities: START_PROBS },
+        { id: 'b1', player: 'black', row: 1, col: 4, probabilities: START_PROBS },
+    ]);
+
+    // Handle Clicks
+    const handlePieceClick = (id: string) => {
+        if (step === 0 && id === 'w1') {
+            setSelectedPieceId('w1');
+            setStep(1);
+        } else if (step === 3 && id === 'b1') {
+            setSelectedPieceId('b1');
+            setStep(4);
+        } else if (step === 6 && id === 'w2') {
+            setSelectedPieceId('w2');
+            setStep(7);
+        } else if (selectedPieceId) {
+            // Clicked another piece while having one selected. Is it a capture?
+            const targetPiece = pieces.find(p => p.id === id);
+            if (targetPiece) {
+                handleSquareClick(targetPiece.row, targetPiece.col);
+            }
         }
-    ];
+    };
 
-    const current = steps[step];
+    const handleSquareClick = (row: number, col: number) => {
+        if (step === 1 && selectedPieceId === 'w1' && row === 3 && col === 7) {
+            // Valid move diagonally
+            movePiece('w1', 3, 7, DIAG_PROBS);
+            setSelectedPieceId(null);
+            setStep(2);
+        } else if (step === 4 && selectedPieceId === 'b1' && row === 3 && col === 7) {
+            // Valid capture
+            capturePiece('w1');
+            movePiece('b1', 3, 7, START_PROBS);
+            setSelectedPieceId(null);
+            setStep(5);
+        } else if (step === 7 && selectedPieceId === 'w2' && row === 6 && col === 3) {
+            // Valid collapse move
+            movePiece('w2', 6, 3, KING_PROBS);
+            setSelectedPieceId(null);
+            setStep(8);
+        } else {
+            // Invalid click, deselect
+            setSelectedPieceId(null);
+            if (step === 1) setStep(0);
+            if (step === 4) setStep(3);
+            if (step === 7) setStep(6);
+        }
+    };
+
+    const movePiece = (id: string, toRow: number, toCol: number, newProbs: any) => {
+        setPieces(prev => prev.map(p => 
+            p.id === id ? { ...p, row: toRow, col: toCol, probabilities: newProbs } : p
+        ));
+    };
+
+    const capturePiece = (id: string) => {
+        setPieces(prev => prev.map(p => 
+            p.id === id ? { ...p, isCaptured: true } : p
+        ));
+    };
+
+    // Derived state for UI
+    let instructions = "";
+    let validMoves: {row: number, col: number}[] = [];
+
+    if (step === 0 || step === 1) {
+        instructions = lang === 'ja' 
+            ? "1. 量子的な重ね合わせ\n\n白い駒をクリックして選択し、光っているマスへ移動させてください。斜めに長距離移動すると、ビショップかクイーンの可能性に絞り込まれます。" 
+            : "1. Quantum Superposition\n\nClick the White piece and move it to the highlighted square. Moving diagonally over a distance eliminates everything except Bishop and Queen.";
+        if (step === 0) validMoves = [{ row: 6, col: 4 }];
+        if (step === 1) validMoves = [{ row: 3, col: 7 }];
+    } else if (step === 2) {
+        instructions = lang === 'ja' 
+            ? "見事です！軌跡から正体が推論され、「波束の収縮」が起きました。"
+            : "Excellent! The identity was deduced from the path, triggering a 'Wavefunction Collapse'.";
+    } else if (step === 3 || step === 4) {
+        instructions = lang === 'ja' 
+            ? "2. 駒取り\n\n次に、黒い駒をクリックして、先ほどの白い駒を取ってみましょう。"
+            : "2. Capturing\n\nNow, click the Black piece and move it to capture the White piece.";
+        if (step === 3) validMoves = [{ row: 1, col: 4 }];
+        if (step === 4) validMoves = [{ row: 3, col: 7 }];
+    } else if (step === 5) {
+        instructions = lang === 'ja' 
+            ? "駒を取りました！取られた駒は正体が判明する前に盤面から消滅します。"
+            : "Piece captured! Captured pieces are removed before their true identity is ever revealed.";
+    } else if (step === 6 || step === 7) {
+        instructions = lang === 'ja' 
+            ? "3. 完全な確定\n\n新しい白駒が現れました。これを光っているマスへ動かしてください。これは「キング」にしかできない動きです。"
+            : "3. Absolute Collapse\n\nA new White piece appeared. Move it to the highlighted square. This move is ONLY possible for a King.";
+        if (step === 6) validMoves = [{ row: 7, col: 4 }];
+        if (step === 7) validMoves = [{ row: 6, col: 3 }];
+    } else if (step === 8) {
+        instructions = lang === 'ja'
+            ? "キングが確定しました！可能性が1つに絞られると、正体が全員に公開されます。このように相手のキングをあぶり出し、追い詰めるのがゲームの目的です。"
+            : "The King is revealed! When probability drops to exactly one type, the piece is fully revealed. Forcing the enemy King to reveal itself is key to victory.";
+    }
+
+    const nextScenario = () => {
+        if (step === 2) {
+            setStep(3);
+        } else if (step === 5) {
+            // Add a new white piece for the final scenario
+            setPieces(prev => [
+                ...prev,
+                { id: 'w2', player: 'white', row: 7, col: 4, probabilities: START_PROBS }
+            ]);
+            setStep(6);
+        } else if (step === 8) {
+            onClose();
+        }
+    };
 
     return (
         <div className="fixed inset-0 bg-[#11100E]/95 z-[200] flex flex-col items-center justify-center p-4 backdrop-blur-md">
-            <div className="w-full max-w-2xl bg-[#191714] border-2 border-[#B39A62]/30 rounded-xl p-8 flex flex-col items-center shadow-2xl relative min-h-[300px] max-h-[90vh] overflow-y-auto">
-                <button onClick={onClose} className="absolute top-4 right-4 text-gray-500 hover:text-white text-2xl font-bold">×</button>
+            <div className="w-full max-w-4xl bg-[#191714] border-2 border-[#B39A62]/30 rounded-xl flex flex-col md:flex-row shadow-2xl relative overflow-hidden">
+                <button onClick={onClose} className="absolute top-4 right-4 text-gray-500 hover:text-white text-2xl font-bold z-50">×</button>
                 
-                <div className="flex gap-2 mb-8">
-                    {steps.map((_, i) => (
-                        <div key={i} className={`w-12 h-1 ${i === step ? 'bg-[#B39A62]' : 'bg-gray-700'} transition-colors cursor-pointer`} onClick={() => setStep(i)} />
-                    ))}
+                {/* Left: Board Demo */}
+                <div className="w-full md:w-1/2 p-8 bg-[#0b0c10] flex items-center justify-center relative min-h-[300px]">
+                    <AnimatedDemoBoard 
+                        pieces={pieces} 
+                        sizeClass="w-full max-w-[320px]" 
+                        selectedPieceId={selectedPieceId}
+                        validMoves={validMoves}
+                        onPieceClick={handlePieceClick}
+                        onSquareClick={handleSquareClick}
+                    />
                 </div>
 
-                <h2 className="text-2xl md:text-3xl font-serif text-[#D4B872] mb-6 text-center tracking-widest">{current.title}</h2>
-                
-                <div className="flex-1 w-full flex items-center justify-center mb-8">
-                    {current.board}
-                </div>
+                {/* Right: Explanations */}
+                <div className="w-full md:w-1/2 p-8 md:p-10 flex flex-col justify-center">
+                    <h2 className="text-3xl font-serif text-[#D4B872] mb-6 tracking-widest">
+                        {lang === 'ja' ? 'インタラクティブ・チュートリアル' : 'Interactive Tutorial'}
+                    </h2>
 
-                <p className="text-sm md:text-base text-[#E8E2D7] text-center leading-relaxed tracking-wide min-h-[80px]">
-                    {current.desc}
-                </p>
+                    <div className="text-gray-300 leading-relaxed text-lg flex-1 min-h-[120px] whitespace-pre-wrap">
+                        {instructions}
+                    </div>
 
-                <div className="flex w-full justify-between mt-8">
-                    <button 
-                        onClick={() => setStep(s => Math.max(0, s - 1))}
-                        className={`px-6 py-2 border border-[#A89C86]/30 text-[#A89C86] hover:bg-[#A89C86]/10 transition-colors ${step === 0 ? 'opacity-0 pointer-events-none' : ''}`}
-                    >
-                        {t.prev || 'PREV'}
-                    </button>
-                    {step < steps.length - 1 && (
-                        <button 
-                            onClick={() => setStep(s => Math.min(steps.length - 1, s + 1))}
-                            className="px-8 py-2 bg-[#B39A62]/20 border border-[#B39A62] text-[#D4B872] hover:bg-[#B39A62] hover:text-[#11100E] transition-colors font-bold tracking-widest"
-                        >
-                            {t.next || 'NEXT'}
-                        </button>
-                    )}
+                    <div className="flex justify-end mt-8 pt-6 border-t border-gray-800">
+                        {(step === 2 || step === 5 || step === 8) && (
+                            <button 
+                                onClick={nextScenario}
+                                className="px-8 py-3 bg-[#B39A62]/20 border border-[#B39A62] text-[#D4B872] hover:bg-[#B39A62] hover:text-[#11100E] transition-colors font-bold tracking-widest"
+                            >
+                                {step === 8 ? (lang === 'ja' ? 'プレイ開始！' : 'START PLAYING!') : (lang === 'ja' ? '次へ' : 'NEXT')}
+                            </button>
+                        )}
+                    </div>
                 </div>
             </div>
         </div>
