@@ -167,12 +167,14 @@ const Piece3D = ({ token, isSelected, candidates, onSquareClick, isDead = false 
     // Animation states
     const currentPos = React.useRef(new THREE.Vector3(targetX, 0, targetZ));
     const startPos = React.useRef(new THREE.Vector3(targetX, 0, targetZ));
+    const animTarget = React.useRef(new THREE.Vector3(targetX, 0, targetZ));
     const moveProgress = React.useRef(1.0);
     const deathProgress = React.useRef(0.0);
 
     React.useEffect(() => {
-        if (Math.abs(targetX - currentPos.current.x) > 0.01 || Math.abs(targetZ - currentPos.current.z) > 0.01) {
+        if (targetX !== animTarget.current.x || targetZ !== animTarget.current.z) {
             startPos.current.copy(currentPos.current);
+            animTarget.current.set(targetX, 0, targetZ);
             moveProgress.current = 0.0;
         }
     }, [targetX, targetZ]);
@@ -188,13 +190,13 @@ const Piece3D = ({ token, isSelected, candidates, onSquareClick, isDead = false 
             const t = moveProgress.current;
             const easeT = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
             
-            currentPos.current.x = THREE.MathUtils.lerp(startPos.current.x, targetX, easeT);
-            currentPos.current.z = THREE.MathUtils.lerp(startPos.current.z, targetZ, easeT);
+            currentPos.current.x = THREE.MathUtils.lerp(startPos.current.x, animTarget.current.x, easeT);
+            currentPos.current.z = THREE.MathUtils.lerp(startPos.current.z, animTarget.current.z, easeT);
             
             // Peak height is 1.5
             currentPos.current.y = 4 * 1.5 * t * (1 - t);
         } else {
-            currentPos.current.set(targetX, 0, targetZ);
+            currentPos.current.copy(animTarget.current);
         }
 
         groupRef.current.position.copy(currentPos.current);
