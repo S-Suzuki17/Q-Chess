@@ -44,11 +44,16 @@ const mapPossibility = (p: string): PieceType => {
     }
 };
 
-export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchMode, opponentId, timeControl = '10m', onHome }: OnlineGameBoardProps) {
+export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initialOnlineRole, matchMode, opponentId, timeControl = '10m', onHome }: OnlineGameBoardProps) {
     const t = { ...dict['en'], ...(dict[lang] || {}) } as any;
     const { socket, isConnected } = useSocket();
 
     const [gameState, setGameState] = useState<any>(null);
+    // Recover the authoritative side, including matches restored with a stale role.
+    const onlineRole = initialOnlineRole === 'spectator' ? 'spectator'
+        : user?.id && gameState?.players?.host === user.id ? 'white'
+        : user?.id && gameState?.players?.joiner === user.id ? 'black'
+        : initialOnlineRole;
     const prevGameStateRef = useRef<any>(null);
     const [selectedTokenId, setSelectedTokenId] = useState<string | null>(null);
     const [showMoveHints, setShowMoveHints] = useState<boolean>(true);
@@ -315,6 +320,11 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
 
         setErrorMsg(null);
 
+        if (!socket || !isConnected) {
+            setErrorMsg(lang === 'ja' ? '再接続中です。接続が戻ってから操作してください。' : 'Reconnecting. Please wait before moving.');
+            return;
+        }
+
         if (selectedTokenId) {
             const numId = parseInt(selectedTokenId.split('_')[1], 10);
             
@@ -329,6 +339,10 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
 
             // Client optimistic action (will be intercepted if ambiguous)
             const token = gameState.pieces.find((p: any) => p.id === numId);
+            if (!token || token.team !== expectedTeam || gameState.turn !== expectedTeam) {
+                setErrorMsg(lang === 'ja' ? '自分の手番に自分の駒を動かしてください。' : 'Move your own piece on your turn.');
+                return;
+            }
             if (token && Math.abs(targetCol - token.x) === 2 && Math.abs(targetRow - token.y) === 0) {
                 // Determine if it's ambiguous
                 // Check if it CAN be King AND (Rook OR Queen)
@@ -347,7 +361,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
             }
 
             socket?.emit('player_action', {
-                actionId: crypto.randomUUID(),
+                actionId: uuidv4(),
                 version: gameState.version,
                 action: {
                     type: 'MOVE',
@@ -608,6 +622,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
             <div className="w-full flex-1 min-h-0 flex items-center justify-center">
                 <Board3D 
                     tokens={tokens}
+                    isFlipped={isFlipped}
                     onlineRole={onlineRole}
                     selectedTokenId={selectedTokenId}
                     validMoves={validMoves}
@@ -668,6 +683,33 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
             </div>
 
             {/* Resign Confirmation Modal */}
+            {castlingPending && (
+                <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+                    <div role="dialog" aria-modal="true" aria-label={lang === 'ja' ? '移動方法を選択' : 'Choose move type'} className="bg-[#161513] border border-[#B39A62]/30 p-6 rounded-lg max-w-sm w-full text-center">
+                        <p className="text-[#E8E2D7] mb-4">{lang === 'ja' ? '通常移動かキャスリングを選んでください。' : 'Choose a normal move or castling.'}</p>
+                        {(['normal', 'castle'] as const).map(intention => (
+                            <button key={intention} className="p-3 m-1 border border-[#B39A62]/30 rounded text-[#E8E2D7]" onClick={() => {
+                                if (!socket || !isConnected) return;
+                                socket.emit('player_action', {
+                                    actionId: uuidv4(),
+                                    version: gameState.version,
+                                    action: { type: 'MOVE', payload: {
+                                        pieceId: castlingPending.pieceId,
+                                        toX: castlingPending.targetCol,
+                                        toY: castlingPending.targetRow,
+                                        intention
+                                    } }
+                                });
+                                setCastlingPending(null);
+                                setSelectedTokenId(null);
+                            }}>
+                                {intention === 'normal' ? (lang === 'ja' ? '通常移動' : 'Normal move') : (lang === 'ja' ? 'キャスリング' : 'Castling')}
+                            </button>
+                        ))}
+                        <button className="block w-full mt-3 p-2 text-gray-400" onClick={() => setCastlingPending(null)}>{lang === 'ja' ? 'キャンセル' : 'Cancel'}</button>
+                    </div>
+                </div>
+            )}
             {/* Promotion Modal */}
             {promotionPending && (
                 <div className="fixed inset-0 z-50 bg-black/80 flex flex-col items-center justify-center p-4">

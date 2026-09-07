@@ -266,6 +266,7 @@ const BoardSquares = ({ validMoves, moveHistory, onSquareClick, isEnemySelected 
 };
 
 export interface Board3DProps {
+    isFlipped?: boolean;
     tokens: Token[];
     onlineRole?: 'white' | 'black' | 'spectator';
     selectedTokenId: string | null;
@@ -279,7 +280,7 @@ export interface Board3DProps {
 }
 
 export const Board3D: React.FC<Board3DProps> = (props) => {
-    const isFlipped = props.onlineRole === 'black';
+    const isFlipped = props.isFlipped ?? (props.onlineRole === 'black');
     
     const selectedToken = props.tokens.find(t => t.id === props.selectedTokenId);
     const isEnemySelected = selectedToken ? (props.onlineRole && props.onlineRole !== 'spectator' ? selectedToken.player !== props.onlineRole : selectedToken.player !== props.currentTurn) : false;
