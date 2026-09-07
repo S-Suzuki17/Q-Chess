@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useMemo, useEffect } from 'react';
-import { Canvas } from '@react-three/fiber';
+import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, useGLTF, Text, Float, Billboard } from '@react-three/drei';
 import * as THREE from 'three';
 import { Token } from '../lib/GameEngine';
@@ -20,34 +20,39 @@ if (typeof window !== 'undefined') {
     Object.values(MODEL_PATHS).forEach(path => useGLTF.preload(path));
 }
 
-const PIECE_SYMBOLS: Record<PieceType, string> = {
-    King: '♚', Queen: '♛', Rook: '♜', Bishop: '♝', Knight: '♞', Pawn: '♟'
+const FloatingMiniPiece = ({ type, isWhite, position }: { type: PieceType, isWhite: boolean, position: [number, number, number] }) => {
+    const ref = React.useRef<THREE.Group>(null);
+    useFrame((state, delta) => {
+        if (ref.current) ref.current.rotation.y += delta * 1.5;
+    });
+    return (
+        <group ref={ref} position={position} scale={0.25}>
+            <RealisticPiece type={type} isWhite={isWhite} />
+        </group>
+    );
 };
 
 const QuantumBlock = ({ isWhite, probabilities, candidates }: { isWhite: boolean, probabilities: any, candidates?: ReadonlySet<PieceType> }) => {
     const types: PieceType[] = ['King', 'Queen', 'Rook', 'Bishop', 'Knight', 'Pawn'];
+    const activeTypes = types.filter(t => candidates ? candidates.has(t) : probabilities[t as PieceType] > 0);
+    const count = activeTypes.length;
+
     return (
         <Float speed={2} rotationIntensity={0.1} floatIntensity={0.5}>
             <mesh castShadow receiveShadow position={[0, 0.4, 0]}>
-                <cylinderGeometry args={[0.4, 0.4, 0.2, 8]} />
+                <cylinderGeometry args={[0.45, 0.45, 0.2, 8]} />
                 <meshStandardMaterial color={isWhite ? '#d4b872' : '#3B342C'} roughness={0.7} metalness={0.2} />
             </mesh>
-            <group position={[0, 0.7, 0]}>
-                <Billboard>
-                    <group>
-                        {types.map((t, i) => {
-                            const isActive = candidates ? candidates.has(t) : probabilities[t] > 0;
-                            if (!isActive) return null;
-                            const x = (i % 3) * 0.3 - 0.3;
-                            const y = Math.floor(i / 3) * -0.3 + 0.15;
-                            return (
-                                <Text key={t} position={[x, y, 0]} fontSize={0.2} color={isWhite ? '#ffffff' : '#D4B872'} anchorX="center" anchorY="middle">
-                                    {PIECE_SYMBOLS[t]}
-                                </Text>
-                            );
-                        })}
-                    </group>
-                </Billboard>
+            <group position={[0, 0.6, 0]}>
+                {activeTypes.map((t, i) => {
+                    const angle = (i / count) * Math.PI * 2;
+                    const radius = count > 1 ? 0.35 : 0;
+                    const x = Math.cos(angle) * radius;
+                    const z = Math.sin(angle) * radius;
+                    return (
+                        <FloatingMiniPiece key={t} type={t} isWhite={isWhite} position={[x, 0, z]} />
+                    );
+                })}
             </group>
         </Float>
     );
