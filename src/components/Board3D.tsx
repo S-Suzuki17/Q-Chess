@@ -26,7 +26,7 @@ const FloatingMiniPiece = ({ type, isWhite, position }: { type: PieceType, isWhi
         if (ref.current) ref.current.rotation.y += delta * 0.8;
     });
     return (
-        <group ref={ref} position={position} scale={0.45}>
+        <group ref={ref} position={position} scale={0.35}>
             <RealisticPiece type={type} isWhite={isWhite} isHologram={false} />
         </group>
     );
@@ -39,7 +39,7 @@ const QuantumBlock = ({ isWhite, probabilities, candidates }: { isWhite: boolean
     const activeTypes = types.filter(t => candidates ? candidates.has(t) : probabilities[t as PieceType] > 0);
     const count = activeTypes.length;
 
-    // Slowly rotate the entire spiral orbit
+    // Slowly rotate the entire planetary orbit
     const orbitRef = React.useRef<THREE.Group>(null);
     useFrame((state, delta) => {
         if (orbitRef.current) {
@@ -61,20 +61,16 @@ const QuantumBlock = ({ isWhite, probabilities, candidates }: { isWhite: boolean
                 </mesh>
             </Float>
             
-            {/* Spiral Orbit Pieces */}
-            <group ref={orbitRef} position={[0, 0.2, 0]}>
+            {/* Flat Planetary Orbit Pieces */}
+            <group ref={orbitRef} position={[0, 0.15, 0]}>
                 {activeTypes.map((t, i) => {
-                    // Spiral logic: stagger height and angle!
-                    // This keeps them within the square (radius 0.35) but prevents vertical/horizontal overlap
                     const angle = (i / count) * Math.PI * 2;
                     const radius = count > 1 ? 0.35 : 0; 
                     const x = Math.cos(angle) * radius;
                     const z = Math.sin(angle) * radius;
-                    // stagger height from 0.0 to 1.5
-                    const y = count > 1 ? (i * 0.3) : 0.0;
                     
                     return (
-                        <FloatingMiniPiece key={t} type={t} isWhite={isWhite} position={[x, y, z]} />
+                        <FloatingMiniPiece key={t} type={t} isWhite={isWhite} position={[x, 0, z]} />
                     );
                 })}
             </group>
