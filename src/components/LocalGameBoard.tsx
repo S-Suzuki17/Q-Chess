@@ -99,6 +99,16 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
     };
     const [showCheckWarning, setShowCheckWarning] = useState<boolean>(false);
     const [winner, setWinner] = useState<'white_wins' | 'black_wins' | 'draw' | null>(null);
+    const [showGameOver, setShowGameOver] = useState(false);
+
+    useEffect(() => {
+        if (winner) {
+            const timer = setTimeout(() => setShowGameOver(true), 1500);
+            return () => clearTimeout(timer);
+        } else {
+            setShowGameOver(false);
+        }
+    }, [winner]);
     const [disconnectTimeLeft, setDisconnectTimeLeft] = useState<number | null>(null);
     const disconnectTimerRef = useRef<NodeJS.Timeout | null>(null);
     const hasOpponentJoinedRef = useRef<boolean>(false);

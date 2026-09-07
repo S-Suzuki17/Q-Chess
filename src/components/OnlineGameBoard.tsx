@@ -88,6 +88,16 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
     }, [socket, isConnected]);
 
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
+    const [showGameOver, setShowGameOver] = useState(false);
+
+    useEffect(() => {
+        if (gameState?.gameOver) {
+            const timer = setTimeout(() => setShowGameOver(true), 1500);
+            return () => clearTimeout(timer);
+        } else {
+            setShowGameOver(false);
+        }
+    }, [gameState?.gameOver]);
 
     const [castlingPending, setCastlingPending] = useState<{
         pieceId: number;
