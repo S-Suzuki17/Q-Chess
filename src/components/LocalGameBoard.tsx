@@ -217,21 +217,38 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
     }, [roomId, onlineRole, triggerEmote]);
 
     // 駒音（spo_ge_syogi04.mp3 を使用）
-    const moveSoundRef = useRef<HTMLAudioElement | null>(null);
+    const pickupSoundRef = useRef<HTMLAudioElement | null>(null);
+    const landingSoundRef = useRef<HTMLAudioElement | null>(null);
     
     useEffect(() => {
-        const audio = new Audio('/sounds/spo_ge_syogi04.mp3');
-        audio.preload = 'auto';
-        moveSoundRef.current = audio;
+        const audio1 = new Audio('/sounds/spo_ge_syogi04.mp3');
+        audio1.preload = 'auto';
+        pickupSoundRef.current = audio1;
+
+        const audio2 = new Audio('/sounds/spo_ge_syogi04.mp3');
+        audio2.preload = 'auto';
+        landingSoundRef.current = audio2;
     }, []);
 
-    const playMoveSound = useCallback(() => {
-        if (moveSoundRef.current) {
-            moveSoundRef.current.currentTime = 0; 
-            moveSoundRef.current.playbackRate = 0.85 + Math.random() * 0.3;
-            moveSoundRef.current.play().catch(() => {});
+    const playPickupSound = useCallback(() => {
+        if (pickupSoundRef.current) {
+            pickupSoundRef.current.currentTime = 0; 
+            pickupSoundRef.current.playbackRate = 1.8;
+            pickupSoundRef.current.volume = 0.4;
+            pickupSoundRef.current.play().catch(() => {});
         }
     }, []);
+
+    const playLandingSound = useCallback(() => {
+        if (landingSoundRef.current) {
+            landingSoundRef.current.currentTime = 0; 
+            landingSoundRef.current.playbackRate = 0.85 + Math.random() * 0.3;
+            landingSoundRef.current.volume = 1.0;
+            landingSoundRef.current.play().catch(() => {});
+        }
+    }, []);
+    
+    const playMoveSound = playLandingSound;
 
     const channelRef = useRef<RealtimeChannel | null>(null);
 
