@@ -27,7 +27,7 @@ const FloatingMiniPiece = ({ type, isWhite, position }: { type: PieceType, isWhi
     });
     return (
         <group ref={ref} position={[position[0], 0.1, position[2]]} scale={0.35}>
-            <RealisticPiece type={type} isWhite={isWhite} isHologram={true} />
+            <RealisticPiece type={type} isWhite={isWhite} isHologram={false} />
         </group>
     );
 };
@@ -41,31 +41,18 @@ const QuantumBlock = ({ isWhite, probabilities, candidates }: { isWhite: boolean
         <Float speed={2} rotationIntensity={0.05} floatIntensity={0.1}>
             {/* Ornate Base */}
             <mesh castShadow receiveShadow position={[0, 0.05, 0]}>
-                <cylinderGeometry args={[0.38, 0.42, 0.1, 32]} />
-                <meshStandardMaterial color="#2c1e16" roughness={0.7} metalness={0.2} />
+                <cylinderGeometry args={[0.42, 0.42, 0.1, 32]} />
+                <meshStandardMaterial color={isWhite ? '#ffffff' : '#000000'} transparent opacity={0.3} roughness={0.7} metalness={0.2} />
             </mesh>
             <mesh position={[0, 0.105, 0]} rotation={[-Math.PI/2, 0, 0]}>
-                 <ringGeometry args={[0.25, 0.38, 32]} />
-                 <meshStandardMaterial color="#D4B872" metalness={0.8} roughness={0.2} />
-            </mesh>
-            
-            {/* Holographic Dome */}
-            <mesh position={[0, 0.4, 0]}>
-                <sphereGeometry args={[0.42, 32, 32]} />
-                <meshPhysicalMaterial 
-                    color={isWhite ? '#00e5ff' : '#ff3366'} 
-                    transparent opacity={0.15} 
-                    roughness={0} 
-                    transmission={0.9} 
-                    thickness={0.1}
-                    side={THREE.DoubleSide}
-                />
+                 <ringGeometry args={[0.38, 0.42, 32]} />
+                 <meshBasicMaterial color={isWhite ? '#00e5ff' : '#ff3366'} transparent opacity={0.8} />
             </mesh>
             
             <group position={[0, 0.15, 0]}>
                 {activeTypes.map((t, i) => {
                     const angle = (i / count) * Math.PI * 2;
-                    const radius = count > 1 ? 0.2 : 0; // tighter radius to fit in dome
+                    const radius = count > 1 ? 0.28 : 0;
                     const x = Math.cos(angle) * radius;
                     const z = Math.sin(angle) * radius;
                     return (
@@ -79,7 +66,33 @@ const QuantumBlock = ({ isWhite, probabilities, candidates }: { isWhite: boolean
 
 const RealisticPiece = ({ type, isWhite, isHologram = false }: { type: PieceType, isWhite: boolean, isHologram?: boolean }) => {
     const { scene } = useGLTF(MODEL_PATHS[type]);
-    const clone = useMemo(() => scene.clone(), [scene]);
+    const { scene: kingScene } = useGLTF(MODEL_PATHS['King']);
+    
+    const clone = useMemo(() => {
+        const c = scene.clone();
+        
+        // Calculate a GLOBAL scale based on the King to ensure relative sizes remain intact
+        const kingBox = new THREE.Box3().setFromObject(kingScene);
+        const kingSize = new THREE.Vector3();
+        kingBox.getSize(kingSize);
+        const kingMaxXZ = Math.max(kingSize.x, kingSize.z);
+        
+        let s = 1.0;
+        if (kingMaxXZ > 0.001) {
+            // Make the largest piece (King) take up 75% of the 1x1 square
+            s = 0.75 / kingMaxXZ;
+        }
+        
+        c.scale.setScalar(s);
+        
+        // Center and place on ground
+        const box = new THREE.Box3().setFromObject(c);
+        const center = new THREE.Vector3();
+        box.getCenter(center);
+        c.position.set(-center.x, -box.min.y, -center.z); // box is already scaled
+        
+        return c;
+    }, [scene, kingScene]);
     
     useEffect(() => {
         clone.traverse((child) => {
