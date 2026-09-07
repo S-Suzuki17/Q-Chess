@@ -26,7 +26,7 @@ const FloatingMiniPiece = ({ type, isWhite, position }: { type: PieceType, isWhi
         if (ref.current) ref.current.rotation.y += delta * 0.5;
     });
     return (
-        <group ref={ref} position={[position[0], 0.1, position[2]]} scale={0.35}>
+        <group ref={ref} position={[position[0], 0.1, position[2]]} scale={0.22}>
             <RealisticPiece type={type} isWhite={isWhite} isHologram={false} />
         </group>
     );
@@ -52,7 +52,8 @@ const QuantumBlock = ({ isWhite, probabilities, candidates }: { isWhite: boolean
             <group position={[0, 0.15, 0]}>
                 {activeTypes.map((t, i) => {
                     const angle = (i / count) * Math.PI * 2;
-                    const radius = count > 1 ? 0.28 : 0;
+                    // Spread them out more so they don't overlap (clutter)
+                    const radius = count > 1 ? 0.35 : 0;
                     const x = Math.cos(angle) * radius;
                     const z = Math.sin(angle) * radius;
                     return (
@@ -66,33 +67,40 @@ const QuantumBlock = ({ isWhite, probabilities, candidates }: { isWhite: boolean
 
 const RealisticPiece = ({ type, isWhite, isHologram = false }: { type: PieceType, isWhite: boolean, isHologram?: boolean }) => {
     const { scene } = useGLTF(MODEL_PATHS[type]);
-    const { scene: kingScene } = useGLTF(MODEL_PATHS['King']);
     
     const clone = useMemo(() => {
         const c = scene.clone();
         
-        // Calculate a GLOBAL scale based on the King to ensure relative sizes remain intact
-        const kingBox = new THREE.Box3().setFromObject(kingScene);
-        const kingSize = new THREE.Vector3();
-        kingBox.getSize(kingSize);
-        const kingMaxXZ = Math.max(kingSize.x, kingSize.z);
+        // Measure raw size
+        const box = new THREE.Box3().setFromObject(c);
+        const size = new THREE.Vector3();
+        box.getSize(size);
+        
+        const heights: Record<PieceType, number> = {
+            King: 1.4, Queen: 1.3, Bishop: 1.1, Knight: 1.0, Rook: 0.9, Pawn: 0.75
+        };
+        const targetHeight = heights[type];
         
         let s = 1.0;
-        if (kingMaxXZ > 0.001) {
-            // Make the largest piece (King) take up 75% of the 1x1 square
-            s = 0.75 / kingMaxXZ;
+        if (size.y > 0.001) {
+            s = targetHeight / size.y;
+            // Cap width to 0.75 so it never spills out of a 1x1 square
+            const maxXZ = Math.max(size.x, size.z) * s;
+            if (maxXZ > 0.75) {
+                s = s * (0.75 / maxXZ);
+            }
         }
         
         c.scale.setScalar(s);
         
-        // Center and place on ground
-        const box = new THREE.Box3().setFromObject(c);
+        // Re-measure after scale to center perfectly
+        const boxScaled = new THREE.Box3().setFromObject(c);
         const center = new THREE.Vector3();
-        box.getCenter(center);
-        c.position.set(-center.x, -box.min.y, -center.z); // box is already scaled
+        boxScaled.getCenter(center);
+        c.position.set(-center.x, -boxScaled.min.y, -center.z);
         
         return c;
-    }, [scene, kingScene]);
+    }, [scene, type]);
     
     useEffect(() => {
         clone.traverse((child) => {
