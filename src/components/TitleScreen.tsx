@@ -218,7 +218,7 @@ export function TitleScreen({ lang, onLogin }: TitleScreenProps) {
             {/* SEO & User Content Section for AdSense Quality */}
             <div className="absolute bottom-16 w-full z-[100] flex flex-col items-center max-w-2xl px-6 text-center pointer-events-auto">
                 <p className="text-gray-400 text-xs md:text-sm mb-2 font-sans pointer-events-none">
-                    Q-GAMBIT is a revolutionary Quantum Chess experience where pieces exist in a state of superposition. Master the art of information warfare and quantum collapse.
+                    {(t as any)?.seoDesc || 'Q-GAMBIT is a revolutionary Quantum Chess experience where pieces exist in a state of superposition. Master the art of information warfare and quantum collapse.'}
                 </p>
                 <div className="flex gap-4">
                     <Link href="/rules" className="text-[#D4B872] hover:text-white transition-colors text-sm font-bold tracking-widest underline underline-offset-4 decoration-[#D4B872]/50 hover:decoration-white relative z-[200] cursor-pointer">

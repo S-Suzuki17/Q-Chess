@@ -14,6 +14,7 @@ export const dict = {
     en: {
         privacyPolicy: 'Privacy Policy',
         rulesGuide: 'READ RULES & STRATEGY GUIDE',
+        seoDesc: 'Q-GAMBIT is a revolutionary Quantum Chess experience where pieces exist in a state of superposition. Master the art of information warfare and quantum collapse.',
         timeLimit: "TIME LIMIT",
         tc10s: "10s / move",
         tc3m: "3 min / player",
@@ -170,6 +171,7 @@ export const dict = {
         mine: "MY GAMES",
     },
     ja: {
+        seoDesc: 'Q-GAMBITは駒が「重ね合わせ」の状態で存在する革新的な量子チェスです。情報戦と量子的収縮（コラプス）を操り、勝利を掴み取れ。',
         privacyPolicy: 'プライバシーポリシー',
         rulesGuide: 'ルール＆戦略ガイドを読む',
         timeLimit: "持ち時間",
@@ -326,6 +328,7 @@ export const dict = {
 zh: {
         privacyPolicy: 'Privacy Policy',
         rulesGuide: 'READ RULES & STRATEGY GUIDE',
+        seoDesc: 'Q-GAMBIT is a revolutionary Quantum Chess experience where pieces exist in a state of superposition. Master the art of information warfare and quantum collapse.',
         timeLimit: "用时限制",
         tc10s: "每步10秒",
         tc3m: "每方3分钟",
@@ -477,6 +480,7 @@ zh: {
 ru: {
         privacyPolicy: 'Privacy Policy',
         rulesGuide: 'READ RULES & STRATEGY GUIDE',
+        seoDesc: 'Q-GAMBIT is a revolutionary Quantum Chess experience where pieces exist in a state of superposition. Master the art of information warfare and quantum collapse.',
         timeLimit: "Контроль времени",
         tc10s: "10 сек / ход",
         tc3m: "3 мин на партию",
@@ -628,6 +632,7 @@ ru: {
 fr: {
         privacyPolicy: 'Privacy Policy',
         rulesGuide: 'READ RULES & STRATEGY GUIDE',
+        seoDesc: 'Q-GAMBIT is a revolutionary Quantum Chess experience where pieces exist in a state of superposition. Master the art of information warfare and quantum collapse.',
         timeLimit: "Limite de temps",
         tc10s: "10s / coup",
         tc3m: "3 min / joueur",
@@ -779,6 +784,7 @@ fr: {
 de: {
         privacyPolicy: 'Privacy Policy',
         rulesGuide: 'READ RULES & STRATEGY GUIDE',
+        seoDesc: 'Q-GAMBIT is a revolutionary Quantum Chess experience where pieces exist in a state of superposition. Master the art of information warfare and quantum collapse.',
         timeLimit: "Bedenkzeit",
         tc10s: "10s / Zug",
         tc3m: "3 Min / Spieler",
@@ -930,6 +936,7 @@ de: {
 es: {
         privacyPolicy: 'Privacy Policy',
         rulesGuide: 'READ RULES & STRATEGY GUIDE',
+        seoDesc: 'Q-GAMBIT is a revolutionary Quantum Chess experience where pieces exist in a state of superposition. Master the art of information warfare and quantum collapse.',
         timeLimit: "Límite de tiempo",
         tc10s: "10s / jugada",
         tc3m: "3 min / jugador",
