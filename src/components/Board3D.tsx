@@ -2,7 +2,7 @@
 
 import React, { useMemo, useEffect } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls, useGLTF, Text, Float, Billboard } from '@react-three/drei';
+import { OrbitControls, useGLTF, Text, Float, Billboard, Environment } from '@react-three/drei';
 import * as THREE from 'three';
 import { Token } from '../lib/GameEngine';
 import { PieceType } from '../config/gameConfig';
@@ -95,9 +95,9 @@ const RealisticPiece = ({ type, isWhite }: { type: PieceType, isWhite: boolean }
                 child.castShadow = true;
                 child.receiveShadow = true;
                 const mat = new THREE.MeshStandardMaterial({
-                    color: isWhite ? '#E8E2D7' : '#191714',
-                    roughness: isWhite ? 0.4 : 0.6,
-                    metalness: isWhite ? 0.1 : 0.2
+                    color: isWhite ? '#f4eedb' : '#332924',
+                    roughness: 0.2,
+                    metalness: 0.1
                 });
                 child.material = mat;
             }
@@ -187,6 +187,7 @@ export const Board3D: React.FC<Board3DProps> = (props) => {
         <div className="w-full h-full min-h-[400px] rounded-lg overflow-hidden border-4 border-[#3a2518] shadow-2xl relative" style={{ background: 'radial-gradient(circle at 50% 50%, #4a3424 0%, #1a100b 100%)' }}>
             <Canvas shadows camera={{ position: isFlipped ? [0, 6, -8] : [0, 6, 8], fov: 45 }}>
                 <ambientLight intensity={0.5} />
+                <Environment preset="sunset" />
                 <directionalLight position={[5, 10, 5]} intensity={1.2} castShadow shadow-mapSize-width={2048} shadow-mapSize-height={2048} />
                 <mesh position={[0, -0.2, 0]} receiveShadow>
                     <boxGeometry args={[8.4, 0.2, 8.4]} />
