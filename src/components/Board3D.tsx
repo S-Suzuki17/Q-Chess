@@ -26,7 +26,7 @@ const FloatingMiniPiece = ({ type, isWhite, position }: { type: PieceType, isWhi
         if (ref.current) ref.current.rotation.y += delta * 0.8;
     });
     return (
-        <group ref={ref} position={position} scale={0.28}>
+        <group ref={ref} position={position} scale={0.45}>
             <RealisticPiece type={type} isWhite={isWhite} isHologram={false} />
         </group>
     );
