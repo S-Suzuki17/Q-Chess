@@ -26,10 +26,18 @@ const FloatingMiniPiece = ({ type, isWhite, position }: { type: PieceType, isWhi
         if (ref.current) ref.current.rotation.y += delta * 0.8;
     });
     return (
-        <group ref={ref} position={position} scale={0.45}>
+        <group ref={ref} position={position} scale={0.28}>
             <RealisticPiece type={type} isWhite={isWhite} isHologram={false} />
         </group>
     );
+};
+
+const getGridPosition = (index: number, count: number): [number, number, number] => {
+    if (count === 1) return [0, 0.2, 0];
+    if (count === 2) return [index === 0 ? -0.2 : 0.2, 0.2, 0];
+    if (count === 3) return [index === 0 ? 0 : (index === 1 ? -0.2 : 0.2), 0.2, index === 0 ? -0.2 : 0.2];
+    if (count === 4) return [index % 2 === 0 ? -0.2 : 0.2, 0.2, index < 2 ? -0.2 : 0.2];
+    return [index % 2 === 0 ? -0.22 : 0.22, 0.2, (Math.floor(index / 2) - 1) * 0.25];
 };
 
 const QuantumBlock = ({ isWhite, probabilities, candidates }: { isWhite: boolean, probabilities: any, candidates?: ReadonlySet<PieceType> }) => {
@@ -37,41 +45,28 @@ const QuantumBlock = ({ isWhite, probabilities, candidates }: { isWhite: boolean
     const activeTypes = types.filter(t => candidates ? candidates.has(t) : probabilities[t as PieceType] > 0);
     const count = activeTypes.length;
 
-    // The orbit group rotates slowly over time
-    const orbitRef = React.useRef<THREE.Group>(null);
-    useFrame((state, delta) => {
-        if (orbitRef.current) {
-            orbitRef.current.rotation.y += delta * 0.3; // slow orbit
-        }
-    });
-
     return (
         <group>
             {/* Core Base */}
             <Float speed={2} rotationIntensity={0.05} floatIntensity={0.1}>
                 <mesh castShadow receiveShadow position={[0, 0.05, 0]}>
-                    <cylinderGeometry args={[0.35, 0.4, 0.1, 32]} />
-                    <meshStandardMaterial color={isWhite ? '#ffffff' : '#000000'} transparent opacity={0.5} roughness={0.5} />
+                    <cylinderGeometry args={[0.42, 0.42, 0.1, 32]} />
+                    <meshStandardMaterial color={isWhite ? '#ffffff' : '#000000'} transparent opacity={0.3} roughness={0.7} metalness={0.2} />
                 </mesh>
                 <mesh position={[0, 0.105, 0]} rotation={[-Math.PI/2, 0, 0]}>
-                     <ringGeometry args={[0.3, 0.35, 32]} />
+                     <ringGeometry args={[0.38, 0.42, 32]} />
                      <meshBasicMaterial color={isWhite ? '#00e5ff' : '#ff3366'} transparent opacity={0.8} />
                 </mesh>
+                
+                {/* Grid Pieces */}
+                <group position={[0, 0.0, 0]}>
+                    {activeTypes.map((t, i) => {
+                        return (
+                            <FloatingMiniPiece key={t} type={t} isWhite={isWhite} position={getGridPosition(i, count)} />
+                        );
+                    })}
+                </group>
             </Float>
-            
-            {/* Orbiting Pieces */}
-            <group ref={orbitRef} position={[0, 0.7, 0]}>
-                {activeTypes.map((t, i) => {
-                    const angle = (i / count) * Math.PI * 2;
-                    // Wide orbit radius so they are large but don't overlap
-                    const radius = count > 1 ? 0.55 : 0; 
-                    const x = Math.cos(angle) * radius;
-                    const z = Math.sin(angle) * radius;
-                    return (
-                        <FloatingMiniPiece key={t} type={t} isWhite={isWhite} position={[x, 0, z]} />
-                    );
-                })}
-            </group>
         </group>
     );
 };
@@ -81,36 +76,36 @@ const RealisticPiece = ({ type, isWhite, isHologram = false }: { type: PieceType
     
     const clone = useMemo(() => {
         const c = scene.clone();
+        c.updateMatrixWorld(true);
         
-        // Measure raw size
         const box = new THREE.Box3().setFromObject(c);
         const size = new THREE.Vector3();
         box.getSize(size);
         
+        if (size.y === 0) return c; // safety
+        
         const heights: Record<PieceType, number> = {
-            King: 1.4, Queen: 1.3, Bishop: 1.1, Knight: 1.0, Rook: 0.9, Pawn: 0.75
+            King: 1.4, Queen: 1.3, Bishop: 1.15, Knight: 1.05, Rook: 1.0, Pawn: 0.8
         };
         const targetHeight = heights[type];
         
-        let s = 1.0;
-        if (size.y > 0.001) {
-            s = targetHeight / size.y;
-            // Cap width to 0.75 so it never spills out of a 1x1 square
-            const maxXZ = Math.max(size.x, size.z) * s;
-            if (maxXZ > 0.75) {
-                s = s * (0.75 / maxXZ);
-            }
+        let s = targetHeight / size.y;
+        const maxXZ = Math.max(size.x, size.z) * s;
+        if (maxXZ > 0.75) {
+            s = s * (0.75 / maxXZ);
         }
         
         c.scale.setScalar(s);
+        c.updateMatrixWorld(true);
         
-        // Re-measure after scale to center perfectly
-        const boxScaled = new THREE.Box3().setFromObject(c);
+        const scaledBox = new THREE.Box3().setFromObject(c);
         const center = new THREE.Vector3();
-        boxScaled.getCenter(center);
-        c.position.set(-center.x, -boxScaled.min.y, -center.z);
+        scaledBox.getCenter(center);
         
-        return c;
+        const wrapper = new THREE.Group();
+        c.position.set(-center.x, -scaledBox.min.y, -center.z);
+        wrapper.add(c);
+        return wrapper;
     }, [scene, type]);
     
     useEffect(() => {
