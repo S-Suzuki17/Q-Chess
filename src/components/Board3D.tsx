@@ -23,11 +23,11 @@ if (typeof window !== 'undefined') {
 const FloatingMiniPiece = ({ type, isWhite, position }: { type: PieceType, isWhite: boolean, position: [number, number, number] }) => {
     const ref = React.useRef<THREE.Group>(null);
     useFrame((state, delta) => {
-        if (ref.current) ref.current.rotation.y += delta * 0.8;
+        if (ref.current) ref.current.rotation.y += delta * 0.5;
     });
     return (
-        <group ref={ref} position={position} scale={0.35}>
-            <RealisticPiece type={type} isWhite={isWhite} />
+        <group ref={ref} position={[position[0], 0.1, position[2]]} scale={0.35}>
+            <RealisticPiece type={type} isWhite={isWhite} isHologram={true} />
         </group>
     );
 };
@@ -38,20 +38,34 @@ const QuantumBlock = ({ isWhite, probabilities, candidates }: { isWhite: boolean
     const count = activeTypes.length;
 
     return (
-        <Float speed={2} rotationIntensity={0.05} floatIntensity={0.2}>
-            <mesh castShadow receiveShadow position={[0, 0.1, 0]}>
-                <cylinderGeometry args={[0.42, 0.42, 0.1, 16]} />
-                <meshStandardMaterial color={isWhite ? '#ffffff' : '#000000'} transparent opacity={0.2} roughness={0.1} />
+        <Float speed={2} rotationIntensity={0.05} floatIntensity={0.1}>
+            {/* Ornate Base */}
+            <mesh castShadow receiveShadow position={[0, 0.05, 0]}>
+                <cylinderGeometry args={[0.38, 0.42, 0.1, 32]} />
+                <meshStandardMaterial color="#2c1e16" roughness={0.7} metalness={0.2} />
             </mesh>
-            <mesh position={[0, 0.155, 0]} rotation={[-Math.PI/2, 0, 0]}>
-                 <ringGeometry args={[0.38, 0.42, 32]} />
-                 <meshBasicMaterial color={isWhite ? '#00e5ff' : '#ff3366'} transparent opacity={0.8} />
+            <mesh position={[0, 0.105, 0]} rotation={[-Math.PI/2, 0, 0]}>
+                 <ringGeometry args={[0.25, 0.38, 32]} />
+                 <meshStandardMaterial color="#D4B872" metalness={0.8} roughness={0.2} />
             </mesh>
             
-            <group position={[0, 0.2, 0]}>
+            {/* Holographic Dome */}
+            <mesh position={[0, 0.4, 0]}>
+                <sphereGeometry args={[0.42, 32, 32]} />
+                <meshPhysicalMaterial 
+                    color={isWhite ? '#00e5ff' : '#ff3366'} 
+                    transparent opacity={0.15} 
+                    roughness={0} 
+                    transmission={0.9} 
+                    thickness={0.1}
+                    side={THREE.DoubleSide}
+                />
+            </mesh>
+            
+            <group position={[0, 0.15, 0]}>
                 {activeTypes.map((t, i) => {
                     const angle = (i / count) * Math.PI * 2;
-                    const radius = count > 1 ? 0.32 : 0;
+                    const radius = count > 1 ? 0.2 : 0; // tighter radius to fit in dome
                     const x = Math.cos(angle) * radius;
                     const z = Math.sin(angle) * radius;
                     return (
@@ -63,46 +77,40 @@ const QuantumBlock = ({ isWhite, probabilities, candidates }: { isWhite: boolean
     );
 };
 
-const RealisticPiece = ({ type, isWhite }: { type: PieceType, isWhite: boolean }) => {
+const RealisticPiece = ({ type, isWhite, isHologram = false }: { type: PieceType, isWhite: boolean, isHologram?: boolean }) => {
     const { scene } = useGLTF(MODEL_PATHS[type]);
-    const clone = useMemo(() => {
-        const c = scene.clone();
-        const box = new THREE.Box3().setFromObject(c);
-        const size = new THREE.Vector3();
-        box.getSize(size);
-        
-        const heights: Record<PieceType, number> = {
-            King: 1.5, Queen: 1.35, Bishop: 1.2, Knight: 1.1, Rook: 1.0, Pawn: 0.85
-        };
-        const targetHeight = heights[type];
-        
-        if (size.y > 0.001) {
-            const s = targetHeight / size.y;
-            c.scale.setScalar(s);
-            
-            // Center it horizontally and snap bottom to Y=0
-            const center = new THREE.Vector3();
-            box.getCenter(center);
-            // Since we scale the children, we shift the parent group negatively
-            c.position.set(-center.x * s, -box.min.y * s, -center.z * s);
-        }
-        return c;
-    }, [scene, type]);
+    const clone = useMemo(() => scene.clone(), [scene]);
     
     useEffect(() => {
         clone.traverse((child) => {
             if (child instanceof THREE.Mesh) {
-                child.castShadow = true;
-                child.receiveShadow = true;
-                const mat = new THREE.MeshStandardMaterial({
-                    color: isWhite ? '#f4eedb' : '#332924',
-                    roughness: 0.2,
-                    metalness: 0.1
-                });
-                child.material = mat;
+                if (isHologram) {
+                    child.castShadow = false;
+                    child.receiveShadow = false;
+                    const mat = new THREE.MeshPhysicalMaterial({
+                        color: isWhite ? '#88ccff' : '#ff88aa',
+                        transparent: true,
+                        opacity: 0.8,
+                        roughness: 0.1,
+                        transmission: 0.9,
+                        thickness: 0.5,
+                        emissive: isWhite ? '#00e5ff' : '#ff3366',
+                        emissiveIntensity: 0.4
+                    });
+                    child.material = mat;
+                } else {
+                    child.castShadow = true;
+                    child.receiveShadow = true;
+                    const mat = new THREE.MeshStandardMaterial({
+                        color: isWhite ? '#f4eedb' : '#332924',
+                        roughness: 0.2,
+                        metalness: 0.1
+                    });
+                    child.material = mat;
+                }
             }
         });
-    }, [clone, isWhite]);
+    }, [clone, isWhite, isHologram]);
 
     const rotY = isWhite ? 0 : Math.PI;
     return <primitive object={clone} position={[0, 0, 0]} rotation={[0, rotY, 0]} />;
@@ -133,7 +141,7 @@ const Piece3D = ({ token, isSelected, candidates, onSquareClick }: { token: Toke
     );
 };
 
-const BoardSquares = ({ validMoves, moveHistory, onSquareClick }: any) => {
+const BoardSquares = ({ validMoves, moveHistory, onSquareClick, isEnemySelected }: any) => {
     const squares = [];
     for (let r = 0; r < 8; r++) {
         for (let c = 0; c < 8; c++) {
@@ -157,7 +165,7 @@ const BoardSquares = ({ validMoves, moveHistory, onSquareClick }: any) => {
                     {isMoveCandidate && (
                         <mesh position={[0, 0.06, 0]} rotation={[-Math.PI/2, 0, 0]}>
                             <circleGeometry args={[0.3, 32]} />
-                            <meshBasicMaterial color="#D4B872" transparent opacity={0.5} />
+                            <meshBasicMaterial color={isEnemySelected ? "#ff4444" : "#D4B872"} transparent opacity={isEnemySelected ? 0.7 : 0.5} />
                         </mesh>
                     )}
                 </group>
@@ -182,6 +190,9 @@ export interface Board3DProps {
 
 export const Board3D: React.FC<Board3DProps> = (props) => {
     const isFlipped = props.onlineRole === 'black';
+    
+    const selectedToken = props.tokens.find(t => t.id === props.selectedTokenId);
+    const isEnemySelected = selectedToken ? (props.onlineRole && props.onlineRole !== 'spectator' ? selectedToken.player !== props.onlineRole : selectedToken.player !== props.currentTurn) : false;
 
     return (
         <div className="w-full h-full min-h-[400px] rounded-lg overflow-hidden border-4 border-[#3a2518] shadow-2xl relative" style={{ background: 'radial-gradient(circle at 50% 50%, #4a3424 0%, #1a100b 100%)' }}>
@@ -193,7 +204,7 @@ export const Board3D: React.FC<Board3DProps> = (props) => {
                     <boxGeometry args={[8.4, 0.2, 8.4]} />
                     <meshStandardMaterial color="#2c1e16" roughness={0.9} />
                 </mesh>
-                <BoardSquares validMoves={props.showMoveHints ? props.validMoves : []} moveHistory={props.moveHistory} onSquareClick={props.onSquareClick} />
+                <BoardSquares validMoves={props.showMoveHints ? props.validMoves : []} moveHistory={props.moveHistory} onSquareClick={props.onSquareClick} isEnemySelected={isEnemySelected} />
                 {props.tokens.map(token => {
                     if (token.isCaptured) return null;
                     return <Piece3D key={token.id} token={token} isSelected={token.id === props.selectedTokenId} candidates={props.candidatesMap?.get(token.id)} onSquareClick={props.onSquareClick} />;
