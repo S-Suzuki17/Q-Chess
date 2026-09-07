@@ -207,7 +207,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
         };
         const onSyncState = (state: any) => {
             setGameState(state);
-            playMoveSound();
+            setTimeout(() => playMoveSound(), 400);
             if (disconnectTimerRef.current) {
                 clearInterval(disconnectTimerRef.current);
                 disconnectTimerRef.current = null;

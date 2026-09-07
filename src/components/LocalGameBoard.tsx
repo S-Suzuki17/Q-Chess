@@ -535,12 +535,12 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
         };
         setTurnCount(turnCount + 1);
         setMoveHistory(prev => [...prev, moveRecord]);
-        playMoveSound();
         const nextTurn = result.state.sideToMove;
         // Replace both snapshots; never mutate React's current pool in place.
         setPool(result.pool);
         setTokens(result.tokens);
         setMovingPiece({ id: token.id, fromRow: token.row, fromCol: token.col, toRow: targetRow, toCol: targetCol });
+        setTimeout(() => playMoveSound(), 400);
         setWinner(result.state.winner === 'draw' ? 'draw' : result.state.winner ? `${result.state.winner}_wins` : null);
         setIsCheck(isPlayerInCheck(nextTurn, result.tokens, result.pool));
 
