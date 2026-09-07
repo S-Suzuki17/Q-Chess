@@ -32,41 +32,52 @@ const FloatingMiniPiece = ({ type, isWhite, position }: { type: PieceType, isWhi
     );
 };
 
-const getGridPosition = (index: number, count: number): [number, number, number] => {
-    if (count === 1) return [0, 0.2, 0];
-    if (count === 2) return [index === 0 ? -0.2 : 0.2, 0.2, 0];
-    if (count === 3) return [index === 0 ? 0 : (index === 1 ? -0.2 : 0.2), 0.2, index === 0 ? -0.2 : 0.2];
-    if (count === 4) return [index % 2 === 0 ? -0.2 : 0.2, 0.2, index < 2 ? -0.2 : 0.2];
-    return [index % 2 === 0 ? -0.22 : 0.22, 0.2, (Math.floor(index / 2) - 1) * 0.25];
-};
+
 
 const QuantumBlock = ({ isWhite, probabilities, candidates }: { isWhite: boolean, probabilities: any, candidates?: ReadonlySet<PieceType> }) => {
     const types: PieceType[] = ['King', 'Queen', 'Rook', 'Bishop', 'Knight', 'Pawn'];
     const activeTypes = types.filter(t => candidates ? candidates.has(t) : probabilities[t as PieceType] > 0);
     const count = activeTypes.length;
 
+    // Slowly rotate the entire spiral orbit
+    const orbitRef = React.useRef<THREE.Group>(null);
+    useFrame((state, delta) => {
+        if (orbitRef.current) {
+            orbitRef.current.rotation.y += delta * 0.4;
+        }
+    });
+
     return (
         <group>
             {/* Core Base */}
             <Float speed={2} rotationIntensity={0.05} floatIntensity={0.1}>
                 <mesh castShadow receiveShadow position={[0, 0.05, 0]}>
-                    <cylinderGeometry args={[0.42, 0.42, 0.1, 32]} />
-                    <meshStandardMaterial color={isWhite ? '#ffffff' : '#000000'} transparent opacity={0.3} roughness={0.7} metalness={0.2} />
+                    <cylinderGeometry args={[0.35, 0.4, 0.1, 32]} />
+                    <meshStandardMaterial color={isWhite ? '#ffffff' : '#000000'} transparent opacity={0.5} roughness={0.5} />
                 </mesh>
                 <mesh position={[0, 0.105, 0]} rotation={[-Math.PI/2, 0, 0]}>
-                     <ringGeometry args={[0.38, 0.42, 32]} />
+                     <ringGeometry args={[0.3, 0.35, 32]} />
                      <meshBasicMaterial color={isWhite ? '#00e5ff' : '#ff3366'} transparent opacity={0.8} />
                 </mesh>
-                
-                {/* Grid Pieces */}
-                <group position={[0, 0.0, 0]}>
-                    {activeTypes.map((t, i) => {
-                        return (
-                            <FloatingMiniPiece key={t} type={t} isWhite={isWhite} position={getGridPosition(i, count)} />
-                        );
-                    })}
-                </group>
             </Float>
+            
+            {/* Spiral Orbit Pieces */}
+            <group ref={orbitRef} position={[0, 0.2, 0]}>
+                {activeTypes.map((t, i) => {
+                    // Spiral logic: stagger height and angle!
+                    // This keeps them within the square (radius 0.35) but prevents vertical/horizontal overlap
+                    const angle = (i / count) * Math.PI * 2;
+                    const radius = count > 1 ? 0.35 : 0; 
+                    const x = Math.cos(angle) * radius;
+                    const z = Math.sin(angle) * radius;
+                    // stagger height from 0.0 to 1.5
+                    const y = count > 1 ? (i * 0.3) : 0.0;
+                    
+                    return (
+                        <FloatingMiniPiece key={t} type={t} isWhite={isWhite} position={[x, y, z]} />
+                    );
+                })}
+            </group>
         </group>
     );
 };
@@ -143,16 +154,70 @@ const RealisticPiece = ({ type, isWhite, isHologram = false }: { type: PieceType
     return <primitive object={clone} position={[0, 0, 0]} rotation={[0, rotY, 0]} />;
 };
 
-const Piece3D = ({ token, isSelected, candidates, onSquareClick }: { token: Token, isSelected: boolean, candidates?: ReadonlySet<PieceType>, onSquareClick: (r:number, c:number) => void }) => {
+const Piece3D = ({ token, isSelected, candidates, onSquareClick, isDead = false }: { token: Token, isSelected: boolean, candidates?: ReadonlySet<PieceType>, onSquareClick: (r:number, c:number) => void, isDead?: boolean }) => {
     const possibleTypes = (Object.keys(token.probabilities) as PieceType[]).filter(t => candidates ? candidates.has(t) : token.probabilities[t as PieceType] > 0);
     const confirmedType = token.promotedTo ? token.promotedTo : (possibleTypes.length === 1 ? possibleTypes[0] : null);
     const isWhite = token.player === 'white';
-    const x = token.col - 3.5;
-    const z = token.row - 3.5;
+    
+    const targetX = token.col - 3.5;
+    const targetZ = token.row - 3.5;
+
+    const groupRef = React.useRef<THREE.Group>(null);
+    
+    // Animation states
+    const currentPos = React.useRef(new THREE.Vector3(targetX, 0, targetZ));
+    const startPos = React.useRef(new THREE.Vector3(targetX, 0, targetZ));
+    const moveProgress = React.useRef(1.0);
+    const deathProgress = React.useRef(0.0);
+
+    React.useEffect(() => {
+        if (Math.abs(targetX - currentPos.current.x) > 0.01 || Math.abs(targetZ - currentPos.current.z) > 0.01) {
+            startPos.current.copy(currentPos.current);
+            moveProgress.current = 0.0;
+        }
+    }, [targetX, targetZ]);
+
+    useFrame((state, delta) => {
+        if (!groupRef.current) return;
+
+        // Move Animation (Parabola)
+        if (moveProgress.current < 1.0) {
+            moveProgress.current += delta * 2.5; 
+            if (moveProgress.current > 1.0) moveProgress.current = 1.0;
+            
+            const t = moveProgress.current;
+            const easeT = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+            
+            currentPos.current.x = THREE.MathUtils.lerp(startPos.current.x, targetX, easeT);
+            currentPos.current.z = THREE.MathUtils.lerp(startPos.current.z, targetZ, easeT);
+            
+            // Peak height is 1.5
+            currentPos.current.y = 4 * 1.5 * t * (1 - t);
+        } else {
+            currentPos.current.set(targetX, 0, targetZ);
+        }
+
+        groupRef.current.position.copy(currentPos.current);
+
+        // Death Animation
+        if (isDead) {
+            deathProgress.current += delta * 1.5;
+            if (deathProgress.current > 1.0) deathProgress.current = 1.0;
+            
+            const dt = deathProgress.current;
+            const scale = 1.0 - dt;
+            groupRef.current.scale.setScalar(scale);
+            groupRef.current.rotation.y = dt * Math.PI * 4;
+            groupRef.current.position.y += dt * 1.5;
+        } else {
+            groupRef.current.scale.setScalar(1.0);
+            groupRef.current.rotation.y = 0;
+        }
+    });
 
     return (
-        <group position={[x, 0, z]} onClick={(e) => { e.stopPropagation(); onSquareClick(token.row, token.col); }}>
-            {isSelected && (
+        <group ref={groupRef} onClick={(e) => { e.stopPropagation(); onSquareClick(token.row, token.col); }}>
+            {isSelected && !isDead && (
                 <mesh position={[0, 0.01, 0]} rotation={[-Math.PI / 2, 0, 0]}>
                     <ringGeometry args={[0.3, 0.45, 32]} />
                     <meshBasicMaterial color="#D4B872" transparent opacity={0.8} />
@@ -221,6 +286,26 @@ export const Board3D: React.FC<Board3DProps> = (props) => {
     const selectedToken = props.tokens.find(t => t.id === props.selectedTokenId);
     const isEnemySelected = selectedToken ? (props.onlineRole && props.onlineRole !== 'spectator' ? selectedToken.player !== props.onlineRole : selectedToken.player !== props.currentTurn) : false;
 
+    // Track captured pieces for animation
+    const [deadTokens, setDeadTokens] = React.useState<Token[]>([]);
+    const prevTokensRef = React.useRef<Token[]>(props.tokens.filter(t => !t.isCaptured));
+
+    React.useEffect(() => {
+        const prev = prevTokensRef.current;
+        const current = props.tokens.filter(t => !t.isCaptured);
+        const dead = prev.filter(p => !current.some(t => t.id === p.id));
+        if (dead.length > 0) {
+            setDeadTokens(prevDead => [...prevDead, ...dead]);
+            setTimeout(() => {
+                setDeadTokens(prevDead => prevDead.filter(d => !dead.some(x => x.id === d.id)));
+            }, 1000);
+        }
+        prevTokensRef.current = current;
+    }, [props.tokens]);
+
+    const activeTokens = props.tokens.filter(t => !t.isCaptured);
+    const allTokensToRender = [...activeTokens, ...deadTokens];
+
     return (
         <div className="w-full h-full min-h-[400px] rounded-lg overflow-hidden border-4 border-[#3a2518] shadow-2xl relative" style={{ background: 'radial-gradient(circle at 50% 50%, #4a3424 0%, #1a100b 100%)' }}>
             <Canvas shadows camera={{ position: isFlipped ? [0, 8, -6] : [0, 8, 6], fov: 45 }}>
@@ -232,9 +317,9 @@ export const Board3D: React.FC<Board3DProps> = (props) => {
                     <meshStandardMaterial color="#2c1e16" roughness={0.9} />
                 </mesh>
                 <BoardSquares validMoves={props.showMoveHints ? props.validMoves : []} moveHistory={props.moveHistory} onSquareClick={props.onSquareClick} isEnemySelected={isEnemySelected} />
-                {props.tokens.map(token => {
-                    if (token.isCaptured) return null;
-                    return <Piece3D key={token.id} token={token} isSelected={token.id === props.selectedTokenId} candidates={props.candidatesMap?.get(token.id)} onSquareClick={props.onSquareClick} />;
+                {allTokensToRender.map(token => {
+                    const isDead = deadTokens.some(d => d.id === token.id);
+                    return <Piece3D key={token.id} token={token} isSelected={token.id === props.selectedTokenId} candidates={props.candidatesMap?.get(token.id)} onSquareClick={props.onSquareClick} isDead={isDead} />;
                 })}
                 <OrbitControls enablePan={false} minPolarAngle={0} maxPolarAngle={Math.PI / 2.5} minDistance={5} maxDistance={15} />
             </Canvas>
