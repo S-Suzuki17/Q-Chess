@@ -23,10 +23,10 @@ if (typeof window !== 'undefined') {
 const FloatingMiniPiece = ({ type, isWhite, position }: { type: PieceType, isWhite: boolean, position: [number, number, number] }) => {
     const ref = React.useRef<THREE.Group>(null);
     useFrame((state, delta) => {
-        if (ref.current) ref.current.rotation.y += delta * 1.5;
+        if (ref.current) ref.current.rotation.y += delta * 0.8;
     });
     return (
-        <group ref={ref} position={position} scale={0.2}>
+        <group ref={ref} position={position} scale={0.35}>
             <RealisticPiece type={type} isWhite={isWhite} />
         </group>
     );
@@ -51,7 +51,7 @@ const QuantumBlock = ({ isWhite, probabilities, candidates }: { isWhite: boolean
             <group position={[0, 0.2, 0]}>
                 {activeTypes.map((t, i) => {
                     const angle = (i / count) * Math.PI * 2;
-                    const radius = count > 1 ? 0.25 : 0;
+                    const radius = count > 1 ? 0.32 : 0;
                     const x = Math.cos(angle) * radius;
                     const z = Math.sin(angle) * radius;
                     return (
