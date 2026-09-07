@@ -23,10 +23,10 @@ if (typeof window !== 'undefined') {
 const FloatingMiniPiece = ({ type, isWhite, position }: { type: PieceType, isWhite: boolean, position: [number, number, number] }) => {
     const ref = React.useRef<THREE.Group>(null);
     useFrame((state, delta) => {
-        if (ref.current) ref.current.rotation.y += delta * 0.5;
+        if (ref.current) ref.current.rotation.y += delta * 0.8;
     });
     return (
-        <group ref={ref} position={[position[0], 0.1, position[2]]} scale={0.22}>
+        <group ref={ref} position={position} scale={0.45}>
             <RealisticPiece type={type} isWhite={isWhite} isHologram={false} />
         </group>
     );
@@ -37,23 +37,34 @@ const QuantumBlock = ({ isWhite, probabilities, candidates }: { isWhite: boolean
     const activeTypes = types.filter(t => candidates ? candidates.has(t) : probabilities[t as PieceType] > 0);
     const count = activeTypes.length;
 
+    // The orbit group rotates slowly over time
+    const orbitRef = React.useRef<THREE.Group>(null);
+    useFrame((state, delta) => {
+        if (orbitRef.current) {
+            orbitRef.current.rotation.y += delta * 0.3; // slow orbit
+        }
+    });
+
     return (
-        <Float speed={2} rotationIntensity={0.05} floatIntensity={0.1}>
-            {/* Ornate Base */}
-            <mesh castShadow receiveShadow position={[0, 0.05, 0]}>
-                <cylinderGeometry args={[0.42, 0.42, 0.1, 32]} />
-                <meshStandardMaterial color={isWhite ? '#ffffff' : '#000000'} transparent opacity={0.3} roughness={0.7} metalness={0.2} />
-            </mesh>
-            <mesh position={[0, 0.105, 0]} rotation={[-Math.PI/2, 0, 0]}>
-                 <ringGeometry args={[0.38, 0.42, 32]} />
-                 <meshBasicMaterial color={isWhite ? '#00e5ff' : '#ff3366'} transparent opacity={0.8} />
-            </mesh>
+        <group>
+            {/* Core Base */}
+            <Float speed={2} rotationIntensity={0.05} floatIntensity={0.1}>
+                <mesh castShadow receiveShadow position={[0, 0.05, 0]}>
+                    <cylinderGeometry args={[0.35, 0.4, 0.1, 32]} />
+                    <meshStandardMaterial color={isWhite ? '#ffffff' : '#000000'} transparent opacity={0.5} roughness={0.5} />
+                </mesh>
+                <mesh position={[0, 0.105, 0]} rotation={[-Math.PI/2, 0, 0]}>
+                     <ringGeometry args={[0.3, 0.35, 32]} />
+                     <meshBasicMaterial color={isWhite ? '#00e5ff' : '#ff3366'} transparent opacity={0.8} />
+                </mesh>
+            </Float>
             
-            <group position={[0, 0.15, 0]}>
+            {/* Orbiting Pieces */}
+            <group ref={orbitRef} position={[0, 0.7, 0]}>
                 {activeTypes.map((t, i) => {
                     const angle = (i / count) * Math.PI * 2;
-                    // Spread them out more so they don't overlap (clutter)
-                    const radius = count > 1 ? 0.35 : 0;
+                    // Wide orbit radius so they are large but don't overlap
+                    const radius = count > 1 ? 0.55 : 0; 
                     const x = Math.cos(angle) * radius;
                     const z = Math.sin(angle) * radius;
                     return (
@@ -61,7 +72,7 @@ const QuantumBlock = ({ isWhite, probabilities, candidates }: { isWhite: boolean
                     );
                 })}
             </group>
-        </Float>
+        </group>
     );
 };
 
