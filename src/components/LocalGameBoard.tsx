@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { IdentityPool } from '../lib/IdentityPool';
 import { Token, deduceMoveTypes, isPlayerInCheck } from '../lib/GameEngine';
 import { QuantumPieceUI } from './QuantumPieceUI';
+import { Board3D } from './Board3D';
 import { AdBanner } from './AdBanner';
 import { Language, dict } from '../locales/dict';
 import { User, TimeControl } from '../types/game';
@@ -779,103 +780,17 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
             </div>
 
             <div className="w-full flex-1 min-h-0 flex items-center justify-center">
-                <div className={`
-                    grid grid-cols-8 grid-rows-8 border-4 bg-[#0b0c10] shadow-2xl w-full max-w-[min(100%,_calc(100dvh-320px))] aspect-square relative transition-all duration-300
-                    ${showCheckWarning ? 'border-[#B39A62]/70 shadow-[#B39A62]/20' : 'border-[#A89C86]/30 shadow-gray-900'}
-                `}>
-                {Array.from({ length: 64 }).map((_, index) => {
-                    const isFlipped = onlineRole === 'black';
-                    const visualRow = Math.floor(index / 8);
-                    const visualCol = index % 8;
-                    const row = isFlipped ? 7 - visualRow : visualRow;
-                    const col = isFlipped ? 7 - visualCol : visualCol;
-                    const isDark = (row + col) % 2 === 1;
-                    const tokenHere = tokens.find(t => !t.isCaptured && t.row === row && t.col === col);
-                    const isSelected = tokenHere?.id === selectedTokenId;
-                    
-                    // このマスが、選択中の駒の移動可能マスかどうかを判定
-                    const isMoveCandidate = showMoveHints && validMoves.some(m => m.r === row && m.c === col);
-                    const lastMove = moveHistory.length > 0 ? moveHistory[moveHistory.length - 1] : null;
-                    const isLastMoveSquare = lastMove && ((lastMove.from[0] === row && lastMove.from[1] === col) || (lastMove.to[0] === row && lastMove.to[1] === col));
-                    const isCapturable = isMoveCandidate && tokenHere && tokenHere.player !== currentTurn;
-
-                    return (
-                        <div 
-                            key={index}
-                            onClick={() => handleSquareClick(row, col)}
-                            className={`
-                                relative flex justify-center items-center cursor-pointer transition-colors
-                                aspect-square w-full h-full
-                                ${isDark ? 'bg-[#11100E]' : 'bg-[#191714]'}
-                                ${isLastMoveSquare ? (isDark ? 'bg-[#B39A62]/20' : 'bg-[#B39A62]/30') : ''}
-                                ${isMoveCandidate ? (isCapturable ? 'hover:bg-red-900/30' : 'hover:bg-[#B39A62]/20') : 'hover:bg-[#E8E2D7]/5'}
-                            `}
-                        >
-                            {/* 移動先候補のハイライト描画 */}
-                            {isMoveCandidate && !tokenHere && (
-                                <div className="absolute inset-0 border-4 border-[#B39A62]/60 shadow-[inset_0_0_15px_rgba(179,154,98,0.5)] pointer-events-none animate-pulse" />
-                            )}
-                            {isMoveCandidate && tokenHere && (
-                                <div className={`absolute inset-1 border-4 ${isCapturable ? 'border-red-600/60' : 'border-[#B39A62]/60'} rounded pointer-events-none animate-pulse`} />
-                            )}
-                        </div>
-                    );
-                })}
-                
-                {/* Draw Animated Pieces */}
-                {tokens.filter(t => !t.isCaptured).map(token => {
-                    const isFlipped = onlineRole === 'black';
-                    const visualRow = isFlipped ? 7 - token.row : token.row;
-                    const visualCol = isFlipped ? 7 - token.col : token.col;
-                    const isSelected = token.id === selectedTokenId;
-                    const isMoving = movingPiece?.id === token.id;
-                    
-                    let transformStyle = '';
-                    if (isSelected) {
-                        transformStyle = 'translateY(-15px) scale(1.15)';
-                    } else if (isMoving) {
-                        transformStyle = 'translateY(-10px) scale(1.1)';
-                    } else {
-                        transformStyle = 'scale(1)';
-                    }
-
-                    // During animation, use the target coordinates
-                    let renderRow = visualRow;
-                    let renderCol = visualCol;
-                    if (isMoving && movingPiece) {
-                        renderRow = isFlipped ? 7 - movingPiece.toRow : movingPiece.toRow;
-                        renderCol = isFlipped ? 7 - movingPiece.toCol : movingPiece.toCol;
-                    }
-
-                    return (
-                        <div 
-                            key={token.id}
-                            className="absolute flex items-center justify-center pointer-events-none"
-                            style={{
-                                width: '12.5%',
-                                height: '12.5%',
-                                left: `${renderCol * 12.5}%`,
-                                top: `${renderRow * 12.5}%`,
-                                zIndex: isSelected || isMoving ? 50 : 20,
-                                transition: 'left 0.4s cubic-bezier(0.4, 0, 0.2, 1), top 0.4s cubic-bezier(0.4, 0, 0.2, 1), transform 0.2s ease',
-                                transform: transformStyle,
-                                filter: isSelected || isMoving ? 'drop-shadow(0 20px 15px rgba(0,0,0,0.9))' : 'none',
-                            }}
-                        >
-                            <div className="w-full h-full scale-[0.85] flex items-center justify-center pointer-events-auto cursor-pointer" onClick={(e) => { e.stopPropagation(); handleSquareClick(token.row, token.col); }}>
-                                <QuantumPieceUI 
-                                    id={token.id}
-                                    player={token.player}
-                                    probabilities={token.probabilities} candidates={pool.piecePossibilities.get(token.id)}
-                                    isSelected={false} // lifting animation is handled by wrapper
-                                    onClick={() => {}} 
-                                    promotedTo={token.promotedTo}
-                                />
-                            </div>
-                        </div>
-                    );
-                })}
-            </div>
+                <Board3D 
+                    tokens={tokens}
+                    onlineRole={onlineRole}
+                    selectedTokenId={selectedTokenId}
+                    validMoves={validMoves}
+                    moveHistory={moveHistory}
+                    showCheckWarning={showCheckWarning}
+                    onSquareClick={handleSquareClick}
+                    showMoveHints={showMoveHints}
+                    currentTurn={currentTurn}
+                />
             </div>
             
             {/* プレイヤー側の取得駒（取った敵駒） */}

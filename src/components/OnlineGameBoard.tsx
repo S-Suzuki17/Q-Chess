@@ -5,6 +5,7 @@ import { useSocket } from '../lib/SocketContext';
 import { User, TimeControl } from '../types/game';
 import { Language, dict } from '../locales/dict';
 import { QuantumPieceUI } from './QuantumPieceUI';
+import { Board3D } from './Board3D';
 import { AdBanner } from './AdBanner';
 import { PieceType } from '../config/gameConfig';
 import { v4 as uuidv4 } from 'uuid';
@@ -595,98 +596,17 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
             </div>
 
             <div className="w-full flex-1 min-h-0 flex items-center justify-center">
-                <div className={`
-                    grid grid-cols-8 grid-rows-8 border-4 bg-[#0b0c10] shadow-2xl w-full max-w-[min(100%,_calc(100dvh-320px))] aspect-square relative transition-all duration-300
-                    border-[#A89C86]/30 shadow-gray-900
-                `}>
-                {Array.from({ length: 64 }).map((_, index) => {
-                    const visualRow = Math.floor(index / 8);
-                    const visualCol = index % 8;
-                    const row = isFlipped ? 7 - visualRow : visualRow;
-                    const col = isFlipped ? 7 - visualCol : visualCol;
-                    const isDark = (row + col) % 2 === 1;
-                    const tokenHere = tokens.find(t => !t.isCaptured && t.row === row && t.col === col);
-                    const isSelected = tokenHere?.id === selectedTokenId;
-                    const isMoveCandidate = showMoveHints && validMoves.some(m => m.r === row && m.c === col);
-
-                    const lastMove = gameState?.lastMove;
-                    let lastMoveFrom: {row: number, col: number} | null = null;
-                    if (lastMove && prevGameStateRef.current) {
-                        const oldPiece = prevGameStateRef.current.pieces?.find((p: any) => p.id === lastMove.pieceId);
-                        if (oldPiece) {
-                            lastMoveFrom = oldPiece.position;
-                        }
-                    }
-
-                    const isLastMoveSquare = lastMove && (
-                        (lastMove.target.row === row && lastMove.target.col === col) ||
-                        (lastMoveFrom && lastMoveFrom.row === row && lastMoveFrom.col === col)
-                    );
-                    const isCapturable = isMoveCandidate && tokenHere && tokenHere.player !== currentTurn;
-
-                    return (
-                        <div 
-                            key={index}
-                            onClick={() => handleSquareClick(row, col)}
-                            className={`
-                                relative flex justify-center items-center cursor-pointer transition-colors
-                                aspect-square w-full h-full
-                                ${isDark ? 'bg-[#11100E]' : 'bg-[#191714]'}
-                                ${isLastMoveSquare ? (isDark ? 'bg-[#B39A62]/20' : 'bg-[#B39A62]/30') : ''}
-                                ${isMoveCandidate ? (isCapturable ? 'hover:bg-red-900/30' : 'hover:bg-[#B39A62]/20') : 'hover:bg-[#E8E2D7]/5'}
-                            `}
-                        >
-                            {isMoveCandidate && !tokenHere && (
-                                <div className="absolute inset-0 border-4 border-[#B39A62]/60 shadow-[inset_0_0_15px_rgba(179,154,98,0.5)] pointer-events-none animate-pulse" />
-                            )}
-                            {isMoveCandidate && tokenHere && (
-                                <div className={`absolute inset-1 border-4 ${isCapturable ? 'border-red-600/60' : 'border-[#B39A62]/60'} rounded pointer-events-none animate-pulse`} />
-                            )}
-                        </div>
-                    );
-                })}
-
-                {/* Draw Animated Pieces */}
-                {tokens.filter(t => !t.isCaptured).map(token => {
-                    const visualRow = isFlipped ? 7 - token.row : token.row;
-                    const visualCol = isFlipped ? 7 - token.col : token.col;
-                    const isSelected = token.id === selectedTokenId;
-                    
-                    let transformStyle = '';
-                    if (isSelected) {
-                        transformStyle = 'translateY(-15px) scale(1.15)';
-                    } else {
-                        transformStyle = 'scale(1)';
-                    }
-
-                    return (
-                        <div 
-                            key={token.id}
-                            className="absolute flex items-center justify-center pointer-events-none"
-                            style={{
-                                width: '12.5%',
-                                height: '12.5%',
-                                left: `${visualCol * 12.5}%`,
-                                top: `${visualRow * 12.5}%`,
-                                zIndex: isSelected ? 50 : 20,
-                                transition: 'left 0.4s cubic-bezier(0.4, 0, 0.2, 1), top 0.4s cubic-bezier(0.4, 0, 0.2, 1), transform 0.2s ease',
-                                transform: transformStyle,
-                                filter: isSelected ? 'drop-shadow(0 20px 15px rgba(0,0,0,0.9))' : 'none',
-                            }}
-                        >
-                            <div className="w-full h-full scale-[0.85] flex items-center justify-center pointer-events-auto cursor-pointer" onClick={(e) => { e.stopPropagation(); handleSquareClick(token.row, token.col); }}>
-                                <QuantumPieceUI 
-                                    id={token.id}
-                                    player={token.player}
-                                    probabilities={token.probabilities}
-                                    isSelected={false} // lifting animation is handled by wrapper
-                                    onClick={() => {}} 
-                                />
-                            </div>
-                        </div>
-                    );
-                })}
-            </div>
+                <Board3D 
+                    tokens={tokens}
+                    onlineRole={onlineRole}
+                    selectedTokenId={selectedTokenId}
+                    validMoves={validMoves}
+                    moveHistory={[]} 
+                    showCheckWarning={showCheckWarning}
+                    onSquareClick={handleSquareClick}
+                    showMoveHints={showMoveHints}
+                    currentTurn={currentTurn}
+                />
             </div>
             
             {/* Pieces captured by the player at the bottom */}
