@@ -602,7 +602,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole, matchM
                     selectedTokenId={selectedTokenId}
                     validMoves={validMoves}
                     moveHistory={[]} 
-                    showCheckWarning={showCheckWarning}
+                    showCheckWarning={false}
                     onSquareClick={handleSquareClick}
                     showMoveHints={showMoveHints}
                     currentTurn={currentTurn}

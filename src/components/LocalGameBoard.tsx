@@ -790,6 +790,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
                     onSquareClick={handleSquareClick}
                     showMoveHints={showMoveHints}
                     currentTurn={currentTurn}
+                    candidatesMap={pool.piecePossibilities}
                 />
             </div>
             

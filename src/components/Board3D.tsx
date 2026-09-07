@@ -76,8 +76,8 @@ const RealisticPiece = ({ type, isWhite }: { type: PieceType, isWhite: boolean }
     return <primitive object={clone} scale={1.0} position={[0, 0, 0]} rotation={[0, rotY, 0]} />;
 };
 
-const Piece3D = ({ token, isSelected }: { token: Token, isSelected: boolean }) => {
-    const possibleTypes = (Object.keys(token.probabilities) as PieceType[]).filter(t => token.candidates ? token.candidates.has(t) : token.probabilities[t] > 0);
+const Piece3D = ({ token, isSelected, candidates, onSquareClick }: { token: Token, isSelected: boolean, candidates?: ReadonlySet<PieceType>, onSquareClick: (r:number, c:number) => void }) => {
+    const possibleTypes = (Object.keys(token.probabilities) as PieceType[]).filter(t => candidates ? candidates.has(t) : token.probabilities[t as PieceType] > 0);
     const confirmedType = token.promotedTo ? token.promotedTo : (possibleTypes.length === 1 ? possibleTypes[0] : null);
     const isWhite = token.player === 'white';
     const x = token.col - 3.5;
@@ -95,7 +95,7 @@ const Piece3D = ({ token, isSelected }: { token: Token, isSelected: boolean }) =
             {confirmedType ? (
                 <RealisticPiece type={confirmedType} isWhite={isWhite} />
             ) : (
-                <QuantumBlock isWhite={isWhite} probabilities={token.probabilities} candidates={token.candidates} />
+                <QuantumBlock isWhite={isWhite} probabilities={token.probabilities} candidates={candidates} />
             )}
         </group>
     );
@@ -137,14 +137,15 @@ const BoardSquares = ({ validMoves, moveHistory, onSquareClick }: any) => {
 
 export interface Board3DProps {
     tokens: Token[];
-    onlineRole: 'white' | 'black' | 'spectator';
+    onlineRole?: 'white' | 'black' | 'spectator';
     selectedTokenId: string | null;
     validMoves: {r: number, c: number}[];
     moveHistory: any[];
-    showCheckWarning: boolean;
+    showCheckWarning?: boolean;
     onSquareClick: (row: number, col: number) => void;
     showMoveHints: boolean;
     currentTurn: 'white' | 'black';
+    candidatesMap?: Map<string, ReadonlySet<PieceType>>;
 }
 
 export const Board3D: React.FC<Board3DProps> = (props) => {
@@ -162,7 +163,7 @@ export const Board3D: React.FC<Board3DProps> = (props) => {
                 <BoardSquares validMoves={props.showMoveHints ? props.validMoves : []} moveHistory={props.moveHistory} onSquareClick={props.onSquareClick} />
                 {props.tokens.map(token => {
                     if (token.isCaptured) return null;
-                    return <Piece3D key={token.id} token={token} isSelected={token.id === props.selectedTokenId} />;
+                    return <Piece3D key={token.id} token={token} isSelected={token.id === props.selectedTokenId} candidates={props.candidatesMap?.get(token.id)} onSquareClick={props.onSquareClick} />;
                 })}
                 <OrbitControls enablePan={false} minPolarAngle={Math.PI / 6} maxPolarAngle={Math.PI / 3} minDistance={5} maxDistance={15} />
             </Canvas>
