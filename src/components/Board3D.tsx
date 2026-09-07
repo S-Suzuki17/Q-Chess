@@ -26,7 +26,7 @@ const FloatingMiniPiece = ({ type, isWhite, position }: { type: PieceType, isWhi
         if (ref.current) ref.current.rotation.y += delta * 1.5;
     });
     return (
-        <group ref={ref} position={position} scale={0.25}>
+        <group ref={ref} position={position} scale={0.2}>
             <RealisticPiece type={type} isWhite={isWhite} />
         </group>
     );
@@ -38,15 +38,20 @@ const QuantumBlock = ({ isWhite, probabilities, candidates }: { isWhite: boolean
     const count = activeTypes.length;
 
     return (
-        <Float speed={2} rotationIntensity={0.1} floatIntensity={0.5}>
-            <mesh castShadow receiveShadow position={[0, 0.4, 0]}>
-                <cylinderGeometry args={[0.45, 0.45, 0.2, 8]} />
+        <Float speed={2} rotationIntensity={0.05} floatIntensity={0.2}>
+            <mesh castShadow receiveShadow position={[0, 0.1, 0]}>
+                <cylinderGeometry args={[0.42, 0.42, 0.1, 16]} />
                 <meshStandardMaterial color={isWhite ? '#d4b872' : '#3B342C'} roughness={0.7} metalness={0.2} />
             </mesh>
-            <group position={[0, 0.6, 0]}>
+            <mesh position={[0, 0.155, 0]} rotation={[-Math.PI/2, 0, 0]}>
+                 <ringGeometry args={[0.38, 0.42, 32]} />
+                 <meshBasicMaterial color={isWhite ? '#ffffff' : '#D4B872'} transparent opacity={0.6} />
+            </mesh>
+            
+            <group position={[0, 0.2, 0]}>
                 {activeTypes.map((t, i) => {
                     const angle = (i / count) * Math.PI * 2;
-                    const radius = count > 1 ? 0.35 : 0;
+                    const radius = count > 1 ? 0.25 : 0;
                     const x = Math.cos(angle) * radius;
                     const z = Math.sin(angle) * radius;
                     return (
@@ -60,7 +65,29 @@ const QuantumBlock = ({ isWhite, probabilities, candidates }: { isWhite: boolean
 
 const RealisticPiece = ({ type, isWhite }: { type: PieceType, isWhite: boolean }) => {
     const { scene } = useGLTF(MODEL_PATHS[type]);
-    const clone = useMemo(() => scene.clone(), [scene]);
+    const clone = useMemo(() => {
+        const c = scene.clone();
+        const box = new THREE.Box3().setFromObject(c);
+        const size = new THREE.Vector3();
+        box.getSize(size);
+        
+        const heights: Record<PieceType, number> = {
+            King: 1.5, Queen: 1.35, Bishop: 1.2, Knight: 1.1, Rook: 1.0, Pawn: 0.85
+        };
+        const targetHeight = heights[type];
+        
+        if (size.y > 0.001) {
+            const s = targetHeight / size.y;
+            c.scale.setScalar(s);
+            
+            // Center it horizontally and snap bottom to Y=0
+            const center = new THREE.Vector3();
+            box.getCenter(center);
+            // Since we scale the children, we shift the parent group negatively
+            c.position.set(-center.x * s, -box.min.y * s, -center.z * s);
+        }
+        return c;
+    }, [scene, type]);
     
     useEffect(() => {
         clone.traverse((child) => {
@@ -78,7 +105,7 @@ const RealisticPiece = ({ type, isWhite }: { type: PieceType, isWhite: boolean }
     }, [clone, isWhite]);
 
     const rotY = isWhite ? 0 : Math.PI;
-    return <primitive object={clone} scale={1.0} position={[0, 0, 0]} rotation={[0, rotY, 0]} />;
+    return <primitive object={clone} position={[0, 0, 0]} rotation={[0, rotY, 0]} />;
 };
 
 const Piece3D = ({ token, isSelected, candidates, onSquareClick }: { token: Token, isSelected: boolean, candidates?: ReadonlySet<PieceType>, onSquareClick: (r:number, c:number) => void }) => {
