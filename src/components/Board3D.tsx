@@ -41,11 +41,11 @@ const QuantumBlock = ({ isWhite, probabilities, candidates }: { isWhite: boolean
         <Float speed={2} rotationIntensity={0.05} floatIntensity={0.2}>
             <mesh castShadow receiveShadow position={[0, 0.1, 0]}>
                 <cylinderGeometry args={[0.42, 0.42, 0.1, 16]} />
-                <meshStandardMaterial color={isWhite ? '#d4b872' : '#3B342C'} roughness={0.7} metalness={0.2} />
+                <meshStandardMaterial color={isWhite ? '#ffffff' : '#000000'} transparent opacity={0.2} roughness={0.1} />
             </mesh>
             <mesh position={[0, 0.155, 0]} rotation={[-Math.PI/2, 0, 0]}>
                  <ringGeometry args={[0.38, 0.42, 32]} />
-                 <meshBasicMaterial color={isWhite ? '#ffffff' : '#D4B872'} transparent opacity={0.6} />
+                 <meshBasicMaterial color={isWhite ? '#00e5ff' : '#ff3366'} transparent opacity={0.8} />
             </mesh>
             
             <group position={[0, 0.2, 0]}>
@@ -185,7 +185,7 @@ export const Board3D: React.FC<Board3DProps> = (props) => {
 
     return (
         <div className="w-full h-full min-h-[400px] rounded-lg overflow-hidden border-4 border-[#3a2518] shadow-2xl relative" style={{ background: 'radial-gradient(circle at 50% 50%, #4a3424 0%, #1a100b 100%)' }}>
-            <Canvas shadows camera={{ position: isFlipped ? [0, 6, -8] : [0, 6, 8], fov: 45 }}>
+            <Canvas shadows camera={{ position: isFlipped ? [0, 8, -6] : [0, 8, 6], fov: 45 }}>
                 <ambientLight intensity={0.5} />
                 <Environment preset="sunset" />
                 <directionalLight position={[5, 10, 5]} intensity={1.2} castShadow shadow-mapSize-width={2048} shadow-mapSize-height={2048} />
@@ -198,7 +198,7 @@ export const Board3D: React.FC<Board3DProps> = (props) => {
                     if (token.isCaptured) return null;
                     return <Piece3D key={token.id} token={token} isSelected={token.id === props.selectedTokenId} candidates={props.candidatesMap?.get(token.id)} onSquareClick={props.onSquareClick} />;
                 })}
-                <OrbitControls enablePan={false} minPolarAngle={Math.PI / 6} maxPolarAngle={Math.PI / 3} minDistance={5} maxDistance={15} />
+                <OrbitControls enablePan={false} minPolarAngle={0} maxPolarAngle={Math.PI / 2.5} minDistance={5} maxDistance={15} />
             </Canvas>
         </div>
     );
