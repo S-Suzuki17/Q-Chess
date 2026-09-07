@@ -117,7 +117,7 @@ const BoardSquares = ({ validMoves, moveHistory, onSquareClick }: any) => {
             if (isLastMove) color = isLight ? '#e6d38e' : '#8f773b';
 
             squares.push(
-                <group key={\-\} position={[x, -0.05, z]} onClick={(e) => { e.stopPropagation(); onSquareClick(r, c); }}>
+                <group key={`${r}-${c}`} position={[x, -0.05, z]} onClick={(e) => { e.stopPropagation(); onSquareClick(r, c); }}>
                     <mesh receiveShadow>
                         <boxGeometry args={[1, 0.1, 1]} />
                         <meshStandardMaterial color={color} roughness={0.8} />
