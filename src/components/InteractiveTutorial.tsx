@@ -1,3 +1,4 @@
+import { ModalCloseButton } from './ModalCloseButton';
 import React, { useState, useEffect } from 'react';
 import { Language, dict } from '../locales/dict';
 import { AnimatedDemoBoard, DemoPiece } from './AnimatedDemoBoard';
@@ -175,8 +176,9 @@ export function InteractiveTutorial({ lang, onClose }: Props) {
 
     return (
         <div className="fixed inset-0 bg-[#11100E]/95 z-[200] flex flex-col items-center justify-center p-4 backdrop-blur-md">
-            <div className="w-full max-w-4xl bg-[#191714] border-2 border-[#B39A62]/30 rounded-xl flex flex-col md:flex-row shadow-2xl relative overflow-hidden">
-                <button onClick={onClose} className="absolute top-4 right-4 text-gray-500 hover:text-white text-2xl font-bold z-50">×</button>
+            <ModalCloseButton lang={lang} onClose={onClose} />
+            <div className="w-full max-w-4xl bg-[#191714] border-2 border-[#B39A62]/30 rounded-xl flex flex-col md:flex-row shadow-2xl relative max-h-[calc(100dvh-6rem)] overflow-y-auto">
+
                 
                 {/* Left: Board Demo */}
                 <div className="w-full md:w-1/2 p-8 bg-[#0b0c10] flex items-center justify-center relative min-h-[300px]">

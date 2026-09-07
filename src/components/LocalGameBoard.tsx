@@ -1,4 +1,5 @@
 'use client';
+import { ModalCloseButton } from './ModalCloseButton';
 
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { IdentityPool } from '../lib/IdentityPool';
@@ -866,6 +867,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
             {/* Resign Confirmation Modal */}
             {showResignConfirm && (
                 <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 backdrop-blur-sm animate-fade-in">
+                    <ModalCloseButton lang={lang} onClose={() => setShowResignConfirm(false)} />
                     <div className="bg-[#161513] border border-[#B39A62]/30 rounded-xl p-8 max-w-sm w-full shadow-2xl flex flex-col items-center text-center">
                         <span className="text-4xl mb-3">🏳️</span>
                         <h3 className="text-lg font-bold text-[#E8E2D7] mb-2">
@@ -898,6 +900,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
             {/* Rules Modal */}
             {showRules && (
                 <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 backdrop-blur-sm animate-fade-in">
+                    <ModalCloseButton lang={lang} onClose={() => setShowRules(false)} />
                     <div className="bg-[#161513] border border-[#B39A62]/30 rounded-xl p-8 max-w-md w-full shadow-2xl flex flex-col gap-4 text-center">
                         <h3 className="text-xl font-bold text-[#E8E2D7] tracking-widest uppercase">
                             {lang === 'ja' ? '遊び方' : 'How to Play'}
@@ -956,6 +959,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
 
             {castlingPending && (
                 <div className="absolute inset-0 bg-black/80 z-50 flex flex-col items-center justify-center p-6">
+                    <ModalCloseButton lang={lang} onClose={() => { setCastlingPending(null); setSelectedTokenId(null); }} />
                     <div className="bg-[#2A2621] border-2 border-[#D4B872]/30 rounded-xl p-8 max-w-md w-full text-center relative shadow-2xl">
                         <h2 className="text-[#B39A62] text-2xl font-serif font-bold mb-6">
                             {t.castlingConfirmTitle || 'Castling or Normal Move?'}
@@ -1005,6 +1009,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
 
             {promotionPending && (
                 <div className="fixed inset-0 z-50 bg-black/80 flex flex-col items-center justify-center p-4">
+                    <ModalCloseButton lang={lang} onClose={() => { setPromotionPending(null); setSelectedTokenId(null); }} />
                     <div className="bg-[#161513] border border-[#B39A62]/30 p-8 rounded-lg max-w-sm w-full text-center shadow-2xl">
                         <h3 className="text-xl tracking-[0.2em] font-serif text-[#E8E2D7] mb-2">{t.promotionTitle}</h3>
                         <p className="text-[#A89C86] text-xs tracking-widest mb-6 font-serif">{t.promotionDesc}</p>
