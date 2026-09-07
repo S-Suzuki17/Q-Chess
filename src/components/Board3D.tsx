@@ -307,7 +307,7 @@ export const Board3D: React.FC<Board3DProps> = (props) => {
     const controlsRef = React.useRef<any>(null);
 
     return (
-        <div className="w-full h-full min-h-[400px] rounded-lg overflow-hidden border-4 border-[#3a2518] shadow-2xl relative group" style={{ background: 'radial-gradient(circle at 50% 50%, #4a3424 0%, #1a100b 100%)' }}>
+        <div className="w-full h-full rounded-lg overflow-hidden border-2 sm:border-4 border-[#3a2518] shadow-2xl relative group" style={{ background: 'radial-gradient(circle at 50% 50%, #4a3424 0%, #1a100b 100%)', touchAction: 'none' }}>
             <Canvas shadows camera={{ position: isFlipped ? [0, 8, -6] : [0, 8, 6], fov: 45 }}>
                 <ambientLight intensity={0.5} />
                 <Environment preset="sunset" />
@@ -324,11 +324,18 @@ export const Board3D: React.FC<Board3DProps> = (props) => {
                 <OrbitControls ref={controlsRef} enablePan={false} minPolarAngle={0} maxPolarAngle={Math.PI / 2.5} minDistance={5} maxDistance={15} />
             </Canvas>
             <button 
+                onPointerDown={(e) => e.stopPropagation()}
                 onClick={() => controlsRef.current?.reset()} 
-                className="absolute bottom-4 right-4 bg-black/60 hover:bg-black/80 text-gray-300 p-2 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                className="absolute bottom-2 right-2 sm:bottom-4 sm:right-4 bg-black/60 hover:bg-black/80 text-gray-200 p-3 rounded-full opacity-80 transition-opacity active:bg-black/90 shadow-[0_0_15px_rgba(0,0,0,0.5)] z-10"
                 title="Reset Camera"
             >
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="22" y1="12" x2="18" y2="12"></line>
+                    <line x1="6" y1="12" x2="2" y2="12"></line>
+                    <line x1="12" y1="6" x2="12" y2="2"></line>
+                    <line x1="12" y1="22" x2="12" y2="18"></line>
+                </svg>
             </button>
         </div>
     );
