@@ -60,21 +60,14 @@ export function Board2D({
                     const col = i % 8;
                     const isDark = (row + col) % 2 === 1;
                     const isMoveCandidate = renderMoves.some(m => m.r === row && m.c === col);
-                    const isLastMove = lastMove && ((lastMove.from[0] === row && lastMove.from[1] === col) || (lastMove.to[0] === row && lastMove.to[1] === col));
-                    
                     const isHintTo = hintMove && hintMove.toRow === row && hintMove.toCol === col;
                     const isHintFrom = hintMove && hintMove.fromRow === row && hintMove.fromCol === col;
 
                     let bgClass = isDark ? 'bg-[#5c3e29]' : 'bg-[#d4c0a5]'; // chic classic
                     if (boardDesign === 'marble') bgClass = isDark ? 'bg-[#54636e]' : 'bg-[#c7cfd1]';
-                    if (boardDesign === 'neon') bgClass = isDark ? 'bg-[#221633]' : 'bg-[#49316b]'; // visible contrast
+                    if (boardDesign === 'neon') bgClass = isDark ? 'bg-[#6a00ff]' : 'bg-[#00e5ff]'; // visible contrast
 
-                    if (isLastMove) {
-                        if (boardDesign === 'marble') bgClass = isDark ? 'bg-[#7a8a66]' : 'bg-[#d2db9e]';
-                        else if (boardDesign === 'neon') bgClass = isDark ? 'bg-[#4d1f4d]' : 'bg-[#8a428a]';
-                        else bgClass = isDark ? 'bg-[#8f773b]' : 'bg-[#e6d38e]';
-                    }
-
+                    
                     return (
                         <div 
                             key={i} 

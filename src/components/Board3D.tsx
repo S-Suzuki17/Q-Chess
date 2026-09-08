@@ -2,7 +2,7 @@
 
 import React, { useMemo, useEffect } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { OrbitControls, useGLTF, Text, Float, Billboard, Environment, Html, Stars, Sky, Sparkles, Cloud } from '@react-three/drei';
+import { Backdrop, OrbitControls, useGLTF, Text, Float, Billboard, Environment, Html, Stars, Sky, Sparkles, Cloud } from '@react-three/drei';
 import * as THREE from 'three';
 import { Token } from '../lib/GameEngine';
 import { QuantumPieceUI } from './QuantumPieceUI';
@@ -280,10 +280,7 @@ const BoardSquares = ({ validMoves, moveHistory, onSquareClick, isEnemySelected,
             const z = r - 3.5;
             
             const isMoveCandidate = validMoves.some((m: any) => m.r === r && m.c === c);
-            const lastMove = moveHistory.length > 0 ? moveHistory[moveHistory.length - 1] : null;
-            const isLastMove = lastMove && ((lastMove.from[0] === r && lastMove.from[1] === c) || (lastMove.to[0] === r && lastMove.to[1] === c));
-
-            let color = isLight ? '#d4c0a5' : '#5c3e29';
+                        let color = isLight ? '#d4c0a5' : '#5c3e29';
             let metalness = 0.1;
             let roughness = 0.8;
             let emissive = '#000000';
@@ -299,14 +296,7 @@ const BoardSquares = ({ validMoves, moveHistory, onSquareClick, isEnemySelected,
                 roughness = 0.4;
             }
             
-            if (isLastMove) {
-                if (boardDesign === 'marble') color = isLight ? '#d2db9e' : '#7a8a66';
-                else if (boardDesign === 'neon') {
-                    color = isLight ? '#8a428a' : '#4d1f4d';
-                    emissive = '#ff3366';
-                    emissiveIntensity = 0.2;
-                } else color = isLight ? '#e6d38e' : '#8f773b';
-            }
+
             
             
             
@@ -353,37 +343,47 @@ const BackgroundEffects = ({ design }: { design: 'classic' | 'marble' | 'neon' }
         case 'marble':
             return (
                 <>
-                    <Environment preset="city" /> {/* Lighting only, no background */}
-                    <color attach="background" args={['#dce1e8']} />
-                    <ambientLight intensity={0.6} />
-                    <directionalLight position={[10, 15, 10]} intensity={1.2} castShadow shadow-mapSize={[2048, 2048]} />
-                    <mesh position={[0, -1, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-                        <planeGeometry args={[100, 100]} />
-                        <meshStandardMaterial color="#f0f2f5" roughness={0.8} />
-                    </mesh>
+                    <color attach="background" args={['#e2e8f0']} />
+                    <ambientLight intensity={0.8} />
+                    <directionalLight position={[5, 15, 5]} intensity={1.5} castShadow shadow-mapSize={[2048, 2048]} />
+                    <Backdrop floor={15} segments={20} receiveShadow position={[0, -0.5, -10]} scale={[50, 20, 10]}>
+                        <meshStandardMaterial color="#f1f5f9" roughness={0.5} />
+                    </Backdrop>
                 </>
             );
         case 'neon':
             return (
                 <>
-                    <color attach="background" args={['#0a0410']} />
-                    <ambientLight intensity={0.4} />
-                    <pointLight position={[-5, 5, 5]} color="#00e5ff" intensity={50} distance={30} />
-                    <pointLight position={[5, 5, -5]} color="#ff3366" intensity={50} distance={30} />
-                    <gridHelper args={[100, 100, '#ff3366', '#00e5ff']} position={[0, -1, 0]} />
+                    <fog attach="fog" args={['#090014', 10, 40]} />
+                    <color attach="background" args={['#090014']} />
+                    <ambientLight intensity={1.5} />
+                    <directionalLight position={[0, 10, 10]} intensity={2.0} color="#00ffff" />
+                    <spotLight position={[10, 10, -10]} intensity={2.5} color="#ff00ff" penumbra={0.5} />
+                    <spotLight position={[-10, 10, 10]} intensity={2.5} color="#00ffff" penumbra={0.5} />
+                    
+                    <mesh position={[0, -0.5, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+                        <planeGeometry args={[200, 200]} />
+                        <meshStandardMaterial color="#090014" roughness={0.2} metalness={0.8} />
+                    </mesh>
+                    <gridHelper args={[200, 100, '#ff00ff', '#00ffff']} position={[0, -0.49, 0]} />
                 </>
             );
         case 'classic':
         default:
             return (
                 <>
-                    <Environment preset="studio" /> {/* Lighting only, no background image */}
                     <color attach="background" args={['#161412']} />
-                    <ambientLight intensity={0.5} />
-                    <directionalLight position={[5, 10, 5]} intensity={1.2} castShadow shadow-mapSize={[2048, 2048]} />
-                    <mesh position={[0, -0.4, 0]} receiveShadow>
-                        <cylinderGeometry args={[14, 14, 0.2, 64]} />
-                        <meshStandardMaterial color="#1f1812" roughness={0.9} />
+                    <ambientLight intensity={0.7} />
+                    <directionalLight position={[5, 10, 5]} intensity={1.5} castShadow shadow-mapSize={[2048, 2048]} />
+                    <spotLight position={[-10, 20, 0]} intensity={1.5} color="#ffedd5" penumbra={1} castShadow />
+                    
+                    <Backdrop floor={15} segments={20} receiveShadow position={[0, -0.5, -10]} scale={[50, 20, 10]}>
+                        <meshStandardMaterial color="#2a1f1a" roughness={1} />
+                    </Backdrop>
+                    
+                    <mesh position={[0, -0.5, 0]} receiveShadow>
+                        <cylinderGeometry args={[12, 12, 0.2, 64]} />
+                        <meshStandardMaterial color="#1f1812" roughness={0.7} metalness={0.1} />
                     </mesh>
                 </>
             );
