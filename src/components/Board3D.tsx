@@ -231,7 +231,7 @@ const Piece3D = ({ token, isSelected, candidates, onSquareClick, isDead = false 
     );
 };
 
-const BoardSquares = ({ validMoves, moveHistory, onSquareClick, isEnemySelected }: any) => {
+const BoardSquares = ({ validMoves, moveHistory, onSquareClick, isEnemySelected, boardDesign, hintMove }: any) => {
     const squares = [];
     for (let r = 0; r < 8; r++) {
         for (let c = 0; c < 8; c++) {
@@ -244,7 +244,18 @@ const BoardSquares = ({ validMoves, moveHistory, onSquareClick, isEnemySelected 
             const isLastMove = lastMove && ((lastMove.from[0] === r && lastMove.from[1] === c) || (lastMove.to[0] === r && lastMove.to[1] === c));
 
             let color = isLight ? '#d4c0a5' : '#5c3e29';
-            if (isLastMove) color = isLight ? '#e6d38e' : '#8f773b';
+            if (boardDesign === 'marble') color = isLight ? '#f2f2f2' : '#708090';
+            if (boardDesign === 'neon') color = isLight ? '#2a2a35' : '#0a0a10';
+            
+            if (isLastMove) {
+                if (boardDesign === 'marble') color = isLight ? '#e8f0b1' : '#8d9c5b';
+                else if (boardDesign === 'neon') color = isLight ? '#401530' : '#2b0b20';
+                else color = isLight ? '#e6d38e' : '#8f773b';
+            }
+            
+            const isHintTo = hintMove && hintMove.toRow === r && hintMove.toCol === c;
+            const isHintFrom = hintMove && hintMove.fromRow === r && hintMove.fromCol === c;
+            
 
             squares.push(
                 <group key={`${r}-${c}`} position={[x, -0.05, z]} onClick={(e) => { e.stopPropagation(); onSquareClick(r, c); }}>
@@ -258,6 +269,12 @@ const BoardSquares = ({ validMoves, moveHistory, onSquareClick, isEnemySelected 
                             <meshBasicMaterial color={isEnemySelected ? "#ff4444" : "#D4B872"} transparent opacity={isEnemySelected ? 0.7 : 0.5} />
                         </mesh>
                     )}
+                    {(isHintTo || isHintFrom) && (
+                        <mesh position={[0, 0.07, 0]} rotation={[-Math.PI/2, 0, 0]}>
+                            <ringGeometry args={[0.35, 0.45, 32]} />
+                            <meshBasicMaterial color="#00ff00" transparent opacity={0.8} />
+                        </mesh>
+                    )}
                 </group>
             );
         }
@@ -266,7 +283,7 @@ const BoardSquares = ({ validMoves, moveHistory, onSquareClick, isEnemySelected 
 };
 
 
-const ResponsiveCamera = () => {
+const ResponsiveCamera = ({ isFlipped, is2DView }: { isFlipped: boolean, is2DView: boolean }) => {
     const { camera, size } = useThree();
     useFrame(() => {
         const aspect = size.width / size.height;
@@ -280,8 +297,24 @@ const ResponsiveCamera = () => {
         }
         // Force the camera distance and FOV so it ALWAYS fits
         const pCam = camera as THREE.PerspectiveCamera;
+        let needsUpdate = false;
         if (Math.abs(pCam.fov - targetFov) > 0.1) {
             pCam.fov = targetFov;
+            needsUpdate = true;
+        }
+
+        // Handle 2D / 3D position transitions
+        const targetPos = is2DView 
+            ? new THREE.Vector3(0, 15, isFlipped ? -0.1 : 0.1) // 0.1 offset to define 'up' direction easily
+            : new THREE.Vector3(0, 8, isFlipped ? -6 : 6);
+            
+        if (pCam.position.distanceTo(targetPos) > 0.1) {
+            pCam.position.lerp(targetPos, 0.1);
+            pCam.lookAt(0, 0, 0);
+            needsUpdate = true;
+        }
+
+        if (needsUpdate) {
             pCam.updateProjectionMatrix();
         }
     });
@@ -289,6 +322,9 @@ const ResponsiveCamera = () => {
 };
 
 export interface Board3DProps {
+    is2DView?: boolean;
+    boardDesign?: 'classic' | 'marble' | 'neon';
+    hintMove?: { fromRow: number, fromCol: number, toRow: number, toCol: number } | null;
     isFlipped?: boolean;
     tokens: Token[];
     onlineRole?: 'white' | 'black' | 'spectator';
@@ -332,9 +368,9 @@ export const Board3D: React.FC<Board3DProps> = (props) => {
     const controlsRef = React.useRef<any>(null);
 
     return (
-        <div className="w-full h-full rounded-lg overflow-hidden border-2 sm:border-4 border-[#3a2518] shadow-2xl relative group" style={{ background: 'radial-gradient(circle at 50% 50%, #4a3424 0%, #1a100b 100%)', touchAction: 'none' }}>
+        <div className="w-full h-full rounded-lg overflow-hidden border-2 sm:border-4 border-[#3a2518] shadow-2xl relative group" style={{ background: props.boardDesign === 'marble' ? 'radial-gradient(circle at 50% 50%, #e0e0e0 0%, #a0a0a0 100%)' : props.boardDesign === 'neon' ? 'radial-gradient(circle at 50% 50%, #1a0b2e 0%, #000000 100%)' : 'radial-gradient(circle at 50% 50%, #4a3424 0%, #1a100b 100%)', touchAction: 'none' }}>
             <Canvas shadows camera={{ position: isFlipped ? [0, 8, -6] : [0, 8, 6], fov: 45 }}>
-                <ResponsiveCamera />
+                <ResponsiveCamera isFlipped={!!props.isFlipped} is2DView={!!props.is2DView} />
                 <ambientLight intensity={0.5} />
                 <Environment preset="sunset" />
                 <directionalLight position={[5, 10, 5]} intensity={1.2} castShadow shadow-mapSize-width={2048} shadow-mapSize-height={2048} />
@@ -342,7 +378,7 @@ export const Board3D: React.FC<Board3DProps> = (props) => {
                     <boxGeometry args={[8.4, 0.2, 8.4]} />
                     <meshStandardMaterial color="#2c1e16" roughness={0.9} />
                 </mesh>
-                <BoardSquares validMoves={props.showMoveHints ? props.validMoves : []} moveHistory={props.moveHistory} onSquareClick={props.onSquareClick} isEnemySelected={isEnemySelected} />
+                <BoardSquares validMoves={props.showMoveHints ? props.validMoves : []} moveHistory={props.moveHistory} onSquareClick={props.onSquareClick} isEnemySelected={isEnemySelected} boardDesign={props.boardDesign} hintMove={props.hintMove} />
                 {allTokensToRender.map(token => {
                     const isDead = deadTokens.some(d => d.id === token.id);
                     return <Piece3D key={token.id} token={token} isSelected={token.id === props.selectedTokenId} candidates={props.candidatesMap?.get(token.id)} onSquareClick={props.onSquareClick} isDead={isDead} />;
