@@ -594,6 +594,12 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
                 return;
             }
 
+            if (token.player !== currentTurn || (roomId && currentTurn !== onlineRole)) {
+                const clickedOtherPiece = tokens.find(t => t.row === targetRow && t.col === targetCol);
+                setSelectedTokenId(clickedOtherPiece ? clickedOtherPiece.id : null);
+                return;
+            }
+
             if (!validMoves.some(m => m.r === targetRow && m.c === targetCol)) {
                 setErrorMsg(t.errInvalidMove);
                 setSelectedTokenId(null);
@@ -656,10 +662,6 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
         } else {
             const clickedToken = tokens.find(t => t.row === targetRow && t.col === targetCol);
             if (clickedToken) {
-                if (clickedToken.player !== currentTurn || (roomId && currentTurn !== onlineRole)) {
-                    setErrorMsg(currentTurn === 'white' ? t.errNotYourTurnBlue : t.errNotYourTurnRed);
-                    return;
-                }
                 setSelectedTokenId(clickedToken.id);
             }
         }

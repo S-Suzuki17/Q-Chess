@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Language, dict } from '../locales/dict';
 import { Board3D } from './Board3D';
+import { tutorialDict } from '@/locales/rulesDict';
 import { Token } from '../lib/GameEngine';
 
 interface Props {
