@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Language, dict } from '../locales/dict';
-import { AnimatedDemoBoard, DemoPiece } from './AnimatedDemoBoard';
+import { Board3D } from './Board3D';
+import { Token } from '../lib/GameEngine';
 
 interface Props {
     lang: Language;
@@ -21,7 +22,7 @@ export function InteractiveTutorial({ lang, onClose }: Props) {
     const [selectedPieceId, setSelectedPieceId] = useState<string | null>(null);
 
     // Board State
-    const [pieces, setPieces] = useState<DemoPiece[]>([
+    const [pieces, setPieces] = useState<any[]>([
         { id: 'w1', player: 'white', row: 6, col: 4, probabilities: START_PROBS },
         { id: 'b1', player: 'black', row: 1, col: 7, probabilities: START_PROBS },
     ]);
@@ -179,15 +180,35 @@ export function InteractiveTutorial({ lang, onClose }: Props) {
                 <button onClick={onClose} className="absolute top-4 right-4 text-gray-500 hover:text-white text-2xl font-bold z-50">×</button>
                 
                 {/* Left: Board Demo */}
-                <div className="w-full md:w-1/2 p-8 bg-[#0b0c10] flex items-center justify-center relative min-h-[300px]">
-                    <AnimatedDemoBoard 
-                        pieces={pieces} 
-                        sizeClass="w-full max-w-[320px]" 
-                        selectedPieceId={selectedPieceId}
-                        validMoves={validMoves}
-                        onPieceClick={handlePieceClick}
-                        onSquareClick={handleSquareClick}
-                    />
+                <div className="w-full md:w-1/2 p-0 bg-[#0b0c10] flex items-center justify-center relative min-h-[300px]">
+                    <div className="w-full h-full min-h-[300px] md:min-h-full">
+                        <Board3D 
+                            tokens={pieces.filter(p => !p.isCaptured).map(p => ({
+                                id: p.id,
+                                player: p.player,
+                                row: p.row,
+                                col: p.col,
+                                probabilities: p.probabilities,
+                                promotedTo: p.promotedTo,
+                                selected: p.id === selectedPieceId
+                            })) as Token[]}
+                            selectedTokenId={selectedPieceId}
+                            validMoves={validMoves.map(m => ({ r: m.row, c: m.col }))}
+                            moveHistory={[]}
+                            onSquareClick={(r, c) => {
+                                const clickedPiece = pieces.find(p => p.row === r && p.col === c && !p.isCaptured);
+                                if (!selectedPieceId && clickedPiece) {
+                                    handlePieceClick(clickedPiece.id);
+                                } else if (selectedPieceId && clickedPiece && clickedPiece.player === pieces.find(p => p.id === selectedPieceId)?.player) {
+                                    handleSquareClick(r, c);
+                                } else {
+                                    handleSquareClick(r, c);
+                                }
+                            }}
+                            showMoveHints={true}
+                            currentTurn="white"
+                        />
+                    </div>
                 </div>
 
                 {/* Right: Explanations */}
