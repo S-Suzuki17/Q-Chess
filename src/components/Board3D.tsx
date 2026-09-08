@@ -210,6 +210,16 @@ const Piece3D = ({ token, isSelected, candidates, onSquareClick, isDead = false,
             groupRef.current.rotation.y = dt * Math.PI * 4;
             groupRef.current.position.y += dt * 1.5;
         } else {
+            // Selection Lift Animation
+            if (isSelected) {
+                liftProgress.current = THREE.MathUtils.lerp(liftProgress.current, 1.0, delta * 10.0);
+            } else {
+                liftProgress.current = THREE.MathUtils.lerp(liftProgress.current, 0.0, delta * 10.0);
+            }
+            // Add a slight hover effect using state.clock.elapsedTime when fully lifted
+            const hover = isSelected ? Math.sin(state.clock.elapsedTime * 4) * 0.05 * liftProgress.current : 0;
+            
+            groupRef.current.position.y += liftProgress.current * 0.4 + hover;
             groupRef.current.scale.setScalar(1.0);
             groupRef.current.rotation.y = 0;
         }
