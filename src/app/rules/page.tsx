@@ -2,9 +2,11 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { AdBanner } from '../../components/AdBanner';
+import { InteractiveTutorial } from '../../components/InteractiveTutorial';
 
 export default function RulesPage() {
   const [lang, setLang] = useState<'en' | 'ja'>('en');
+  const [showTutorial, setShowTutorial] = useState(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -40,7 +42,8 @@ export default function RulesPage() {
       sec5Title: "5. About the Game",
       sec5p1: "Q-GAMBIT combines the mechanics of chess with deduction and hidden information.",
       sec5p2: "Test your logic and bluffing skills against our AI or challenge players worldwide in Online mode!",
-      footer: "For bug reports or inquiries, please visit our GitHub."
+      footer: "For bug reports or inquiries, please visit our GitHub.",
+      playTutorial: "Play Interactive Tutorial"
     },
     ja: {
       back: "← もどる",
@@ -51,24 +54,25 @@ export default function RulesPage() {
       sec1p2: "駒の正体は「動かし方」によって少しずつバレていきます。例えば、大きく斜めに動いた駒は「斜めに動ける駒（ビショップかクイーン）」のどちらかだと確定します。ありえない可能性は自動的に消去されていきます。",
       sec2Title: "2. 正体が確定する瞬間",
       sec2p1: "駒を動かすたびに、その駒が何者であるかが絞り込まれていきます。",
-      sec2li1: "移動できるかチェック：選んだ駒の可能性の中に、その動きができる駒が残っていれば移動できます。",
-      sec2li2: "可能性の消去：その動きができない駒の可能性は、リストから完全に消去されます。",
-      sec2li3: "正体の確定（オープン）：可能性が「残り１つ」になると、その駒の正体が確定し、両方のプレイヤーに本当の姿が公開されます。",
-      sec2rule: "重要ルール：残っているどの可能性でも「絶対にできない動き」をしようとした場合は、エラーとなり動かすことができません。",
+      sec2li1: "移動できるかチェック: 選んだ駒の可能性の中に、その動きができる駒が残っていれば移動できます。",
+      sec2li2: "可能性の消去: その動きができない駒の可能性は、リストから完全に消去されます。",
+      sec2li3: "正体の確定（オープン）: 可能性が「残り１つ」になると、その駒の正体が確定し、両方のプレイヤーに本当の姿が公開されます。",
+      sec2rule: "重要ルール: 残っているどの可能性でも「絶対にできない動き」をしようとした場合は、エラーとなり動かすことができません。",
       sec3Title: "3. 勝利条件と戦略",
       sec3p1: "勝利条件は普通のチェスと同じで、「相手のキングを倒すこと」です。ただし、最初はキングも隠れているため、相手のキングを探し出すことが最初の目標になります。",
       sec3BoxTitle: "最強の戦術：キングを隠し通せ",
       sec3Boxp1: "このゲームで最も重要なのは、「自分のキングがどれかバレないようにすること」です。",
-      sec3Boxli1: "キングを不用意に動かさない：ナナメに1マスだけ動くなど、キング特有の動きをすると、正体が絞り込まれて相手に狙われやすくなります。",
-      sec3Boxli2: "あえてウソの動きをする：キングのフリをして別の駒を動かし、相手の攻撃を誘うのも強力な戦術です。",
-      sec3Boxli3: "連鎖に注意：例えばクイーンの正体が確定すると、「他の駒はクイーンではない」ことが確定し、他の駒の正体まで連鎖してバレてしまうことがあります。",
+      sec3Boxli1: "キングを不用意に動かさない: ナナメに1マスだけ動くなど、キング特有の動きをすると、正体が絞り込まれて相手に狙われやすくなります。",
+      sec3Boxli2: "あえてウソの動きをする: キングのフリをして別の駒を動かし、相手の攻撃を誘うのも強力な戦術です。",
+      sec3Boxli3: "連鎖に注意: 例えばクイーンの正体が確定すると、「他の駒はクイーンではない」ことが確定し、他の駒の正体まで連鎖してバレてしまうことがあります。",
       sec4Title: "4. 駒を取る ＆ プロモーション",
-      sec4p1: "駒を取る：相手の駒を取った場合、その駒の正体が完全にバレる前に盤面から消滅します。何を倒したのかは最後までわからないこともあります（もし倒したのがキングなら、その瞬間にあなたの勝利です！）。",
-      sec4p2: "プロモーション（昇格）：相手の一番奥のマスにたどり着いた時、その駒が「ポーン（歩兵）」である可能性が残っていた場合、ポーンとして確定し、クイーンなどに変身することができます。",
+      sec4p1: "駒を取る: 相手の駒を取った場合、その駒の正体が完全にバレる前に盤面から消滅します。何を倒したのかは最後までわからないこともあります（もし倒したのがキングなら、その瞬間にあなたの勝利です！）。",
+      sec4p2: "プロモーション（昇格）: 相手の一番奥のマスにたどり着いた時、その駒が「ポーン（歩兵）」である可能性が残っていた場合、ポーンとして確定し、クイーンなどに変身することができます。",
       sec5Title: "5. ゲームの特徴",
       sec5p1: "Q-GAMBITは、「見えない情報」を推理しながら戦う新感覚のボードゲームです。普通のチェスとは違い、相手を騙す心理戦が楽しめます。",
       sec5p2: "コンピュータ（AI）との対戦や、世界中のプレイヤーとのオンライン対戦で、あなたの推理力と戦略を試してみてください！",
-      footer: "バグ報告やお問い合わせはGitHubまでお願いします。"
+      footer: "バグ報告やお問い合わせはGitHubまでお願いします。",
+      playTutorial: "実際の盤面でチュートリアルを見る"
     }
   };
 
@@ -77,9 +81,23 @@ export default function RulesPage() {
   return (
     <div className="h-[100dvh] w-full bg-[#050505] text-gray-300 font-mono p-6 md:p-12 overflow-y-auto">
       <div className="max-w-4xl mx-auto pb-16">
-        <Link href="/" className="text-[#D4B872] hover:text-white transition-colors text-sm mb-8 inline-block tracking-widest font-bold">
-          {c.back}
-        </Link>
+        <div className="flex justify-between items-center mb-8">
+            <Link href="/" className="text-[#D4B872] hover:text-white transition-colors text-sm inline-block tracking-widest font-bold">
+            {c.back}
+            </Link>
+            <div className="flex gap-4 items-center">
+                <button 
+                    onClick={() => setShowTutorial(true)}
+                    className="px-4 py-2 bg-[#B39A62]/20 border border-[#B39A62] text-[#D4B872] text-sm font-bold tracking-widest rounded hover:bg-[#B39A62] hover:text-[#11100E] transition-colors"
+                >
+                    {c.playTutorial}
+                </button>
+                <div className="flex gap-2">
+                    <button onClick={() => { setLang('en'); localStorage.setItem('qg_language', 'en'); }} className={`text-sm font-bold px-2 py-1 rounded ${lang === 'en' ? 'bg-[#B39A62] text-black' : 'text-gray-400 hover:text-white'}`}>EN</button>
+                    <button onClick={() => { setLang('ja'); localStorage.setItem('qg_language', 'ja'); }} className={`text-sm font-bold px-2 py-1 rounded ${lang === 'ja' ? 'bg-[#B39A62] text-black' : 'text-gray-400 hover:text-white'}`}>JA</button>
+                </div>
+            </div>
+        </div>
 
         <h1 className="text-4xl md:text-5xl font-extrabold text-[#D4B872] mb-6 tracking-wider">
           {c.title}
@@ -154,7 +172,10 @@ export default function RulesPage() {
             github.com/S-Suzuki17/Q-Chess
           </a>
         </div>
+
       </div>
+      {showTutorial && <InteractiveTutorial lang={lang} onClose={() => setShowTutorial(false)} />}
     </div>
+
   );
 }
