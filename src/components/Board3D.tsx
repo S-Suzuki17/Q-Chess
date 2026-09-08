@@ -283,13 +283,29 @@ const BoardSquares = ({ validMoves, moveHistory, onSquareClick, isEnemySelected,
             const lastMove = moveHistory.length > 0 ? moveHistory[moveHistory.length - 1] : null;
             const isLastMove = lastMove && ((lastMove.from[0] === r && lastMove.from[1] === c) || (lastMove.to[0] === r && lastMove.to[1] === c));
 
-            let color = isLight ? '#d4c0a5' : '#5c3e29';
-            if (boardDesign === 'marble') color = isLight ? '#f2f2f2' : '#708090';
-            if (boardDesign === 'neon') color = isLight ? '#2a2a35' : '#0a0a10';
+            let color = isLight ? '#e6cfb3' : '#7a4d2c';
+            let metalness = 0.1;
+            let roughness = 0.8;
+            let emissive = '#000000';
+            let emissiveIntensity = 0;
+
+            if (boardDesign === 'marble') {
+                color = isLight ? '#fdfdfd' : '#8aa1b1';
+                metalness = 0.3;
+                roughness = 0.2; // Shiny marble
+            } else if (boardDesign === 'neon') {
+                color = isLight ? '#42245c' : '#231236'; // Brighter purple/blue so black pieces contrast
+                metalness = 0.8;
+                roughness = 0.2;
+            }
             
             if (isLastMove) {
                 if (boardDesign === 'marble') color = isLight ? '#e8f0b1' : '#8d9c5b';
-                else if (boardDesign === 'neon') color = isLight ? '#401530' : '#2b0b20';
+                else if (boardDesign === 'neon') {
+                    color = isLight ? '#ff1493' : '#8a0a4f';
+                    emissive = '#ff1493';
+                    emissiveIntensity = 0.5;
+                }
                 else color = isLight ? '#e6d38e' : '#8f773b';
             }
             
@@ -301,7 +317,7 @@ const BoardSquares = ({ validMoves, moveHistory, onSquareClick, isEnemySelected,
                 <group key={`${r}-${c}`} position={[x, -0.05, z]} onClick={(e) => { e.stopPropagation(); onSquareClick(r, c); }}>
                     <mesh receiveShadow>
                         <boxGeometry args={[1, 0.1, 1]} />
-                        <meshStandardMaterial color={color} roughness={0.8} />
+                        <meshStandardMaterial color={color} roughness={roughness} metalness={metalness} emissive={emissive} emissiveIntensity={emissiveIntensity} />
                     </mesh>
                     {isMoveCandidate && (
                         <mesh position={[0, 0.06, 0]} rotation={[-Math.PI/2, 0, 0]}>
@@ -335,11 +351,22 @@ const BackgroundEffects = ({ design }: { design: 'classic' | 'marble' | 'neon' }
         case 'marble':
             return (
                 <>
-                    <Environment preset="dawn" background blur={0.5} />
+                    <Environment preset="dawn" background blur={0.2} />
                     <Sky distance={450000} sunPosition={[0, 1, 0]} inclination={0} azimuth={0.25} />
-                    <Cloud position={[0, -5, -10]} speed={0.2} opacity={0.2} />
-                    <Cloud position={[10, -5, 5]} speed={0.2} opacity={0.2} />
-                    <Cloud position={[-10, -5, 5]} speed={0.2} opacity={0.2} />
+                    <ambientLight intensity={0.6} />
+                    <directionalLight position={[10, 15, 10]} intensity={1.5} castShadow shadow-mapSize={[2048, 2048]} />
+                    <Cloud position={[0, -5, -10]} speed={0.2} opacity={0.3} scale={2} />
+                    <Cloud position={[10, -5, 5]} speed={0.2} opacity={0.3} scale={2} />
+                    <Cloud position={[-10, -5, 5]} speed={0.2} opacity={0.3} scale={2} />
+                    <Sparkles count={100} scale={15} size={6} speed={0.2} opacity={0.8} color="#ffd700" position={[0, 2, 0]} />
+                    
+                    {/* Floating temple pillars */}
+                    {[[-6, -4, -6], [6, -4, -6], [-6, -4, 6], [6, -4, 6]].map((pos, i) => (
+                        <mesh key={i} position={pos as any} receiveShadow castShadow>
+                            <cylinderGeometry args={[0.5, 0.5, 8, 16]} />
+                            <meshStandardMaterial color="#f0f0f0" roughness={0.3} metalness={0.1} />
+                        </mesh>
+                    ))}
                 </>
             );
         case 'neon':
@@ -347,22 +374,42 @@ const BackgroundEffects = ({ design }: { design: 'classic' | 'marble' | 'neon' }
                 <>
                     <Environment preset="night" background blur={0.8} />
                     <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />
-                    <Sparkles count={200} scale={20} size={5} speed={0.4} opacity={0.5} color="#00e5ff" position={[0, -2, 0]} />
-                    <Sparkles count={200} scale={20} size={5} speed={0.4} opacity={0.5} color="#ff3366" position={[0, 5, 0]} />
-                    <gridHelper args={[50, 50, '#ff3366', '#00e5ff']} position={[0, -2, 0]} />
+                    <ambientLight intensity={0.2} />
+                    
+                    {/* Neon Rim Lights for piece contrast */}
+                    <pointLight position={[-5, 2, 5]} color="#00e5ff" intensity={15} distance={20} />
+                    <pointLight position={[5, 2, -5]} color="#ff3366" intensity={15} distance={20} />
+                    
+                    <Sparkles count={150} scale={20} size={5} speed={0.4} opacity={0.8} color="#00e5ff" position={[-2, -1, 0]} />
+                    <Sparkles count={150} scale={20} size={5} speed={0.4} opacity={0.8} color="#ff3366" position={[2, 4, 0]} />
+                    <gridHelper args={[100, 100, '#ff3366', '#00e5ff']} position={[0, -5, 0]} />
+                    
+                    {/* Glowing ring under the board */}
+                    <mesh position={[0, -1, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+                        <ringGeometry args={[7, 7.2, 64]} />
+                        <meshBasicMaterial color="#00e5ff" transparent opacity={0.5} />
+                    </mesh>
                 </>
             );
         case 'classic':
         default:
             return (
                 <>
-                    <Environment preset="studio" background blur={0.8} />
-                    <mesh position={[0, -10, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-                        <planeGeometry args={[100, 100]} />
-                        <meshStandardMaterial color="#1a1412" roughness={0.8} />
+                    <Environment preset="studio" background blur={0.5} />
+                    <ambientLight intensity={0.4} />
+                    <directionalLight position={[5, 10, 5]} intensity={1.5} castShadow shadow-mapSize={[2048, 2048]} />
+                    
+                    {/* Elegant table */}
+                    <mesh position={[0, -0.4, 0]} receiveShadow>
+                        <cylinderGeometry args={[12, 12, 0.2, 64]} />
+                        <meshStandardMaterial color="#1a0b02" roughness={0.5} metalness={0.1} />
                     </mesh>
-                    <ambientLight intensity={0.3} />
-                    <spotLight position={[0, 15, 0]} angle={0.5} penumbra={1} intensity={2} castShadow />
+                    <mesh position={[0, -10, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+                        <planeGeometry args={[200, 200]} />
+                        <meshStandardMaterial color="#0a0502" roughness={0.9} />
+                    </mesh>
+                    <spotLight position={[0, 15, 0]} angle={0.6} penumbra={0.8} intensity={2} castShadow />
+                    <Sparkles count={50} scale={10} size={2} speed={0.1} opacity={0.2} color="#ffffff" position={[0, 2, 0]} />
                 </>
             );
     }
@@ -457,12 +504,19 @@ export const Board3D: React.FC<Board3DProps> = (props) => {
         <div className="w-full h-full rounded-lg overflow-hidden border-2 sm:border-4 border-[#3a2518] shadow-2xl relative group" style={{ background: props.boardDesign === 'marble' ? 'radial-gradient(circle at 50% 50%, #e0e0e0 0%, #a0a0a0 100%)' : props.boardDesign === 'neon' ? 'radial-gradient(circle at 50% 50%, #1a0b2e 0%, #000000 100%)' : 'radial-gradient(circle at 50% 50%, #4a3424 0%, #1a100b 100%)', touchAction: 'none' }}>
             <Canvas shadows camera={{ position: isFlipped ? [0, 8, -6] : [0, 8, 6], fov: 45 }}>
                 <ResponsiveCamera isFlipped={isFlipped} is2DView={!!props.is2DView} />
-                <ambientLight intensity={0.5} />
+                
                 <BackgroundEffects design={props.boardDesign || 'classic'} />
-                <directionalLight position={[5, 10, 5]} intensity={1.2} castShadow shadow-mapSize-width={2048} shadow-mapSize-height={2048} />
-                <mesh position={[0, -0.2, 0]} receiveShadow>
+                
+                {/* Dynamic Board Base */}
+                <mesh position={[0, -0.2, 0]} receiveShadow castShadow>
                     <boxGeometry args={[8.4, 0.2, 8.4]} />
-                    <meshStandardMaterial color="#2c1e16" roughness={0.9} />
+                    <meshStandardMaterial 
+                        color={props.boardDesign === 'marble' ? '#f0f0f0' : (props.boardDesign === 'neon' ? '#11081a' : '#2c1e16')} 
+                        roughness={props.boardDesign === 'marble' ? 0.3 : 0.9} 
+                        metalness={props.boardDesign === 'neon' ? 0.5 : 0.1} 
+                        emissive={props.boardDesign === 'neon' ? '#ff3366' : '#000000'}
+                        emissiveIntensity={props.boardDesign === 'neon' ? 0.1 : 0}
+                    />
                 </mesh>
                 <BoardSquares validMoves={props.showMoveHints ? props.validMoves : []} moveHistory={props.moveHistory} onSquareClick={props.onSquareClick} isEnemySelected={isEnemySelected} boardDesign={props.boardDesign} hintMove={props.hintMove} />
                 {allTokensToRender.map(token => {
