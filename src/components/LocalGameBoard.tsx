@@ -184,6 +184,11 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
     } | null>(null);
 
     const [moveHistory, setMoveHistory] = useState<MoveRecord[]>([]);
+    const anyModalOpen = showGameOver || showRules || promotionPending !== null || castlingPending !== null;
+    useEffect(() => {
+        window.dispatchEvent(new CustomEvent('hide-settings', { detail: anyModalOpen }));
+    }, [anyModalOpen]);
+
     const moveHistoryRef = useRef<MoveRecord[]>([]);
     const [turnCount, setTurnCount] = useState(0);
     const [savedRecordId, setSavedRecordId] = useState<string | null>(null);

@@ -139,6 +139,11 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
     const [showPlayMenu, setShowPlayMenu] = React.useState(false);
     const [recentGames, setRecentGames] = React.useState<any[]>([]);
     React.useEffect(() => { getGameRecords(3, user.id).then(setRecentGames); }, [user.id]);
+    const anyModalOpen = showPlayMenu || showReplays || showLeaderboard || showFriends || showAccount || showTutorial || showAdModal || !!pendingAction || showLiveMatches;
+    React.useEffect(() => {
+        window.dispatchEvent(new CustomEvent('hide-settings', { detail: anyModalOpen }));
+    }, [anyModalOpen]);
+
     const [onlineCount, setOnlineCount] = React.useState(1);
     const [onlineUsers, setOnlineUsers] = React.useState<Set<string>>(new Set());
     const channelRef = React.useRef<ReturnType<typeof supabase.channel> | null>(null);

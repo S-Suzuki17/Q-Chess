@@ -103,6 +103,13 @@ export default function Home() {
     const [user, setUser] = useState<User | null>(null);
     const [cpuLevel, setCpuLevel] = useState<number>(5);
     const [timeControl, setTimeControl] = useState<TimeControl>('10m');
+    const [hideSettingsGlobal, setHideSettingsGlobal] = useState(false);
+    useEffect(() => {
+        const handleHide = (e: any) => setHideSettingsGlobal(e.detail);
+        window.addEventListener('hide-settings', handleHide);
+        return () => window.removeEventListener('hide-settings', handleHide);
+    }, []);
+
     const [onlineInfo, setOnlineInfo] = useState<{ roomId: string, role: 'white' | 'black' | 'spectator', matchMode: 'random' | 'private' | 'ranked', opponentId?: string } | null>(null);
     const [replayRecord, setReplayRecord] = useState<GameRecord | null>(null);
     const [soundConfig, setSoundConfig] = useState(() => soundManager.getConfig());
@@ -290,7 +297,7 @@ export default function Home() {
         <main className="fixed inset-0 flex flex-col items-center justify-between bg-[#11100E] text-[#E8E2D7] font-sans overflow-hidden">
             <div className="z-10 w-full max-w-5xl flex items-center justify-between text-sm mb-4">
                 {/* 右上のコントロール群 */}
-                <div className="fixed right-4 top-4 z-40 flex gap-2 items-center">
+                <div className={`fixed right-4 top-4 z-40 flex gap-2 items-center ${showSettings || hideSettingsGlobal ? 'hidden' : ''}`}>
                     <button 
                         onClick={() => setShowSettings(true)}
                         className="px-3 py-2 bg-[#2A2621] border border-[#4A4238] text-[#D4B872] rounded hover:bg-[#3B342C] transition-colors font-sans font-bold tracking-widest flex items-center justify-center text-xs"
@@ -458,7 +465,7 @@ export default function Home() {
                 </>
             )}
 
-            <div className="fixed right-4 top-4 z-40 flex gap-2 items-center pointer-events-auto">
+                <div className={`fixed right-4 top-4 z-40 flex gap-2 items-center pointer-events-auto ${showSettings || hideSettingsGlobal ? 'hidden' : ''}`}>
                 <button 
                     onClick={() => setShowSettings(true)}
                     className="px-3 py-2 bg-[#2A2621] border border-[#4A4238] text-[#D4B872] rounded hover:bg-[#3B342C] transition-colors font-sans font-bold tracking-widest flex items-center justify-center text-xs shadow-lg"
