@@ -43,7 +43,8 @@ export const metadata: Metadata = {
     title: "Q-GAMBIT",
   },
   other: {
-    "google-adsense-account": "ca-pub-1116866075179199"
+    "google-adsense-account": "ca-pub-1116866075179199",
+    "google-site-verification": "imleNn5cL0XRfyC8RAkSzkIOBRi542-mPZFspkcVzY4"
   }
 };
 
