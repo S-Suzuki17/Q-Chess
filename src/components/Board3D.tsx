@@ -2,7 +2,7 @@
 
 import React, { useMemo, useEffect } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { Backdrop, OrbitControls, useGLTF, Text, Float, Billboard, Environment, Html, Stars, Sky, Sparkles, Cloud } from '@react-three/drei';
+import { Backdrop, OrbitControls, ContactShadows, useGLTF, Text, Float, Billboard, Environment, Html, Stars, Sky, Sparkles, Cloud } from '@react-three/drei';
 import * as THREE from 'three';
 import { Token } from '../lib/GameEngine';
 import { QuantumPieceUI } from './QuantumPieceUI';
@@ -282,18 +282,23 @@ const BoardSquares = ({ validMoves, moveHistory, onSquareClick, isEnemySelected,
             const isMoveCandidate = validMoves.some((m: any) => m.r === r && m.c === c);
                         let color = isLight ? '#d4c0a5' : '#5c3e29';
             let metalness = 0.1;
-            let roughness = 0.8;
+            let roughness = 0.4;
             let emissive = '#000000';
             let emissiveIntensity = 0;
+            let clearcoat = 0.5;
 
             if (boardDesign === 'marble') {
-                color = isLight ? '#c7cfd1' : '#54636e';
-                metalness = 0.2;
-                roughness = 0.3;
+                color = isLight ? '#f8fafc' : '#64748b';
+                metalness = 0.1;
+                roughness = 0.2;
+                clearcoat = 0.8;
             } else if (boardDesign === 'neon') {
-                color = isLight ? '#49316b' : '#221633';
-                metalness = 0.5;
-                roughness = 0.4;
+                color = isLight ? '#00e5ff' : '#d400ff';
+                metalness = 0.2;
+                roughness = 0.2;
+                emissive = isLight ? '#00e5ff' : '#d400ff';
+                emissiveIntensity = 0.6;
+                clearcoat = 1.0;
             }
             
 
@@ -308,7 +313,7 @@ const BoardSquares = ({ validMoves, moveHistory, onSquareClick, isEnemySelected,
                 <group key={`${r}-${c}`} position={[x, -0.05, z]} onClick={(e) => { e.stopPropagation(); onSquareClick(r, c); }}>
                     <mesh receiveShadow>
                         <boxGeometry args={[1, 0.1, 1]} />
-                        <meshStandardMaterial color={color} roughness={roughness} metalness={metalness} emissive={emissive} emissiveIntensity={emissiveIntensity} />
+                        <meshPhysicalMaterial color={color} roughness={roughness} metalness={metalness} emissive={emissive} emissiveIntensity={emissiveIntensity} clearcoat={clearcoat} clearcoatRoughness={0.1} />
                     </mesh>
                     {isMoveCandidate && (
                         <mesh position={[0, 0.051, 0]} rotation={[-Math.PI/2, 0, 0]}>
@@ -343,48 +348,34 @@ const BackgroundEffects = ({ design }: { design: 'classic' | 'marble' | 'neon' }
         case 'marble':
             return (
                 <>
-                    <color attach="background" args={['#e2e8f0']} />
-                    <ambientLight intensity={0.8} />
-                    <directionalLight position={[5, 15, 5]} intensity={1.5} castShadow shadow-mapSize={[2048, 2048]} />
-                    <Backdrop floor={15} segments={20} receiveShadow position={[0, -0.5, -10]} scale={[50, 20, 10]}>
-                        <meshStandardMaterial color="#f1f5f9" roughness={0.5} />
-                    </Backdrop>
+                    <color attach="background" args={['#f4f4f5']} />
+                    <Environment preset="city" />
+                    <ambientLight intensity={1.0} />
+                    <directionalLight position={[10, 20, 10]} intensity={1.5} color="#ffffff" castShadow shadow-mapSize={[2048, 2048]} shadow-bias={-0.0001} />
+                    <ContactShadows position={[0, -0.51, 0]} opacity={0.3} scale={30} blur={2.5} far={4} color="#000000" />
                 </>
             );
         case 'neon':
             return (
                 <>
-                    <fog attach="fog" args={['#090014', 10, 40]} />
-                    <color attach="background" args={['#090014']} />
-                    <ambientLight intensity={1.5} />
-                    <directionalLight position={[0, 10, 10]} intensity={2.0} color="#00ffff" />
-                    <spotLight position={[10, 10, -10]} intensity={2.5} color="#ff00ff" penumbra={0.5} />
-                    <spotLight position={[-10, 10, 10]} intensity={2.5} color="#00ffff" penumbra={0.5} />
-                    
-                    <mesh position={[0, -0.5, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-                        <planeGeometry args={[200, 200]} />
-                        <meshStandardMaterial color="#090014" roughness={0.2} metalness={0.8} />
-                    </mesh>
-                    <gridHelper args={[200, 100, '#ff00ff', '#00ffff']} position={[0, -0.49, 0]} />
+                    <color attach="background" args={['#030008']} />
+                    <Environment preset="night" />
+                    <ambientLight intensity={1.2} />
+                    <directionalLight position={[0, 15, 10]} intensity={1.5} color="#00ffff" />
+                    <spotLight position={[15, 15, -15]} intensity={3.0} color="#ff00ff" penumbra={0.8} angle={0.5} />
+                    <spotLight position={[-15, 15, 15]} intensity={3.0} color="#00ffff" penumbra={0.8} angle={0.5} />
+                    <ContactShadows position={[0, -0.51, 0]} opacity={0.6} scale={30} blur={2.5} far={4} color="#ff00ff" />
                 </>
             );
         case 'classic':
         default:
             return (
                 <>
-                    <color attach="background" args={['#161412']} />
-                    <ambientLight intensity={0.7} />
-                    <directionalLight position={[5, 10, 5]} intensity={1.5} castShadow shadow-mapSize={[2048, 2048]} />
-                    <spotLight position={[-10, 20, 0]} intensity={1.5} color="#ffedd5" penumbra={1} castShadow />
-                    
-                    <Backdrop floor={15} segments={20} receiveShadow position={[0, -0.5, -10]} scale={[50, 20, 10]}>
-                        <meshStandardMaterial color="#2a1f1a" roughness={1} />
-                    </Backdrop>
-                    
-                    <mesh position={[0, -0.5, 0]} receiveShadow>
-                        <cylinderGeometry args={[12, 12, 0.2, 64]} />
-                        <meshStandardMaterial color="#1f1812" roughness={0.7} metalness={0.1} />
-                    </mesh>
+                    <color attach="background" args={['#110d0a']} />
+                    <Environment preset="apartment" />
+                    <ambientLight intensity={0.6} />
+                    <spotLight position={[0, 20, 5]} intensity={2.5} color="#ffe8d6" penumbra={1} angle={0.6} castShadow shadow-mapSize={[2048, 2048]} shadow-bias={-0.0001} />
+                    <ContactShadows position={[0, -0.51, 0]} opacity={0.8} scale={30} blur={2.5} far={4} color="#000000" />
                 </>
             );
     }
@@ -482,17 +473,31 @@ export const Board3D: React.FC<Board3DProps> = (props) => {
                 
                 <BackgroundEffects design={props.boardDesign || 'classic'} />
                 
-                {/* Dynamic Board Base */}
-                <mesh position={[0, -0.2, 0]} receiveShadow castShadow>
-                    <boxGeometry args={[8.4, 0.2, 8.4]} />
-                    <meshStandardMaterial 
-                        color={props.boardDesign === 'marble' ? '#d9d9d9' : (props.boardDesign === 'neon' ? '#140c21' : '#2c1e16')} 
-                        roughness={props.boardDesign === 'marble' ? 0.3 : 0.9} 
-                        metalness={props.boardDesign === 'neon' ? 0.5 : 0.1} 
-                        emissive={props.boardDesign === 'neon' ? '#ff3366' : '#000000'}
-                        emissiveIntensity={props.boardDesign === 'neon' ? 0.1 : 0}
-                    />
-                </mesh>
+                {/* Masterpiece Dynamic Board Base */}
+                {props.boardDesign === 'neon' ? (
+                    <group position={[0, -0.25, 0]}>
+                        {/* Glowing Rim */}
+                        <mesh position={[0, -0.1, 0]}>
+                            <boxGeometry args={[8.6, 0.3, 8.6]} />
+                            <meshStandardMaterial color="#00e5ff" emissive="#00e5ff" emissiveIntensity={0.8} />
+                        </mesh>
+                        {/* Glossy Dark Acrylic Top */}
+                        <mesh position={[0, 0.1, 0]} receiveShadow>
+                            <boxGeometry args={[8.4, 0.1, 8.4]} />
+                            <meshPhysicalMaterial color="#050010" roughness={0.05} metalness={0.9} clearcoat={1} clearcoatRoughness={0.05} />
+                        </mesh>
+                    </group>
+                ) : props.boardDesign === 'marble' ? (
+                    <mesh position={[0, -0.25, 0]} receiveShadow>
+                        <boxGeometry args={[8.6, 0.4, 8.6]} />
+                        <meshPhysicalMaterial color="#f8fafc" roughness={0.15} metalness={0.05} transmission={0.6} thickness={2} clearcoat={1} clearcoatRoughness={0.1} />
+                    </mesh>
+                ) : (
+                    <mesh position={[0, -0.25, 0]} receiveShadow>
+                        <boxGeometry args={[8.6, 0.4, 8.6]} />
+                        <meshPhysicalMaterial color="#1a0f0a" roughness={0.2} metalness={0.1} clearcoat={0.8} clearcoatRoughness={0.2} />
+                    </mesh>
+                )}
                 <BoardSquares validMoves={props.showMoveHints ? props.validMoves : []} moveHistory={props.moveHistory} onSquareClick={props.onSquareClick} isEnemySelected={isEnemySelected} boardDesign={props.boardDesign} hintMove={props.hintMove} />
                 {allTokensToRender.map(token => {
                     const isDead = deadTokens.some(d => d.id === token.id);
