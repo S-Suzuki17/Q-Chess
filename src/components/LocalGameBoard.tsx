@@ -5,6 +5,7 @@ import { IdentityPool } from '../lib/IdentityPool';
 import { Token, deduceMoveTypes, isPlayerInCheck } from '../lib/GameEngine';
 import { QuantumPieceUI } from './QuantumPieceUI';
 import { Board3D } from './Board3D';
+import { Board2D } from './Board2D';
 import { AdBanner } from './AdBanner';
 import { Language, dict } from '../locales/dict';
 import { User, TimeControl } from '../types/game';
@@ -867,7 +868,8 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
             </div>
 
             <div className="w-full flex-1 min-h-0 flex items-center justify-center">
-                <Board3D is2DView={is2DView} boardDesign={boardDesign} hintMove={hintMove} autoRotate={false} 
+                {is2DView ? (
+                    <Board2D boardDesign={boardDesign} hintMove={hintMove} autoRotate={false} 
                     tokens={tokens}
                     onlineRole={onlineRole}
                     selectedTokenId={selectedTokenId}
@@ -879,6 +881,20 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
                     currentTurn={currentTurn}
                     candidatesMap={pool.piecePossibilities}
                 />
+                ) : (
+                    <Board3D boardDesign={boardDesign} hintMove={hintMove} autoRotate={false} 
+                    tokens={tokens}
+                    onlineRole={onlineRole}
+                    selectedTokenId={selectedTokenId}
+                    validMoves={validMoves}
+                    moveHistory={moveHistory}
+                    showCheckWarning={showCheckWarning}
+                    onSquareClick={handleSquareClick}
+                    showMoveHints={showMoveHints}
+                    currentTurn={currentTurn}
+                    candidatesMap={pool.piecePossibilities}
+                />
+                )}
             </div>
             
             {/* プレイヤー側の取得駒（取った敵駒） */}

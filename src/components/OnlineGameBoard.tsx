@@ -6,6 +6,7 @@ import { User, TimeControl } from '../types/game';
 import { Language, dict } from '../locales/dict';
 import { QuantumPieceUI } from './QuantumPieceUI';
 import { Board3D } from './Board3D';
+import { Board2D } from './Board2D';
 import { AdBanner } from './AdBanner';
 import { PieceType } from '../config/gameConfig';
 import { v4 as uuidv4 } from 'uuid';
@@ -663,7 +664,8 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
             </div>
 
             <div className="w-full flex-1 min-h-0 flex items-center justify-center">
-                <Board3D is2DView={is2DView} boardDesign={boardDesign} 
+                {is2DView ? (
+                    <Board2D boardDesign={boardDesign} 
                     tokens={tokens}
                     isFlipped={isFlipped}
                     onlineRole={onlineRole}
@@ -675,6 +677,20 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
                     showMoveHints={showMoveHints}
                     currentTurn={currentTurn}
                 />
+                ) : (
+                    <Board3D boardDesign={boardDesign} 
+                    tokens={tokens}
+                    isFlipped={isFlipped}
+                    onlineRole={onlineRole}
+                    selectedTokenId={selectedTokenId}
+                    validMoves={validMoves}
+                    moveHistory={[]} 
+                    showCheckWarning={false}
+                    onSquareClick={handleSquareClick}
+                    showMoveHints={showMoveHints}
+                    currentTurn={currentTurn}
+                />
+                )}
             </div>
             
             {/* Pieces captured by the player at the bottom */}
