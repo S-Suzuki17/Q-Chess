@@ -2,14 +2,14 @@ import { useState, useEffect } from 'react';
 
 export function useBoardPreferences() {
     const [is2DView, setIs2DView] = useState(false);
-    const [boardDesign, setBoardDesign] = useState<'classic'|'marble'|'neon'>('classic');
+    const [boardDesign, setBoardDesign] = useState<'q-gambit'|'classic'|'marble'|'neon'>('q-gambit');
     const [isLoaded, setIsLoaded] = useState(false);
 
     useEffect(() => {
         const saved2D = localStorage.getItem('qchess_is2DView');
         if (saved2D !== null) setIs2DView(saved2D === 'true');
         const savedDesign = localStorage.getItem('qchess_boardDesign');
-        if (savedDesign === 'classic' || savedDesign === 'marble' || savedDesign === 'neon') {
+        if (savedDesign === 'q-gambit' || savedDesign === 'classic' || savedDesign === 'marble' || savedDesign === 'neon') {
             setBoardDesign(savedDesign);
         }
         setIsLoaded(true);

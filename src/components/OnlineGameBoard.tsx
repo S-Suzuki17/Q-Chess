@@ -563,7 +563,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
                     {is2DView ? '3D' : '2D'}
                 </button>
 <button aria-label={lang === 'ja' ? '盤面のデザインを変更' : 'Change board theme'} onClick={() => {
-                    const themes: ('classic'|'marble'|'neon')[] = ['classic', 'marble', 'neon'];
+                    const themes: ('q-gambit'|'classic'|'marble'|'neon')[] = ['q-gambit', 'classic', 'marble', 'neon'];
                     const next = themes[(themes.indexOf(boardDesign) + 1) % themes.length];
                     setBoardDesign(next);
                 }} className="w-10 h-10 md:w-12 md:h-12 bg-black/60 rounded-lg flex items-center justify-center border border-[#B39A62]/50 hover:bg-black/80 transition-all text-gray-300">
