@@ -55,7 +55,9 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
     }, [movingPiece]);
     const tokensRef = useRef<Token[]>([]);
     const executeMoveRef = useRef<any>(null);
-    useEffect(() => { tokensRef.current = tokens; executeMoveRef.current = executeMove; });
+    useEffect(() => { tokensRef.current = tokens; executeMoveRef.current = executeMove; if (typeof window !== 'undefined') (window as any).playMove = handleSquareClick; });
+    
+    
     const [selectedTokenId, setSelectedTokenId] = useState<string | null>(null);
     const [tutorialHint, setTutorialHint] = useState<string | null>(null);
     const [showRules, setShowRules] = useState(false);
@@ -570,7 +572,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
         }
     };
 
-    const handleSquareClick = (targetRow: number, targetCol: number) => {
+    const handleSquareClick = (targetRow: number, targetCol: number) => { console.log('playMove called', targetRow, targetCol);
         if (winner || movingPiece || onlineRole === 'spectator') return;
         
         // Prevent human player from interacting during CPU's turn
@@ -807,7 +809,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
             </div>
 
             <div className="w-full flex-1 min-h-0 flex items-center justify-center">
-                <Board3D 
+                <Board3D autoRotate={false} 
                     tokens={tokens}
                     onlineRole={onlineRole}
                     selectedTokenId={selectedTokenId}

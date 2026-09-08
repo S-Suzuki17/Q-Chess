@@ -276,6 +276,7 @@ export interface Board3DProps {
     onSquareClick: (row: number, col: number) => void;
     showMoveHints: boolean;
     currentTurn: 'white' | 'black';
+    autoRotate?: boolean;
     candidatesMap?: Map<string, ReadonlySet<PieceType>>;
 }
 
@@ -322,7 +323,7 @@ export const Board3D: React.FC<Board3DProps> = (props) => {
                     const isDead = deadTokens.some(d => d.id === token.id);
                     return <Piece3D key={token.id} token={token} isSelected={token.id === props.selectedTokenId} candidates={props.candidatesMap?.get(token.id)} onSquareClick={props.onSquareClick} isDead={isDead} />;
                 })}
-                <OrbitControls ref={controlsRef} enablePan={false} minPolarAngle={0} maxPolarAngle={Math.PI / 2.5} minDistance={5} maxDistance={15} />
+                <OrbitControls ref={controlsRef} enablePan={false} minPolarAngle={0} maxPolarAngle={Math.PI / 2.5} minDistance={5} maxDistance={15}  autoRotate={props.autoRotate} autoRotateSpeed={1.5} />
             </Canvas>
             <button 
                 onPointerDown={(e) => e.stopPropagation()}

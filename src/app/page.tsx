@@ -290,7 +290,7 @@ export default function Home() {
         <main className="fixed inset-0 flex flex-col items-center justify-between bg-[#11100E] text-[#E8E2D7] font-sans overflow-hidden">
             <div className="z-10 w-full max-w-5xl flex items-center justify-between text-sm mb-4">
                 {/* 右上のコントロール群 */}
-                <div className="fixed right-4 top-4 z-50 flex gap-2 items-center">
+                <div className="fixed right-4 top-4 z-40 flex gap-2 items-center">
                     <button 
                         onClick={() => setShowSettings(true)}
                         className="px-3 py-2 bg-[#2A2621] border border-[#4A4238] text-[#D4B872] rounded hover:bg-[#3B342C] transition-colors font-sans font-bold tracking-widest flex items-center justify-center text-xs"
@@ -450,15 +450,15 @@ export default function Home() {
                     {/* Removed AdBanner to comply with Google AdSense Policies (No ads on login/navigation screens) */}
 
                     {/* Footer */}
-                    <footer className="w-full max-w-4xl mt-4 mb-4 text-center text-gray-500 text-xs font-sans relative z-[200]">
-                        <Link href="/privacy" className="hover:text-[#D4B872] transition-colors relative z-[200] cursor-pointer pointer-events-auto">{dict[lang]?.privacyPolicy || 'Privacy Policy'}</Link>
+                    <footer className="w-full max-w-4xl mt-4 mb-4 text-center text-gray-500 text-xs font-sans relative z-40">
+                        <Link href="/privacy" className="hover:text-[#D4B872] transition-colors relative z-40 cursor-pointer pointer-events-auto">{dict[lang]?.privacyPolicy || 'Privacy Policy'}</Link>
                         <span className="mx-2">|</span>
                         <span>&copy; 2026 Q-GAMBIT</span>
                     </footer>
                 </>
             )}
 
-            <div className="fixed right-4 top-4 z-[200] flex gap-2 items-center pointer-events-auto">
+            <div className="fixed right-4 top-4 z-40 flex gap-2 items-center pointer-events-auto">
                 <button 
                     onClick={() => setShowSettings(true)}
                     className="px-3 py-2 bg-[#2A2621] border border-[#4A4238] text-[#D4B872] rounded hover:bg-[#3B342C] transition-colors font-sans font-bold tracking-widest flex items-center justify-center text-xs shadow-lg"
