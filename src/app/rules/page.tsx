@@ -11,7 +11,12 @@ export default function RulesPage() {
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const savedLang = localStorage.getItem('qg_language');
-      if (savedLang === 'ja') setLang('ja');
+      if (savedLang === 'ja') {
+        setLang('ja');
+      } else if (!savedLang) {
+        const browserLang = navigator.language.split('-')[0];
+        if (browserLang === 'ja') setLang('ja');
+      }
     }
   }, []);
 
