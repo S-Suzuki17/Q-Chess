@@ -82,13 +82,13 @@ export function Board2D({
                             className={`w-full h-full relative cursor-pointer transition-colors ${bgClass} ${isMoveCandidate ? 'hover:brightness-110' : ''}`} 
                         >
                             {isMoveCandidate && (
-                                <div className={`absolute inset-0 ${isEnemySelected ? 'bg-red-500/40' : 'bg-[#B39A62]/40'} pointer-events-none animate-pulse`} />
+                                <div className={`absolute inset-0 ${isEnemySelected ? 'bg-red-500/30' : 'bg-green-500/30'} pointer-events-none`} />
                             )}
                             {isHintFrom && (
-                                <div className="absolute inset-0 border-4 border-blue-500 shadow-[inset_0_0_15px_rgba(59,130,246,0.5)] pointer-events-none animate-pulse" />
+                                <div className="absolute inset-0 border-4 border-blue-500 shadow-[inset_0_0_15px_rgba(59,130,246,0.5)] pointer-events-none " />
                             )}
                             {isHintTo && (
-                                <div className="absolute inset-0 border-4 border-green-500 shadow-[inset_0_0_15px_rgba(34,197,94,0.5)] pointer-events-none animate-pulse" />
+                                <div className="absolute inset-0 border-4 border-green-500 shadow-[inset_0_0_15px_rgba(34,197,94,0.5)] pointer-events-none " />
                             )}
                         </div>
                     );

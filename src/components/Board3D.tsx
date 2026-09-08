@@ -323,7 +323,7 @@ const BoardSquares = ({ validMoves, moveHistory, onSquareClick, isEnemySelected,
                     {isMoveCandidate && (
                         <mesh position={[0, 0.051, 0]} rotation={[-Math.PI/2, 0, 0]}>
                             <planeGeometry args={[1, 1]} />
-                            <meshBasicMaterial color={isEnemySelected ? "#ff4444" : "#D4B872"} transparent opacity={0.4} depthWrite={false} />
+                            <meshBasicMaterial color={isEnemySelected ? "#ff4444" : "#4ade80"} transparent opacity={0.3} depthWrite={false} />
                         </mesh>
                     )}
                     
@@ -353,62 +353,37 @@ const BackgroundEffects = ({ design }: { design: 'classic' | 'marble' | 'neon' }
         case 'marble':
             return (
                 <>
-                    <Environment preset="dawn" background blur={0.2} />
-                    <Sky distance={450000} sunPosition={[0, 1, 0]} inclination={0} azimuth={0.25} />
+                    <Environment preset="city" /> {/* Lighting only, no background */}
+                    <color attach="background" args={['#dce1e8']} />
                     <ambientLight intensity={0.6} />
-                    <directionalLight position={[10, 15, 10]} intensity={1.5} castShadow shadow-mapSize={[2048, 2048]} />
-                    <Cloud position={[0, -5, -10]} speed={0.2} opacity={0.3} scale={2} />
-                    <Cloud position={[10, -5, 5]} speed={0.2} opacity={0.3} scale={2} />
-                    <Cloud position={[-10, -5, 5]} speed={0.2} opacity={0.3} scale={2} />
-                    <Sparkles count={100} scale={15} size={6} speed={0.2} opacity={0.8} color="#ffd700" position={[0, 2, 0]} />
-                    
-                    {/* Floating temple pillars */}
-                    {[[-6, -4, -6], [6, -4, -6], [-6, -4, 6], [6, -4, 6]].map((pos, i) => (
-                        <mesh key={i} position={pos as any} receiveShadow castShadow>
-                            <cylinderGeometry args={[0.5, 0.5, 8, 16]} />
-                            <meshStandardMaterial color="#f0f0f0" roughness={0.3} metalness={0.1} />
-                        </mesh>
-                    ))}
+                    <directionalLight position={[10, 15, 10]} intensity={1.2} castShadow shadow-mapSize={[2048, 2048]} />
+                    <mesh position={[0, -1, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+                        <planeGeometry args={[100, 100]} />
+                        <meshStandardMaterial color="#f0f2f5" roughness={0.8} />
+                    </mesh>
                 </>
             );
         case 'neon':
             return (
                 <>
-                    <Environment preset="city" background blur={0.5} /> {/* Use city for brighter ambient reflections */}
-                    <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />
-                    <ambientLight intensity={0.6} /> {/* Increase ambient drastically */}
-                    <directionalLight position={[0, 10, 0]} intensity={1.0} color="#ffffff" />
-                    
-                    {/* Neon Rim Lights for piece contrast */}
+                    <color attach="background" args={['#0a0410']} />
+                    <ambientLight intensity={0.4} />
                     <pointLight position={[-5, 5, 5]} color="#00e5ff" intensity={50} distance={30} />
                     <pointLight position={[5, 5, -5]} color="#ff3366" intensity={50} distance={30} />
-                    
-                    <Sparkles count={150} scale={20} size={5} speed={0.4} opacity={0.8} color="#00e5ff" position={[-2, -1, 0]} />
-                    <Sparkles count={150} scale={20} size={5} speed={0.4} opacity={0.8} color="#ff3366" position={[2, 4, 0]} />
-                    <gridHelper args={[100, 100, '#ff3366', '#00e5ff']} position={[0, -5, 0]} />
-                    
-                    <mesh position={[0, -1, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-                        <ringGeometry args={[7, 7.2, 64]} />
-                        <meshBasicMaterial color="#ff3366" transparent opacity={0.8} />
-                    </mesh>
+                    <gridHelper args={[100, 100, '#ff3366', '#00e5ff']} position={[0, -1, 0]} />
                 </>
             );
         case 'classic':
         default:
             return (
                 <>
-                    <Environment preset="studio" background blur={0.8} />
-                    <ambientLight intensity={0.6} />
-                    <directionalLight position={[5, 10, 5]} intensity={1.0} castShadow shadow-mapSize={[2048, 2048]} />
-                    
-                    {/* Authentic chic wooden table */}
+                    <Environment preset="studio" /> {/* Lighting only, no background image */}
+                    <color attach="background" args={['#161412']} />
+                    <ambientLight intensity={0.5} />
+                    <directionalLight position={[5, 10, 5]} intensity={1.2} castShadow shadow-mapSize={[2048, 2048]} />
                     <mesh position={[0, -0.4, 0]} receiveShadow>
                         <cylinderGeometry args={[14, 14, 0.2, 64]} />
-                        <meshStandardMaterial color="#1a110a" roughness={0.7} metalness={0.1} />
-                    </mesh>
-                    <mesh position={[0, -10, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-                        <planeGeometry args={[200, 200]} />
-                        <meshStandardMaterial color="#0d0805" roughness={0.9} />
+                        <meshStandardMaterial color="#1f1812" roughness={0.9} />
                     </mesh>
                 </>
             );
