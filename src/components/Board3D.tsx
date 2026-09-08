@@ -308,11 +308,7 @@ const BoardSquares = ({ validMoves, moveHistory, onSquareClick, isEnemySelected,
                 } else color = isLight ? '#e6d38e' : '#8f773b';
             }
             
-            if (isMoveCandidate) {
-                color = isEnemySelected ? '#ff6b6b' : '#D4B872';
-                emissive = isEnemySelected ? '#ff0000' : '#D4B872';
-                emissiveIntensity = 0.5;
-            }
+            
             
             const isHintTo = hintMove && hintMove.toRow === r && hintMove.toCol === c;
             const isHintFrom = hintMove && hintMove.fromRow === r && hintMove.fromCol === c;
@@ -324,6 +320,12 @@ const BoardSquares = ({ validMoves, moveHistory, onSquareClick, isEnemySelected,
                         <boxGeometry args={[1, 0.1, 1]} />
                         <meshStandardMaterial color={color} roughness={roughness} metalness={metalness} emissive={emissive} emissiveIntensity={emissiveIntensity} />
                     </mesh>
+                    {isMoveCandidate && (
+                        <mesh position={[0, 0.051, 0]} rotation={[-Math.PI/2, 0, 0]}>
+                            <planeGeometry args={[1, 1]} />
+                            <meshBasicMaterial color={isEnemySelected ? "#ff4444" : "#D4B872"} transparent opacity={0.4} depthWrite={false} />
+                        </mesh>
+                    )}
                     
                     {isHintFrom && (
                         <mesh position={[0, 0.07, 0]} rotation={[-Math.PI/2, 0, 0]}>
