@@ -26,6 +26,18 @@ const PIECE_SYMBOLS_BLACK: Record<PieceType, string> = {
 export const QuantumPieceUI: React.FC<QuantumPieceProps> = ({ player, probabilities, candidates, isSelected, isOpponentSelected, onClick, promotedTo, responsive = false }) => {
     const possibleTypes = (Object.keys(probabilities) as PieceType[]).filter(type => candidates ? candidates.has(type) : probabilities[type] > 0);
     
+    const [flash, setFlash] = React.useState(false);
+    const prevLen = React.useRef(possibleTypes.length);
+    React.useEffect(() => {
+        if (possibleTypes.length < prevLen.current && possibleTypes.length > 0) {
+            setFlash(true);
+            const timer = setTimeout(() => setFlash(false), 1500);
+            prevLen.current = possibleTypes.length;
+            return () => clearTimeout(timer);
+        }
+        prevLen.current = possibleTypes.length;
+    }, [possibleTypes.length]);
+    
     const isPromoted = !!promotedTo;
     const confirmedType = promotedTo ? promotedTo : (possibleTypes.length === 1 ? possibleTypes[0] : null);
 
@@ -54,6 +66,15 @@ export const QuantumPieceUI: React.FC<QuantumPieceProps> = ({ player, probabilit
                     animation: quantum-jitter 2s infinite alternate ease-in-out;
                     display: inline-block;
                 }
+                @keyframes identity-flash {
+                    0% { box-shadow: 0 0 0 0 rgba(212, 184, 114, 0.8); }
+                    50% { box-shadow: 0 0 20px 10px rgba(212, 184, 114, 0); }
+                    100% { box-shadow: 0 0 0 0 rgba(212, 184, 114, 0); }
+                }
+                .flash-effect {
+                    animation: identity-flash 1.5s ease-out !important;
+                    border-color: #D4B872 !important;
+                }
             `}</style>
             <div 
                 onClick={onClick}
@@ -63,6 +84,7 @@ export const QuantumPieceUI: React.FC<QuantumPieceProps> = ({ player, probabilit
                     flex items-center justify-center border
                     ${confirmedType ? 'rounded' : 'rounded-full'}
                     ${isSelected || isOpponentSelected ? `ring-2 ring-offset-2 ring-offset-[#11100E] ${highlightRing} scale-105 z-10` : 'hover:scale-105'}
+                    ${flash ? 'flash-effect z-20' : ''}
                     ${isPromoted 
                         ? 'bg-[#191714] border-[#B39A62] text-[#B39A62]' 
                         : baseBg

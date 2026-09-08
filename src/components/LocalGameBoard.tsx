@@ -824,20 +824,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
                             >
                                 {t.rematch}
                             </button>
-                            <button 
-                                onClick={() => {
-                                    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(moveHistory, null, 2));
-                                    const downloadAnchorNode = document.createElement('a');
-                                    downloadAnchorNode.setAttribute("href", dataStr);
-                                    downloadAnchorNode.setAttribute("download", `quantum_chess_record_${Date.now()}.json`);
-                                    document.body.appendChild(downloadAnchorNode);
-                                    downloadAnchorNode.click();
-                                    downloadAnchorNode.remove();
-                                }}
-                                className="px-5 py-3 bg-[#191714] hover:bg-[#2A2621] border border-[#A89C86]/30 rounded text-sm font-serif tracking-widest transition-colors text-[#A89C86] hover:text-[#E8E2D7]"
-                            >
-                                {t.downloadJson}
-                            </button>
+                            
                         </div>
                         {savedRecordId && (
                             <div className="mt-2 text-xs text-[#A89C86] flex flex-col items-center gap-1 bg-black/30 p-3 rounded border border-[#A89C86]/10">
