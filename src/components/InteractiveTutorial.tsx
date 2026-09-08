@@ -175,11 +175,11 @@ export function InteractiveTutorial({ lang, onClose }: Props) {
 
     return (
         <div className="fixed inset-0 bg-[#11100E]/95 z-[200] flex flex-col items-center justify-center p-4 backdrop-blur-md">
-            <div className="w-full max-w-4xl bg-[#191714] border-2 border-[#B39A62]/30 rounded-xl flex flex-col md:flex-row shadow-2xl relative overflow-hidden">
+            <div className="w-full max-w-4xl max-h-[95dvh] overflow-y-auto bg-[#191714] border-2 border-[#B39A62]/30 rounded-xl flex flex-col md:flex-row shadow-2xl relative">
                 <button onClick={onClose} className="absolute top-4 right-4 text-gray-500 hover:text-white text-2xl font-bold z-50">×</button>
                 
                 {/* Left: Board Demo */}
-                <div className="w-full md:w-1/2 p-0 bg-[#0b0c10] flex items-center justify-center relative aspect-square md:aspect-auto md:min-h-full">
+                <div className="w-full flex-shrink-0 md:w-1/2 p-0 bg-[#0b0c10] flex items-center justify-center relative aspect-square md:aspect-auto md:min-h-full">
                     <div className="w-full h-full md:min-h-full">
                         <Board3D 
                             tokens={pieces.filter(p => !p.isCaptured).map(p => ({
