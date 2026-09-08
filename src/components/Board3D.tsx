@@ -225,8 +225,8 @@ const Piece3D = ({ token, isSelected, candidates, onSquareClick, isDead = false,
             
             {is2DView ? (
                 <Billboard follow={true} lockX={false} lockY={false} lockZ={false} position={[0, 0.1, 0]}>
-                    <group scale={[0.035, 0.035, 0.035]}>
-                        <Html transform distanceFactor={10} zIndexRange={[100, 0]} pointerEvents="none" center>
+                    <group scale={[0.02, 0.02, 0.02]}>
+                        <Html transform zIndexRange={[100, 0]} pointerEvents="none" center>
                             <div style={{ pointerEvents: 'none', transform: 'none' }}>
                                 <QuantumPieceUI 
                                     id={token.id} 
