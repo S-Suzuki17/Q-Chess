@@ -11,6 +11,7 @@ interface QuantumPieceProps {
     isSelected: boolean;
     onClick: () => void;
     promotedTo?: PieceType;
+    responsive?: boolean;
 }
 
 const PIECE_SYMBOLS: Record<PieceType, string> = {
@@ -21,7 +22,7 @@ const PIECE_SYMBOLS_BLACK: Record<PieceType, string> = {
     King: '♚', Queen: '♛', Rook: '♜', Bishop: '♝', Knight: '♞', Pawn: '♟'
 };
 
-export const QuantumPieceUI: React.FC<QuantumPieceProps> = ({ player, probabilities, candidates, isSelected, onClick, promotedTo }) => {
+export const QuantumPieceUI: React.FC<QuantumPieceProps> = ({ player, probabilities, candidates, isSelected, onClick, promotedTo, responsive = false }) => {
     const possibleTypes = (Object.keys(probabilities) as PieceType[]).filter(type => candidates ? candidates.has(type) : probabilities[type] > 0);
     
     const isPromoted = !!promotedTo;
@@ -55,8 +56,9 @@ export const QuantumPieceUI: React.FC<QuantumPieceProps> = ({ player, probabilit
             `}</style>
             <div 
                 onClick={onClick}
+                style={responsive ? { containerType: 'size' } : undefined}
                 className={`
-                    relative w-12 h-12 cursor-pointer transition-transform duration-150
+                    relative ${responsive ? 'w-full h-full min-w-0 min-h-0' : 'w-12 h-12'} cursor-pointer transition-transform duration-150
                     flex items-center justify-center border
                     ${confirmedType ? 'rounded' : 'rounded-full'}
                     ${isSelected ? `ring-2 ring-offset-2 ring-offset-[#11100E] ${highlightRing} scale-105 z-10` : 'hover:scale-105'}
@@ -71,7 +73,7 @@ export const QuantumPieceUI: React.FC<QuantumPieceProps> = ({ player, probabilit
                 )}
 
                 {confirmedType ? (
-                    <span className={`text-3xl ${isPromoted ? 'text-[#B39A62]' : iconColor} opacity-90 drop-shadow-sm`}>
+                    <span className={`${responsive ? 'text-[65cqmin]' : 'text-3xl'} ${isPromoted ? 'text-[#B39A62]' : iconColor} opacity-90 drop-shadow-sm`}>
                         {symbols[confirmedType]}
                     </span>
                 ) : (
@@ -80,7 +82,7 @@ export const QuantumPieceUI: React.FC<QuantumPieceProps> = ({ player, probabilit
                         {possibleTypes.map((type, index) => (
                             <span 
                                 key={type} 
-                                className={`quantum-icon text-[12px] leading-none m-[1px] ${iconColor}`}
+                                className={`quantum-icon ${responsive ? 'text-[24cqmin]' : 'text-[12px]'} leading-none m-[1px] ${iconColor}`}
                                 style={{ animationDelay: `${(index * 0.3) % 1}s` }}
                             >
                                 {symbols[type]}

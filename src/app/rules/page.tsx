@@ -1,23 +1,19 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { rulesDict } from '@/locales/rulesDict';
+import { rulesDict, Language } from '@/locales/rulesDict';
 import { AdBanner } from '../../components/AdBanner';
 import { InteractiveTutorial } from '../../components/InteractiveTutorial';
 
 export default function RulesPage() {
-  const [lang, setLang] = useState<'en' | 'ja'>('en');
+  const [lang, setLang] = useState<Language>('en');
   const [showTutorial, setShowTutorial] = useState(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const savedLang = localStorage.getItem('qg_language');
-      if (savedLang === 'ja') {
-        setLang('ja');
-      } else if (!savedLang) {
-        const browserLang = navigator.language.split('-')[0];
-        if (browserLang === 'ja') setLang('ja');
-      }
+      const preferred = savedLang || navigator.language.split('-')[0];
+      if (preferred in rulesDict) setLang(preferred as Language);
     }
   }, []);
 
@@ -26,21 +22,25 @@ export default function RulesPage() {
   return (
     <div className="h-[100dvh] w-full bg-[#050505] text-gray-300 font-mono p-6 md:p-12 overflow-y-auto">
       <div className="max-w-4xl mx-auto pb-16">
-        <div className="flex justify-between items-center mb-8">
+        <div className="flex flex-wrap gap-4 justify-between items-center mb-8">
             <Link href="/" className="text-[#D4B872] hover:text-white transition-colors text-sm inline-block tracking-widest font-bold">
             {c.back}
             </Link>
-            <div className="flex gap-4 items-center">
+            <div className="flex flex-wrap gap-4 items-center">
                 <button 
                     onClick={() => setShowTutorial(true)}
                     className="px-4 py-2 bg-[#B39A62]/20 border border-[#B39A62] text-[#D4B872] text-sm font-bold tracking-widest rounded hover:bg-[#B39A62] hover:text-[#11100E] transition-colors"
                 >
                     {c.playTutorial}
                 </button>
-                <div className="flex gap-2">
-                    <button onClick={() => { setLang('en'); localStorage.setItem('qg_language', 'en'); }} className={`text-sm font-bold px-2 py-1 rounded ${lang === 'en' ? 'bg-[#B39A62] text-black' : 'text-gray-400 hover:text-white'}`}>EN</button>
-                    <button onClick={() => { setLang('ja'); localStorage.setItem('qg_language', 'ja'); }} className={`text-sm font-bold px-2 py-1 rounded ${lang === 'ja' ? 'bg-[#B39A62] text-black' : 'text-gray-400 hover:text-white'}`}>JA</button>
-                </div>
+                <select
+                    aria-label="Language"
+                    value={lang}
+                    onChange={e => { const value = e.target.value as Language; setLang(value); localStorage.setItem('qg_language', value); }}
+                    className="bg-[#191714] text-[#D4B872] border border-[#B39A62] rounded px-2 py-2"
+                >
+                    {Object.keys(rulesDict).map(code => <option key={code} value={code}>{({ en: 'English', ja: '日本語', zh: '中文', ru: 'Русский', fr: 'Français', de: 'Deutsch', es: 'Español' } as Record<string, string>)[code]}</option>)}
+                </select>
             </div>
         </div>
 

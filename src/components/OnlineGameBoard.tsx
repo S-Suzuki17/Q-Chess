@@ -10,7 +10,8 @@ import { Board2D } from './Board2D';
 import { AdBanner } from './AdBanner';
 import { PieceType } from '../config/gameConfig';
 import { v4 as uuidv4 } from 'uuid';
-import { Token, deduceMoveTypes } from '../lib/GameEngine';
+import { Token } from '../lib/GameEngine';
+import { filterPossibilities } from '../lib/onlineMovement';
 import { supabase } from '../lib/supabaseClient';
 
 export type EmoteType = 'hello' | 'well_played' | 'wow' | 'thinking' | 'resign';
@@ -355,7 +356,18 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
             const expectedTeam = onlineRole === 'white' ? 0 : 1;
             
             if (clickedOtherPiece && clickedOtherPiece.team === expectedTeam) {
-                setSelectedTokenId(`token_${clickedOtherPiece.id}`);
+                setSelectedTokenId(selectedTokenId === `token_${clickedOtherPiece.id}` ? null : `token_${clickedOtherPiece.id}`);
+                return;
+            }
+
+            // Enemy pieces can be inspected without ever submitting an action.
+            const selectedPiece = gameState.pieces.find((p: any) => p.id === numId && !p.captured);
+            if (!selectedPiece || selectedPiece.team !== expectedTeam) {
+                setSelectedTokenId(clickedOtherPiece ? `token_${clickedOtherPiece.id}` : null);
+                return;
+            }
+            if (selectedPiece.x === targetCol && selectedPiece.y === targetRow) {
+                setSelectedTokenId(null);
                 return;
             }
 
@@ -365,18 +377,23 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
                 setErrorMsg(lang === 'ja' ? '自分の手番に自分の駒を動かしてください。' : 'Move your own piece on your turn.');
                 return;
             }
+            const moveTypes = filterPossibilities(token, targetCol, targetRow, gameState.board, !!clickedOtherPiece, gameState.pieces);
+            if (!moveTypes.length) {
+                setErrorMsg(t.errInvalidMove);
+                return;
+            }
             if (token && Math.abs(targetCol - token.x) === 2 && Math.abs(targetRow - token.y) === 0) {
                 // Determine if it's ambiguous
                 // Check if it CAN be King AND (Rook OR Queen)
-                const canBeKing = token.possibilities.includes('K');
-                const canBeRook = token.possibilities.includes('R');
-                const canBeQueen = token.possibilities.includes('Q');
+                const canBeKing = moveTypes.includes('K');
+                const canBeRook = moveTypes.includes('R');
+                const canBeQueen = moveTypes.includes('Q');
                 if (canBeKing && (canBeRook || canBeQueen)) {
                     setCastlingPending({
                         pieceId: numId,
                         targetRow,
                         targetCol,
-                        validTypes: token.possibilities
+                        validTypes: moveTypes
                     });
                     return;
                 }
@@ -394,11 +411,6 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
         } else {
             const clickedPiece = gameState.pieces.find((p: any) => !p.captured && p.y === targetRow && p.x === targetCol);
             if (clickedPiece) {
-                const expectedTeam = onlineRole === 'white' ? 0 : 1;
-                if (clickedPiece.team !== expectedTeam) {
-                    setErrorMsg(expectedTeam === 0 ? t.errNotYourTurnBlue : t.errNotYourTurnRed);
-                    return;
-                }
                 setSelectedTokenId(`token_${clickedPiece.id}`);
             }
         }
@@ -432,41 +444,28 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
                 col: p.x,
                 isCaptured: p.captured,
                 probabilities,
-                hasMoved: false
+                hasMoved: !!p.hasMoved
             } as Token;
         });
     }, [gameState]);
 
     const validMoves = useMemo(() => {
         if (!selectedTokenId || !gameState) return [];
-        const token = tokens.find(t => t.id === selectedTokenId);
-        if (!token) return [];
-
-        // The server's White moves toward increasing y; the shared hint engine
-        // expects White at rows 6-7. Convert only for hint calculation.
-        const hintTokens = tokens.map(t => ({ ...t, row: 7 - t.row }));
-        const hintToken = hintTokens.find(t => t.id === token.id)!;
-        
+        const piece = gameState.pieces.find((p: any) => `token_${p.id}` === selectedTokenId && !p.captured);
+        if (!piece) return [];
         const moves: {r: number, c: number}[] = [];
-        const currentPossibilities = new Set(Object.keys(token.probabilities).filter(k => token.probabilities[k as PieceType] > 0));
-
-        let lastMoveObj = undefined;
-
         for (let r = 0; r < 8; r++) {
             for (let c = 0; c < 8; c++) {
-                if (r === token.row && c === token.col) continue;
-                
-                const targetToken = tokens.find(t => !t.isCaptured && t.row === r && t.col === c);
-                if (targetToken && targetToken.player === token.player) continue;
-
-                const possibleTypes = deduceMoveTypes(hintToken, 7 - r, c, hintTokens, lastMoveObj);
-                if (possibleTypes.some(type => currentPossibilities.has(type))) {
+                const target = gameState.pieces.find((p: any) => !p.captured && p.y === r && p.x === c);
+                if (target?.team === piece.team) continue;
+                // Match server movement geometry, including moved flags.
+                if (filterPossibilities(piece, c, r, gameState.board, !!target, gameState.pieces).length) {
                     moves.push({r, c});
                 }
             }
         }
         return moves;
-    }, [selectedTokenId, tokens, gameState]);
+    }, [selectedTokenId, gameState]);
 
     const currentTurn = gameState?.turn === 0 ? 'white' : 'black';
     const myRole = onlineRole || 'white';
@@ -535,26 +534,28 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
 
     return (
         <div className="flex flex-col items-center w-full h-full max-h-[100dvh] max-w-[800px] mx-auto relative select-none touch-none overflow-hidden pb-4">
-            {/* LEFT SIDEBAR BUTTONS */}
-            <div className="absolute left-2 top-1/2 -translate-y-1/2 flex flex-col gap-3 z-30">
+            <div className="flex w-full shrink-0 items-center justify-between gap-2 px-2 py-1">
+            {/* Board controls */}
+            <div className="flex items-center gap-2">
                 
-                <button onClick={onHome} className="w-10 h-10 md:w-12 md:h-12 bg-black/60 rounded-lg flex items-center justify-center border border-[#B39A62]/50 hover:bg-black/80 transition-all text-gray-300">
+                <button aria-label={t.home} onClick={onHome} className="w-10 h-10 md:w-12 md:h-12 bg-black/60 rounded-lg flex items-center justify-center border border-[#B39A62]/50 hover:bg-black/80 transition-all text-gray-300">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
                 </button>
-                <button onClick={() => setIs2DView(!is2DView)} className={`w-10 h-10 md:w-12 md:h-12 rounded-lg flex items-center justify-center border transition-all text-gray-300 font-bold ${is2DView ? 'bg-[#B39A62]/80 border-white text-white' : 'bg-black/60 border-[#B39A62]/50 hover:bg-black/80'}`}>
-                    2D
+                <button aria-label={is2DView ? '3D' : '2D'} aria-pressed={is2DView} onClick={() => setIs2DView(!is2DView)} className={`w-10 h-10 md:w-12 md:h-12 rounded-lg flex items-center justify-center border transition-all text-gray-300 font-bold ${is2DView ? 'bg-[#B39A62]/80 border-white text-white' : 'bg-black/60 border-[#B39A62]/50 hover:bg-black/80'}`}>
+                    {is2DView ? '3D' : '2D'}
                 </button>
             </div>
 
             {/* RIGHT SIDEBAR BUTTONS */}
-            <div className="absolute right-2 top-1/2 -translate-y-1/2 flex flex-col gap-3 z-30">
-                <button onClick={() => {
+            <div className="flex items-center gap-2">
+                <button aria-label={lang === 'ja' ? '盤面のデザインを変更' : 'Change board theme'} onClick={() => {
                     const themes: ('classic'|'marble'|'neon')[] = ['classic', 'marble', 'neon'];
                     const next = themes[(themes.indexOf(boardDesign) + 1) % themes.length];
                     setBoardDesign(next);
                 }} className="w-10 h-10 md:w-12 md:h-12 bg-black/60 rounded-lg flex items-center justify-center border border-[#B39A62]/50 hover:bg-black/80 transition-all text-gray-300">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 19l7-7 3 3-7 7-3-3z"></path><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path><path d="M2 2l7.586 7.586"></path><circle cx="11" cy="11" r="2"></circle></svg>
                 </button>
+            </div>
             </div>
 
             {/* Disconnection Banner */}
@@ -616,7 +617,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
                 </div>
             </div>
 
-            {winner && (
+            {winner && showGameOver && (
                 <div className="absolute inset-0 bg-[#11100E]/90 flex flex-col items-center justify-center z-50 backdrop-blur-sm rounded-lg border border-[#B39A62]/20">
                     <div className="flex flex-col items-center gap-6 px-6 max-w-full">
                         <div className="text-3xl sm:text-4xl md:text-5xl font-serif font-bold text-[#E8E2D7] tracking-[0.2em] text-center animate-stamp">

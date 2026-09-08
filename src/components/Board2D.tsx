@@ -21,7 +21,9 @@ export interface Board2DProps {
 }
 
 export function Board2D({ 
-    isFlipped,
+    isFlipped: flipped,
+    onlineRole,
+    currentTurn,
     tokens,
     selectedTokenId,
     validMoves,
@@ -32,13 +34,19 @@ export function Board2D({
     boardDesign = 'classic',
     hintMove
 }: Board2DProps) {
+    const isFlipped = flipped ?? (onlineRole === 'black');
+    const selectedToken = tokens.find(t => !t.isCaptured && t.id === selectedTokenId);
+    const isEnemySelected = selectedToken ? selectedToken.player !== (onlineRole && onlineRole !== 'spectator' ? onlineRole : currentTurn) : false;
     const renderMoves = showMoveHints ? validMoves : [];
     const lastMove = moveHistory.length > 0 ? moveHistory[moveHistory.length - 1] : null;
 
     return (
+        <div className="w-full h-full flex items-center justify-center" style={{ containerType: 'size' }}>
         <div
             className="aspect-square w-full max-w-[500px] relative shadow-2xl mx-auto rounded-md overflow-hidden border-4 border-[#B39A62]/30"
             style={{ 
+                width: 'min(100cqw, 100cqh, 500px)',
+                flexShrink: 0,
                 background: boardDesign === 'marble' ? '#a0a0a0' : boardDesign === 'neon' ? '#1a0b2e' : '#11100E',
                 transform: isFlipped ? 'rotate(180deg)' : 'none'
             }}
@@ -72,7 +80,7 @@ export function Board2D({
                             className={`w-full h-full relative cursor-pointer transition-colors ${bgClass} ${isMoveCandidate ? 'hover:brightness-110' : ''}`} 
                         >
                             {isMoveCandidate && (
-                                <div className="absolute inset-0 m-auto w-1/3 h-1/3 rounded-full bg-[#B39A62]/60 pointer-events-none animate-pulse" />
+                                <div className={`absolute inset-0 m-auto w-1/3 h-1/3 rounded-full ${isEnemySelected ? 'bg-red-500/70' : 'bg-[#B39A62]/60'} pointer-events-none animate-pulse`} />
                             )}
                             {isHintFrom && (
                                 <div className="absolute inset-0 border-4 border-blue-500 shadow-[inset_0_0_15px_rgba(59,130,246,0.5)] pointer-events-none animate-pulse" />
@@ -86,7 +94,7 @@ export function Board2D({
             </div>
 
             {/* Pieces */}
-            {tokens.map(token => {
+            {tokens.filter(token => !token.isCaptured).map(token => {
                 const isSelected = selectedTokenId === token.id;
                 const candidates = candidatesMap?.get(token.id);
                 
@@ -114,7 +122,8 @@ export function Board2D({
                                 player={token.player}
                                 probabilities={token.probabilities}
                                 candidates={candidates}
-                                isSelected={false}
+                                isSelected={isSelected}
+                                responsive
                                 onClick={() => {}}
                                 promotedTo={token.promotedTo}
                             />
@@ -122,6 +131,7 @@ export function Board2D({
                     </div>
                 );
             })}
+        </div>
         </div>
     );
 }

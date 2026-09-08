@@ -56,7 +56,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
     }, [movingPiece]);
     const tokensRef = useRef<Token[]>([]);
     const executeMoveRef = useRef<any>(null);
-    useEffect(() => { tokensRef.current = tokens; executeMoveRef.current = executeMove; if (typeof window !== 'undefined') (window as any).playMove = handleSquareClick; });
+    useEffect(() => { tokensRef.current = tokens; executeMoveRef.current = executeMove; });
     
     
     const [selectedTokenId, setSelectedTokenId] = useState<string | null>(null);
@@ -212,6 +212,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
     const anyModalOpen = showGameOver || showRules || promotionPending !== null || castlingPending !== null;
     useEffect(() => {
         window.dispatchEvent(new CustomEvent('hide-settings', { detail: anyModalOpen }));
+        return () => { window.dispatchEvent(new CustomEvent('hide-settings', { detail: false })); };
     }, [anyModalOpen]);
 
     const moveHistoryRef = useRef<MoveRecord[]>([]);
@@ -602,7 +603,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
         }
     };
 
-    const handleSquareClick = (targetRow: number, targetCol: number) => { console.log('playMove called', targetRow, targetCol);
+    const handleSquareClick = (targetRow: number, targetCol: number) => {
         if (winner || movingPiece || onlineRole === 'spectator') return;
         
         // Prevent human player from interacting during CPU's turn
@@ -710,20 +711,21 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
 
     return (
         <div className="flex flex-col items-center w-full h-full max-h-[100dvh] max-w-[800px] mx-auto relative select-none touch-none overflow-hidden pb-4">
-            {/* LEFT SIDEBAR BUTTONS */}
-            <div className="absolute left-2 top-1/2 -translate-y-1/2 flex flex-col gap-3 z-30">
+            <div className="flex w-full shrink-0 items-center justify-between gap-2 px-2 py-1">
+            {/* Board controls */}
+            <div className="flex items-center gap-2">
                 
-                <button onClick={onHome} className="w-10 h-10 md:w-12 md:h-12 bg-black/60 rounded-lg flex items-center justify-center border border-[#B39A62]/50 hover:bg-black/80 transition-all text-gray-300">
+                <button aria-label={t.home} onClick={onHome} className="w-10 h-10 md:w-12 md:h-12 bg-black/60 rounded-lg flex items-center justify-center border border-[#B39A62]/50 hover:bg-black/80 transition-all text-gray-300">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
                 </button>
-                <button onClick={() => setIs2DView(!is2DView)} className={`w-10 h-10 md:w-12 md:h-12 rounded-lg flex items-center justify-center border transition-all text-gray-300 font-bold ${is2DView ? 'bg-[#B39A62]/80 border-white text-white' : 'bg-black/60 border-[#B39A62]/50 hover:bg-black/80'}`}>
-                    2D
+                <button aria-label={is2DView ? '3D' : '2D'} aria-pressed={is2DView} onClick={() => setIs2DView(!is2DView)} className={`w-10 h-10 md:w-12 md:h-12 rounded-lg flex items-center justify-center border transition-all text-gray-300 font-bold ${is2DView ? 'bg-[#B39A62]/80 border-white text-white' : 'bg-black/60 border-[#B39A62]/50 hover:bg-black/80'}`}>
+                    {is2DView ? '3D' : '2D'}
                 </button>
             </div>
 
             {/* RIGHT SIDEBAR BUTTONS */}
-            <div className="absolute right-2 top-1/2 -translate-y-1/2 flex flex-col gap-3 z-30">
-                <button onClick={() => {
+            <div className="flex items-center gap-2">
+                <button aria-label={lang === 'ja' ? '盤面のデザインを変更' : 'Change board theme'} onClick={() => {
                     const themes: ('classic'|'marble'|'neon')[] = ['classic', 'marble', 'neon'];
                     const next = themes[(themes.indexOf(boardDesign) + 1) % themes.length];
                     setBoardDesign(next);
@@ -731,6 +733,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 19l7-7 3 3-7 7-3-3z"></path><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path><path d="M2 2l7.586 7.586"></path><circle cx="11" cy="11" r="2"></circle></svg>
                 </button>
 
+            </div>
             </div>
 
             

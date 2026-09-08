@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Language, dict } from '../locales/dict';
+import { Language } from '../locales/dict';
 import { Board3D } from './Board3D';
 import { tutorialDict } from '@/locales/rulesDict';
 import { Token } from '../lib/GameEngine';
@@ -17,7 +17,7 @@ const QUEEN_PROBS = { King: 0, Queen: 1, Rook: 0, Bishop: 0, Knight: 0, Pawn: 0 
 const ROOK_PROBS = { King: 0, Queen: 0, Rook: 1, Bishop: 0, Knight: 0, Pawn: 0 };
 
 export function InteractiveTutorial({ lang, onClose }: Props) {
-    const t = { ...dict['en'], ...(dict[lang] || {}) } as any;
+    const content = tutorialDict[lang] || tutorialDict.en;
     
     const [step, setStep] = useState(0);
     const [selectedPieceId, setSelectedPieceId] = useState<string | null>(null);
@@ -108,50 +108,20 @@ export function InteractiveTutorial({ lang, onClose }: Props) {
     };
 
     // Derived state for UI
-    let instructions = "";
-    let validMoves: {row: number, col: number}[] = [];
+    const instructions = content.steps[step];
+    const targets: Record<number, {row: number, col: number}[]> = {
+        0: [{row: 6, col: 4}], 1: [{row: 3, col: 7}],
+        3: [{row: 1, col: 7}], 4: [{row: 3, col: 7}],
+        6: [{row: 7, col: 4}], 7: [{row: 5, col: 5}],
+        9: [{row: 3, col: 7}], 10: [{row: 5, col: 5}],
+    };
+    const validMoves = targets[step] || [];
+    useEffect(() => {
+        const onKeyDown = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose(); };
+        window.addEventListener('keydown', onKeyDown);
+        return () => window.removeEventListener('keydown', onKeyDown);
+    }, [onClose]);
 
-    if (step === 0 || step === 1) {
-        instructions = lang === 'ja' 
-            ? "1. 正体がわからない駒！\n\nこのチェスでは、動かすまで駒の「本当の姿」がわかりません！\nまずは白い駒をクリックして、光っているマスへ動かしてみてください。\n（大きく斜めに動いたので、この駒は「ビショップ」か「クイーン」のどちらかだと絞り込まれました！）" 
-            : "1. Hidden Identities\n\nIn this chess game, you don't know what a piece is until it moves!\nClick the White piece and move it to the highlighted square. Because it moved diagonally, it MUST be a Bishop or a Queen.";
-        if (step === 0) validMoves = [{ row: 6, col: 4 }];
-        if (step === 1) validMoves = [{ row: 3, col: 7 }];
-    } else if (step === 2) {
-        instructions = lang === 'ja' 
-            ? "素晴らしい！動かし方によって、少しずつ駒の正体がバレていくのがこのゲームのルールです。"
-            : "Great! Based on how it moved, the game narrowed down what piece it could be.";
-    } else if (step === 3 || step === 4) {
-        instructions = lang === 'ja' 
-            ? "2. 相手の駒を取る\n\n次は黒い駒をクリックして、さっきの白い駒を取ってみましょう。\n（まっすぐ２マス動いたので、この黒い駒は「ルーク」か「クイーン」だとわかりました！）"
-            : "2. Capturing Pieces\n\nNow, click the Black piece and move it to capture the White piece. Because it moved straight forward 2 squares, it MUST be a Rook or a Queen.";
-        if (step === 3) validMoves = [{ row: 1, col: 7 }];
-        if (step === 4) validMoves = [{ row: 3, col: 7 }];
-    } else if (step === 5) {
-        instructions = lang === 'ja' 
-            ? "相手の駒を倒しました！\n駒は、本当の正体がバレる前に盤面から退場することもあります。"
-            : "Piece captured! A piece can be captured and removed from the board even before its true identity is fully revealed.";
-    } else if (step === 6 || step === 7) {
-        instructions = lang === 'ja' 
-            ? "3. 正体が確定する瞬間\n\n新しい白い駒が現れました。光っているマスへ動かしてください。\n（L字型に動けるのは「ナイト」だけです！）"
-            : "3. Revealing the True Identity\n\nA new White piece appeared. Move it to the highlighted square. Only a Knight can make an L-shape move!";
-        if (step === 6) validMoves = [{ row: 7, col: 4 }];
-        if (step === 7) validMoves = [{ row: 5, col: 5 }];
-    } else if (step === 8) {
-        instructions = lang === 'ja'
-            ? "ナイトの正体が現れました！\n「これしかありえない！」という状況になると、駒がめくれて本当の姿を見せます。"
-            : "The Knight is revealed! When there's only one possibility left, the piece flips over and shows its true face.";
-    } else if (step === 9 || step === 10) {
-        instructions = lang === 'ja'
-            ? "4. 連鎖して正体がバレる！？\n\nもう一つ黒い駒が現れました（これもルークかクイーンのどちらかです）。\nさっきの黒い駒を斜めに動かして、白いナイトを取ってください。"
-            : "4. Chain Reactions\n\nAnother Black piece appeared. Move the first Black piece diagonally to capture the White Knight.";
-        if (step === 9) validMoves = [{ row: 3, col: 7 }];
-        if (step === 10) validMoves = [{ row: 5, col: 5 }];
-    } else if (step === 11) {
-        instructions = lang === 'ja'
-            ? "お見事です！\nこの黒い駒は「まっすぐ」にも「斜め」にも動きました。両方できるのは『クイーン』だけなので、クイーンに確定しました！\n\nさらに！クイーンは1人しかいないため、もう一つの黒い駒は自動的に『ルーク』だと確定しました。このように、推理パズルのように正体が連鎖して暴かれていくのがこのゲームの面白いところです！"
-            : "Brilliant! The Black piece moved both straight and diagonally. Only a Queen can do both, so it's a Queen!\n\nAlso, since there's only one Queen, the other Black piece is instantly forced to be a Rook without even moving! This deduction puzzle is the heart of the game.";
-    }
     const nextScenario = () => {
         if (step === 2) {
             setStep(3);
@@ -176,8 +146,8 @@ export function InteractiveTutorial({ lang, onClose }: Props) {
 
     return (
         <div className="fixed inset-0 bg-[#11100E]/95 z-[200] flex flex-col items-center justify-center p-4 backdrop-blur-md">
-            <div className="w-full max-w-4xl max-h-[95dvh] overflow-y-auto bg-[#191714] border-2 border-[#B39A62]/30 rounded-xl flex flex-col md:flex-row shadow-2xl relative">
-                <button onClick={onClose} className="absolute top-4 right-4 text-gray-500 hover:text-white text-2xl font-bold z-50">×</button>
+            <div role="dialog" aria-modal="true" aria-label={content.title} className="w-full max-w-4xl max-h-[95dvh] overflow-y-auto bg-[#191714] border-2 border-[#B39A62]/30 rounded-xl flex flex-col md:flex-row shadow-2xl relative">
+                <button onClick={onClose} aria-label={content.close} className="fixed top-4 right-4 w-11 h-11 rounded-full bg-[#191714] border border-[#B39A62] text-white text-2xl font-bold z-50">×</button>
                 
                 {/* Left: Board Demo */}
                 <div className="w-full flex-shrink-0 md:w-1/2 p-0 bg-[#0b0c10] flex items-center justify-center relative aspect-square md:aspect-auto md:min-h-full">
@@ -206,7 +176,7 @@ export function InteractiveTutorial({ lang, onClose }: Props) {
                                 }
                             }}
                             showMoveHints={true}
-                            currentTurn="white"
+                            currentTurn={step >= 3 && step <= 5 || step >= 9 ? 'black' : 'white'}
                         />
                     </div>
                 </div>
@@ -214,7 +184,7 @@ export function InteractiveTutorial({ lang, onClose }: Props) {
                 {/* Right: Explanations */}
                 <div className="w-full md:w-1/2 p-8 md:p-10 flex flex-col justify-center">
                     <h2 className="text-3xl font-serif text-[#D4B872] mb-6 tracking-widest">
-                        {lang === 'ja' ? 'ルールの説明' : 'How to Play'}
+                        {content.title}
                     </h2>
 
                     <div className="text-gray-300 leading-relaxed text-lg flex-1 min-h-[160px] whitespace-pre-wrap">
@@ -227,7 +197,7 @@ export function InteractiveTutorial({ lang, onClose }: Props) {
                                 onClick={nextScenario}
                                 className="px-8 py-3 bg-[#B39A62]/20 border border-[#B39A62] text-[#D4B872] hover:bg-[#B39A62] hover:text-[#11100E] transition-colors font-bold tracking-widest"
                             >
-                                {step === 11 ? (lang === 'ja' ? 'ゲームを始める！' : 'START PLAYING!') : (lang === 'ja' ? '次へ' : 'NEXT')}
+                                {step === 11 ? content.play : content.next}
                             </button>
                         )}
                     </div>

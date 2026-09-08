@@ -142,6 +142,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
     const anyModalOpen = showPlayMenu || showReplays || showLeaderboard || showFriends || showAccount || showTutorial || showAdModal || !!pendingAction || showLiveMatches;
     React.useEffect(() => {
         window.dispatchEvent(new CustomEvent('hide-settings', { detail: anyModalOpen }));
+        return () => { window.dispatchEvent(new CustomEvent('hide-settings', { detail: false })); };
     }, [anyModalOpen]);
 
     const [onlineCount, setOnlineCount] = React.useState(1);
