@@ -17,7 +17,7 @@ export interface Board2DProps {
     onSquareClick: (row: number, col: number) => void;
     showMoveHints: boolean;
     candidatesMap?: Map<string, ReadonlySet<PieceType>>;
-    boardDesign?: 'q-gambit' | 'classic' | 'marble' | 'neon';
+    boardDesign?: 'classic' | 'marble' | 'neon';
     hintMove?: { fromRow: number, fromCol: number, toRow: number, toCol: number } | null;
 }
 
@@ -33,7 +33,7 @@ export function Board2D({
     onSquareClick,
     showMoveHints,
     candidatesMap,
-    boardDesign = 'q-gambit',
+    boardDesign = 'classic',
     hintMove
 }: Board2DProps) {
     const isFlipped = flipped ?? (onlineRole === 'black');
@@ -49,7 +49,7 @@ export function Board2D({
             style={{ 
                 width: 'min(100cqw, 100cqh, 500px)',
                 flexShrink: 0,
-                background: boardDesign === 'marble' ? '#a0a0a0' : boardDesign === 'neon' ? '#4a154b' : boardDesign === 'q-gambit' ? '#11100E' : '#2c1e16',
+                background: boardDesign === 'marble' ? '#a0a0a0' : boardDesign === 'neon' ? '#180a24' : '#11100E',
                 transform: isFlipped ? 'rotate(180deg)' : 'none'
             }}
         >
@@ -65,15 +65,13 @@ export function Board2D({
                     const isHintTo = hintMove && hintMove.toRow === row && hintMove.toCol === col;
                     const isHintFrom = hintMove && hintMove.fromRow === row && hintMove.fromCol === col;
 
-                    let bgClass = isDark ? 'bg-[#7a4d2c]' : 'bg-[#e6cfb3]'; // classic
-                    if (boardDesign === 'marble') bgClass = isDark ? 'bg-[#8aa1b1]' : 'bg-[#fdfdfd]';
-                    if (boardDesign === 'neon') bgClass = isDark ? 'bg-[#4a1c60]' : 'bg-[#00e5ff]'; // Much brighter neon
-                    if (boardDesign === 'q-gambit') bgClass = isDark ? 'bg-[#2A2621]' : 'bg-[#E8E2D7]';
+                    let bgClass = isDark ? 'bg-[#5c3e29]' : 'bg-[#d4c0a5]'; // chic classic
+                    if (boardDesign === 'marble') bgClass = isDark ? 'bg-[#54636e]' : 'bg-[#c7cfd1]';
+                    if (boardDesign === 'neon') bgClass = isDark ? 'bg-[#221633]' : 'bg-[#49316b]'; // visible contrast
 
                     if (isLastMove) {
-                        if (boardDesign === 'marble') bgClass = isDark ? 'bg-[#8d9c5b]' : 'bg-[#e8f0b1]';
-                        else if (boardDesign === 'neon') bgClass = isDark ? 'bg-[#ff1493]' : 'bg-[#ff99cc]';
-                        else if (boardDesign === 'q-gambit') bgClass = isDark ? 'bg-[#8c7435]' : 'bg-[#D4B872]';
+                        if (boardDesign === 'marble') bgClass = isDark ? 'bg-[#7a8a66]' : 'bg-[#d2db9e]';
+                        else if (boardDesign === 'neon') bgClass = isDark ? 'bg-[#4d1f4d]' : 'bg-[#8a428a]';
                         else bgClass = isDark ? 'bg-[#8f773b]' : 'bg-[#e6d38e]';
                     }
 
@@ -84,7 +82,7 @@ export function Board2D({
                             className={`w-full h-full relative cursor-pointer transition-colors ${bgClass} ${isMoveCandidate ? 'hover:brightness-110' : ''}`} 
                         >
                             {isMoveCandidate && (
-                                <div className={`absolute inset-0 m-auto w-1/3 h-1/3 rounded-full ${isEnemySelected ? 'bg-red-500/70' : 'bg-[#B39A62]/60'} pointer-events-none animate-pulse`} />
+                                <div className={`absolute inset-0 border-4 ${isEnemySelected ? 'border-red-500/80 bg-red-500/30' : 'border-[#B39A62]/80 bg-[#B39A62]/30'} pointer-events-none animate-pulse`} />
                             )}
                             {isHintFrom && (
                                 <div className="absolute inset-0 border-4 border-blue-500 shadow-[inset_0_0_15px_rgba(59,130,246,0.5)] pointer-events-none animate-pulse" />

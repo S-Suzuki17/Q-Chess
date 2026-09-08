@@ -283,35 +283,35 @@ const BoardSquares = ({ validMoves, moveHistory, onSquareClick, isEnemySelected,
             const lastMove = moveHistory.length > 0 ? moveHistory[moveHistory.length - 1] : null;
             const isLastMove = lastMove && ((lastMove.from[0] === r && lastMove.from[1] === c) || (lastMove.to[0] === r && lastMove.to[1] === c));
 
-            let color = isLight ? '#e6cfb3' : '#7a4d2c';
+            let color = isLight ? '#d4c0a5' : '#5c3e29';
             let metalness = 0.1;
             let roughness = 0.8;
             let emissive = '#000000';
             let emissiveIntensity = 0;
 
             if (boardDesign === 'marble') {
-                color = isLight ? '#fdfdfd' : '#8aa1b1';
-                metalness = 0.3;
-                roughness = 0.2;
+                color = isLight ? '#c7cfd1' : '#54636e';
+                metalness = 0.2;
+                roughness = 0.3;
             } else if (boardDesign === 'neon') {
-                color = isLight ? '#00e5ff' : '#4a1c60'; // Much brighter! Cyan and deep purple
-                metalness = 0.8;
-                roughness = 0.1;
-            } else if (boardDesign === 'q-gambit') {
-                color = isLight ? '#E8E2D7' : '#2A2621'; // Concept UI colors
-                metalness = 0.4;
+                color = isLight ? '#49316b' : '#221633';
+                metalness = 0.5;
                 roughness = 0.4;
             }
             
             if (isLastMove) {
-                if (boardDesign === 'marble') color = isLight ? '#e8f0b1' : '#8d9c5b';
+                if (boardDesign === 'marble') color = isLight ? '#d2db9e' : '#7a8a66';
                 else if (boardDesign === 'neon') {
-                    color = isLight ? '#ff99cc' : '#ff1493';
-                    emissive = '#ff1493';
-                    emissiveIntensity = 0.5;
-                } else if (boardDesign === 'q-gambit') {
-                    color = isLight ? '#D4B872' : '#8c7435'; // Gold
+                    color = isLight ? '#8a428a' : '#4d1f4d';
+                    emissive = '#ff3366';
+                    emissiveIntensity = 0.2;
                 } else color = isLight ? '#e6d38e' : '#8f773b';
+            }
+            
+            if (isMoveCandidate) {
+                color = isEnemySelected ? '#ff6b6b' : '#D4B872';
+                emissive = isEnemySelected ? '#ff0000' : '#D4B872';
+                emissiveIntensity = 0.5;
             }
             
             const isHintTo = hintMove && hintMove.toRow === r && hintMove.toCol === c;
@@ -324,12 +324,7 @@ const BoardSquares = ({ validMoves, moveHistory, onSquareClick, isEnemySelected,
                         <boxGeometry args={[1, 0.1, 1]} />
                         <meshStandardMaterial color={color} roughness={roughness} metalness={metalness} emissive={emissive} emissiveIntensity={emissiveIntensity} />
                     </mesh>
-                    {isMoveCandidate && (
-                        <mesh position={[0, 0.06, 0]} rotation={[-Math.PI/2, 0, 0]}>
-                            <circleGeometry args={[0.3, 32]} />
-                            <meshBasicMaterial color={isEnemySelected ? "#ff4444" : "#D4B872"} transparent opacity={isEnemySelected ? 0.7 : 0.5} />
-                        </mesh>
-                    )}
+                    
                     {isHintFrom && (
                         <mesh position={[0, 0.07, 0]} rotation={[-Math.PI/2, 0, 0]}>
                             <ringGeometry args={[0.35, 0.45, 32]} />
@@ -351,7 +346,7 @@ const BoardSquares = ({ validMoves, moveHistory, onSquareClick, isEnemySelected,
 
 
 
-const BackgroundEffects = ({ design }: { design: 'q-gambit' | 'classic' | 'marble' | 'neon' }) => {
+const BackgroundEffects = ({ design }: { design: 'classic' | 'marble' | 'neon' }) => {
     switch (design) {
         case 'marble':
             return (
@@ -396,49 +391,23 @@ const BackgroundEffects = ({ design }: { design: 'q-gambit' | 'classic' | 'marbl
                     </mesh>
                 </>
             );
-        case 'q-gambit':
-            return (
-                <>
-                    <Environment preset="studio" />
-                    {/* Dark void background */}
-                    <color attach="background" args={['#0a0908']} />
-                    <ambientLight intensity={0.4} />
-                    <directionalLight position={[5, 10, 5]} intensity={1.2} castShadow shadow-mapSize={[2048, 2048]} />
-                    <spotLight position={[0, 15, 0]} angle={0.8} penumbra={0.5} intensity={2} color="#B39A62" castShadow />
-                    
-                    {/* Floating golden quantum dust */}
-                    <Sparkles count={300} scale={15} size={3} speed={0.2} opacity={0.6} color="#B39A62" position={[0, 2, 0]} />
-                    
-                    {/* Golden rings */}
-                    <mesh position={[0, -2, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-                        <ringGeometry args={[8, 8.1, 64]} />
-                        <meshStandardMaterial color="#B39A62" emissive="#B39A62" emissiveIntensity={0.5} />
-                    </mesh>
-                    <mesh position={[0, -4, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-                        <ringGeometry args={[12, 12.05, 64]} />
-                        <meshStandardMaterial color="#B39A62" emissive="#B39A62" emissiveIntensity={0.2} />
-                    </mesh>
-                </>
-            );
         case 'classic':
         default:
             return (
                 <>
-                    <Environment preset="studio" background blur={0.5} />
-                    <ambientLight intensity={0.4} />
-                    <directionalLight position={[5, 10, 5]} intensity={1.5} castShadow shadow-mapSize={[2048, 2048]} />
+                    <Environment preset="studio" background blur={0.8} />
+                    <ambientLight intensity={0.6} />
+                    <directionalLight position={[5, 10, 5]} intensity={1.0} castShadow shadow-mapSize={[2048, 2048]} />
                     
-                    {/* Elegant table */}
+                    {/* Authentic chic wooden table */}
                     <mesh position={[0, -0.4, 0]} receiveShadow>
-                        <cylinderGeometry args={[12, 12, 0.2, 64]} />
-                        <meshStandardMaterial color="#1a0b02" roughness={0.5} metalness={0.1} />
+                        <cylinderGeometry args={[14, 14, 0.2, 64]} />
+                        <meshStandardMaterial color="#1a110a" roughness={0.7} metalness={0.1} />
                     </mesh>
                     <mesh position={[0, -10, 0]} rotation={[-Math.PI / 2, 0, 0]}>
                         <planeGeometry args={[200, 200]} />
-                        <meshStandardMaterial color="#0a0502" roughness={0.9} />
+                        <meshStandardMaterial color="#0d0805" roughness={0.9} />
                     </mesh>
-                    <spotLight position={[0, 15, 0]} angle={0.6} penumbra={0.8} intensity={2} castShadow />
-                    <Sparkles count={50} scale={10} size={2} speed={0.1} opacity={0.2} color="#ffffff" position={[0, 2, 0]} />
                 </>
             );
     }
@@ -484,7 +453,7 @@ const ResponsiveCamera = ({ isFlipped, is2DView }: { isFlipped: boolean, is2DVie
 
 export interface Board3DProps {
     is2DView?: boolean;
-    boardDesign?: 'q-gambit' | 'classic' | 'marble' | 'neon';
+    boardDesign?: 'classic' | 'marble' | 'neon';
     hintMove?: { fromRow: number, fromCol: number, toRow: number, toCol: number } | null;
     isFlipped?: boolean;
     tokens: Token[];
@@ -534,17 +503,17 @@ export const Board3D: React.FC<Board3DProps> = (props) => {
             <Canvas shadows camera={{ position: isFlipped ? [0, 8, -6] : [0, 8, 6], fov: 45 }}>
                 <ResponsiveCamera isFlipped={isFlipped} is2DView={!!props.is2DView} />
                 
-                <BackgroundEffects design={props.boardDesign || 'q-gambit'} />
+                <BackgroundEffects design={props.boardDesign || 'classic'} />
                 
                 {/* Dynamic Board Base */}
                 <mesh position={[0, -0.2, 0]} receiveShadow castShadow>
                     <boxGeometry args={[8.4, 0.2, 8.4]} />
                     <meshStandardMaterial 
-                        color={props.boardDesign === 'marble' ? '#f0f0f0' : (props.boardDesign === 'neon' ? '#4a154b' : props.boardDesign === 'q-gambit' ? '#191714' : '#2c1e16')} 
-                        roughness={props.boardDesign === 'marble' ? 0.3 : props.boardDesign === 'q-gambit' ? 0.6 : 0.9} 
-                        metalness={props.boardDesign === 'neon' ? 0.5 : props.boardDesign === 'q-gambit' ? 0.3 : 0.1} 
-                        emissive={props.boardDesign === 'neon' ? '#ff3366' : props.boardDesign === 'q-gambit' ? '#B39A62' : '#000000'}
-                        emissiveIntensity={props.boardDesign === 'neon' ? 0.3 : props.boardDesign === 'q-gambit' ? 0.1 : 0}
+                        color={props.boardDesign === 'marble' ? '#d9d9d9' : (props.boardDesign === 'neon' ? '#140c21' : '#2c1e16')} 
+                        roughness={props.boardDesign === 'marble' ? 0.3 : 0.9} 
+                        metalness={props.boardDesign === 'neon' ? 0.5 : 0.1} 
+                        emissive={props.boardDesign === 'neon' ? '#ff3366' : '#000000'}
+                        emissiveIntensity={props.boardDesign === 'neon' ? 0.1 : 0}
                     />
                 </mesh>
                 <BoardSquares validMoves={props.showMoveHints ? props.validMoves : []} moveHistory={props.moveHistory} onSquareClick={props.onSquareClick} isEnemySelected={isEnemySelected} boardDesign={props.boardDesign} hintMove={props.hintMove} />
