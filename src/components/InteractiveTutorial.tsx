@@ -112,46 +112,45 @@ export function InteractiveTutorial({ lang, onClose }: Props) {
 
     if (step === 0 || step === 1) {
         instructions = lang === 'ja' 
-            ? "1. 量子的な重ね合わせ\n\n白い駒をクリックして選択し、光っているマスへ移動させてください。斜めに長距離移動すると、ビショップかクイーンの可能性に絞り込まれます。" 
-            : "1. Quantum Superposition\n\nClick the White piece and move it to the highlighted square. Moving diagonally over a distance eliminates everything except Bishop and Queen.";
+            ? "1. 正体がわからない駒！\n\nこのチェスでは、動かすまで駒の「本当の姿」がわかりません！\nまずは白い駒をクリックして、光っているマスへ動かしてみてください。\n（大きく斜めに動いたので、この駒は「ビショップ」か「クイーン」のどちらかだと絞り込まれました！）" 
+            : "1. Hidden Identities\n\nIn this chess game, you don't know what a piece is until it moves!\nClick the White piece and move it to the highlighted square. Because it moved diagonally, it MUST be a Bishop or a Queen.";
         if (step === 0) validMoves = [{ row: 6, col: 4 }];
         if (step === 1) validMoves = [{ row: 3, col: 7 }];
     } else if (step === 2) {
         instructions = lang === 'ja' 
-            ? "見事です！軌跡から正体が推論され、「波束の収縮」が起きました。"
-            : "Excellent! The identity was deduced from the path, triggering a 'Wavefunction Collapse'.";
+            ? "素晴らしい！動かし方によって、少しずつ駒の正体がバレていくのがこのゲームのルールです。"
+            : "Great! Based on how it moved, the game narrowed down what piece it could be.";
     } else if (step === 3 || step === 4) {
         instructions = lang === 'ja' 
-            ? "2. 駒取り\n\n次に、黒い駒をクリックして、先ほどの白い駒を取ってみましょう。縦に2マス動いたため、ルークかクイーンに絞り込まれます。"
-            : "2. Capturing\n\nNow, click the Black piece and move it to capture the White piece. Moving vertically 2 squares eliminates everything except Rook and Queen.";
+            ? "2. 相手の駒を取る\n\n次は黒い駒をクリックして、さっきの白い駒を取ってみましょう。\n（まっすぐ２マス動いたので、この黒い駒は「ルーク」か「クイーン」だとわかりました！）"
+            : "2. Capturing Pieces\n\nNow, click the Black piece and move it to capture the White piece. Because it moved straight forward 2 squares, it MUST be a Rook or a Queen.";
         if (step === 3) validMoves = [{ row: 1, col: 7 }];
         if (step === 4) validMoves = [{ row: 3, col: 7 }];
     } else if (step === 5) {
         instructions = lang === 'ja' 
-            ? "駒を取りました！取られた駒は正体が完全に判明する前に盤面から消滅します。"
-            : "Piece captured! Captured pieces are removed before their true identity is ever fully revealed.";
+            ? "相手の駒を倒しました！\n駒は、本当の正体がバレる前に盤面から退場することもあります。"
+            : "Piece captured! A piece can be captured and removed from the board even before its true identity is fully revealed.";
     } else if (step === 6 || step === 7) {
         instructions = lang === 'ja' 
-            ? "3. 完全な確定\n\n新しい白駒が現れました。これを光っているマスへ動かしてください。このL字型の動きは「ナイト」にしかできません。"
-            : "3. Absolute Collapse\n\nA new White piece appeared. Move it to the highlighted square. This L-shape move is ONLY possible for a Knight.";
+            ? "3. 正体が確定する瞬間\n\n新しい白い駒が現れました。光っているマスへ動かしてください。\n（L字型に動けるのは「ナイト」だけです！）"
+            : "3. Revealing the True Identity\n\nA new White piece appeared. Move it to the highlighted square. Only a Knight can make an L-shape move!";
         if (step === 6) validMoves = [{ row: 7, col: 4 }];
         if (step === 7) validMoves = [{ row: 5, col: 5 }];
     } else if (step === 8) {
         instructions = lang === 'ja'
-            ? "ナイトが確定しました！可能性が1つに絞られると、正体が全員に公開されます。"
-            : "The Knight is revealed! When probability drops to exactly one type, the piece is fully revealed.";
+            ? "ナイトの正体が現れました！\n「これしかありえない！」という状況になると、駒がめくれて本当の姿を見せます。"
+            : "The Knight is revealed! When there's only one possibility left, the piece flips over and shows its true face.";
     } else if (step === 9 || step === 10) {
         instructions = lang === 'ja'
-            ? "4. 数手による確定と連鎖\n\n盤面に別の黒駒が現れました（これもルークかクイーン）。\n先ほど動かした黒駒を、白のナイトのマスへ斜めに動かして白駒を取ってください。"
-            : "4. Multi-step & Constraint Collapse\n\nAnother Black piece appeared (also Rook or Queen).\nMove the original Black piece diagonally to the White Knight's square to capture it.";
+            ? "4. 連鎖して正体がバレる！？\n\nもう一つ黒い駒が現れました（これもルークかクイーンのどちらかです）。\nさっきの黒い駒を斜めに動かして、白いナイトを取ってください。"
+            : "4. Chain Reactions\n\nAnother Black piece appeared. Move the first Black piece diagonally to capture the White Knight.";
         if (step === 9) validMoves = [{ row: 3, col: 7 }];
         if (step === 10) validMoves = [{ row: 5, col: 5 }];
     } else if (step === 11) {
         instructions = lang === 'ja'
-            ? "素晴らしい！前回「縦」に動いた黒駒が今回「斜め」に動いたため、両方可能な「クイーン」に確定しました！\n\nさらに、クイーンは1人しか存在できないため、もう1つの黒駒は一切動かしていないのに「ルーク」に自動確定しました。このように盤面全体で正体は連鎖的に絞り込まれます。"
-            : "Brilliant! The Black piece moved vertically before, and diagonally now. Only a Queen can do both, so it collapsed into a Queen!\n\nFurthermore, since there can only be one Queen, the other Black piece instantly collapsed into a Rook without even moving. The entire board is entangled!";
+            ? "お見事です！\nこの黒い駒は「まっすぐ」にも「斜め」にも動きました。両方できるのは『クイーン』だけなので、クイーンに確定しました！\n\nさらに！クイーンは1人しかいないため、もう一つの黒い駒は自動的に『ルーク』だと確定しました。このように、推理パズルのように正体が連鎖して暴かれていくのがこのゲームの面白いところです！"
+            : "Brilliant! The Black piece moved both straight and diagonally. Only a Queen can do both, so it's a Queen!\n\nAlso, since there's only one Queen, the other Black piece is instantly forced to be a Rook without even moving! This deduction puzzle is the heart of the game.";
     }
-
     const nextScenario = () => {
         if (step === 2) {
             setStep(3);
@@ -214,7 +213,7 @@ export function InteractiveTutorial({ lang, onClose }: Props) {
                 {/* Right: Explanations */}
                 <div className="w-full md:w-1/2 p-8 md:p-10 flex flex-col justify-center">
                     <h2 className="text-3xl font-serif text-[#D4B872] mb-6 tracking-widest">
-                        {lang === 'ja' ? 'インタラクティブ・チュートリアル' : 'Interactive Tutorial'}
+                        {lang === 'ja' ? 'ルールの説明' : 'How to Play'}
                     </h2>
 
                     <div className="text-gray-300 leading-relaxed text-lg flex-1 min-h-[160px] whitespace-pre-wrap">
@@ -227,7 +226,7 @@ export function InteractiveTutorial({ lang, onClose }: Props) {
                                 onClick={nextScenario}
                                 className="px-8 py-3 bg-[#B39A62]/20 border border-[#B39A62] text-[#D4B872] hover:bg-[#B39A62] hover:text-[#11100E] transition-colors font-bold tracking-widest"
                             >
-                                {step === 11 ? (lang === 'ja' ? 'プレイ開始！' : 'START PLAYING!') : (lang === 'ja' ? '次へ' : 'NEXT')}
+                                {step === 11 ? (lang === 'ja' ? 'ゲームを始める！' : 'START PLAYING!') : (lang === 'ja' ? '次へ' : 'NEXT')}
                             </button>
                         )}
                     </div>
