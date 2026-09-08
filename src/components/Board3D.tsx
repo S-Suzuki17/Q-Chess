@@ -167,6 +167,7 @@ const Piece3D = ({ token, isSelected, candidates, onSquareClick, isDead = false,
     const animTarget = React.useRef(new THREE.Vector3(targetX, 0, targetZ));
     const moveProgress = React.useRef(1.0);
     const deathProgress = React.useRef(0.0);
+    const liftProgress = React.useRef(0.0);
 
     React.useEffect(() => {
         if (targetX !== animTarget.current.x || targetZ !== animTarget.current.z) {
