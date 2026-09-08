@@ -11,6 +11,7 @@ export interface Board2DProps {
     isFlipped?: boolean;
     tokens: Token[];
     selectedTokenId: string | null;
+    opponentSelectedTokenId?: string | null;
     validMoves: {r: number, c: number}[];
     moveHistory: any[];
     onSquareClick: (row: number, col: number) => void;
@@ -26,6 +27,7 @@ export function Board2D({
     currentTurn,
     tokens,
     selectedTokenId,
+    opponentSelectedTokenId,
     validMoves,
     moveHistory,
     onSquareClick,
@@ -123,6 +125,7 @@ export function Board2D({
                                 probabilities={token.probabilities}
                                 candidates={candidates}
                                 isSelected={isSelected}
+                                isOpponentSelected={opponentSelectedTokenId === token.id}
                                 responsive
                                 onClick={() => {}}
                                 promotedTo={token.promotedTo}

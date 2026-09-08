@@ -181,6 +181,11 @@ io.on('connection', (socket: Socket) => {
     });
   });
 
+  socket.on('piece_selection', (data: { matchId: string, pieceId: string | null }) => {
+    if (!data.matchId) return;
+    socket.to(data.matchId).emit('opponent_selection', { pieceId: data.pieceId });
+  });
+
   socket.on('player_action', async (data: { actionId: string, version: number, playerId?: string, action: ActionPayload }) => {
       if (data.playerId && data.playerId !== userId) {
           return socket.emit('action_error', { message: 'Unauthorized: playerId spoofing detected' });

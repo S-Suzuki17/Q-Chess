@@ -9,6 +9,7 @@ interface QuantumPieceProps {
     probabilities: Record<PieceType, number>;
     candidates?: ReadonlySet<PieceType>;
     isSelected: boolean;
+    isOpponentSelected?: boolean;
     onClick: () => void;
     promotedTo?: PieceType;
     responsive?: boolean;
@@ -22,7 +23,7 @@ const PIECE_SYMBOLS_BLACK: Record<PieceType, string> = {
     King: '♚', Queen: '♛', Rook: '♜', Bishop: '♝', Knight: '♞', Pawn: '♟'
 };
 
-export const QuantumPieceUI: React.FC<QuantumPieceProps> = ({ player, probabilities, candidates, isSelected, onClick, promotedTo, responsive = false }) => {
+export const QuantumPieceUI: React.FC<QuantumPieceProps> = ({ player, probabilities, candidates, isSelected, isOpponentSelected, onClick, promotedTo, responsive = false }) => {
     const possibleTypes = (Object.keys(probabilities) as PieceType[]).filter(type => candidates ? candidates.has(type) : probabilities[type] > 0);
     
     const isPromoted = !!promotedTo;
@@ -36,7 +37,7 @@ export const QuantumPieceUI: React.FC<QuantumPieceProps> = ({ player, probabilit
         : 'bg-[#191714] border-[#2D2A26] shadow-[inset_0_-2px_4px_rgba(0,0,0,0.6),_0_2px_4px_rgba(0,0,0,0.5)]';
     
     const iconColor = isWhite ? 'text-[#191714]' : 'text-[#E8E2D7]';
-    const highlightRing = isWhite ? 'ring-[#B39A62]' : 'ring-[#B39A62]';
+    const highlightRing = isOpponentSelected ? 'ring-red-500' : (isWhite ? 'ring-[#B39A62]' : 'ring-[#B39A62]');
 
     const symbols = isWhite ? PIECE_SYMBOLS : PIECE_SYMBOLS_BLACK;
 
@@ -61,7 +62,7 @@ export const QuantumPieceUI: React.FC<QuantumPieceProps> = ({ player, probabilit
                     relative ${responsive ? 'w-full h-full min-w-0 min-h-0' : 'w-12 h-12'} cursor-pointer transition-transform duration-150
                     flex items-center justify-center border
                     ${confirmedType ? 'rounded' : 'rounded-full'}
-                    ${isSelected ? `ring-2 ring-offset-2 ring-offset-[#11100E] ${highlightRing} scale-105 z-10` : 'hover:scale-105'}
+                    ${isSelected || isOpponentSelected ? `ring-2 ring-offset-2 ring-offset-[#11100E] ${highlightRing} scale-105 z-10` : 'hover:scale-105'}
                     ${isPromoted 
                         ? 'bg-[#191714] border-[#B39A62] text-[#B39A62]' 
                         : baseBg

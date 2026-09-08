@@ -151,7 +151,7 @@ const RealisticPiece = ({ type, isWhite, isHologram = false }: { type: PieceType
     return <primitive object={clone} position={[0, 0, 0]} rotation={[0, rotY, 0]} />;
 };
 
-const Piece3D = ({ token, isSelected, candidates, onSquareClick, isDead = false, is2DView = false, isFlipped = false }: { token: Token, isSelected: boolean, candidates?: ReadonlySet<PieceType>, onSquareClick: (r:number, c:number) => void, isDead?: boolean, is2DView?: boolean, isFlipped?: boolean }) => {
+const Piece3D = ({ token, isSelected, isOpponentSelected, candidates, onSquareClick, isDead = false, is2DView = false, isFlipped = false }: { token: Token, isSelected: boolean, isOpponentSelected?: boolean, candidates?: ReadonlySet<PieceType>, onSquareClick: (r:number, c:number) => void, isDead?: boolean, is2DView?: boolean, isFlipped?: boolean }) => {
     const possibleTypes = (Object.keys(token.probabilities) as PieceType[]).filter(t => candidates ? candidates.has(t) : token.probabilities[t as PieceType] > 0);
     const confirmedType = token.promotedTo ? token.promotedTo : (possibleTypes.length === 1 ? possibleTypes[0] : null);
     const isWhite = token.player === 'white';
@@ -231,6 +231,12 @@ const Piece3D = ({ token, isSelected, candidates, onSquareClick, isDead = false,
                 <mesh position={[0, 0.01, 0]} rotation={[-Math.PI / 2, 0, 0]}>
                     <ringGeometry args={[0.3, 0.45, 32]} />
                     <meshBasicMaterial color="#D4B872" transparent opacity={0.8} />
+                </mesh>
+            )}
+            {isOpponentSelected && !isDead && !isSelected && (
+                <mesh position={[0, 0.01, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+                    <ringGeometry args={[0.3, 0.45, 32]} />
+                    <meshBasicMaterial color="#EF4444" transparent opacity={0.8} />
                 </mesh>
             )}
             
@@ -369,6 +375,7 @@ export interface Board3DProps {
     tokens: Token[];
     onlineRole?: 'white' | 'black' | 'spectator';
     selectedTokenId: string | null;
+    opponentSelectedTokenId?: string | null;
     validMoves: {r: number, c: number}[];
     moveHistory: any[];
     showCheckWarning?: boolean;
@@ -421,7 +428,7 @@ export const Board3D: React.FC<Board3DProps> = (props) => {
                 <BoardSquares validMoves={props.showMoveHints ? props.validMoves : []} moveHistory={props.moveHistory} onSquareClick={props.onSquareClick} isEnemySelected={isEnemySelected} boardDesign={props.boardDesign} hintMove={props.hintMove} />
                 {allTokensToRender.map(token => {
                     const isDead = deadTokens.some(d => d.id === token.id);
-                    return <Piece3D key={token.id} token={token} isSelected={token.id === props.selectedTokenId} candidates={props.candidatesMap?.get(token.id)} onSquareClick={props.onSquareClick} isDead={isDead} is2DView={!!props.is2DView} isFlipped={isFlipped} />;
+                    return <Piece3D key={token.id} token={token} isSelected={token.id === props.selectedTokenId} isOpponentSelected={token.id === props.opponentSelectedTokenId} candidates={props.candidatesMap?.get(token.id)} onSquareClick={props.onSquareClick} isDead={isDead} is2DView={!!props.is2DView} isFlipped={isFlipped} />;
                 })}
                 <OrbitControls ref={controlsRef} enablePan={false} minPolarAngle={0} maxPolarAngle={Math.PI / 2.5} minDistance={5} maxDistance={15} autoRotate={props.autoRotate} autoRotateSpeed={1.5} enableRotate={false} />
             </Canvas>

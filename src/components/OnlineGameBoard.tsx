@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useBoardPreferences } from '../hooks/useBoardPreferences';
 import { useSocket } from '../lib/SocketContext';
 import { User, TimeControl } from '../types/game';
 import { Language, dict } from '../locales/dict';
@@ -58,10 +59,26 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
         : initialOnlineRole;
     const prevGameStateRef = useRef<any>(null);
     const [selectedTokenId, setSelectedTokenId] = useState<string | null>(null);
+    const [opponentSelectedId, setOpponentSelectedId] = useState<string | null>(null);
+
+    // Emit selection when it changes
+    useEffect(() => {
+        if (!socket || !roomId) return;
+        socket.emit('piece_selection', { matchId: roomId, pieceId: selectedTokenId });
+    }, [selectedTokenId, socket, roomId]);
+
+    // Listen for opponent selection
+    useEffect(() => {
+        if (!socket) return;
+        const handler = (data: { pieceId: string | null }) => {
+            setOpponentSelectedId(data.pieceId);
+        };
+        socket.on('opponent_selection', handler);
+        return () => { socket.off('opponent_selection', handler); };
+    }, [socket]);
     const [showMoveHints, setShowMoveHints] = useState<boolean>(true);
     const [showRules, setShowRules] = useState(false);
-    const [is2DView, setIs2DView] = useState(false);
-    const [boardDesign, setBoardDesign] = useState<'classic' | 'marble' | 'neon'>('classic');
+    const { is2DView, setIs2DView, boardDesign, setBoardDesign } = useBoardPreferences();
     const [showResignConfirm, setShowResignConfirm] = useState<boolean>(false);
     const [promotionPending, setPromotionPending] = useState<{
         pieceId: number;
@@ -671,6 +688,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
                     isFlipped={isFlipped}
                     onlineRole={onlineRole}
                     selectedTokenId={selectedTokenId}
+                    opponentSelectedTokenId={opponentSelectedId}
                     validMoves={validMoves}
                     moveHistory={[]} 
                     showCheckWarning={false}
@@ -684,6 +702,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
                     isFlipped={isFlipped}
                     onlineRole={onlineRole}
                     selectedTokenId={selectedTokenId}
+                    opponentSelectedTokenId={opponentSelectedId}
                     validMoves={validMoves}
                     moveHistory={[]} 
                     showCheckWarning={false}

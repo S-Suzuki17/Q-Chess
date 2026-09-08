@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useBoardPreferences } from '../hooks/useBoardPreferences';
 import { IdentityPool } from '../lib/IdentityPool';
 import { Token, deduceMoveTypes, isPlayerInCheck } from '../lib/GameEngine';
 import { QuantumPieceUI } from './QuantumPieceUI';
@@ -43,6 +44,7 @@ interface GameBoardProps {
 
 export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, matchMode, opponentId, timeControl = '10m', onHome }: GameBoardProps) {
     const t = { ...dict['en'], ...(dict[lang] || {}) } as any;
+    const { is2DView, setIs2DView, boardDesign, setBoardDesign } = useBoardPreferences();
     const [initialPosition] = useState(createLocalPosition);
     const [pool, setPool] = useState(initialPosition.pool);
     const poolRef = useRef<IdentityPool>(pool);
@@ -66,8 +68,6 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
     const [cpuRetry, setCpuRetry] = useState(0);
     const [cpuFailed, setCpuFailed] = useState(false);
     const [currentTurn, setCurrentTurn] = useState<'white' | 'black'>('white');
-    const [is2DView, setIs2DView] = useState(false);
-    const [boardDesign, setBoardDesign] = useState<'classic' | 'marble' | 'neon'>('classic');
     const [hintMove, setHintMove] = useState<{fromRow: number, fromCol: number, toRow: number, toCol: number} | null>(null);
     const [isRequestingHint, setIsRequestingHint] = useState(false);
     
