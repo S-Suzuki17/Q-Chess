@@ -79,6 +79,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
     const [showMoveHints, setShowMoveHints] = useState<boolean>(true);
     const [showRules, setShowRules] = useState(false);
     const { is2DView, setIs2DView, boardDesign, setBoardDesign } = useBoardPreferences();
+    const [showHomeConfirm, setShowHomeConfirm] = useState(false);
     const [showResignConfirm, setShowResignConfirm] = useState<boolean>(false);
     const [promotionPending, setPromotionPending] = useState<{
         pieceId: number;
@@ -555,23 +556,24 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
             {/* Board controls */}
             <div className="flex items-center gap-2">
                 
-                <button aria-label={t.home} onClick={onHome} className="w-10 h-10 md:w-12 md:h-12 bg-black/60 rounded-lg flex items-center justify-center border border-[#B39A62]/50 hover:bg-black/80 transition-all text-gray-300">
+                <button aria-label={t.home} onClick={() => setShowHomeConfirm(true)} className="w-10 h-10 md:w-12 md:h-12 bg-black/60 rounded-lg flex items-center justify-center border border-[#B39A62]/50 hover:bg-black/80 transition-all text-gray-300">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
                 </button>
                 <button aria-label={is2DView ? '3D' : '2D'} aria-pressed={is2DView} onClick={() => setIs2DView(!is2DView)} className={`w-10 h-10 md:w-12 md:h-12 rounded-lg flex items-center justify-center border transition-all text-gray-300 font-bold ${is2DView ? 'bg-[#B39A62]/80 border-white text-white' : 'bg-black/60 border-[#B39A62]/50 hover:bg-black/80'}`}>
                     {is2DView ? '3D' : '2D'}
                 </button>
-            </div>
-
-            {/* RIGHT SIDEBAR BUTTONS */}
-            <div className="flex items-center gap-2">
-                <button aria-label={lang === 'ja' ? '盤面のデザインを変更' : 'Change board theme'} onClick={() => {
+<button aria-label={lang === 'ja' ? '盤面のデザインを変更' : 'Change board theme'} onClick={() => {
                     const themes: ('classic'|'marble'|'neon')[] = ['classic', 'marble', 'neon'];
                     const next = themes[(themes.indexOf(boardDesign) + 1) % themes.length];
                     setBoardDesign(next);
                 }} className="w-10 h-10 md:w-12 md:h-12 bg-black/60 rounded-lg flex items-center justify-center border border-[#B39A62]/50 hover:bg-black/80 transition-all text-gray-300">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 19l7-7 3 3-7 7-3-3z"></path><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path><path d="M2 2l7.586 7.586"></path><circle cx="11" cy="11" r="2"></circle></svg>
                 </button>
+            </div>
+
+            {/* RIGHT SIDEBAR BUTTONS */}
+            <div className="flex items-center gap-2">
+                
             </div>
             </div>
 
@@ -938,6 +940,33 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
                     )}
                 </div>
             )}
-        </div>
+        
+            {showHomeConfirm && (
+                <div className="absolute inset-0 bg-black/80 z-50 flex flex-col items-center justify-center p-6">
+                    <div className="bg-[#2A2621] border-2 border-[#D4B872]/30 rounded-xl p-8 max-w-md w-full text-center relative shadow-2xl animate-stamp">
+                        <h2 className="text-[#B39A62] text-xl font-bold mb-4">
+                            {lang === 'ja' ? 'ホームに戻りますか？' : 'Return to Home?'}
+                        </h2>
+                        <p className="text-[#E8E2D7]/80 mb-8 text-sm">
+                            {lang === 'ja' ? '進行中のゲームデータは失われる可能性があります。' : 'Any unsaved progress may be lost.'}
+                        </p>
+                        <div className="flex gap-4">
+                            <button
+                                onClick={() => setShowHomeConfirm(false)}
+                                className="flex-1 px-4 py-3 bg-[#11100E] hover:bg-[#191714] border border-[#D4B872]/50 text-[#E8E2D7] font-bold rounded-lg transition-colors"
+                            >
+                                {lang === 'ja' ? 'キャンセル' : 'Cancel'}
+                            </button>
+                            <button
+                                onClick={onHome}
+                                className="flex-1 px-4 py-3 bg-red-900/60 hover:bg-red-800/80 border border-red-500/50 text-white font-bold rounded-lg transition-colors"
+                            >
+                                {lang === 'ja' ? '戻る' : 'Exit'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+    </div>
     );
 }
