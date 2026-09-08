@@ -179,8 +179,8 @@ export function InteractiveTutorial({ lang, onClose }: Props) {
                 <button onClick={onClose} className="absolute top-4 right-4 text-gray-500 hover:text-white text-2xl font-bold z-50">×</button>
                 
                 {/* Left: Board Demo */}
-                <div className="w-full md:w-1/2 p-0 bg-[#0b0c10] flex items-center justify-center relative min-h-[300px]">
-                    <div className="w-full h-full min-h-[300px] md:min-h-full">
+                <div className="w-full md:w-1/2 p-0 bg-[#0b0c10] flex items-center justify-center relative aspect-square md:aspect-auto md:min-h-full">
+                    <div className="w-full h-full md:min-h-full">
                         <Board3D 
                             tokens={pieces.filter(p => !p.isCaptured).map(p => ({
                                 id: p.id,

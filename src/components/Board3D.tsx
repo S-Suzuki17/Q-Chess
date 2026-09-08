@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useMemo, useEffect } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, useGLTF, Text, Float, Billboard, Environment } from '@react-three/drei';
 import * as THREE from 'three';
 import { Token } from '../lib/GameEngine';
@@ -265,6 +265,24 @@ const BoardSquares = ({ validMoves, moveHistory, onSquareClick, isEnemySelected 
     return <group>{squares}</group>;
 };
 
+
+const ResponsiveCamera = () => {
+    const { camera, size } = useThree();
+    React.useEffect(() => {
+        const aspect = size.width / size.height;
+        if (aspect < 1) {
+            const rad45 = THREE.MathUtils.degToRad(45);
+            const tan45Half = Math.tan(rad45 / 2);
+            const newFovRad = 2 * Math.atan(tan45Half / aspect);
+            (camera as THREE.PerspectiveCamera).fov = THREE.MathUtils.radToDeg(newFovRad);
+        } else {
+            (camera as THREE.PerspectiveCamera).fov = 45;
+        }
+        camera.updateProjectionMatrix();
+    }, [camera, size]);
+    return null;
+};
+
 export interface Board3DProps {
     isFlipped?: boolean;
     tokens: Token[];
@@ -311,6 +329,7 @@ export const Board3D: React.FC<Board3DProps> = (props) => {
     return (
         <div className="w-full h-full rounded-lg overflow-hidden border-2 sm:border-4 border-[#3a2518] shadow-2xl relative group" style={{ background: 'radial-gradient(circle at 50% 50%, #4a3424 0%, #1a100b 100%)', touchAction: 'none' }}>
             <Canvas shadows camera={{ position: isFlipped ? [0, 8, -6] : [0, 8, 6], fov: 45 }}>
+                <ResponsiveCamera />
                 <ambientLight intensity={0.5} />
                 <Environment preset="sunset" />
                 <directionalLight position={[5, 10, 5]} intensity={1.2} castShadow shadow-mapSize-width={2048} shadow-mapSize-height={2048} />
