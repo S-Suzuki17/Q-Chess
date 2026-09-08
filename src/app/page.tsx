@@ -1,4 +1,5 @@
 'use client';
+import { ModalCloseButton } from '../components/ModalCloseButton';
 import { SocketProvider, useSocket } from '../lib/SocketContext';
 
 import React, { useState, useEffect } from 'react';
@@ -43,6 +44,7 @@ function MatchmakingManager({ user, onMatchFound, isSearchingGlobally, cancelSea
 
     return (
         <div className="fixed inset-0 bg-[#11100E]/95 z-[100] flex flex-col items-center justify-center p-4 backdrop-blur-sm">
+            {!matchedRoom && <ModalCloseButton onClose={() => { cancelMatchmaking(); cancelSearchGlobally(); }} />}
             <div className="bg-[#161513] border border-[#B39A62]/30 p-8 w-full max-w-sm text-center shadow-[0_0_40px_rgba(179,154,98,0.1)] rounded-xl">
                 {matchedRoom ? (
                     <>
@@ -305,7 +307,7 @@ export default function Home() {
                     <div className="bg-[#2A2621] border border-[#4A4238] rounded-xl p-8 w-full max-w-md shadow-2xl font-sans max-h-[90vh] overflow-y-auto">
                         <div className="flex justify-between items-center mb-8">
                             <h2 className="text-2xl font-serif text-[#D4B872]">⚙️ {dict[lang]?.settings || 'SETTINGS'}</h2>
-                            <button onClick={() => setShowSettings(false)} className="text-gray-400 hover:text-white text-xl">✕</button>
+                            <ModalCloseButton lang={lang} onClose={() => setShowSettings(false)} />
                         </div>
                         
                         <div className="flex flex-col gap-6">

@@ -1,4 +1,5 @@
 'use client';
+import { ModalCloseButton } from './ModalCloseButton';
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useSocket } from '../lib/SocketContext';
@@ -704,6 +705,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
             {/* Resign Confirmation Modal */}
             {castlingPending && (
                 <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+                    <ModalCloseButton lang={lang} onClose={() => { setCastlingPending(null); setSelectedTokenId(null); }} />
                     <div role="dialog" aria-modal="true" aria-label={lang === 'ja' ? '移動方法を選択' : 'Choose move type'} className="bg-[#161513] border border-[#B39A62]/30 p-6 rounded-lg max-w-sm w-full text-center">
                         <p className="text-[#E8E2D7] mb-4">{lang === 'ja' ? '通常移動かキャスリングを選んでください。' : 'Choose a normal move or castling.'}</p>
                         {(['normal', 'castle'] as const).map(intention => (
@@ -732,6 +734,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
             {/* Promotion Modal */}
             {promotionPending && (
                 <div className="fixed inset-0 z-50 bg-black/80 flex flex-col items-center justify-center p-4">
+                    <ModalCloseButton lang={lang} onClose={() => { setPromotionPending(null); setSelectedTokenId(null); }} />
                     <div className="bg-[#161513] border border-[#B39A62]/30 p-8 rounded-lg max-w-sm w-full text-center shadow-2xl">
                         <h3 className="text-xl tracking-[0.2em] font-serif text-[#E8E2D7] mb-2">{lang === 'ja' ? 'プロモーション' : 'Promotion'}</h3>
                         <p className="text-[#A89C86] text-xs tracking-widest mb-6 font-serif">{lang === 'ja' ? 'どの駒に昇格しますか？' : 'Choose a piece to promote to:'}</p>
@@ -782,6 +785,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
             
             {showResignConfirm && (
                 <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 backdrop-blur-sm animate-fade-in">
+                    <ModalCloseButton lang={lang} onClose={() => setShowResignConfirm(false)} />
                     <div className="bg-[#161513] border border-[#B39A62]/30 rounded-xl p-8 max-w-sm w-full shadow-2xl flex flex-col items-center text-center">
                         <span className="text-4xl mb-3">🏳️</span>
                         <h3 className="text-lg font-bold text-[#E8E2D7] mb-2">
@@ -814,6 +818,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
             {/* Rules Modal */}
             {showRules && (
                 <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 backdrop-blur-sm animate-fade-in">
+                    <ModalCloseButton lang={lang} onClose={() => setShowRules(false)} />
                     <div className="bg-[#161513] border border-[#B39A62]/30 rounded-xl p-8 max-w-md w-full shadow-2xl flex flex-col gap-4 text-center">
                         <h3 className="text-xl font-bold text-[#E8E2D7] tracking-widest uppercase">
                             {lang === 'ja' ? '遊び方' : 'How to Play'}

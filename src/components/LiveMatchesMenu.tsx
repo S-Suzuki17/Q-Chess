@@ -1,4 +1,5 @@
 'use client';
+import { ModalCloseButton } from './ModalCloseButton';
 import React, { useState, useEffect } from 'react';
 import { ActiveMatch, getActiveMatches, Profile, ensureProfile } from '../lib/gameRecordService';
 import { dict, Language } from '../locales/dict';
@@ -45,13 +46,14 @@ export function LiveMatchesMenu({ lang, onClose, onSpectate }: LiveMatchesMenuPr
 
     return (
         <div className="fixed inset-0 bg-black/90 z-50 flex flex-col items-center justify-center p-4">
+            <ModalCloseButton lang={lang} onClose={onClose} />
             <div className="bg-[#11100E] border border-[#B39A62]/30 p-6 rounded-lg max-w-md w-full shadow-2xl max-h-[80vh] overflow-y-auto">
                 <div className="flex justify-between items-center mb-6">
                     <h3 className="text-2xl font-bold text-[#E8E2D7] font-serif tracking-widest flex items-center gap-2">
                         <span className="w-3 h-3 bg-[#B39A62] rounded-full animate-pulse"></span>
                         Live Matches
                     </h3>
-                    <button onClick={onClose} className="text-[#A89C86] hover:text-[#E8E2D7]">✕</button>
+
                 </div>
 
                 {loading && matches.length === 0 ? (

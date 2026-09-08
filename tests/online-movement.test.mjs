@@ -44,7 +44,7 @@ for (const [role, team, row, target] of [['white', 0, 1, 2], ['black', 1, 6, 5]]
     const h = hooks(); const sent = []; const Board = () => {};
     const socket = {emit: (...args) => sent.push(args)};
     const Component = load('src/components/OnlineGameBoard.tsx', {
-      react: h.React, '../lib/SocketContext': {useSocket: () => ({socket, isConnected: true})},
+      react: h.React, './ModalCloseButton': {ModalCloseButton: () => {}}, '../lib/SocketContext': {useSocket: () => ({socket, isConnected: true})},
       '../locales/dict': {dict: {en: {}, ja: {}}}, './QuantumPieceUI': {QuantumPieceUI: () => {}}, './Board3D': {Board3D: Board}, './AdBanner': {AdBanner: () => {}},
       uuid: {v4: () => 'test-action'}, '../lib/GameEngine': {deduceMoveTypes: () => []}, '../lib/supabaseClient': {supabase: {}},
     }).default;

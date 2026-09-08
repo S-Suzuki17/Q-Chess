@@ -1,4 +1,5 @@
 'use client';
+import { ModalCloseButton } from './ModalCloseButton';
 import { useMatchmaking } from '../hooks/useMatchmaking';
 import { useSocket } from '../lib/SocketContext';
 import { AdBanner } from './AdBanner';
@@ -305,10 +306,11 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
             {/* Play Menu Modal */}
             {showPlayMenu && (
                 <div className="fixed inset-0 bg-[#161513]/95 z-[60] flex flex-col justify-end md:justify-center p-4 md:p-0 backdrop-blur-sm animate-in fade-in duration-200">
+                    <ModalCloseButton lang={lang} onClose={() => setShowPlayMenu(false)} />
                     <div className="w-full max-w-md mx-auto bg-[#161513] border border-[#A89C86]/40 p-6 flex flex-col shadow-2xl">
                         <div className="flex justify-between items-center border-b border-[#A89C86]/20 pb-4 mb-4 shrink-0">
                             <span className="text-sm tracking-[0.2em] text-[#E8E2D7] font-serif uppercase">{(t as any).chooseGame}</span>
-                            <button onClick={() => setShowPlayMenu(false)} className="text-[#A89C86] hover:text-[#E8E2D7] text-xl transition-colors">✕</button>
+
                         </div>
                         
                         <div className="flex flex-col gap-0 overflow-y-auto">
@@ -362,6 +364,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
             {/* Existing Overlays (Time Control, Account, Replays, Leaderboard, Friends, Live, Ad) */}
             {pendingAction && (
                 <div className="fixed inset-0 bg-[#161513]/95 z-50 flex flex-col items-center justify-center p-4 backdrop-blur-sm">
+                    <ModalCloseButton lang={lang} onClose={() => setPendingAction(null)} />
                     <div className="bg-[#161513] border border-[#A89C86]/40 p-8 w-full max-w-sm text-center shadow-2xl">
                         {pendingAction.type === 'cpu' && (
                             <fieldset className="mb-6">
@@ -413,10 +416,11 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
 
             {showAccount && (
                 <div className="fixed inset-0 bg-[#161513]/95 z-50 flex flex-col items-center justify-center p-4 backdrop-blur-sm">
+                    <ModalCloseButton lang={lang} onClose={() => setShowAccount(false)} />
                     <div className="bg-[#161513] border border-[#A89C86]/40 p-6 md:p-8 w-full max-w-md shadow-2xl max-h-[90vh] overflow-y-auto custom-scrollbar">
                         <div className="flex justify-between items-center mb-6 pb-4 border-b border-[#A89C86]/20">
                             <h3 className="text-lg tracking-[0.2em] text-[#E8E2D7] font-serif">{(t as any).account}</h3>
-                            <button onClick={() => setShowAccount(false)} className="text-[#A89C86] hover:text-[#E8E2D7] text-xl">✕</button>
+
                         </div>
                         
                         <div className="flex flex-col gap-6 text-left">
@@ -487,10 +491,11 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
 
             {showReplays && (
                 <div className="fixed inset-0 bg-[#161513]/95 z-50 flex flex-col p-4 md:p-8 backdrop-blur-md">
+                    <ModalCloseButton lang={lang} onClose={() => setShowReplays(false)} />
                     <div className="w-full max-w-2xl mx-auto h-full flex flex-col">
                         <div className="flex justify-between items-center mb-6 pb-4 border-b border-[#A89C86]/20 shrink-0">
                             <h3 className="text-xl tracking-[0.2em] text-[#E8E2D7] font-serif">{t.watchReplays}</h3>
-                            <button onClick={() => setShowReplays(false)} className="text-[#A89C86] hover:text-[#E8E2D7] text-2xl">✕</button>
+
                         </div>
                         
                         <div className="flex gap-2 mb-6 shrink-0">
@@ -527,10 +532,11 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
 
             {showLeaderboard && (
                 <div className="fixed inset-0 bg-[#161513]/95 z-50 flex flex-col p-4 md:p-8 backdrop-blur-md">
+                    <ModalCloseButton lang={lang} onClose={() => setShowLeaderboard(false)} />
                     <div className="w-full max-w-2xl mx-auto h-full flex flex-col">
                         <div className="flex justify-between items-center mb-6 pb-4 border-b border-[#A89C86]/20 shrink-0">
                             <h3 className="text-xl tracking-[0.2em] text-[#E8E2D7] font-serif">{t.globalRankings}</h3>
-                            <button onClick={() => setShowLeaderboard(false)} className="text-[#A89C86] hover:text-[#E8E2D7] text-2xl">✕</button>
+
                         </div>
                         <div className="flex gap-2 mb-6 shrink-0">
                             {[ { id: '10s', label: t.lb10s }, { id: '3m', label: t.lb3m }, { id: '10m', label: t.lb10m } ].map(tab => (
