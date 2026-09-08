@@ -2,9 +2,10 @@
 
 import React, { useMemo, useEffect } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { OrbitControls, useGLTF, Text, Float, Billboard, Environment } from '@react-three/drei';
+import { OrbitControls, useGLTF, Text, Float, Billboard, Environment, Html } from '@react-three/drei';
 import * as THREE from 'three';
 import { Token } from '../lib/GameEngine';
+import { QuantumPieceUI } from './QuantumPieceUI';
 import { PieceType } from '../config/gameConfig';
 
 const MODEL_PATHS: Record<PieceType, string> = {
@@ -150,7 +151,7 @@ const RealisticPiece = ({ type, isWhite, isHologram = false }: { type: PieceType
     return <primitive object={clone} position={[0, 0, 0]} rotation={[0, rotY, 0]} />;
 };
 
-const Piece3D = ({ token, isSelected, candidates, onSquareClick, isDead = false }: { token: Token, isSelected: boolean, candidates?: ReadonlySet<PieceType>, onSquareClick: (r:number, c:number) => void, isDead?: boolean }) => {
+const Piece3D = ({ token, isSelected, candidates, onSquareClick, isDead = false, is2DView = false, isFlipped = false }: { token: Token, isSelected: boolean, candidates?: ReadonlySet<PieceType>, onSquareClick: (r:number, c:number) => void, isDead?: boolean, is2DView?: boolean, isFlipped?: boolean }) => {
     const possibleTypes = (Object.keys(token.probabilities) as PieceType[]).filter(t => candidates ? candidates.has(t) : token.probabilities[t as PieceType] > 0);
     const confirmedType = token.promotedTo ? token.promotedTo : (possibleTypes.length === 1 ? possibleTypes[0] : null);
     const isWhite = token.player === 'white';
@@ -222,10 +223,32 @@ const Piece3D = ({ token, isSelected, candidates, onSquareClick, isDead = false 
                 </mesh>
             )}
             
-            {confirmedType ? (
-                <RealisticPiece type={confirmedType} isWhite={isWhite} />
+            {is2DView ? (
+                <Billboard follow={true} lockX={false} lockY={false} lockZ={false} position={[0, 0.1, 0]}>
+                    <group scale={[0.035, 0.035, 0.035]}>
+                        <Html transform distanceFactor={10} zIndexRange={[100, 0]} pointerEvents="none" center>
+                            <div style={{ pointerEvents: 'none', transform: 'none' }}>
+                                <QuantumPieceUI 
+                                    id={token.id} 
+                                    player={token.player} 
+                                    probabilities={token.probabilities} 
+                                    candidates={candidates} 
+                                    isSelected={false} 
+                                    onClick={() => {}} 
+                                    promotedTo={token.promotedTo} 
+                                />
+                            </div>
+                        </Html>
+                    </group>
+                </Billboard>
             ) : (
-                <QuantumBlock isWhite={isWhite} probabilities={token.probabilities} candidates={candidates} />
+                <>
+                {confirmedType ? (
+                    <RealisticPiece type={confirmedType} isWhite={isWhite} />
+                ) : (
+                    <QuantumBlock isWhite={isWhite} probabilities={token.probabilities} candidates={candidates} />
+                )}
+                </>
             )}
         </group>
     );
@@ -269,10 +292,16 @@ const BoardSquares = ({ validMoves, moveHistory, onSquareClick, isEnemySelected,
                             <meshBasicMaterial color={isEnemySelected ? "#ff4444" : "#D4B872"} transparent opacity={isEnemySelected ? 0.7 : 0.5} />
                         </mesh>
                     )}
-                    {(isHintTo || isHintFrom) && (
+                    {isHintFrom && (
                         <mesh position={[0, 0.07, 0]} rotation={[-Math.PI/2, 0, 0]}>
                             <ringGeometry args={[0.35, 0.45, 32]} />
-                            <meshBasicMaterial color="#00ff00" transparent opacity={0.8} />
+                            <meshBasicMaterial color="#3b82f6" transparent opacity={0.8} />
+                        </mesh>
+                    )}
+                    {isHintTo && (
+                        <mesh position={[0, 0.07, 0]} rotation={[-Math.PI/2, 0, 0]}>
+                            <ringGeometry args={[0.35, 0.45, 32]} />
+                            <meshBasicMaterial color="#22c55e" transparent opacity={0.8} />
                         </mesh>
                     )}
                 </group>
@@ -381,7 +410,7 @@ export const Board3D: React.FC<Board3DProps> = (props) => {
                 <BoardSquares validMoves={props.showMoveHints ? props.validMoves : []} moveHistory={props.moveHistory} onSquareClick={props.onSquareClick} isEnemySelected={isEnemySelected} boardDesign={props.boardDesign} hintMove={props.hintMove} />
                 {allTokensToRender.map(token => {
                     const isDead = deadTokens.some(d => d.id === token.id);
-                    return <Piece3D key={token.id} token={token} isSelected={token.id === props.selectedTokenId} candidates={props.candidatesMap?.get(token.id)} onSquareClick={props.onSquareClick} isDead={isDead} />;
+                    return <Piece3D key={token.id} token={token} isSelected={token.id === props.selectedTokenId} candidates={props.candidatesMap?.get(token.id)} onSquareClick={props.onSquareClick} isDead={isDead} is2DView={!!props.is2DView} isFlipped={!!props.isFlipped} />;
                 })}
                 <OrbitControls ref={controlsRef} enablePan={false} minPolarAngle={0} maxPolarAngle={Math.PI / 2.5} minDistance={5} maxDistance={15} autoRotate={props.autoRotate} autoRotateSpeed={1.5} enableRotate={false} />
             </Canvas>

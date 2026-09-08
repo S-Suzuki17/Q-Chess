@@ -731,7 +731,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
                 }} className="w-10 h-10 md:w-12 md:h-12 bg-black/60 rounded-lg flex items-center justify-center border border-[#B39A62]/50 hover:bg-black/80 transition-all text-gray-300">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 19l7-7 3 3-7 7-3-3z"></path><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path><path d="M2 2l7.586 7.586"></path><circle cx="11" cy="11" r="2"></circle></svg>
                 </button>
-                {!roomId && (
+                {!roomId && cpuLevel !== undefined && cpuLevel > 0 && (
                     <button onClick={requestHint} disabled={isRequestingHint || currentTurn !== myRole || !!winner} className={`w-10 h-10 md:w-12 md:h-12 rounded-lg flex items-center justify-center border transition-all text-gray-300 ${isRequestingHint ? 'bg-yellow-900/80 animate-pulse border-yellow-500' : 'bg-black/60 border-[#B39A62]/50 hover:bg-black/80'} ${(isRequestingHint || currentTurn !== myRole || !!winner) ? 'opacity-50 cursor-not-allowed' : ''}`}>
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill={hintMove ? "#eab308" : "none"} stroke={hintMove ? "#eab308" : "currentColor"} strokeWidth="2"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2"></path><path d="M12 20v2"></path><path d="M4 12H2"></path><path d="M22 12h-2"></path><path d="M19.07 4.93l-1.41 1.41"></path><path d="M6.34 17.66l-1.41 1.41"></path><path d="M19.07 19.07l-1.41-1.41"></path><path d="M6.34 6.34l-1.41 1.41"></path></svg>
                     </button>
