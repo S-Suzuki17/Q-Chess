@@ -478,9 +478,9 @@ const BackgroundEffects = ({ design }: { design: 'classic' | 'marble' | 'neon' }
                     <Sparkles count={300} scale={30} size={2} speed={0.2} opacity={0.15} color="#ffe8d6" />
                     
                     {/* Lighting */}
-                    <ambientLight intensity={1.5} />
-                    <spotLight position={[0, 25, 0]} intensity={4.5} color="#ffedd5" penumbra={0.8} angle={0.6} castShadow shadow-mapSize={[2048, 2048]} shadow-bias={-0.0001} />
-                    <spotLight position={[15, 15, 15]} intensity={2.5} color="#d4a373" angle={0.8} penumbra={1} />
+                    <ambientLight intensity={0.6} />
+                    <spotLight position={[0, 25, 0]} intensity={3.5} color="#ffedd5" penumbra={0.8} angle={0.6} castShadow shadow-mapSize={[2048, 2048]} shadow-bias={-0.0001} />
+                    <spotLight position={[15, 15, 15]} intensity={1.5} color="#d4a373" angle={0.8} penumbra={1} />
                 </group>
             );
     }
@@ -509,7 +509,7 @@ const ResponsiveCamera = ({ isFlipped, is2DView }: { isFlipped: boolean, is2DVie
         // Handle 2D / 3D position transitions
         const targetPos = is2DView 
             ? new THREE.Vector3(0, 15, isFlipped ? -0.1 : 0.1) // 0.1 offset to define 'up' direction easily
-            : new THREE.Vector3(0, 8, isFlipped ? -6 : 6);
+            : new THREE.Vector3(0, 11, isFlipped ? -4.5 : 4.5);
             
         if (pCam.position.distanceTo(targetPos) > 0.1) {
             pCam.position.lerp(targetPos, 0.1);
