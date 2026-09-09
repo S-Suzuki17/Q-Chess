@@ -300,7 +300,7 @@ export default function Home() {
             />
             <SpeedInsights />
         <main className="fixed inset-0 flex flex-col items-center justify-between bg-[#11100E] text-[#E8E2D7] font-sans overflow-hidden">
-            <div className="z-10 w-full max-w-5xl flex items-center justify-between text-sm mb-4">
+            <div className="relative z-40 w-full max-w-5xl flex items-center justify-between text-sm mb-4">
                 {/* 右上のコントロール群 */}
                 <div className={`fixed right-4 top-4 z-40 flex gap-2 items-center ${showSettings || hideSettingsGlobal || gameState === 'playing' ? 'hidden' : ''}`}>
                     <button 
