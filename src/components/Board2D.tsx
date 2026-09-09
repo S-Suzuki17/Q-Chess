@@ -63,7 +63,7 @@ export function Board2D({
                     const isHintTo = hintMove && hintMove.toRow === row && hintMove.toCol === col;
                     const isHintFrom = hintMove && hintMove.fromRow === row && hintMove.fromCol === col;
 
-                    let bgClass = isDark ? 'bg-[#5c3e29]' : 'bg-[#d4c0a5]'; // chic classic
+                    let bgClass = isDark ? 'bg-[#b58863]' : 'bg-[#f0d9b5]'; // improved contrast
                     if (boardDesign === 'marble') bgClass = isDark ? 'bg-[#54636e]' : 'bg-[#c7cfd1]';
                     if (boardDesign === 'neon') bgClass = isDark ? 'bg-[#6a00ff]' : 'bg-[#00e5ff]'; // visible contrast
 

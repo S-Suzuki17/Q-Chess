@@ -280,7 +280,7 @@ const BoardSquares = ({ validMoves, moveHistory, onSquareClick, isEnemySelected,
             const z = r - 3.5;
             
             const isMoveCandidate = validMoves.some((m: any) => m.r === r && m.c === c);
-                        let color = isLight ? '#d4c0a5' : '#5c3e29';
+                        let color = isLight ? '#f0d9b5' : '#b58863';
             let metalness = 0.1;
             let roughness = 0.4;
             let emissive = '#000000';
@@ -478,9 +478,9 @@ const BackgroundEffects = ({ design }: { design: 'classic' | 'marble' | 'neon' }
                     <Sparkles count={300} scale={30} size={2} speed={0.2} opacity={0.15} color="#ffe8d6" />
                     
                     {/* Lighting */}
-                    <ambientLight intensity={0.5} />
-                    <spotLight position={[0, 25, 0]} intensity={3.5} color="#ffedd5" penumbra={0.8} angle={0.6} castShadow shadow-mapSize={[2048, 2048]} shadow-bias={-0.0001} />
-                    <spotLight position={[15, 15, 15]} intensity={1.5} color="#d4a373" angle={0.8} penumbra={1} />
+                    <ambientLight intensity={1.5} />
+                    <spotLight position={[0, 25, 0]} intensity={4.5} color="#ffedd5" penumbra={0.8} angle={0.6} castShadow shadow-mapSize={[2048, 2048]} shadow-bias={-0.0001} />
+                    <spotLight position={[15, 15, 15]} intensity={2.5} color="#d4a373" angle={0.8} penumbra={1} />
                 </group>
             );
     }
