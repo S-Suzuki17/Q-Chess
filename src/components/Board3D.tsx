@@ -2,11 +2,17 @@
 
 import React, { useMemo, useEffect } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { Backdrop, OrbitControls, OrthographicCamera, ContactShadows, useGLTF, Text, Float, Billboard, Environment, Html, Stars, Sky, Sparkles, Cloud } from '@react-three/drei';
+import { OrbitControls, OrthographicCamera, useGLTF, Billboard, Html } from '@react-three/drei';
 import * as THREE from 'three';
 import { Token } from '../lib/GameEngine';
 import { QuantumPieceUI } from './QuantumPieceUI';
 import { PieceType } from '../config/gameConfig';
+import type { MoveRecord } from '../lib/gameRecordService';
+import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
+import { BOARD_HEIGHTS, BOARD_THEMES, boardCamera, hintArrowPoints, squareName, type HintMove } from './boardPresentation';
+import './board-3d.css';
+import { BoardAtmosphere } from './BoardAtmosphere';
+const ignoreRaycast = () => {};
 
 const MODEL_PATHS: Record<PieceType, string> = {
     Pawn: '/models/pawn.glb',
@@ -21,74 +27,43 @@ if (typeof window !== 'undefined') {
     Object.values(MODEL_PATHS).forEach(path => useGLTF.preload(path));
 }
 
-const FloatingMiniPiece = ({ type, isWhite, position, quiet = false }: { type: PieceType, isWhite: boolean, position: [number, number, number], quiet?: boolean }) => {
-    const ref = React.useRef<THREE.Group>(null);
-    useFrame((state, delta) => {
-        if (ref.current && !quiet) ref.current.rotation.y += delta * 0.8;
-    });
-    return (
-        <group ref={ref} position={position} scale={quiet ? 0.25 : 0.35}>
-            <RealisticPiece type={type} isWhite={isWhite} isHologram={false} quiet={quiet} />
-        </group>
-    );
-};
-
-
-
-const QuantumBlock = ({ isWhite, probabilities, candidates, quiet = false }: { isWhite: boolean, probabilities: any, candidates?: ReadonlySet<PieceType>, quiet?: boolean }) => {
-    const types: PieceType[] = ['King', 'Queen', 'Rook', 'Bishop', 'Knight', 'Pawn'];
-    const activeTypes = types.filter(t => candidates ? candidates.has(t) : probabilities[t as PieceType] > 0);
-    const count = activeTypes.length;
-
-    // Slowly rotate the entire planetary orbit
-    const orbitRef = React.useRef<THREE.Group>(null);
-    useFrame((state, delta) => {
-        if (orbitRef.current) {
-            orbitRef.current.rotation.y += delta * 0.4;
+const QuantumBlock = ({ isWhite, probabilities, candidates, motion = false, phase = 0 }: { isWhite: boolean; probabilities: Token['probabilities']; candidates?: ReadonlySet<PieceType>; quiet?: boolean; motion?: boolean; phase?: number }) => {
+    const types: PieceType[] = ['King','Queen','Rook','Bishop','Knight','Pawn'];
+    const active = types.filter(type => candidates?.has(type) ?? probabilities[type] > 0);
+    const rows = Math.ceil(active.length / 3);
+    const floating = React.useRef<THREE.Group>(null);
+    const orbit = React.useRef<THREE.Group>(null);
+    useFrame(({clock}) => {
+        const time = clock.elapsedTime + phase;
+        if (floating.current) {
+            floating.current.position.y = motion ? .025 + Math.sin(time*1.4)*.02 : 0;
+            floating.current.rotation.x = motion ? Math.sin(time*.7)*.018 : 0;
+            floating.current.rotation.z = motion ? Math.cos(time*.8)*.018 : 0;
+        }
+        if (orbit.current) {
+            orbit.current.position.y = motion ? Math.sin(time*1.1)*.035 : 0;
+            orbit.current.rotation.y = motion ? time*.18 : 0;
         }
     });
-
-    if (quiet) return <group>
-        <mesh castShadow receiveShadow position={[0, 0.08, 0]}>
-            <cylinderGeometry args={[0.38, 0.41, 0.16, 40]} />
-            <meshStandardMaterial color={isWhite ? '#E8E2D7' : '#293126'} roughness={0.4} />
+    return <group ref={floating}>
+        <mesh castShadow receiveShadow position={[0,.085,0]}>
+            <cylinderGeometry args={[.385,.415,.17,32]}/>
+            <meshStandardMaterial color={isWhite ? '#ebdfc5' : '#202c3d'} roughness={.55}/>
         </mesh>
-        <mesh position={[0, 0.163, 0]} rotation={[-Math.PI/2, 0, 0]}>
-            <ringGeometry args={[0.35, 0.372, 40]} />
-            <meshStandardMaterial color={isWhite ? '#b3ab96' : '#839076'} roughness={0.5} />
+        <mesh position={[0,.173,0]} rotation={[-Math.PI/2,0,0]}>
+            <circleGeometry args={[.346,32]}/><meshStandardMaterial color={isWhite ? '#56625b' : '#acb8c3'} roughness={.8}/>
         </mesh>
-        {activeTypes.map((type, i) => <FloatingMiniPiece key={type} type={type} isWhite={isWhite} quiet position={[(i % 3 - (Math.min(count,3)-1)/2)*0.23, 0.17, count > 3 ? (i < 3 ? -0.17 : 0.17) : 0]} />)}
+        <mesh position={[0,.177,0]} rotation={[-Math.PI/2,0,0]}>
+            <ringGeometry args={[.356,.383,32]}/><meshBasicMaterial color={isWhite ? '#f7edda' : '#445979'}/>
+        </mesh>
+        <group ref={orbit}>{active.map((type,i) => {
+            const row = Math.floor(i/3), columns = Math.min(3,active.length - row*3);
+            const angle=i/active.length*Math.PI*2;
+            return <group key={type} position={motion ? [Math.cos(angle)*.26,.22,Math.sin(angle)*.26] : [(i%3-(columns-1)/2)*.235,.18,(row-(rows-1)/2)*.3]} scale={.28}>
+                <RealisticPiece type={type} isWhite={isWhite}/>
+            </group>;
+        })}</group>
     </group>;
-
-    return (
-        <group>
-            {/* Core Base */}
-            <Float speed={2} rotationIntensity={0.05} floatIntensity={0.1}>
-                <mesh castShadow receiveShadow position={[0, 0.05, 0]}>
-                    <cylinderGeometry args={[0.35, 0.4, 0.1, 32]} />
-                    <meshStandardMaterial color={isWhite ? '#ffffff' : '#000000'} transparent opacity={0.5} roughness={0.5} />
-                </mesh>
-                <mesh position={[0, 0.105, 0]} rotation={[-Math.PI/2, 0, 0]}>
-                     <ringGeometry args={[0.3, 0.35, 32]} />
-                     <meshBasicMaterial color={isWhite ? '#00e5ff' : '#ff3366'} transparent opacity={0.8} />
-                </mesh>
-            </Float>
-            
-            {/* Flat Planetary Orbit Pieces */}
-            <group ref={orbitRef} position={[0, 0.15, 0]}>
-                {activeTypes.map((t, i) => {
-                    const angle = (i / count) * Math.PI * 2;
-                    const radius = count > 1 ? 0.35 : 0; 
-                    const x = Math.cos(angle) * radius;
-                    const z = Math.sin(angle) * radius;
-                    
-                    return (
-                        <FloatingMiniPiece key={t} type={t} isWhite={isWhite} position={[x, 0, z]} />
-                    );
-                })}
-            </group>
-        </group>
-    );
 };
 
 const RealisticPiece = ({ type, isWhite, isHologram = false, quiet = false }: { type: PieceType, isWhite: boolean, isHologram?: boolean, quiet?: boolean }) => {
@@ -105,7 +80,7 @@ const RealisticPiece = ({ type, isWhite, isHologram = false, quiet = false }: { 
         if (size.y === 0) return c; // safety
         
         const heights: Record<PieceType, number> = {
-            King: 1.4, Queen: 1.3, Bishop: 1.15, Knight: 1.05, Rook: 1.0, Pawn: 0.8
+            King: 1.2, Queen: 1.1, Bishop: 1.0, Knight: 0.94, Rook: 0.85, Pawn: 0.74
         };
         const targetHeight = heights[type];
         
@@ -129,6 +104,7 @@ const RealisticPiece = ({ type, isWhite, isHologram = false, quiet = false }: { 
     }, [scene, type]);
     
     useEffect(() => {
+        const materials: THREE.Material[] = [];
         clone.traverse((child) => {
             if (child instanceof THREE.Mesh) {
                 if (isHologram) {
@@ -145,25 +121,28 @@ const RealisticPiece = ({ type, isWhite, isHologram = false, quiet = false }: { 
                         emissiveIntensity: 0.4
                     });
                     child.material = mat;
+                    materials.push(mat);
                 } else {
                     child.castShadow = true;
                     child.receiveShadow = true;
                     const mat = new THREE.MeshStandardMaterial({
-                        color: isWhite ? '#f4eedb' : quiet ? '#89967d' : '#332924',
-                        roughness: quiet ? 0.45 : 0.2,
+                        color: isWhite ? '#f3e7cc' : '#28364a',
+                        roughness: 0.48,
                         metalness: 0.1
                     });
                     child.material = mat;
+                    materials.push(mat);
                 }
             }
         });
+        return () => materials.forEach(material => material.dispose());
     }, [clone, isWhite, isHologram, quiet]);
 
     const rotY = isWhite ? 0 : Math.PI;
-    return <primitive object={clone} position={[0, 0, 0]} rotation={[0, rotY, 0]} />;
+    return <primitive object={clone} position={[0, 0, 0]} rotation={[0, rotY, 0]} dispose={null} />;
 };
 
-const Piece3D = ({ token, isSelected, isOpponentSelected, candidates, onSquareClick, isDead = false, is2DView = false, isFlipped = false, quiet = false }: { token: Token, isSelected: boolean, isOpponentSelected?: boolean, candidates?: ReadonlySet<PieceType>, onSquareClick: (r:number, c:number) => void, isDead?: boolean, is2DView?: boolean, isFlipped?: boolean, quiet?: boolean }) => {
+const Piece3D = ({ token, isSelected, isOpponentSelected, candidates, onSquareClick, isDead = false, is2DView = false, quiet = false, motion = false }: { token: Token, isSelected: boolean, isOpponentSelected?: boolean, candidates?: ReadonlySet<PieceType>, onSquareClick: (r:number, c:number) => void, isDead?: boolean, is2DView?: boolean, isFlipped?: boolean, quiet?: boolean, motion?: boolean }) => {
     const possibleTypes = (Object.keys(token.probabilities) as PieceType[]).filter(t => candidates ? candidates.has(t) : token.probabilities[t as PieceType] > 0);
     const confirmedType = token.promotedTo ? token.promotedTo : (possibleTypes.length === 1 ? possibleTypes[0] : null);
     const isWhite = token.player === 'white';
@@ -204,7 +183,7 @@ const Piece3D = ({ token, isSelected, isOpponentSelected, candidates, onSquareCl
             currentPos.current.z = THREE.MathUtils.lerp(startPos.current.z, animTarget.current.z, easeT);
             
             // Peak height is 1.5
-            currentPos.current.y = 4 * 1.5 * t * (1 - t);
+            currentPos.current.y = 4 * 0.6 * t * (1 - t);
         } else {
             currentPos.current.copy(animTarget.current);
         }
@@ -229,9 +208,9 @@ const Piece3D = ({ token, isSelected, isOpponentSelected, candidates, onSquareCl
                 liftProgress.current = THREE.MathUtils.lerp(liftProgress.current, 0.0, delta * 10.0);
             }
             // Add a slight hover effect using state.clock.elapsedTime when fully lifted
-            const hover = isSelected ? Math.sin(state.clock.elapsedTime * 4) * 0.05 * liftProgress.current : 0;
+            const hover = 0;
             
-            groupRef.current.position.y += liftProgress.current * 0.4 + hover;
+            groupRef.current.position.y += liftProgress.current * 0.12 + hover;
             groupRef.current.scale.setScalar(1.0);
             groupRef.current.rotation.y = 0;
         }
@@ -275,7 +254,7 @@ const Piece3D = ({ token, isSelected, isOpponentSelected, candidates, onSquareCl
                 {confirmedType ? (
                     <RealisticPiece type={confirmedType} isWhite={isWhite} quiet={quiet} />
                 ) : (
-                    <QuantumBlock isWhite={isWhite} probabilities={token.probabilities} candidates={candidates} quiet={quiet} />
+                    <QuantumBlock isWhite={isWhite} probabilities={token.probabilities} candidates={candidates} quiet={quiet} motion={motion && !isSelected} phase={token.row*.7+token.col*.4} />
                 )}
                 </>
             )}
@@ -283,385 +262,139 @@ const Piece3D = ({ token, isSelected, isOpponentSelected, candidates, onSquareCl
     );
 };
 
-const BoardSquares = ({ validMoves, moveHistory, onSquareClick, isEnemySelected, boardDesign, hintMove, quiet }: any) => {
-    const squares = [];
-    const lastMove = moveHistory.at(-1);
-    for (let r = 0; r < 8; r++) {
-        for (let c = 0; c < 8; c++) {
-            const isLight = (r + c) % 2 === 0;
-            const x = c - 3.5;
-            const z = r - 3.5;
-            
-            const isMoveCandidate = validMoves.some((m: any) => m.r === r && m.c === c);
-            let color = quiet ? (isLight ? '#737c65' : '#343c30') : (isLight ? '#f0d9b5' : '#b58863');
-            let metalness = 0.1;
-            let roughness = 0.4;
-            let emissive = '#000000';
-            let emissiveIntensity = 0;
-            let clearcoat = 0.5;
+function SquareOutline({ color, overlay = false }: { color: string; overlay?: boolean }) {
+    return <group position={[0,BOARD_HEIGHTS.overlay,0]}>
+        {([[-.465,0,.04,.97],[.465,0,.04,.97],[0,-.465,.97,.04],[0,.465,.97,.04]] as const).map(([x,z,w,h],i)=><mesh key={i} raycast={ignoreRaycast} position={[x,0,z]} rotation={[-Math.PI/2,0,0]} renderOrder={overlay ? 1001 : 1}>
+            <planeGeometry args={[w,h]}/><meshBasicMaterial color={color} depthTest={!overlay} depthWrite={false} toneMapped={false}/>
+        </mesh>)}
+    </group>;
+}
 
-            if (boardDesign === 'marble') {
-                color = isLight ? '#f8fafc' : '#64748b';
-                metalness = 0.1;
-                roughness = 0.2;
-                clearcoat = 0.8;
-            } else if (boardDesign === 'neon') {
-                color = isLight ? '#00e5ff' : '#d400ff';
-                metalness = 0.2;
-                roughness = 0.2;
-                emissive = isLight ? '#00e5ff' : '#d400ff';
-                emissiveIntensity = 0.6;
-                clearcoat = 1.0;
-            }
-            
+function BoardSquares({ props, enemySelected }: { props: Board3DProps; enemySelected: boolean }) {
+    const last = props.moveHistory.at(-1), theme = BOARD_THEMES[props.boardDesign ?? 'classic'];
+    return <group>{Array.from({length:64},(_,i)=> {
+        const row=Math.floor(i/8), col=i%8;
+        const token = props.tokens.find(t=>!t.isCaptured && t.row===row && t.col===col);
+        const selected = token && (token.id===props.selectedTokenId || token.id===props.opponentSelectedTokenId);
+        const valid = props.showMoveHints && props.validMoves.some(move=>move.r===row && move.c===col);
+        const lastSquare = last && ((last.from[0]===row && last.from[1]===col) || (last.to[0]===row && last.to[1]===col));
+        return <group key={i} position={[col-3.5,0,row-3.5]} onClick={event=>{event.stopPropagation();props.onSquareClick(row,col);}}>
+            <mesh position={[0,-.05,0]} receiveShadow>
+                <boxGeometry args={[.994,.1,.994]}/>
+                <meshStandardMaterial color={(row+col)%2===0 ? theme.light : theme.dark} roughness={.76} metalness={.03}/>
+            </mesh>
+            {lastSquare && <mesh position={[0,.012,0]} rotation={[-Math.PI/2,0,0]} raycast={ignoreRaycast}>
+                <planeGeometry args={[.98,.98]}/><meshBasicMaterial color="#efcd7a" transparent opacity={.26} depthWrite={false}/>
+            </mesh>}
+            {selected && <SquareOutline color={token?.id===props.opponentSelectedTokenId ? '#f0a390' : '#ffe0a1'}/>}
+            {valid && <mesh position={[0,.018,0]} rotation={[-Math.PI/2,0,0]} raycast={ignoreRaycast}>
+                {token ? <ringGeometry args={[.425,.477,32]}/> : <circleGeometry args={[.115,24]}/>}
+                <meshBasicMaterial color={enemySelected ? '#ffb69a' : '#ffe3a0'} depthWrite={false} toneMapped={false}/>
+            </mesh>}
+        </group>;
+    })}</group>;
+}
 
-            
-            
-            
-            const isHintTo = hintMove && hintMove.toRow === r && hintMove.toCol === c;
-            const isHintFrom = hintMove && hintMove.fromRow === r && hintMove.fromCol === c;
-            const isLastMove = lastMove && ((lastMove.from?.[0] === r && lastMove.from?.[1] === c) || (lastMove.to?.[0] === r && lastMove.to?.[1] === c));
-            
+function BoardCoordinates({ color }: { color: string }) {
+    return <group>{Array.from({length:8},(_,i)=><React.Fragment key={i}>
+        {[-4.19,4.19].map(edge=><React.Fragment key={edge}>
+            <Html center position={[i-3.5,.015,edge]} style={{pointerEvents:'none'}} zIndexRange={[2,0]}><span className="board-coordinate" style={{color}}>{String.fromCharCode(97+i)}</span></Html>
+            <Html center position={[edge,.015,i-3.5]} style={{pointerEvents:'none'}} zIndexRange={[2,0]}><span className="board-coordinate" style={{color}}>{8-i}</span></Html>
+        </React.Fragment>)}
+    </React.Fragment>)}</group>;
+}
 
-            squares.push(
-                <group key={`${r}-${c}`} position={[x, -0.05, z]} onClick={(e) => { e.stopPropagation(); onSquareClick(r, c); }}>
-                    <mesh receiveShadow>
-                        <boxGeometry args={[quiet ? 0.993 : 1, 0.1, quiet ? 0.993 : 1]} />
-                        <meshPhysicalMaterial color={color} roughness={roughness} metalness={metalness} emissive={emissive} emissiveIntensity={emissiveIntensity} clearcoat={clearcoat} clearcoatRoughness={0.1} />
-                    </mesh>
-                    {isLastMove && <mesh position={[0, 0.052, 0]} rotation={[-Math.PI/2, 0, 0]}>
-                        <planeGeometry args={[0.99, 0.99]} />
-                        <meshBasicMaterial color="#e6ca82" transparent opacity={0.32} depthWrite={false} />
-                    </mesh>}
-                    {isMoveCandidate && (
-                        <mesh position={[0, 0.056, 0]} rotation={[-Math.PI/2, 0, 0]}>
-                            <ringGeometry args={[0.32, 0.41, 32]} />
-                            <meshBasicMaterial color={isEnemySelected ? "#f2ad83" : "#f6da91"} transparent opacity={0.85} depthWrite={false} />
-                        </mesh>
-                    )}
-                    
-                    {isHintFrom && (
-                        <mesh position={[0, 0.07, 0]} rotation={[-Math.PI/2, 0, 0]}>
-                            <ringGeometry args={[0.35, 0.45, 32]} />
-                            <meshBasicMaterial color="#3b82f6" transparent opacity={0.8} />
-                        </mesh>
-                    )}
-                    {isHintTo && (
-                        <mesh position={[0, 0.07, 0]} rotation={[-Math.PI/2, 0, 0]}>
-                            <ringGeometry args={[0.35, 0.45, 32]} />
-                            <meshBasicMaterial color="#22c55e" transparent opacity={0.8} />
-                        </mesh>
-                    )}
-                </group>
-            );
-        }
-    }
-    return <group>{squares}</group>;
-};
+function Hint3D({ move }: { move: HintMove }) {
+    const shape = useMemo(()=> {
+        const points = hintArrowPoints(move).map(([x,z])=>new THREE.Vector2(x-4,4-z));
+        return points.length ? new THREE.Shape(points) : new THREE.Shape();
+    },[move]);
+    return <group>
+        <mesh position={[0,.06,0]} rotation={[-Math.PI/2,0,0]} renderOrder={1000} raycast={ignoreRaycast}>
+            <shapeGeometry args={[shape]}/><meshBasicMaterial color="#ffe3a0" depthTest={false} depthWrite={false} toneMapped={false} side={THREE.DoubleSide}/>
+        </mesh>
+        {(['from','to'] as const).map(kind=>{
+            const row=kind==='from'?move.fromRow:move.toRow, col=kind==='from'?move.fromCol:move.toCol;
+            return <group key={kind} position={[col-3.5,0,row-3.5]}>
+                <SquareOutline color={kind==='from'?'#9ed8ff':'#ffe3a0'} overlay/>
+                <Html center position={[0,.12,.42]} zIndexRange={[5,3]} style={{pointerEvents:'none'}}>
+                    <span className={`board-hint-label ${kind}`} data-hint-endpoint={kind} data-square-name={squareName(row,col)}>{squareName(row,col)}</span>
+                </Html>
+            </group>;
+        })}
+    </group>;
+}
 
-
-
-const BackgroundEffects = ({ design }: { design: 'classic' | 'marble' | 'neon' }) => {
-    switch (design) {
-        case 'marble':
-            return (
-                <group>
-                    <fog attach="fog" args={['#f8fafc', 20, 80]} />
-                    <color attach="background" args={['#f8fafc']} />
-                    
-                    {/* Bright marble floor */}
-                    <mesh position={[0, -2, 0]} rotation={[-Math.PI/2, 0, 0]} receiveShadow>
-                        <planeGeometry args={[150, 150]} />
-                        <meshStandardMaterial color="#e2e8f0" roughness={0.1} metalness={0.1} />
-                    </mesh>
-                    
-                    {/* Museum Architectural Pillars */}
-                    {Array.from({ length: 12 }).map((_, i) => (
-                        <mesh key={i} position={[Math.sin(i * Math.PI / 6) * 30, 15, Math.cos(i * Math.PI / 6) * 30]} castShadow receiveShadow>
-                            <cylinderGeometry args={[1.5, 1.5, 40, 32]} />
-                            <meshStandardMaterial color="#ffffff" roughness={0.2} />
-                        </mesh>
-                    ))}
-                    
-                    {/* Architectural ceiling beams */}
-                    {Array.from({ length: 8 }).map((_, i) => (
-                        <mesh key={i} position={[0, 25, (i - 3.5) * 12]} castShadow>
-                            <boxGeometry args={[80, 2, 4]} />
-                            <meshStandardMaterial color="#f1f5f9" roughness={0.5} />
-                        </mesh>
-                    ))}
-                    
-                    {/* Display Pedestal */}
-                    <mesh position={[0, -1, 0]} receiveShadow>
-                        <boxGeometry args={[18, 2, 18]} />
-                        <meshStandardMaterial color="#ffffff" roughness={0.1} metalness={0.1} />
-                    </mesh>
-
-                    {/* Lighting */}
-                    <ambientLight intensity={1.2} />
-                    <directionalLight position={[15, 30, 20]} intensity={1.8} color="#ffffff" castShadow shadow-mapSize={[2048, 2048]} shadow-bias={-0.0001} />
-                    <directionalLight position={[-15, 20, -15]} intensity={0.6} color="#e0f2fe" />
-                </group>
-            );
-        case 'neon':
-            return (
-                <group>
-                    <fog attach="fog" args={['#050010', 10, 60]} />
-                    <color attach="background" args={['#050010']} />
-                    
-                    {/* Endless reflective glassy floor */}
-                    <mesh position={[0, -2, 0]} rotation={[-Math.PI/2, 0, 0]} receiveShadow>
-                        <planeGeometry args={[200, 200]} />
-                        <meshStandardMaterial color="#020005" roughness={0.05} metalness={0.9} />
-                    </mesh>
-                    
-                    {/* Cyberpunk Grid */}
-                    <gridHelper args={[200, 100, '#ff00ff', '#00ffff']} position={[0, -1.99, 0]} />
-                    
-                    {/* Giant glowing monoliths (Servers/Skyscrapers) */}
-                    {Array.from({ length: 20 }).map((_, i) => {
-                        const x = Math.sin(i * 2.1) * (35 + Math.random() * 25);
-                        const z = Math.cos(i * 2.1) * (35 + Math.random() * 25);
-                        const height = 15 + Math.random() * 40;
-                        const isCyan = i % 2 === 0;
-                        return (
-                            <group key={i} position={[x, height/2 - 2, z]}>
-                                <mesh castShadow receiveShadow>
-                                    <boxGeometry args={[5, height, 5]} />
-                                    <meshStandardMaterial color="#0a0014" roughness={0.2} metalness={0.8} />
-                                </mesh>
-                                {/* Glowing accent lines on monoliths */}
-                                <mesh position={[0, 0, 2.51]}>
-                                    <planeGeometry args={[0.2, height]} />
-                                    <meshBasicMaterial color={isCyan ? '#00ffff' : '#ff00ff'} />
-                                </mesh>
-                            </group>
-                        );
-                    })}
-                    
-                    {/* Floating Data particles */}
-                    <Sparkles count={500} scale={50} size={1.5} speed={0.4} opacity={0.8} color="#00ffff" />
-                    
-                    {/* Floating Neon Rings around the table */}
-                    <mesh position={[0, -1, 0]} rotation={[-Math.PI/2, 0, 0]}>
-                        <ringGeometry args={[14, 14.3, 64]} />
-                        <meshBasicMaterial color="#ff00ff" transparent opacity={0.8} />
-                    </mesh>
-                    <mesh position={[0, -1.5, 0]} rotation={[-Math.PI/2, 0, 0]}>
-                        <ringGeometry args={[16, 16.3, 64]} />
-                        <meshBasicMaterial color="#00ffff" transparent opacity={0.8} />
-                    </mesh>
-
-                    {/* Central Pillar */}
-                    <mesh position={[0, -2, 0]} receiveShadow>
-                        <cylinderGeometry args={[10, 12, 4, 32]} />
-                        <meshStandardMaterial color="#050010" roughness={0.1} metalness={0.9} />
-                    </mesh>
-
-                    {/* Lighting */}
-                    <ambientLight intensity={1.5} />
-                    <spotLight position={[0, 25, 0]} intensity={3.5} color="#ffffff" angle={0.7} penumbra={0.5} castShadow shadow-mapSize={[2048, 2048]} />
-                    <pointLight position={[15, 10, 15]} intensity={5.0} color="#00ffff" distance={60} />
-                    <pointLight position={[-15, 10, -15]} intensity={5.0} color="#ff00ff" distance={60} />
-                </group>
-            );
-        case 'classic':
-        default:
-            return (
-                <group>
-                    <fog attach="fog" args={['#140b07', 15, 50]} />
-                    <color attach="background" args={['#140b07']} />
-                    
-                    {/* Dark Wooden Floor */}
-                    <mesh position={[0, -2, 0]} rotation={[-Math.PI/2, 0, 0]} receiveShadow>
-                        <planeGeometry args={[150, 150]} />
-                        <meshStandardMaterial color="#0a0502" roughness={0.7} metalness={0.1} />
-                    </mesh>
-                    
-                    {/* Antique Library Wall Panels */}
-                    {Array.from({ length: 16 }).map((_, i) => (
-                        <mesh key={i} position={[Math.sin(i * Math.PI / 8) * 25, 8, Math.cos(i * Math.PI / 8) * 25]} castShadow receiveShadow rotation={[0, i * Math.PI / 8, 0]}>
-                            <boxGeometry args={[8, 20, 1]} />
-                            <meshStandardMaterial color="#1a0c06" roughness={0.8} />
-                        </mesh>
-                    ))}
-                    
-                    {/* Grandmaster Table */}
-                    <mesh position={[0, -1, 0]} receiveShadow>
-                        <cylinderGeometry args={[14, 12, 2, 64]} />
-                        <meshStandardMaterial color="#2d160c" roughness={0.3} metalness={0.1} />
-                    </mesh>
-                    
-                    {/* Atmosphere Dust Motes */}
-                    <Sparkles count={300} scale={30} size={2} speed={0.2} opacity={0.15} color="#ffe8d6" />
-                    
-                    {/* Lighting */}
-                    <ambientLight intensity={0.6} />
-                    <spotLight position={[0, 25, 0]} intensity={3.5} color="#ffedd5" penumbra={0.8} angle={0.6} castShadow shadow-mapSize={[2048, 2048]} shadow-bias={-0.0001} />
-                    <spotLight position={[15, 15, 15]} intensity={1.5} color="#d4a373" angle={0.8} penumbra={1} />
-                </group>
-            );
-    }
-};
-
-const ResponsiveCamera = ({ isFlipped, is2DView }: { isFlipped: boolean, is2DView: boolean }) => {
-    const { camera, size } = useThree();
-    useFrame(() => {
-        const aspect = size.width / size.height;
-        let targetFov = 50; // Base FOV slightly increased for more margin
-        if (aspect < 1) {
-            // Use 58 degrees for the horizontal FOV to ensure the board and pieces fit with some margin on mobile
-            const radHorizontal = THREE.MathUtils.degToRad(58);
-            const tanHalfHorizontal = Math.tan(radHorizontal / 2);
-            const newFovRad = 2 * Math.atan(tanHalfHorizontal / aspect);
-            targetFov = THREE.MathUtils.radToDeg(newFovRad);
-        }
-        // Force the camera distance and FOV so it ALWAYS fits
-        const pCam = camera as THREE.PerspectiveCamera;
-        let needsUpdate = false;
-        if (Math.abs(pCam.fov - targetFov) > 0.1) {
-            pCam.fov = targetFov;
-            needsUpdate = true;
-        }
-
-        // Handle 2D / 3D position transitions
-        const targetPos = is2DView 
-            ? new THREE.Vector3(0, 15, isFlipped ? -0.1 : 0.1) // 0.1 offset to define 'up' direction easily
-            : new THREE.Vector3(0, 11, isFlipped ? -4.5 : 4.5);
-            
-        if (pCam.position.distanceTo(targetPos) > 0.1) {
-            pCam.position.lerp(targetPos, 0.1);
-            pCam.lookAt(0, 0, 0);
-            needsUpdate = true;
-        }
-
-        if (needsUpdate) {
-            pCam.updateProjectionMatrix();
-        }
-    });
-    return null;
-};
-
-function QuietCamera({ isFlipped }: { isFlipped: boolean }) {
-    const { size } = useThree();
-    const narrow = size.width / size.height < 1.15;
-    return <OrthographicCamera makeDefault near={0.1} far={250}
-        position={[0, narrow ? 12 : 10, (isFlipped ? -1 : 1) * (narrow ? 5 : 8)]}
-        zoom={Math.min(size.width / 9.65, size.height / (narrow ? 9 : 8.15))}
-        onUpdate={camera => { camera.lookAt(0, 0, 0); camera.updateProjectionMatrix(); }} />;
+function SceneCamera({ flipped, flat, autoRotate, controls }: { flipped: boolean; flat: boolean; autoRotate?: boolean; controls: React.RefObject<OrbitControlsImpl | null> }) {
+    const {size}=useThree();
+    const view=boardCamera(size.width,size.height,flipped,flat);
+    return <>
+        <OrthographicCamera makeDefault position={view.position} zoom={view.zoom} near={.1} far={100} onUpdate={camera=>{camera.lookAt(0,0,0);camera.updateProjectionMatrix();}}/>
+        <OrbitControls ref={controls} makeDefault enablePan={false} enableRotate={!flat} minPolarAngle={.15} maxPolarAngle={Math.PI/3.8}
+            minZoom={view.zoom*.8} maxZoom={view.zoom*1.65} autoRotate={autoRotate} autoRotateSpeed={.7}/>
+    </>;
 }
 
 export interface Board3DProps {
-    quietLayout?: boolean;
-    is2DView?: boolean;
-    boardDesign?: 'classic' | 'marble' | 'neon';
-    hintMove?: { fromRow: number, fromCol: number, toRow: number, toCol: number } | null;
-    isFlipped?: boolean;
-    tokens: Token[];
-    onlineRole?: 'white' | 'black' | 'spectator';
-    selectedTokenId: string | null;
-    opponentSelectedTokenId?: string | null;
-    validMoves: {r: number, c: number}[];
-    moveHistory: any[];
-    showCheckWarning?: boolean;
-    onSquareClick: (row: number, col: number) => void;
-    showMoveHints: boolean;
-    currentTurn: 'white' | 'black';
-    autoRotate?: boolean;
-    candidatesMap?: Map<string, ReadonlySet<PieceType>>;
+    quietLayout?: boolean; is2DView?: boolean; boardDesign?: 'classic'|'marble'|'neon'; hintMove?: HintMove | null; isFlipped?: boolean;
+    tokens: Token[]; onlineRole?: 'white'|'black'|'spectator'; selectedTokenId: string | null; opponentSelectedTokenId?: string | null;
+    validMoves: {r:number;c:number}[]; moveHistory: MoveRecord[]; showCheckWarning?: boolean;
+    onSquareClick: (row:number,col:number)=>void; showMoveHints: boolean; currentTurn:'white'|'black';
+    autoRotate?: boolean; candidatesMap?: Map<string,ReadonlySet<PieceType>>;
 }
 
-export const Board3D: React.FC<Board3DProps> = (props) => {
-    const isFlipped = props.isFlipped ?? (props.onlineRole === 'black');
-    const quiet = !!props.quietLayout && (!props.boardDesign || props.boardDesign === 'classic');
-    
-    const selectedToken = props.tokens.find(t => t.id === props.selectedTokenId);
-    const isEnemySelected = selectedToken ? (props.onlineRole && props.onlineRole !== 'spectator' ? selectedToken.player !== props.onlineRole : selectedToken.player !== props.currentTurn) : false;
-
-    // Track captured pieces for animation
-    const [deadTokens, setDeadTokens] = React.useState<Token[]>([]);
-    const prevTokensRef = React.useRef<Token[]>(props.tokens.filter(t => !t.isCaptured));
-
-    React.useEffect(() => {
-        const prev = prevTokensRef.current;
-        const current = props.tokens.filter(t => !t.isCaptured);
-        const dead = prev.filter(p => !current.some(t => t.id === p.id));
-        if (dead.length > 0) {
-            setDeadTokens(prevDead => [...prevDead, ...dead]);
-            setTimeout(() => {
-                setDeadTokens(prevDead => prevDead.filter(d => !dead.some(x => x.id === d.id)));
-            }, 1000);
-        }
-        prevTokensRef.current = current;
-    }, [props.tokens]);
-
-    const activeTokens = props.tokens.filter(t => !t.isCaptured);
-    const allTokensToRender = [...activeTokens, ...deadTokens];
-
-    const controlsRef = React.useRef<any>(null);
-
-    return (
-        <div className={`w-full h-full rounded-lg overflow-hidden relative group ${quiet ? '' : 'border-2 sm:border-4 border-[#3a2518] shadow-2xl'}`} style={{ background: quiet ? 'transparent' : props.boardDesign === 'marble' ? 'radial-gradient(circle at 50% 50%, #e0e0e0 0%, #a0a0a0 100%)' : props.boardDesign === 'neon' ? 'radial-gradient(circle at 50% 50%, #1a0b2e 0%, #000000 100%)' : 'radial-gradient(circle at 50% 50%, #4a3424 0%, #1a100b 100%)', touchAction: 'none' }}>
-            <Canvas shadows dpr={[1,1.5]} camera={{ position: isFlipped ? [0, 8, -6] : [0, 8, 6], fov: 45 }}>
-                {quiet ? <QuietCamera isFlipped={isFlipped} /> : <ResponsiveCamera isFlipped={isFlipped} is2DView={!!props.is2DView} />}
-                
-                {quiet ? <>
-                    <ambientLight intensity={0.8} />
-                    <directionalLight position={[-5,9,3]} intensity={2} color="#fff1d8" castShadow shadow-mapSize={[1024,1024]} shadow-camera-left={-7} shadow-camera-right={7} shadow-camera-top={7} shadow-camera-bottom={-7} shadow-bias={-0.0005} />
-                    <directionalLight position={[5,5,-5]} intensity={1.3} color="#d9e7ef" />
-                    <mesh receiveShadow rotation={[-Math.PI/2,0,0]} position={[0,-0.52,0]}><planeGeometry args={[200,200]}/><shadowMaterial transparent opacity={0.3}/></mesh>
-                </> : <BackgroundEffects design={props.boardDesign || 'classic'} />}
-                
-                {/* Masterpiece Dynamic Board Base */}
-                {quiet ? <group>
-                    <mesh position={[0,-0.30,0]} castShadow receiveShadow><boxGeometry args={[8.85,0.38,8.85]}/><meshStandardMaterial color="#252d23" roughness={0.45}/></mesh>
-                    <mesh position={[0,-0.12,0]}><boxGeometry args={[8.78,0.04,8.78]}/><meshStandardMaterial color="#cbb582" metalness={0.6} roughness={0.4}/></mesh>
-                    <mesh position={[0,-0.07,0]} receiveShadow><boxGeometry args={[8.7,0.08,8.7]}/><meshStandardMaterial color="#353d30" roughness={0.6}/></mesh>
-                </group> : props.boardDesign === 'neon' ? (
-                    <group position={[0, -0.25, 0]}>
-                        {/* Glowing Rim */}
-                        <mesh position={[0, -0.1, 0]}>
-                            <boxGeometry args={[8.6, 0.3, 8.6]} />
-                            <meshStandardMaterial color="#00e5ff" emissive="#00e5ff" emissiveIntensity={0.8} />
-                        </mesh>
-                        {/* Glossy Dark Acrylic Top */}
-                        <mesh position={[0, 0.1, 0]} receiveShadow>
-                            <boxGeometry args={[8.4, 0.1, 8.4]} />
-                            <meshPhysicalMaterial color="#050010" roughness={0.05} metalness={0.9} clearcoat={1} clearcoatRoughness={0.05} />
-                        </mesh>
-                    </group>
-                ) : props.boardDesign === 'marble' ? (
-                    <mesh position={[0, -0.25, 0]} receiveShadow>
-                        <boxGeometry args={[8.6, 0.4, 8.6]} />
-                        <meshPhysicalMaterial color="#f8fafc" roughness={0.15} metalness={0.05} transmission={0.6} thickness={2} clearcoat={1} clearcoatRoughness={0.1} />
-                    </mesh>
-                ) : (
-                    <mesh position={[0, -0.25, 0]} receiveShadow>
-                        <boxGeometry args={[8.6, 0.4, 8.6]} />
-                        <meshPhysicalMaterial color="#1a0f0a" roughness={0.2} metalness={0.1} clearcoat={0.8} clearcoatRoughness={0.2} />
-                    </mesh>
-                )}
-                <BoardSquares quiet={quiet} validMoves={props.showMoveHints ? props.validMoves : []} moveHistory={props.moveHistory} onSquareClick={props.onSquareClick} isEnemySelected={isEnemySelected} boardDesign={props.boardDesign} hintMove={props.hintMove} />
-                {allTokensToRender.map(token => {
-                    const isDead = deadTokens.some(d => d.id === token.id);
-                    return <Piece3D quiet={quiet} key={token.id} token={token} isSelected={token.id === props.selectedTokenId} isOpponentSelected={token.id === props.opponentSelectedTokenId} candidates={props.candidatesMap?.get(token.id)} onSquareClick={props.onSquareClick} isDead={isDead} is2DView={!!props.is2DView} isFlipped={isFlipped} />;
-                })}
-                <OrbitControls ref={controlsRef} enablePan={false} minPolarAngle={0.02} maxPolarAngle={Math.PI / 2.5} minDistance={5} maxDistance={15} minZoom={20} maxZoom={220} autoRotate={props.autoRotate} autoRotateSpeed={1.5} enableRotate={quiet} />
-            </Canvas>
-            {!quiet && <button 
-                onPointerDown={(e) => e.stopPropagation()}
-                onClick={() => controlsRef.current?.reset()} 
-                className="absolute bottom-2 right-2 sm:bottom-4 sm:right-4 bg-black/60 hover:bg-black/80 text-gray-200 p-3 rounded-full opacity-80 transition-opacity active:bg-black/90 shadow-[0_0_15px_rgba(0,0,0,0.5)] z-10"
-                title="Reset Camera"
-            >
-                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <line x1="22" y1="12" x2="18" y2="12"></line>
-                    <line x1="6" y1="12" x2="2" y2="12"></line>
-                    <line x1="12" y1="6" x2="12" y2="2"></line>
-                    <line x1="12" y1="22" x2="12" y2="18"></line>
-                </svg>
-            </button>}
+export const Board3D: React.FC<Board3DProps> = props => {
+    const flipped=props.isFlipped ?? (props.onlineRole==='black');
+    const design=props.boardDesign ?? 'classic', theme=BOARD_THEMES[design];
+    const selected=props.tokens.find(token=>token.id===props.selectedTokenId);
+    const enemySelected=!!selected && selected.player!==(props.onlineRole && props.onlineRole!=='spectator' ? props.onlineRole : props.currentTurn);
+    const [deadTokens,setDeadTokens]=React.useState<Token[]>([]);
+    const previous=React.useRef(props.tokens.filter(token=>!token.isCaptured));
+    useEffect(()=>{
+        const current=props.tokens.filter(token=>!token.isCaptured);
+        const dead=previous.current.filter(token=>!current.some(other=>other.id===token.id));
+        previous.current=current;
+        if (dead.length) setDeadTokens(old=>[...old,...dead]);
+    },[props.tokens]);
+    useEffect(()=>{
+        if (!deadTokens.length) return;
+        const timer=setTimeout(()=>setDeadTokens([]),1000);
+        return ()=>clearTimeout(timer);
+    },[deadTokens]);
+    const controls=React.useRef<OrbitControlsImpl>(null);
+    const [reset,setReset]=React.useState(0);
+    const [motion,setMotion]=React.useState(false);
+    useEffect(()=>{
+        const reduced=window.matchMedia('(prefers-reduced-motion: reduce)');
+        const read=()=>setMotion(!reduced.matches && localStorage.getItem('qchess_pieceMotion')!=='false');
+        read(); reduced.addEventListener('change',read);
+        return ()=>reduced.removeEventListener('change',read);
+    },[]);
+    const active=props.tokens.filter(token=>!token.isCaptured);
+    return <div className="board-3d" data-board-theme={design} style={{background:theme.stage,touchAction:'none'}}>
+        <div className="board-scene-tools">
+            <span>{design==='classic'?'CLASSIC · STUDY':design==='marble'?'MARBLE · GALLERY':'NEON · CIRCUIT'}</span>
+            <button aria-pressed={motion} onClick={()=>{setMotion(!motion);localStorage.setItem('qchess_pieceMotion',String(!motion));}}>◌ 駒のゆらぎ {motion?'ON':'OFF'}</button>
         </div>
-    );
+        <div className="board-scene-canvas">
+        <Canvas shadows dpr={[1,1.75]} gl={{antialias:true}}>
+            <SceneCamera key={`${flipped}-${reset}`} flipped={flipped} flat={!!props.is2DView} autoRotate={props.autoRotate} controls={controls}/>
+            <ambientLight intensity={.8}/>
+            <directionalLight position={[-4,10,6]} intensity={2.1} color="#fff3df" castShadow shadow-mapSize={[1024,1024]} shadow-camera-left={-6} shadow-camera-right={6} shadow-camera-top={6} shadow-camera-bottom={-6} shadow-normalBias={.025} shadow-bias={-.0003}/>
+            <directionalLight position={[5,6,-5]} intensity={1.5} color="#d5e6ff"/>
+            <BoardAtmosphere theme={design}/>
+            <group>
+                <mesh position={[0,-.3,0]} castShadow receiveShadow><boxGeometry args={[8.85,.38,8.85]}/><meshStandardMaterial color={theme.frame} roughness={.58}/></mesh>
+                <mesh position={[0,-.12,0]}><boxGeometry args={[8.78,.04,8.78]}/><meshStandardMaterial color={theme.rim} roughness={.45} metalness={.3} emissive={design==='neon'?theme.rim:'#000000'} emissiveIntensity={.35}/></mesh>
+                <mesh position={[0,-.07,0]} receiveShadow><boxGeometry args={[8.7,.08,8.7]}/><meshStandardMaterial color={theme.frame} roughness={.72}/></mesh>
+            </group>
+            <BoardSquares props={props} enemySelected={enemySelected}/>
+            <BoardCoordinates color={theme.label}/>
+            <React.Suspense fallback={null}>{[...active,...deadTokens].map(token=><Piece3D key={token.id} token={token} candidates={props.candidatesMap?.get(token.id)} isSelected={props.selectedTokenId===token.id}
+                isOpponentSelected={props.opponentSelectedTokenId===token.id} isDead={deadTokens.some(dead=>dead.id===token.id)} onSquareClick={props.onSquareClick} is2DView={!!props.is2DView} motion={motion} quiet/>)}</React.Suspense>
+            {props.hintMove && <Hint3D move={props.hintMove}/>}
+        </Canvas>
+        </div>
+        {!props.quietLayout && <button className="board-reset" aria-label="Reset camera" onClick={()=>setReset(value=>value+1)}>↺</button>}
+    </div>;
 };

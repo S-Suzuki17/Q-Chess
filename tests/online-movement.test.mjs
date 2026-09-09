@@ -125,7 +125,7 @@ test('online hint geometry matches the server for both teams, captures and moved
 
 test('2D board hides captured pieces and keeps selection and enemy hints', () => {
   const h = hooks(); const Piece = () => {};
-  const {Board2D} = load('src/components/Board2D.tsx', {react: h.React, './QuantumPieceUI': {QuantumPieceUI: Piece}});
+  const {Board2D} = load('src/components/Board2D.tsx', {react: h.React, './QuantumPieceUI': {QuantumPieceUI: Piece}, './HintArrow2D': {HintArrow2D: () => {}}});
   const tokens = [{id: 'live', row: 3, col: 3, player: 'black', probabilities: {Knight: 1}}, {id: 'dead', row: 3, col: 3, player: 'white', isCaptured: true, probabilities: {Pawn: 1}}];
   const node = Board2D({tokens, selectedTokenId: 'live', validMoves: [{r: 5, c: 4}], moveHistory: [], showMoveHints: true, currentTurn: 'white', onlineRole: 'black'});
   assert.equal(find(node, n => n.type === Piece && n.props.id === 'dead'), undefined);

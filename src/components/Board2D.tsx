@@ -3,6 +3,7 @@ import { QuantumPieceUI } from './QuantumPieceUI';
 import { Token } from '../lib/GameEngine';
 import { PieceType } from '../config/gameConfig';
 import type { MoveRecord } from '../lib/gameRecordService';
+import { HintArrow2D } from './HintArrow2D';
 
 export interface Board2DProps {
     quietLayout?: boolean;
@@ -149,6 +150,7 @@ export function Board2D({
                     </div>
                 );
             })}
+            {hintMove && <HintArrow2D move={hintMove} flipped={isFlipped}/>}
         </div>
         </div>
     );

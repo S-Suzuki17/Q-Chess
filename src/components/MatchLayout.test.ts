@@ -16,6 +16,22 @@ const base: ComponentProps<typeof MatchLayout> = {
 const render = (overrides: Partial<typeof base> = {}) => renderToStaticMarkup(createElement(MatchLayout, {...base,...overrides}));
 
 describe('Match decision feedback', () => {
+    it('announces both the hinted source and destination without making a move', () => {
+        const html=render({hintMove:{fromRow:6,fromCol:4,toRow:4,toCol:4}});
+        expect(html).toContain('動かす駒'); expect(html).toContain('移動先');
+        expect(html).toContain('data-testid="hint-source">e2');
+        expect(html).toContain('data-testid="hint-destination">e4');
+        expect(html).toContain('aria-live="polite"');
+    });
+    it('hides advice after the turn changes or the match ends', () => {
+        const hintMove={fromRow:6,fromCol:4,toRow:4,toCol:4};
+        expect(render({hintMove,currentTurn:'black'})).not.toContain('data-testid="move-advice"');
+        expect(render({hintMove,finished:true})).not.toContain('data-testid="move-advice"');
+    });
+    it('provides pending and failure feedback', () => {
+        expect(render({hintPending:true})).toContain('移動元と移動先を検討しています');
+        expect(render({hintFailed:true})).toContain('ヒントを取得できませんでした');
+    });
     it('distinguishes no selection from an unresolved piece', () => {
         const html = render();
         expect(html).toContain('未選択');

@@ -86,7 +86,7 @@ export function legacyToQuantumState(tokens: Token[], pool: IdentityPool, sideTo
 }
 
 
-export function quantumToLegacyMove(move: Move, state: GameState): any {
+export function quantumToLegacyMove(move: Move, state: GameState) {
     let requiredBits = 0;
     if (move.chosenType !== undefined) {
         requiredBits = move.chosenType;

@@ -6,6 +6,7 @@ import { Home, Palette, RotateCcw, Settings2, HelpCircle, Flag, Lightbulb, X } f
 import type { Token } from '../lib/GameEngine';
 import type { PieceType } from '../config/gameConfig';
 import type { MoveRecord } from '../lib/gameRecordService';
+import type { HintMove } from './boardPresentation';
 import './match-layout.css';
 
 type Side = 'white' | 'black';
@@ -23,6 +24,7 @@ interface Props {
     selectedTokenId: string | null; history?: MoveRecord[];
     validMoveCount: number; onClearSelection: () => void;
     onHint?: () => void; hintPending?: boolean; feedback?: string | null;
+    hintMove?: HintMove | null; hintFailed?: boolean; onClearHint?: () => void;
     is2D: boolean; onViewChange: (flat: boolean) => void;
     onThemeChange: () => void; onResetView: () => void;
     onHome: () => void; onRules: () => void; onResign: () => void;
@@ -44,6 +46,8 @@ export function MatchLayout(props: Props) {
     const topSide = props.bottomSide === 'white' ? 'black' : 'white';
     const isMyTurn = !props.spectator && props.currentTurn === props.bottomSide && !props.finished;
     const enemySelected = selected && selected.player !== props.bottomSide;
+    const hint = isMyTurn ? props.hintMove : null;
+    const hasAdvice = isMyTurn && !!(hint || props.hintPending || props.hintFailed);
     const instruction = props.finished ? label('対局が終了しました', 'Match complete')
         : props.spectator ? label('観戦中', 'Spectating')
         : !isMyTurn ? label('相手の手番です。駒を選んで候補を確認できます。', 'Opponent’s turn. Select a piece to inspect it.')
@@ -95,11 +99,21 @@ export function MatchLayout(props: Props) {
             <button className="match-tool" onClick={props.onResetView} disabled={props.is2D} aria-label={label('視点を戻す', 'Reset view')}><RotateCcw size={18}/></button>
         </nav>
 
-        <main className="match-main">
+        <main className={`match-main ${hasAdvice ? 'has-advice' : ''}`}>
             {playerBar(topSide)}
             <div className="match-board-area" data-testid="match-board">{props.board}
                 {props.notice && <div className="match-notice" role="status">{props.notice}</div>}
             </div>
+            {hasAdvice && <section className="match-advice" role="status" aria-live="polite" aria-atomic="true" data-testid="move-advice">
+                <Lightbulb size={18} aria-hidden="true"/>
+                {hint ? <div className="match-advice-move">
+                    <span className="advice-from">{label('動かす駒', 'Move from')} <strong data-testid="hint-source">{square(hint.fromRow,hint.fromCol)}</strong></span>
+                    <span className="advice-arrow" aria-hidden="true">→</span>
+                    <span className="advice-to">{label('移動先', 'Move to')} <strong data-testid="hint-destination">{square(hint.toRow,hint.toCol)}</strong></span>
+                    <small>{label('青の駒を選び、金色のマスへ', 'Select blue, then move to gold')}</small>
+                </div> : <span>{props.hintPending ? label('移動元と移動先を検討しています…', 'Finding a piece and destination…') : label('ヒントを取得できませんでした。もう一度お試しください。', 'Hint unavailable. Please try again.')}</span>}
+                {props.onClearHint && <button onClick={props.onClearHint} aria-label={label('ヒントを閉じる', 'Dismiss hint')}><X size={16}/></button>}
+            </section>}
             {playerBar(props.bottomSide)}
         </main>
 

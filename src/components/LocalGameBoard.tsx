@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useBoardPreferences } from '../hooks/useBoardPreferences';
+import { useMoveHint } from '../hooks/useMoveHint';
 import { IdentityPool } from '../lib/IdentityPool';
 import { Token, deduceMoveTypes, isPlayerInCheck } from '../lib/GameEngine';
 import { QuantumPieceUI } from './QuantumPieceUI';
@@ -71,27 +72,6 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
     const [cpuRetry, setCpuRetry] = useState(0);
     const [cpuFailed, setCpuFailed] = useState(false);
     const [currentTurn, setCurrentTurn] = useState<'white' | 'black'>('white');
-    const [hintMove, setHintMove] = useState<{fromRow: number, fromCol: number, toRow: number, toCol: number} | null>(null);
-    const [isRequestingHint, setIsRequestingHint] = useState(false);
-    
-    // Clear hint when turn changes
-    useEffect(() => { setHintMove(null); }, [currentTurn]);
-    
-    const requestHint = () => {
-        if (winner || isRequestingHint || currentTurn !== myRole || !tokens.length) return;
-        setIsRequestingHint(true);
-        const state = legacyToQuantumState(tokens, pool, myRole, moveHistory.length, moveHistory.at(-1) ?? null);
-        requestCPUSearch(state, new AbortController().signal, 5).then(stats => {
-            setIsRequestingHint(false);
-            if (stats.move) {
-                const legacy = quantumToLegacyMove(stats.move, state);
-                const fromToken = tokens.find(t => t.id === legacy.tokenId);
-                if (fromToken) {
-                    setHintMove({ fromRow: fromToken.row, fromCol: fromToken.col, toRow: legacy.toRow, toCol: legacy.toCol });
-                }
-            }
-        }).catch(() => setIsRequestingHint(false));
-    };
     const [errorMsg, setErrorMsg] = useState<string | null>(null);
     const [fetchedOpponentName, setFetchedOpponentName] = useState<string | null>(null);
     const [myRating, setMyRating] = useState<number | null>(null);
@@ -710,6 +690,19 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
     const fallbackOpponent = (opponentId && opponentId.startsWith('GUEST-')) ? 'Guest' : 'Opponent';
     const opponentName = roomId ? (fetchedOpponentName || fallbackOpponent) : `CPU (${cpuDifficulty(cpuLevel)[lang === 'ja' ? 'ja' : 'en']})`;
     const myRole = onlineRole === 'spectator' ? 'white' : (onlineRole || 'white');
+    const hint = useMoveHint(`${currentTurn}:${moveHistory.length}:${winner ?? 'playing'}`);
+    const { hintMove } = hint;
+    const requestHint = () => {
+        if (winner || hint.pending || currentTurn !== myRole || !tokens.length || roomId) return;
+        const state = legacyToQuantumState(tokens, pool, myRole, moveHistory.length, moveHistory.at(-1) ?? null);
+        void hint.request(async signal => {
+            const stats = await requestCPUSearch(state, signal, 5);
+            if (!stats.move || signal.aborted) return null;
+            const legacy = quantumToLegacyMove(stats.move, state);
+            const fromToken = tokens.find(token => !token.isCaptured && token.id === legacy.tokenId);
+            return fromToken ? {fromRow:fromToken.row, fromCol:fromToken.col, toRow:legacy.targetRow, toCol:legacy.targetCol} : null;
+        });
+    };
     const whiteName = onlineRole === 'spectator' ? 'White Player' : (myRole === 'white' ? playerName : opponentName);
     const blackName = onlineRole === 'spectator' ? 'Black Player' : (myRole === 'black' ? playerName : opponentName);
     
@@ -724,7 +717,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
             bottomSide={myRole} currentTurn={currentTurn} spectator={onlineRole === 'spectator'} finished={!!winner}
             tokens={tokens} selectedTokenId={selectedTokenId} candidatesMap={pool.piecePossibilities} history={moveHistory}
             validMoveCount={validMoves.length} onClearSelection={() => setSelectedTokenId(null)}
-            onHint={!roomId ? requestHint : undefined} hintPending={isRequestingHint} feedback={tutorialHint}
+            onHint={!roomId ? requestHint : undefined} hintPending={hint.pending} hintMove={hintMove} hintFailed={hint.failed} onClearHint={hint.clear} feedback={tutorialHint}
             is2D={is2DView} onViewChange={setIs2DView}
             onResetView={() => setViewResetKey(key => key + 1)}
             onThemeChange={() => { const themes = ['classic','marble','neon'] as const; setBoardDesign(themes[(themes.indexOf(boardDesign)+1)%themes.length]); }}
