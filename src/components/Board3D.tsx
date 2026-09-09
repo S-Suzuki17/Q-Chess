@@ -2,7 +2,7 @@
 
 import React, { useMemo, useEffect } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { Backdrop, OrbitControls, ContactShadows, useGLTF, Text, Float, Billboard, Environment, Html, Stars, Sky, Sparkles, Cloud } from '@react-three/drei';
+import { Backdrop, OrbitControls, OrthographicCamera, ContactShadows, useGLTF, Text, Float, Billboard, Environment, Html, Stars, Sky, Sparkles, Cloud } from '@react-three/drei';
 import * as THREE from 'three';
 import { Token } from '../lib/GameEngine';
 import { QuantumPieceUI } from './QuantumPieceUI';
@@ -21,21 +21,21 @@ if (typeof window !== 'undefined') {
     Object.values(MODEL_PATHS).forEach(path => useGLTF.preload(path));
 }
 
-const FloatingMiniPiece = ({ type, isWhite, position }: { type: PieceType, isWhite: boolean, position: [number, number, number] }) => {
+const FloatingMiniPiece = ({ type, isWhite, position, quiet = false }: { type: PieceType, isWhite: boolean, position: [number, number, number], quiet?: boolean }) => {
     const ref = React.useRef<THREE.Group>(null);
     useFrame((state, delta) => {
-        if (ref.current) ref.current.rotation.y += delta * 0.8;
+        if (ref.current && !quiet) ref.current.rotation.y += delta * 0.8;
     });
     return (
-        <group ref={ref} position={position} scale={0.35}>
-            <RealisticPiece type={type} isWhite={isWhite} isHologram={false} />
+        <group ref={ref} position={position} scale={quiet ? 0.25 : 0.35}>
+            <RealisticPiece type={type} isWhite={isWhite} isHologram={false} quiet={quiet} />
         </group>
     );
 };
 
 
 
-const QuantumBlock = ({ isWhite, probabilities, candidates }: { isWhite: boolean, probabilities: any, candidates?: ReadonlySet<PieceType> }) => {
+const QuantumBlock = ({ isWhite, probabilities, candidates, quiet = false }: { isWhite: boolean, probabilities: any, candidates?: ReadonlySet<PieceType>, quiet?: boolean }) => {
     const types: PieceType[] = ['King', 'Queen', 'Rook', 'Bishop', 'Knight', 'Pawn'];
     const activeTypes = types.filter(t => candidates ? candidates.has(t) : probabilities[t as PieceType] > 0);
     const count = activeTypes.length;
@@ -47,6 +47,18 @@ const QuantumBlock = ({ isWhite, probabilities, candidates }: { isWhite: boolean
             orbitRef.current.rotation.y += delta * 0.4;
         }
     });
+
+    if (quiet) return <group>
+        <mesh castShadow receiveShadow position={[0, 0.08, 0]}>
+            <cylinderGeometry args={[0.38, 0.41, 0.16, 40]} />
+            <meshStandardMaterial color={isWhite ? '#E8E2D7' : '#293126'} roughness={0.4} />
+        </mesh>
+        <mesh position={[0, 0.163, 0]} rotation={[-Math.PI/2, 0, 0]}>
+            <ringGeometry args={[0.35, 0.372, 40]} />
+            <meshStandardMaterial color={isWhite ? '#b3ab96' : '#839076'} roughness={0.5} />
+        </mesh>
+        {activeTypes.map((type, i) => <FloatingMiniPiece key={type} type={type} isWhite={isWhite} quiet position={[(i % 3 - (Math.min(count,3)-1)/2)*0.23, 0.17, count > 3 ? (i < 3 ? -0.17 : 0.17) : 0]} />)}
+    </group>;
 
     return (
         <group>
@@ -79,7 +91,7 @@ const QuantumBlock = ({ isWhite, probabilities, candidates }: { isWhite: boolean
     );
 };
 
-const RealisticPiece = ({ type, isWhite, isHologram = false }: { type: PieceType, isWhite: boolean, isHologram?: boolean }) => {
+const RealisticPiece = ({ type, isWhite, isHologram = false, quiet = false }: { type: PieceType, isWhite: boolean, isHologram?: boolean, quiet?: boolean }) => {
     const { scene } = useGLTF(MODEL_PATHS[type]);
     
     const clone = useMemo(() => {
@@ -137,21 +149,21 @@ const RealisticPiece = ({ type, isWhite, isHologram = false }: { type: PieceType
                     child.castShadow = true;
                     child.receiveShadow = true;
                     const mat = new THREE.MeshStandardMaterial({
-                        color: isWhite ? '#f4eedb' : '#332924',
-                        roughness: 0.2,
+                        color: isWhite ? '#f4eedb' : quiet ? '#89967d' : '#332924',
+                        roughness: quiet ? 0.45 : 0.2,
                         metalness: 0.1
                     });
                     child.material = mat;
                 }
             }
         });
-    }, [clone, isWhite, isHologram]);
+    }, [clone, isWhite, isHologram, quiet]);
 
     const rotY = isWhite ? 0 : Math.PI;
     return <primitive object={clone} position={[0, 0, 0]} rotation={[0, rotY, 0]} />;
 };
 
-const Piece3D = ({ token, isSelected, isOpponentSelected, candidates, onSquareClick, isDead = false, is2DView = false, isFlipped = false }: { token: Token, isSelected: boolean, isOpponentSelected?: boolean, candidates?: ReadonlySet<PieceType>, onSquareClick: (r:number, c:number) => void, isDead?: boolean, is2DView?: boolean, isFlipped?: boolean }) => {
+const Piece3D = ({ token, isSelected, isOpponentSelected, candidates, onSquareClick, isDead = false, is2DView = false, isFlipped = false, quiet = false }: { token: Token, isSelected: boolean, isOpponentSelected?: boolean, candidates?: ReadonlySet<PieceType>, onSquareClick: (r:number, c:number) => void, isDead?: boolean, is2DView?: boolean, isFlipped?: boolean, quiet?: boolean }) => {
     const possibleTypes = (Object.keys(token.probabilities) as PieceType[]).filter(t => candidates ? candidates.has(t) : token.probabilities[t as PieceType] > 0);
     const confirmedType = token.promotedTo ? token.promotedTo : (possibleTypes.length === 1 ? possibleTypes[0] : null);
     const isWhite = token.player === 'white';
@@ -261,9 +273,9 @@ const Piece3D = ({ token, isSelected, isOpponentSelected, candidates, onSquareCl
             ) : (
                 <>
                 {confirmedType ? (
-                    <RealisticPiece type={confirmedType} isWhite={isWhite} />
+                    <RealisticPiece type={confirmedType} isWhite={isWhite} quiet={quiet} />
                 ) : (
-                    <QuantumBlock isWhite={isWhite} probabilities={token.probabilities} candidates={candidates} />
+                    <QuantumBlock isWhite={isWhite} probabilities={token.probabilities} candidates={candidates} quiet={quiet} />
                 )}
                 </>
             )}
@@ -271,8 +283,9 @@ const Piece3D = ({ token, isSelected, isOpponentSelected, candidates, onSquareCl
     );
 };
 
-const BoardSquares = ({ validMoves, moveHistory, onSquareClick, isEnemySelected, boardDesign, hintMove }: any) => {
+const BoardSquares = ({ validMoves, moveHistory, onSquareClick, isEnemySelected, boardDesign, hintMove, quiet }: any) => {
     const squares = [];
+    const lastMove = moveHistory.at(-1);
     for (let r = 0; r < 8; r++) {
         for (let c = 0; c < 8; c++) {
             const isLight = (r + c) % 2 === 0;
@@ -280,7 +293,7 @@ const BoardSquares = ({ validMoves, moveHistory, onSquareClick, isEnemySelected,
             const z = r - 3.5;
             
             const isMoveCandidate = validMoves.some((m: any) => m.r === r && m.c === c);
-                        let color = isLight ? '#f0d9b5' : '#b58863';
+            let color = quiet ? (isLight ? '#737c65' : '#343c30') : (isLight ? '#f0d9b5' : '#b58863');
             let metalness = 0.1;
             let roughness = 0.4;
             let emissive = '#000000';
@@ -307,18 +320,23 @@ const BoardSquares = ({ validMoves, moveHistory, onSquareClick, isEnemySelected,
             
             const isHintTo = hintMove && hintMove.toRow === r && hintMove.toCol === c;
             const isHintFrom = hintMove && hintMove.fromRow === r && hintMove.fromCol === c;
+            const isLastMove = lastMove && ((lastMove.from?.[0] === r && lastMove.from?.[1] === c) || (lastMove.to?.[0] === r && lastMove.to?.[1] === c));
             
 
             squares.push(
                 <group key={`${r}-${c}`} position={[x, -0.05, z]} onClick={(e) => { e.stopPropagation(); onSquareClick(r, c); }}>
                     <mesh receiveShadow>
-                        <boxGeometry args={[1, 0.1, 1]} />
+                        <boxGeometry args={[quiet ? 0.993 : 1, 0.1, quiet ? 0.993 : 1]} />
                         <meshPhysicalMaterial color={color} roughness={roughness} metalness={metalness} emissive={emissive} emissiveIntensity={emissiveIntensity} clearcoat={clearcoat} clearcoatRoughness={0.1} />
                     </mesh>
+                    {isLastMove && <mesh position={[0, 0.052, 0]} rotation={[-Math.PI/2, 0, 0]}>
+                        <planeGeometry args={[0.99, 0.99]} />
+                        <meshBasicMaterial color="#e6ca82" transparent opacity={0.32} depthWrite={false} />
+                    </mesh>}
                     {isMoveCandidate && (
-                        <mesh position={[0, 0.051, 0]} rotation={[-Math.PI/2, 0, 0]}>
-                            <planeGeometry args={[1, 1]} />
-                            <meshBasicMaterial color={isEnemySelected ? "#ff4444" : "#4ade80"} transparent opacity={0.3} depthWrite={false} />
+                        <mesh position={[0, 0.056, 0]} rotation={[-Math.PI/2, 0, 0]}>
+                            <ringGeometry args={[0.32, 0.41, 32]} />
+                            <meshBasicMaterial color={isEnemySelected ? "#f2ad83" : "#f6da91"} transparent opacity={0.85} depthWrite={false} />
                         </mesh>
                     )}
                     
@@ -524,7 +542,17 @@ const ResponsiveCamera = ({ isFlipped, is2DView }: { isFlipped: boolean, is2DVie
     return null;
 };
 
+function QuietCamera({ isFlipped }: { isFlipped: boolean }) {
+    const { size } = useThree();
+    const narrow = size.width / size.height < 1.15;
+    return <OrthographicCamera makeDefault near={0.1} far={250}
+        position={[0, narrow ? 12 : 10, (isFlipped ? -1 : 1) * (narrow ? 5 : 8)]}
+        zoom={Math.min(size.width / 9.65, size.height / (narrow ? 9 : 8.15))}
+        onUpdate={camera => { camera.lookAt(0, 0, 0); camera.updateProjectionMatrix(); }} />;
+}
+
 export interface Board3DProps {
+    quietLayout?: boolean;
     is2DView?: boolean;
     boardDesign?: 'classic' | 'marble' | 'neon';
     hintMove?: { fromRow: number, fromCol: number, toRow: number, toCol: number } | null;
@@ -545,6 +573,7 @@ export interface Board3DProps {
 
 export const Board3D: React.FC<Board3DProps> = (props) => {
     const isFlipped = props.isFlipped ?? (props.onlineRole === 'black');
+    const quiet = !!props.quietLayout && (!props.boardDesign || props.boardDesign === 'classic');
     
     const selectedToken = props.tokens.find(t => t.id === props.selectedTokenId);
     const isEnemySelected = selectedToken ? (props.onlineRole && props.onlineRole !== 'spectator' ? selectedToken.player !== props.onlineRole : selectedToken.player !== props.currentTurn) : false;
@@ -572,14 +601,23 @@ export const Board3D: React.FC<Board3DProps> = (props) => {
     const controlsRef = React.useRef<any>(null);
 
     return (
-        <div className="w-full h-full rounded-lg overflow-hidden border-2 sm:border-4 border-[#3a2518] shadow-2xl relative group" style={{ background: props.boardDesign === 'marble' ? 'radial-gradient(circle at 50% 50%, #e0e0e0 0%, #a0a0a0 100%)' : props.boardDesign === 'neon' ? 'radial-gradient(circle at 50% 50%, #1a0b2e 0%, #000000 100%)' : 'radial-gradient(circle at 50% 50%, #4a3424 0%, #1a100b 100%)', touchAction: 'none' }}>
-            <Canvas shadows camera={{ position: isFlipped ? [0, 8, -6] : [0, 8, 6], fov: 45 }}>
-                <ResponsiveCamera isFlipped={isFlipped} is2DView={!!props.is2DView} />
+        <div className={`w-full h-full rounded-lg overflow-hidden relative group ${quiet ? '' : 'border-2 sm:border-4 border-[#3a2518] shadow-2xl'}`} style={{ background: quiet ? 'transparent' : props.boardDesign === 'marble' ? 'radial-gradient(circle at 50% 50%, #e0e0e0 0%, #a0a0a0 100%)' : props.boardDesign === 'neon' ? 'radial-gradient(circle at 50% 50%, #1a0b2e 0%, #000000 100%)' : 'radial-gradient(circle at 50% 50%, #4a3424 0%, #1a100b 100%)', touchAction: 'none' }}>
+            <Canvas shadows dpr={[1,1.5]} camera={{ position: isFlipped ? [0, 8, -6] : [0, 8, 6], fov: 45 }}>
+                {quiet ? <QuietCamera isFlipped={isFlipped} /> : <ResponsiveCamera isFlipped={isFlipped} is2DView={!!props.is2DView} />}
                 
-                <BackgroundEffects design={props.boardDesign || 'classic'} />
+                {quiet ? <>
+                    <ambientLight intensity={0.8} />
+                    <directionalLight position={[-5,9,3]} intensity={2} color="#fff1d8" castShadow shadow-mapSize={[1024,1024]} shadow-camera-left={-7} shadow-camera-right={7} shadow-camera-top={7} shadow-camera-bottom={-7} shadow-bias={-0.0005} />
+                    <directionalLight position={[5,5,-5]} intensity={1.3} color="#d9e7ef" />
+                    <mesh receiveShadow rotation={[-Math.PI/2,0,0]} position={[0,-0.52,0]}><planeGeometry args={[200,200]}/><shadowMaterial transparent opacity={0.3}/></mesh>
+                </> : <BackgroundEffects design={props.boardDesign || 'classic'} />}
                 
                 {/* Masterpiece Dynamic Board Base */}
-                {props.boardDesign === 'neon' ? (
+                {quiet ? <group>
+                    <mesh position={[0,-0.30,0]} castShadow receiveShadow><boxGeometry args={[8.85,0.38,8.85]}/><meshStandardMaterial color="#252d23" roughness={0.45}/></mesh>
+                    <mesh position={[0,-0.12,0]}><boxGeometry args={[8.78,0.04,8.78]}/><meshStandardMaterial color="#cbb582" metalness={0.6} roughness={0.4}/></mesh>
+                    <mesh position={[0,-0.07,0]} receiveShadow><boxGeometry args={[8.7,0.08,8.7]}/><meshStandardMaterial color="#353d30" roughness={0.6}/></mesh>
+                </group> : props.boardDesign === 'neon' ? (
                     <group position={[0, -0.25, 0]}>
                         {/* Glowing Rim */}
                         <mesh position={[0, -0.1, 0]}>
@@ -603,14 +641,14 @@ export const Board3D: React.FC<Board3DProps> = (props) => {
                         <meshPhysicalMaterial color="#1a0f0a" roughness={0.2} metalness={0.1} clearcoat={0.8} clearcoatRoughness={0.2} />
                     </mesh>
                 )}
-                <BoardSquares validMoves={props.showMoveHints ? props.validMoves : []} moveHistory={props.moveHistory} onSquareClick={props.onSquareClick} isEnemySelected={isEnemySelected} boardDesign={props.boardDesign} hintMove={props.hintMove} />
+                <BoardSquares quiet={quiet} validMoves={props.showMoveHints ? props.validMoves : []} moveHistory={props.moveHistory} onSquareClick={props.onSquareClick} isEnemySelected={isEnemySelected} boardDesign={props.boardDesign} hintMove={props.hintMove} />
                 {allTokensToRender.map(token => {
                     const isDead = deadTokens.some(d => d.id === token.id);
-                    return <Piece3D key={token.id} token={token} isSelected={token.id === props.selectedTokenId} isOpponentSelected={token.id === props.opponentSelectedTokenId} candidates={props.candidatesMap?.get(token.id)} onSquareClick={props.onSquareClick} isDead={isDead} is2DView={!!props.is2DView} isFlipped={isFlipped} />;
+                    return <Piece3D quiet={quiet} key={token.id} token={token} isSelected={token.id === props.selectedTokenId} isOpponentSelected={token.id === props.opponentSelectedTokenId} candidates={props.candidatesMap?.get(token.id)} onSquareClick={props.onSquareClick} isDead={isDead} is2DView={!!props.is2DView} isFlipped={isFlipped} />;
                 })}
-                <OrbitControls ref={controlsRef} enablePan={false} minPolarAngle={0} maxPolarAngle={Math.PI / 2.5} minDistance={5} maxDistance={15} autoRotate={props.autoRotate} autoRotateSpeed={1.5} enableRotate={false} />
+                <OrbitControls ref={controlsRef} enablePan={false} minPolarAngle={0.02} maxPolarAngle={Math.PI / 2.5} minDistance={5} maxDistance={15} minZoom={20} maxZoom={220} autoRotate={props.autoRotate} autoRotateSpeed={1.5} enableRotate={quiet} />
             </Canvas>
-            <button 
+            {!quiet && <button 
                 onPointerDown={(e) => e.stopPropagation()}
                 onClick={() => controlsRef.current?.reset()} 
                 className="absolute bottom-2 right-2 sm:bottom-4 sm:right-4 bg-black/60 hover:bg-black/80 text-gray-200 p-3 rounded-full opacity-80 transition-opacity active:bg-black/90 shadow-[0_0_15px_rgba(0,0,0,0.5)] z-10"
@@ -623,7 +661,7 @@ export const Board3D: React.FC<Board3DProps> = (props) => {
                     <line x1="12" y1="6" x2="12" y2="2"></line>
                     <line x1="12" y1="22" x2="12" y2="18"></line>
                 </svg>
-            </button>
+            </button>}
         </div>
     );
 };

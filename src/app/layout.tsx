@@ -53,7 +53,10 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const adClient = process.env.NEXT_PUBLIC_ADSENSE_CLIENT_ID || "ca-pub-1116866075179199";
+  // Keep development UI tests free of third-party ad overlays and impressions.
+  const adClient = process.env.NODE_ENV === 'production'
+    ? process.env.NEXT_PUBLIC_ADSENSE_CLIENT_ID || "ca-pub-1116866075179199"
+    : null;
 
   return (
     <html
@@ -69,7 +72,7 @@ export default function RootLayout({
                 strategy="afterInteractive"
             />
         )}
-        <Script id="adsense-init" strategy="afterInteractive">
+        {adClient && <Script id="adsense-init" strategy="afterInteractive">
             {`
               (adsbygoogle = window.adsbygoogle || []).push({
                 google_ad_client: "${adClient}",
@@ -77,7 +80,7 @@ export default function RootLayout({
                 overlays: {bottom: true}
               });
             `}
-        </Script>
+        </Script>}
       </head>
       <body className="h-full bg-[#11100E] text-[#E8E2D7] selection:bg-[#B39A62]/30 font-sans overflow-x-hidden">
         <main className="h-full">{children}</main>

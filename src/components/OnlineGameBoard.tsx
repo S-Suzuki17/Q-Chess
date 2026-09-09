@@ -7,6 +7,7 @@ import { User, TimeControl } from '../types/game';
 import { Language, dict } from '../locales/dict';
 import { QuantumPieceUI } from './QuantumPieceUI';
 import { Board3D } from './Board3D';
+import { MatchLayout } from './MatchLayout';
 import { Board2D } from './Board2D';
 import { AdBanner } from './AdBanner';
 import { PieceType } from '../config/gameConfig';
@@ -80,6 +81,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
     const [showRules, setShowRules] = useState(false);
     const { is2DView, setIs2DView, boardDesign, setBoardDesign } = useBoardPreferences();
     const [showHomeConfirm, setShowHomeConfirm] = useState(false);
+    const [viewResetKey, setViewResetKey] = useState(0);
     const [showResignConfirm, setShowResignConfirm] = useState<boolean>(false);
     const [promotionPending, setPromotionPending] = useState<{
         pieceId: number;
@@ -551,91 +553,49 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
     }
 
     return (
-        <div className="flex flex-col items-center w-full h-full max-h-[100dvh] max-w-[800px] mx-auto relative select-none touch-none overflow-hidden pb-4">
-            <div className="flex w-full shrink-0 items-center justify-between gap-2 px-2 py-1">
-            {/* Board controls */}
-            <div className="flex items-center gap-2">
-                
-                <button aria-label={t.home} onClick={() => setShowHomeConfirm(true)} className="w-10 h-10 md:w-12 md:h-12 bg-black/60 rounded-lg flex items-center justify-center border border-[#B39A62]/50 hover:bg-black/80 transition-all text-gray-300">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
-                </button>
-                <button aria-label={is2DView ? '3D' : '2D'} aria-pressed={is2DView} onClick={() => setIs2DView(!is2DView)} className={`w-10 h-10 md:w-12 md:h-12 rounded-lg flex items-center justify-center border transition-all text-gray-300 font-bold ${is2DView ? 'bg-[#B39A62]/80 border-white text-white' : 'bg-black/60 border-[#B39A62]/50 hover:bg-black/80'}`}>
-                    {is2DView ? '3D' : '2D'}
-                </button>
-<button aria-label={lang === 'ja' ? '盤面のデザインを変更' : 'Change board theme'} onClick={() => {
-                    const themes: ('classic'|'marble'|'neon')[] = ['classic', 'marble', 'neon'];
-                    const next = themes[(themes.indexOf(boardDesign) + 1) % themes.length];
-                    setBoardDesign(next);
-                }} className="w-10 h-10 md:w-12 md:h-12 bg-black/60 rounded-lg flex items-center justify-center border border-[#B39A62]/50 hover:bg-black/80 transition-all text-gray-300">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 19l7-7 3 3-7 7-3-3z"></path><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"></path><path d="M2 2l7.586 7.586"></path><circle cx="11" cy="11" r="2"></circle></svg>
-                </button>
-            </div>
-
-            {/* RIGHT SIDEBAR BUTTONS */}
-            <div className="flex items-center gap-2">
-                
-            </div>
-            </div>
-
-            {/* Disconnection Banner */}
-            {disconnectTimeLeft !== null && (
-                <div className="w-full mb-3 p-3 bg-red-950/80 border border-red-500 rounded-lg flex flex-col items-center justify-center animate-pulse shadow-[0_0_15px_rgba(239,68,68,0.5)]">
-                    <span className="text-[#E8E2D7] font-bold text-sm md:text-base">
-                        {lang === 'ja' ? '⚠️ 相手の通信が切断されました。再接続を待っています...' : '⚠️ Opponent disconnected. Waiting for reconnection...'}
-                    </span>
-                    <span className="text-red-300 font-mono text-xl mt-1 font-black">
-                        {Math.floor(disconnectTimeLeft / 60)}:{(disconnectTimeLeft % 60).toString().padStart(2, '0')}
-                    </span>
-                </div>
-            )}
-
-            <div className="flex justify-between w-full mb-4 px-4 items-center bg-[#191714]/80 py-3 border-b border-[#B39A62]/20 shadow-lg relative">
-                {/* White Player Info */}
-                <div className={`text-xl font-bold flex flex-col items-start gap-1 ${currentTurn === 'white' ? 'text-[#E8E2D7] drop-shadow-[0_0_8px_rgba(232,226,215,0.4)]' : 'text-[#A89C86]'} relative`}>
-                    <div className="flex items-center gap-2">
-                        {(() => {
-                            const av = isHost ? (user?.avatar_url || hostAvatarUrl) : joinerAvatarUrl;
-                            return av ? <img src={av} alt="" className="w-7 h-7 rounded-full object-cover border border-[#E8E2D7]/50" /> : <div className="w-7 h-7 rounded-full bg-[#191714] border border-[#E8E2D7]/50 flex items-center justify-center"><span className="text-xs">👤</span></div>;
-                        })()}
-                        {whiteName} {onlineRole === 'white' && <span className="text-xs px-1.5 py-0.5 rounded bg-blue-900/60 text-blue-300 font-normal">YOU</span>}
-                    </div>
-                    <span className="text-2xl font-mono">{formatTime(timeLeftWhite)}</span>
-                    {activeEmotes.white && (
-                        <div className="absolute top-10 left-0 bg-white border-2 border-blue-500 rounded-2xl rounded-tl-none px-3 py-1 shadow-lg z-50 animate-bounce">
-                            <span className="text-2xl">{EMOTES[activeEmotes.white].emoji}</span>
-                        </div>
-                    )}
-                </div>
-
-                <div className="flex flex-col items-center justify-center gap-1">
-                    {latency !== null && (
-                        <div className={`text-[10px] font-mono px-2 py-0.5 rounded ${latency < 100 ? 'text-green-400 bg-green-900/20' : latency < 300 ? 'text-yellow-400 bg-yellow-900/20' : 'text-[#E8E2D7] bg-red-900/20'}`}>
-                            {latency}ms
-                        </div>
-                    )}
-                    <div className="text-sm font-bold text-red-900 min-h-[20px] mx-4 text-center">
-                        {errorMsg}
-                    </div>
-                </div>
-
-                {/* Black Player Info */}
-                <div className={`text-xl font-bold flex flex-col items-end gap-1 ${currentTurn === 'black' ? 'text-red-900 drop-shadow-[0_0_5px_currentColor]' : 'text-[#A89C86]'} relative`}>
-                    <div className="flex items-center gap-2">
-                        {onlineRole === 'black' && <span className="text-xs px-1.5 py-0.5 rounded bg-red-900/60 text-red-300 font-normal">YOU</span>} {blackName}
-                        {(() => {
-                            const av = !isHost ? (user?.avatar_url || joinerAvatarUrl) : hostAvatarUrl;
-                            return av ? <img src={av} alt="" className="w-7 h-7 rounded-full object-cover border border-red-500/50" /> : <div className="w-7 h-7 rounded-full bg-[#191714] border border-red-500/50 flex items-center justify-center"><span className="text-xs">👤</span></div>;
-                        })()}
-                    </div>
-                    <span className="text-2xl font-mono">{formatTime(timeLeftBlack)}</span>
-                    {activeEmotes.black && (
-                        <div className="absolute top-10 right-0 bg-white border-2 border-red-500 rounded-2xl rounded-tr-none px-3 py-1 shadow-lg z-50 animate-bounce">
-                            <span className="text-2xl">{EMOTES[activeEmotes.black].emoji}</span>
-                        </div>
-                    )}
-                </div>
-            </div>
-
+        <MatchLayout
+            lang={lang} mode={lang === 'ja' ? 'オンライン対局' : 'ONLINE MATCH'}
+            white={{name:whiteName,clock:formatTime(timeLeftWhite),avatar:isHost ? (user?.avatar_url || hostAvatarUrl) : hostAvatarUrl,emote:activeEmotes.white ? EMOTES[activeEmotes.white].emoji : undefined}}
+            black={{name:blackName,clock:formatTime(timeLeftBlack),avatar:!isHost ? (user?.avatar_url || joinerAvatarUrl) : joinerAvatarUrl,emote:activeEmotes.black ? EMOTES[activeEmotes.black].emoji : undefined}}
+            bottomSide={bottomPlayer} currentTurn={currentTurn} spectator={onlineRole === 'spectator'} finished={!!winner}
+            tokens={tokens} selectedTokenId={selectedTokenId} 
+            validMoveCount={validMoves.length} onClearSelection={() => setSelectedTokenId(null)}
+            is2D={is2DView} onViewChange={setIs2DView}
+            onResetView={() => setViewResetKey(key => key + 1)}
+            onThemeChange={() => { const themes = ['classic','marble','neon'] as const; setBoardDesign(themes[(themes.indexOf(boardDesign)+1)%themes.length]); }}
+            onHome={() => setShowHomeConfirm(true)} onRules={() => setShowRules(true)} onResign={() => setShowResignConfirm(true)}
+            showMoveHints={showMoveHints} onHintsChange={setShowMoveHints}
+            notice={disconnectTimeLeft !== null ? (lang === 'ja' ? '再接続を待っています… ' : 'Waiting for reconnection… ') + disconnectTimeLeft + 's' : errorMsg || undefined}
+            board={is2DView ? (
+                    <Board2D quietLayout boardDesign={boardDesign} 
+                    tokens={tokens}
+                    isFlipped={isFlipped}
+                    onlineRole={onlineRole}
+                    selectedTokenId={selectedTokenId}
+                    opponentSelectedTokenId={opponentSelectedId}
+                    validMoves={validMoves}
+                    moveHistory={[]} 
+                    showCheckWarning={false}
+                    onSquareClick={handleSquareClick}
+                    showMoveHints={showMoveHints}
+                    currentTurn={currentTurn}
+                />
+                ) : (
+                    <Board3D quietLayout key={viewResetKey} boardDesign={boardDesign} 
+                    tokens={tokens}
+                    isFlipped={isFlipped}
+                    onlineRole={onlineRole}
+                    selectedTokenId={selectedTokenId}
+                    opponentSelectedTokenId={opponentSelectedId}
+                    validMoves={validMoves}
+                    moveHistory={[]} 
+                    showCheckWarning={false}
+                    onSquareClick={handleSquareClick}
+                    showMoveHints={showMoveHints}
+                    currentTurn={currentTurn}
+                />
+                )}
+        >
             {winner && showGameOver && (
                 <div className="absolute inset-0 bg-[#11100E]/90 flex flex-col items-center justify-center z-50 backdrop-blur-sm rounded-lg border border-[#B39A62]/20">
                     <div className="flex flex-col items-center gap-6 px-6 max-w-full">
@@ -661,107 +621,6 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
                     </div>
                 </div>
             )}
-
-            {/* Pieces captured by the opponent */}
-            <div className="w-full flex gap-2 min-h-[48px] mb-2 p-2 bg-black/40 border border-red-900/30 rounded-lg items-center overflow-x-auto shrink-0">
-                <div className="flex items-center gap-2 min-w-[100px] shrink-0 opacity-70">
-                        {onlineRole === 'white' && joinerAvatarUrl ? (
-                            <img src={joinerAvatarUrl} alt="" className="w-6 h-6 rounded-full object-cover border border-red-900/50" />
-                        ) : onlineRole === 'black' && hostAvatarUrl ? (
-                            <img src={hostAvatarUrl} alt="" className="w-6 h-6 rounded-full object-cover border border-red-900/50" />
-                        ) : (
-                            <div className="w-6 h-6 rounded-full bg-red-950/30 flex items-center justify-center border border-red-900/50"><span className="text-[10px] opacity-50">👤</span></div>
-                        )}
-                        <span className="text-red-900 font-bold text-xs uppercase whitespace-nowrap">{opponentName} {t.captured}:</span>
-                    </div>
-                <div className="flex gap-1">
-                    {tokens.filter(t => t.player === bottomPlayer && t.isCaptured).map(token => (
-                        <div key={token.id} className="scale-75 origin-left opacity-80">
-                            <QuantumPieceUI id={token.id} player={token.player} probabilities={token.probabilities} isSelected={false} onClick={() => {}} />
-                        </div>
-                    ))}
-                </div>
-            </div>
-
-            <div className="w-full flex-1 min-h-0 flex items-center justify-center">
-                {is2DView ? (
-                    <Board2D boardDesign={boardDesign} 
-                    tokens={tokens}
-                    isFlipped={isFlipped}
-                    onlineRole={onlineRole}
-                    selectedTokenId={selectedTokenId}
-                    opponentSelectedTokenId={opponentSelectedId}
-                    validMoves={validMoves}
-                    moveHistory={[]} 
-                    showCheckWarning={false}
-                    onSquareClick={handleSquareClick}
-                    showMoveHints={showMoveHints}
-                    currentTurn={currentTurn}
-                />
-                ) : (
-                    <Board3D boardDesign={boardDesign} 
-                    tokens={tokens}
-                    isFlipped={isFlipped}
-                    onlineRole={onlineRole}
-                    selectedTokenId={selectedTokenId}
-                    opponentSelectedTokenId={opponentSelectedId}
-                    validMoves={validMoves}
-                    moveHistory={[]} 
-                    showCheckWarning={false}
-                    onSquareClick={handleSquareClick}
-                    showMoveHints={showMoveHints}
-                    currentTurn={currentTurn}
-                />
-                )}
-            </div>
-            
-            {/* Pieces captured by the player at the bottom */}
-            <div className="w-full flex gap-2 min-h-[48px] mt-2 p-2 bg-black/40 border border-blue-900/30 rounded-lg items-center overflow-x-auto shrink-0">
-                <span className="text-blue-400/70 font-bold text-xs uppercase whitespace-nowrap min-w-[60px]">{playerName} {t.captured}:</span>
-                <div className="flex gap-1">
-                    {tokens.filter(t => t.player !== bottomPlayer && t.isCaptured).map(token => (
-                        <div key={token.id} className="scale-75 origin-left opacity-80">
-                            <QuantumPieceUI id={token.id} player={token.player} probabilities={token.probabilities} isSelected={false} onClick={() => {}} />
-                        </div>
-                    ))}
-                </div>
-            </div>
-            
-            {/* Control Bar: Move hints toggle & Resign button */}
-            <div className="w-full flex justify-between items-center px-4 mt-4">
-                <label className="flex items-center gap-2 text-sm text-gray-400 cursor-pointer hover:text-gray-200 transition-colors select-none">
-                    <input 
-                        type="checkbox" 
-                        checked={showMoveHints} 
-                        onChange={(e) => setShowMoveHints(e.target.checked)} 
-                        className="rounded border-[#A89C86]/30 bg-[#191714] text-cyan-500 focus:ring-cyan-500/50 w-4 h-4 cursor-pointer" 
-                    />
-                    {lang === 'ja' ? 'コマの移動範囲を表示' : 'Show movable range'}
-                </label>
-
-                <div className="flex gap-2">
-                    <button
-                        onClick={() => setShowRules(true)}
-                        className="px-3 py-1.5 bg-[#191714] hover:bg-[#2A2621] border border-[#B39A62]/50 rounded text-xs text-[#E8E2D7] font-bold transition-all flex items-center gap-1.5 shadow-sm"
-                    >
-                        <span>❓</span>
-                        <span>{lang === 'ja' ? 'ルール' : 'Rules'}</span>
-                    </button>
-                    {!winner && onlineRole !== 'spectator' && (
-                        <button
-                            onClick={() => setShowResignConfirm(true)}
-                            className="px-3 py-1.5 bg-red-950/50 hover:bg-red-900/80 border border-red-800/80 hover:border-red-900/50 rounded text-xs text-[#E8E2D7] hover:text-red-200 font-bold transition-all flex items-center gap-1.5 shadow-sm"
-                        >
-                            <span>🏳️</span>
-                            <span>{lang === 'ja' ? '投了' : 'Resign'}</span>
-                        </button>
-                    )}
-                </div>
-            </div>
-
-            <div className="mt-4 text-[#00ff41] text-sm opacity-80 text-center px-4">
-                {t.tips}
-            </div>
 
             {/* Resign Confirmation Modal */}
             {castlingPending && (
@@ -907,7 +766,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
 
             {/* Emote Button & Menu */}
             {roomId && onlineRole && onlineRole !== 'spectator' && !winner && (
-                <div className="fixed bottom-4 right-4 z-40">
+                <div className="match-emote-control">
                     <button
                         onClick={() => setShowEmoteMenu(prev => !prev)}
                         className="w-14 h-14 bg-[#191714] border-2 border-[#B39A62]/50 rounded-full flex items-center justify-center text-3xl shadow-[0_0_15px_rgba(179,154,98,0.3)] hover:scale-110 transition-transform"
@@ -967,6 +826,6 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
                     </div>
                 </div>
             )}
-    </div>
+        </MatchLayout>
     );
 }

@@ -2,8 +2,10 @@ import React from 'react';
 import { QuantumPieceUI } from './QuantumPieceUI';
 import { Token } from '../lib/GameEngine';
 import { PieceType } from '../config/gameConfig';
+import type { MoveRecord } from '../lib/gameRecordService';
 
 export interface Board2DProps {
+    quietLayout?: boolean;
     autoRotate?: boolean;
     onlineRole?: 'white' | 'black' | 'spectator';
     showCheckWarning?: boolean;
@@ -13,7 +15,7 @@ export interface Board2DProps {
     selectedTokenId: string | null;
     opponentSelectedTokenId?: string | null;
     validMoves: {r: number, c: number}[];
-    moveHistory: any[];
+    moveHistory: MoveRecord[];
     onSquareClick: (row: number, col: number) => void;
     showMoveHints: boolean;
     candidatesMap?: Map<string, ReadonlySet<PieceType>>;
@@ -22,6 +24,7 @@ export interface Board2DProps {
 }
 
 export function Board2D({ 
+    quietLayout = false,
     isFlipped: flipped,
     onlineRole,
     currentTurn,
@@ -45,9 +48,9 @@ export function Board2D({
     return (
         <div className="w-full h-full flex items-center justify-center" style={{ containerType: 'size' }}>
         <div
-            className="aspect-square w-full max-w-[500px] relative shadow-2xl mx-auto rounded-md overflow-hidden border-4 border-[#B39A62]/30"
+            className="aspect-square w-full relative shadow-2xl mx-auto rounded-md overflow-hidden border-4 border-[#B39A62]/30"
             style={{ 
-                width: 'min(100cqw, 100cqh, 500px)',
+                width: 'min(100cqw, 100cqh, 900px)',
                 flexShrink: 0,
                 background: boardDesign === 'marble' ? '#a0a0a0' : boardDesign === 'neon' ? '#180a24' : '#11100E',
                 transform: isFlipped ? 'rotate(180deg)' : 'none'
@@ -62,8 +65,13 @@ export function Board2D({
                     const isMoveCandidate = renderMoves.some(m => m.r === row && m.c === col);
                     const isHintTo = hintMove && hintMove.toRow === row && hintMove.toCol === col;
                     const isHintFrom = hintMove && hintMove.fromRow === row && hintMove.fromCol === col;
+                    const isLastMove = lastMove && ((lastMove.from[0] === row && lastMove.from[1] === col) || (lastMove.to[0] === row && lastMove.to[1] === col));
+                    const isSelectedSquare = selectedToken?.row === row && selectedToken?.col === col;
+                    const occupant = tokens.find(token => !token.isCaptured && token.row === row && token.col === col);
 
-                    let bgClass = isDark ? 'bg-[#b58863]' : 'bg-[#f0d9b5]'; // improved contrast
+                    let bgClass = quietLayout
+                        ? (isDark ? 'bg-[#343c30]' : 'bg-[#737c65]')
+                        : (isDark ? 'bg-[#b58863]' : 'bg-[#f0d9b5]');
                     if (boardDesign === 'marble') bgClass = isDark ? 'bg-[#54636e]' : 'bg-[#c7cfd1]';
                     if (boardDesign === 'neon') bgClass = isDark ? 'bg-[#6a00ff]' : 'bg-[#00e5ff]'; // visible contrast
 
@@ -71,11 +79,24 @@ export function Board2D({
                     return (
                         <div 
                             key={i} 
+                            role="button"
+                            tabIndex={0}
+                            aria-label={`${String.fromCharCode(97 + col)}${8 - row}`}
+                            aria-pressed={isSelectedSquare}
+                            data-square={`${String.fromCharCode(97 + col)}${8 - row}`}
+                            data-move-target={isMoveCandidate}
+                            data-last-move={!!isLastMove}
+                            onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onSquareClick(row, col); } }}
                             onClick={() => onSquareClick(row, col)}
                             className={`w-full h-full relative cursor-pointer transition-colors ${bgClass} ${isMoveCandidate ? 'hover:brightness-110' : ''}`} 
                         >
+                            {isLastMove && <div className="absolute inset-0 bg-[#dfc782]/25 border-2 border-[#dfc782]/50 pointer-events-none" />}
+                            {isSelectedSquare && <div className="absolute inset-0 border-[3px] border-[#f3d48b] bg-[#e2bf69]/20 pointer-events-none" />}
+                            {(col === 0 || row === 7) && <span className="absolute left-0.5 bottom-0 text-[9px] text-[#f4efdb] pointer-events-none z-[1]" style={{transform:isFlipped ? 'rotate(180deg)' : 'none'}}>{col === 0 && row !== 7 ? 8 - row : String.fromCharCode(97 + col)}</span>}
                             {isMoveCandidate && (
-                                <div className={`absolute inset-0 ${isEnemySelected ? 'bg-red-500/30' : 'bg-green-500/30'} pointer-events-none`} />
+                                <div className="absolute inset-0 grid place-items-center pointer-events-none">
+                                    <span className={occupant ? 'absolute inset-[3%] rounded-full border-[3px] border-[#f2ad83]' : `w-[22%] h-[22%] rounded-full border ${isEnemySelected ? 'bg-[#efa183]/80 border-[#f6c5ad]' : 'bg-[#f3db9c]/75 border-[#fff1c5]'}`} />
+                                </div>
                             )}
                             {isHintFrom && (
                                 <div className="absolute inset-0 border-4 border-blue-500 shadow-[inset_0_0_15px_rgba(59,130,246,0.5)] pointer-events-none " />
