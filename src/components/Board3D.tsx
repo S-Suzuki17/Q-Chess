@@ -377,12 +377,15 @@ export const Board3D: React.FC<Board3DProps> = props => {
             <button aria-pressed={motion} onClick={()=>{setMotion(!motion);localStorage.setItem('qchess_pieceMotion',String(!motion));}}>◌ 駒のゆらぎ {motion?'ON':'OFF'}</button>
         </div>
         <div className="board-scene-canvas">
+        <BoardAtmosphere theme={design}/>
         <Canvas shadows dpr={[1,1.75]} gl={{antialias:true}}>
             <SceneCamera key={`${flipped}-${reset}`} flipped={flipped} flat={!!props.is2DView} autoRotate={props.autoRotate} controls={controls}/>
             <ambientLight intensity={.8}/>
             <directionalLight position={[-4,10,6]} intensity={2.1} color="#fff3df" castShadow shadow-mapSize={[1024,1024]} shadow-camera-left={-6} shadow-camera-right={6} shadow-camera-top={6} shadow-camera-bottom={-6} shadow-normalBias={.025} shadow-bias={-.0003}/>
             <directionalLight position={[5,6,-5]} intensity={1.5} color="#d5e6ff"/>
-            <BoardAtmosphere theme={design}/>
+            <mesh position={[0,BOARD_HEIGHTS.stage,0]} rotation={[-Math.PI/2,0,0]} receiveShadow raycast={ignoreRaycast}>
+                <planeGeometry args={[40,40]}/><shadowMaterial transparent opacity={.32}/>
+            </mesh>
             <group>
                 <mesh position={[0,-.3,0]} castShadow receiveShadow><boxGeometry args={[8.85,.38,8.85]}/><meshStandardMaterial color={theme.frame} roughness={.58}/></mesh>
                 <mesh position={[0,-.12,0]}><boxGeometry args={[8.78,.04,8.78]}/><meshStandardMaterial color={theme.rim} roughness={.45} metalness={.3} emissive={design==='neon'?theme.rim:'#000000'} emissiveIntensity={.35}/></mesh>
