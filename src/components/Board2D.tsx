@@ -85,6 +85,7 @@ export function Board2D({
                             aria-pressed={isSelectedSquare}
                             data-square={`${String.fromCharCode(97 + col)}${8 - row}`}
                             data-move-target={isMoveCandidate}
+                            data-hint-owner={isMoveCandidate ? (isEnemySelected ? 'opponent' : 'self') : undefined}
                             data-last-move={!!isLastMove}
                             onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onSquareClick(row, col); } }}
                             onClick={() => onSquareClick(row, col)}

@@ -25,7 +25,7 @@ function hooks() {
 function find(node, pred) {
   if (!node || typeof node !== 'object') return;
   if (pred(node)) return node;
-  for (const child of [node.props?.children].flat(10)) { const result = find(child, pred); if (result) return result; }
+  for (const child of [node.props?.board, node.props?.children].flat(10)) { const result = find(child, pred); if (result) return result; }
 }
 test('matchmaking preserves authenticated and guest host identities', () => {
   for (const id of ['registered-user', 'GUEST-anonymous']) {
@@ -45,6 +45,8 @@ for (const [role, team, row, target] of [['white', 0, 1, 2], ['black', 1, 6, 5]]
     const socket = {emit: (...args) => sent.push(args)};
     const Component = load('src/components/OnlineGameBoard.tsx', {
       react: h.React, '../lib/SocketContext': {useSocket: () => ({socket, isConnected: true})},
+      '../hooks/useBoardPreferences': {useBoardPreferences: () => ({is2DView:false,setIs2DView(){},boardDesign:'classic',setBoardDesign(){}})},
+      './MatchLayout': {MatchLayout: () => {}},
       '../locales/dict': {dict: {en: {}, ja: {}}}, './QuantumPieceUI': {QuantumPieceUI: () => {}}, './Board3D': {Board3D: Board}, './Board2D': {Board2D: Board}, './AdBanner': {AdBanner: () => {}},
       uuid: {v4: () => 'test-action'}, '../lib/onlineMovement': load('src/lib/onlineMovement.ts', {}), '../lib/supabaseClient': {supabase: {}},
     }).default;
@@ -130,5 +132,8 @@ test('2D board hides captured pieces and keeps selection and enemy hints', () =>
   assert.equal(find(node, n => n.type === Piece).props.isSelected, true);
   assert.ok(find(node, n => n.props?.style?.transform === 'rotate(180deg)'));
   const enemyNode = Board2D({tokens, selectedTokenId: 'live', validMoves: [{r: 5, c: 4}], moveHistory: [], showMoveHints: true, currentTurn: 'white'});
-  assert.ok(find(enemyNode, n => n.props?.className?.includes('bg-red-500/70')));
+  assert.ok(find(enemyNode, n => n.props?.['data-square'] === 'e3' && n.props['data-move-target'] && n.props['data-hint-owner'] === 'opponent'));
+  assert.ok(find(enemyNode, n => n.props?.['data-square'] === 'd5' && n.props['aria-pressed'] === true));
+  const hiddenHints = Board2D({tokens, selectedTokenId:'live', validMoves:[{r:5,c:4}], moveHistory:[], showMoveHints:false, currentTurn:'white'});
+  assert.equal(find(hiddenHints, n => n.props?.['data-move-target'] === true), undefined);
 });

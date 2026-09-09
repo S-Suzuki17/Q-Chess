@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, type ReactNode } from 'react';
+import Image from 'next/image';
 import { Home, Palette, RotateCcw, Settings2, HelpCircle, Flag, Lightbulb, X } from 'lucide-react';
 import type { Token } from '../lib/GameEngine';
 import type { PieceType } from '../config/gameConfig';
@@ -58,7 +59,7 @@ export function MatchLayout(props: Props) {
         const captured = props.tokens.filter(token => token.isCaptured && token.player !== side);
         return <section className={`match-player ${active ? 'is-active' : ''}`} aria-label={label(side === 'white' ? '白の対局者' : '黒の対局者', `${side} player`)}>
             <div className={`match-avatar ${side}`}>
-                {player.avatar ? <img src={player.avatar} alt="" /> : side === 'white' ? 'W' : 'B'}
+                {player.avatar ? <Image src={player.avatar} alt="" width={36} height={36} unoptimized /> : side === 'white' ? 'W' : 'B'}
             </div>
             <div className="match-player-name"><strong title={player.name}>{player.name}</strong>
                 <span>{side.toUpperCase()}{player.rating != null && ` · ${player.rating}`}
