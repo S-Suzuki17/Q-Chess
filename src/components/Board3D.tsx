@@ -1,7 +1,9 @@
 'use client';
 
 import React, { useMemo, useEffect } from 'react';
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
+import { ResilientBoardCanvas } from './ResilientBoardCanvas';
+import { Board2D } from './Board2D';
 import { OrbitControls, OrthographicCamera, useGLTF, Billboard, Html, Sparkles } from '@react-three/drei';
 import * as THREE from 'three';
 import { Token } from '../lib/GameEngine';
@@ -394,7 +396,7 @@ export const Board3D: React.FC<Board3DProps> = props => {
             <button aria-pressed={motion} onClick={()=>{setMotion(!motion);localStorage.setItem('qchess_pieceMotion',String(!motion));}}>◌ {matchText(lang,'駒のゆらぎ','Piece motion')} {motion?dict[lang].on:dict[lang].muted}</button>
         </div>
         <div className="board-scene-canvas">
-        <Canvas shadows dpr={[1,1.75]} gl={{antialias:true}}>
+        <ResilientBoardCanvas lang={lang} fallback={<Board2D {...props} isFlipped={flipped}/>} onRetry={() => Object.values(MODEL_PATHS).forEach(path => useGLTF.clear(path))}>
             <BoardEnvironment3D theme={design}/>
             <SceneCamera key={`${flipped}`} flipped={flipped} flat={!!props.is2DView} autoRotate={props.autoRotate} controls={controls} checkmate={props.checkmate}/>
             {props.checkmate && motion && <Sparkles count={80} scale={[9,3,9]} position={[0,1.5,0]} speed={.6} size={5} color="#ffe5a0"/>}
@@ -411,10 +413,10 @@ export const Board3D: React.FC<Board3DProps> = props => {
             </group>
             <BoardSquares props={props} enemySelected={enemySelected}/>
             <BoardCoordinates color={theme.label}/>
-            <React.Suspense fallback={null}>{[...active,...deadTokens].map(token=><Piece3D key={token.id} token={token} candidates={props.candidatesMap?.get(token.id)} isSelected={props.selectedTokenId===token.id}
-                isOpponentSelected={props.opponentSelectedTokenId===token.id} isDead={deadTokens.some(dead=>dead.id===token.id)} onSquareClick={props.onSquareClick} is2DView={!!props.is2DView} motion={motion} quiet/>)}</React.Suspense>
+            {[...active,...deadTokens].map(token=><Piece3D key={token.id} token={token} candidates={props.candidatesMap?.get(token.id)} isSelected={props.selectedTokenId===token.id}
+                isOpponentSelected={props.opponentSelectedTokenId===token.id} isDead={deadTokens.some(dead=>dead.id===token.id)} onSquareClick={props.onSquareClick} is2DView={!!props.is2DView} motion={motion} quiet/>)}
             {props.hintMove && <Hint3D move={props.hintMove}/>}
-        </Canvas>
+        </ResilientBoardCanvas>
         </div>
     </div>;
 };

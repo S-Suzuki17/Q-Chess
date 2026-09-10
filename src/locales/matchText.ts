@@ -3,6 +3,8 @@ import { dict, type Language } from './dict';
 const languages = ['zh','ru','fr','de','es','tr','pl','hi','pt','ta'] as const;
 // Order follows languages above. Brand names and board coordinates are not translated.
 const rows: Record<string, readonly string[]> = {
+    '3D unavailable. Showing 2D.':['3D不可用，已显示2D。','3D недоступно. Показано 2D.','3D indisponible. Affichage en 2D.','3D nicht verfügbar. 2D wird angezeigt.','3D no disponible. Mostrando 2D.','3D kullanılamıyor. 2D gösteriliyor.','3D niedostępne. Wyświetlono 2D.','3D उपलब्ध नहीं। 2D दिखाया जा रहा है।','3D indisponível. Exibindo 2D.','3D கிடைக்கவில்லை. 2D காட்டப்படுகிறது.'],
+    'Reload 3D':['重新加载3D','Перезагрузить 3D','Recharger la 3D','3D neu laden','Recargar 3D','3D’yi yeniden yükle','Wczytaj ponownie 3D','3D फिर लोड करें','Recarregar 3D','3D-ஐ மீண்டும் ஏற்று'],
     'Hello!':['你好！','Привет!','Bonjour !','Hallo!','¡Hola!','Merhaba!','Cześć!','नमस्ते!','Olá!','வணக்கம்!'],
     'Well played':['下得好','Хорошо сыграно','Bien joué','Gut gespielt','Bien jugado','İyi oynadın','Dobra gra','अच्छा खेले','Bem jogado','நன்றாக விளையாடினீர்கள்'],
     'Wow':['哇','Ого','Waouh','Wow','Vaya','Vay','Ojej','वाह','Uau','அருமை'],

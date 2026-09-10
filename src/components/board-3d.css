@@ -1,9 +1,12 @@
 .board-3d { width:100%; height:100%; position:relative; overflow:hidden; border-radius:12px; box-shadow:inset 0 0 0 1px #ffffff12; display:flex; flex-direction:column; }
-.board-scene-canvas { flex:1; min-height:0; position:relative; }
+.board-scene-canvas { flex:1 1 0; min-height:0; position:relative; width:100%; }
+.board-render-surface { position:absolute; inset:0; min-width:0; min-height:0; }
+.board-render-fallback, .board-webgl-layer { position:absolute; inset:0; }
+.board-render-status { position:absolute; left:8px; right:8px; bottom:8px; z-index:6; display:flex; align-items:center; justify-content:center; flex-wrap:wrap; gap:8px; padding:6px 10px; border-radius:8px; background:#182119eb; color:#f1e6cd; font-size:12px; pointer-events:none; }
+.board-render-status button { pointer-events:auto; padding:8px 12px; min-height:40px; border:1px solid #b39a62; border-radius:6px; background:#30392a; color:#ffe3a0; cursor:pointer; }
 .board-environment { position:absolute; inset:0; pointer-events:none; overflow:hidden; }
 .board-environment-art { width:100%; height:100%; object-fit:cover; object-position:center; }
 .board-environment-shade { position:absolute; inset:0; background:radial-gradient(ellipse at center,transparent 45%,#00000026 100%); box-shadow:inset 0 0 45px #0003; }
-.board-scene-canvas>div:last-child { position:relative; }
 .board-scene-tools { display:flex; align-items:center; justify-content:space-between; gap:8px; flex-shrink:0; height:34px; padding:0 12px; color:#c4c8b9; background:#111a19eb; border-bottom:1px solid #7a846327; }
 .board-scene-tools>span { font:9px ui-monospace,monospace; letter-spacing:.12em; }.board-scene-tools>button { padding:4px 9px; min-height:28px; border:1px solid #77877355; border-radius:5px; color:#e2d5b3; background:#263026; font-size:10px; cursor:pointer; }
 .board-scene-tools>button[aria-pressed=true] { border-color:#b4a16d; }.board-scene-tools>button:focus-visible { outline:2px solid #ffe3a0; outline-offset:2px; }
