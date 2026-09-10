@@ -47,7 +47,7 @@ export function Board2D({
     const lastMove = moveHistory.length > 0 ? moveHistory[moveHistory.length - 1] : null;
 
     return (
-        <div className="w-full h-full flex items-center justify-center" style={{ containerType: 'size' }}>
+        <div className="board-2d w-full h-full flex items-center justify-center" style={{ containerType: 'size' }}>
         <div
             className="aspect-square w-full relative shadow-2xl mx-auto rounded-md overflow-hidden border-4 border-[#B39A62]/30"
             style={{ 
@@ -131,7 +131,7 @@ export function Board2D({
                         }}
                     >
                         <div 
-                            className="w-full h-full scale-[0.85] flex items-center justify-center pointer-events-auto"
+                            className="w-full h-full scale-[0.94] flex items-center justify-center pointer-events-auto"
                             onClick={(e) => { e.stopPropagation(); onSquareClick(token.row, token.col); }}
                             style={{ transform: isFlipped ? 'rotate(180deg)' : 'none' }}
                         >

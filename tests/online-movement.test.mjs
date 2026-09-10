@@ -47,6 +47,7 @@ for (const [role, team, row, target] of [['white', 0, 1, 2], ['black', 1, 6, 5]]
       react: h.React, '../lib/SocketContext': {useSocket: () => ({socket, isConnected: true})},
       '../hooks/useBoardPreferences': {useBoardPreferences: () => ({is2DView:false,setIs2DView(){},boardDesign:'classic',setBoardDesign(){}})},
       './MatchLayout': {MatchLayout: () => {}},
+      '../locales/matchText': {matchText: (lang, ja, en) => lang === 'ja' ? ja : en},
       '../locales/dict': {dict: {en: {}, ja: {}}}, './QuantumPieceUI': {QuantumPieceUI: () => {}}, './Board3D': {Board3D: Board}, './Board2D': {Board2D: Board}, './AdBanner': {AdBanner: () => {}},
       uuid: {v4: () => 'test-action'}, '../lib/onlineMovement': load('src/lib/onlineMovement.ts', {}), '../lib/supabaseClient': {supabase: {}},
     }).default;

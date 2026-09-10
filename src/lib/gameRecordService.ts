@@ -194,13 +194,28 @@ export async function getTopProfiles(timeControl?: string): Promise<Profile[]> {
     return data ?? [];
 }
 
+export async function getProfile(id: string): Promise<Profile | null> {
+    const { data, error } = await supabase.from('profiles')
+        .select(PUBLIC_PROFILE_COLUMNS).eq('id', id).maybeSingle();
+    if (error) {
+        console.error('Failed to fetch profile:', error);
+        return null;
+    }
+    return data;
+}
+
 export async function ensureProfile(id: string, name: string): Promise<Profile | null> {
-    const { data: existing } = await supabase
+    const { data: existing, error: readError } = await supabase
         .from('profiles')
         .select(PUBLIC_PROFILE_COLUMNS)
         .eq('id', id)
-        .single();
+        .maybeSingle();
         
+    // A failed request is not evidence that the profile does not exist.
+    if (readError) {
+        console.error('Failed to fetch profile:', readError);
+        return null;
+    }
     if (existing) return existing;
     
     const { data, error } = await supabase
@@ -210,6 +225,12 @@ export async function ensureProfile(id: string, name: string): Promise<Profile |
         .single();
         
     if (error) {
+        // Another tab may have created it between the read and insert.
+        if (error.code === '23505') {
+            const { data: profile } = await supabase.from('profiles')
+                .select(PUBLIC_PROFILE_COLUMNS).eq('id', id).maybeSingle();
+            return profile;
+        }
         console.error('Failed to create profile:', error);
         return null;
     }

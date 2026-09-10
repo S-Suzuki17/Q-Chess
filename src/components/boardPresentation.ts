@@ -1,4 +1,7 @@
 export type BoardTheme = 'classic' | 'marble' | 'neon';
+export const PIECE_HEIGHTS = { King: 1.48, Queen: 1.42, Bishop: 1.34, Knight: 1.30, Rook: 1.24, Pawn: 1.20 } as const;
+export const PIECE_MAX_WIDTH = .94;
+export const QUANTUM_FEATURED_SCALE = .94;
 export type HintMove = { fromRow: number; fromCol: number; toRow: number; toCol: number };
 export const squareName = (row: number, col: number) => `${String.fromCharCode(97 + col)}${8 - row}`;
 export function isValidHintMove(move: HintMove | null): move is HintMove {
@@ -18,7 +21,7 @@ export function boardCamera(width: number, height: number, flipped = false, flat
     const narrow = width / height < 1.15;
     return {
         position: [0, flat ? 15 : 13, (flipped ? -1 : 1) * (flat ? 0.01 : narrow ? 5.5 : 7.5)] as [number, number, number],
-        zoom: Math.min(width / 9.5, height / 9.3),
+        zoom: Math.min(width / 9.15, height / 9.05),
     };
 }
 

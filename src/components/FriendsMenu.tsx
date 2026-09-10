@@ -1,7 +1,8 @@
 'use client';
 import React, { useState, useEffect } from 'react';
+import { matchText } from '../locales/matchText';
 import { User } from '../types/game';
-import { Friend, getFriends, sendFriendRequest, acceptFriendRequest, removeFriend, Profile, ensureProfile } from '../lib/gameRecordService';
+import { Friend, getFriends, sendFriendRequest, acceptFriendRequest, removeFriend, Profile, getProfile } from '../lib/gameRecordService';
 import { dict, Language } from '../locales/dict';
 import { useRealtimeRefresh } from '../hooks/useRealtimeRefresh';
 
@@ -31,7 +32,7 @@ export function FriendsMenu({ user, lang, onlineUsers, onClose, onChallenge }: F
         for (const f of data) {
             const otherId = f.user_id === user.id ? f.friend_id : f.user_id;
             if (!profileMap[otherId]) {
-                const p = await ensureProfile(otherId, 'Unknown');
+                const p = await getProfile(otherId);
                 if (p) profileMap[otherId] = p;
             }
         }
@@ -48,22 +49,22 @@ export function FriendsMenu({ user, lang, onlineUsers, onClose, onChallenge }: F
     const handleSendRequest = async () => {
         if (!searchId.trim()) return;
         if (searchId === user.id) {
-            setMsg('Cannot add yourself');
+            setMsg(matchText(lang,'自分は追加できません','Cannot add yourself'));
             return;
         }
         // Basic check if already friends
         if (friends.some(f => f.user_id === searchId || f.friend_id === searchId)) {
-            setMsg('Already friends or request pending');
+            setMsg(matchText(lang,'友達登録済み、または申請中です','Already friends or request pending'));
             return;
         }
 
         const success = await sendFriendRequest(user.id, searchId);
         if (success) {
-            setMsg('Request sent!');
+            setMsg(matchText(lang,'申請を送信しました','Request sent!'));
             setSearchId('');
             loadFriends();
         } else {
-            setMsg('Failed to send request. Check ID.');
+            setMsg(matchText(lang,'送信できませんでした。IDを確認してください','Failed to send request. Check ID.'));
         }
     };
 
@@ -85,17 +86,17 @@ export function FriendsMenu({ user, lang, onlineUsers, onClose, onChallenge }: F
         <div className="fixed inset-0 bg-black/90 z-50 flex flex-col items-center justify-center p-4">
             <div className="bg-[#11100E] border border-[#B39A62]/30 p-6 rounded-lg max-w-md w-full shadow-2xl max-h-[80vh] overflow-y-auto">
                 <div className="flex justify-between items-center mb-6">
-                    <h3 className="text-2xl font-bold text-[#E8E2D7] font-serif tracking-widest">👥 Friends</h3>
+                    <h3 className="text-2xl font-bold text-[#E8E2D7] font-serif tracking-widest">{matchText(lang, "フレンド", "Friends")}</h3>
                     <button onClick={onClose} className="text-[#A89C86] hover:text-[#E8E2D7]">✕</button>
                 </div>
 
                 {/* Add Friend Section */}
                 <div className="mb-6 p-4 bg-[#191714] border border-[#A89C86]/20 rounded">
-                    <h4 className="text-sm font-bold text-[#B39A62] font-serif tracking-widest mb-2">Add Friend</h4>
+                    <h4 className="text-sm font-bold text-[#B39A62] font-serif tracking-widest mb-2">{matchText(lang, "友達を追加", "Add Friend")}</h4>
                     <div className="flex gap-2">
                         <input
                             type="text"
-                            placeholder="Enter User ID (e.g. QG-...)"
+                            placeholder={t.enterId}
                             value={searchId}
                             onChange={(e) => setSearchId(e.target.value)}
                             className="flex-1 bg-[#11100E] border border-[#A89C86]/30 rounded px-3 py-2 text-[#E8E2D7] focus:outline-none focus:border-[#B39A62] text-sm"
@@ -104,7 +105,7 @@ export function FriendsMenu({ user, lang, onlineUsers, onClose, onChallenge }: F
                             onClick={handleSendRequest}
                             className="px-4 py-2 bg-purple-900/50 hover:bg-purple-800 border border-purple-500 rounded text-[#E8E2D7] font-serif tracking-widest font-bold transition-colors text-sm"
                         >
-                            Send
+                            {matchText(lang, "送信", "Send")}
                         </button>
                     </div>
                     {msg && <p className="text-xs text-[#B39A62] font-serif tracking-widest mt-2">{msg}</p>}
@@ -113,14 +114,14 @@ export function FriendsMenu({ user, lang, onlineUsers, onClose, onChallenge }: F
                 {/* Friend Requests (Received) */}
                 {pendingRequestsMe.length > 0 && (
                     <div className="mb-6">
-                        <h4 className="text-sm font-bold text-[#E8E2D7] font-serif tracking-widest mb-2">Friend Requests</h4>
+                        <h4 className="text-sm font-bold text-[#E8E2D7] font-serif tracking-widest mb-2">{matchText(lang, "友達申請", "Friend Requests")}</h4>
                         <div className="flex flex-col gap-2">
                             {pendingRequestsMe.map(req => (
                                 <div key={req.id} className="flex justify-between items-center p-3 bg-[#191714] border border-[#A89C86]/20 rounded">
                                     <span className="text-[#E8E2D7]">{profiles[req.user_id]?.name || req.user_id}</span>
                                     <div className="flex gap-2">
-                                        <button onClick={() => handleAccept(req.user_id)} className="px-3 py-1 bg-[#B39A62] text-[#11100E] rounded text-xs font-bold border border-[#B39A62]">Accept</button>
-                                        <button onClick={() => handleRemove(req.user_id)} className="px-3 py-1 bg-transparent text-[#A89C86] hover:text-[#E8E2D7] rounded text-xs border border-[#A89C86]/30 hover:border-[#A89C86]">Decline</button>
+                                        <button onClick={() => handleAccept(req.user_id)} className="px-3 py-1 bg-[#B39A62] text-[#11100E] rounded text-xs font-bold border border-[#B39A62]">{matchText(lang, "承認", "Accept")}</button>
+                                        <button onClick={() => handleRemove(req.user_id)} className="px-3 py-1 bg-transparent text-[#A89C86] hover:text-[#E8E2D7] rounded text-xs border border-[#A89C86]/30 hover:border-[#A89C86]">{matchText(lang, "拒否", "Decline")}</button>
                                     </div>
                                 </div>
                             ))}
@@ -130,11 +131,11 @@ export function FriendsMenu({ user, lang, onlineUsers, onClose, onChallenge }: F
 
                 {/* Friends List */}
                 <div>
-                    <h4 className="text-sm font-bold text-[#B39A62] font-serif tracking-widest mb-2">My Friends ({acceptedFriends.length})</h4>
+                    <h4 className="text-sm font-bold text-[#B39A62] font-serif tracking-widest mb-2">{t.friends} ({acceptedFriends.length})</h4>
                     {loading ? (
-                        <p className="text-gray-500 text-sm text-center py-4">Loading...</p>
+                        <p className="text-gray-500 text-sm text-center py-4">{matchText(lang, "読み込み中…", "Loading...")}</p>
                     ) : acceptedFriends.length === 0 ? (
-                        <p className="text-gray-600 text-sm text-center py-4">No friends yet.</p>
+                        <p className="text-gray-600 text-sm text-center py-4">{matchText(lang, "まだ友達がいません", "No friends yet.")}</p>
                     ) : (
                         <div className="flex flex-col gap-2">
                             {acceptedFriends.map(f => {
@@ -151,20 +152,20 @@ export function FriendsMenu({ user, lang, onlineUsers, onClose, onChallenge }: F
                                             </div>
                                             <span className="text-[10px] text-gray-500 ml-4">ID: {otherId}</span>
                                         </div>
-                                        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <div className="flex gap-2 flex-wrap">
                                             {isOnline && onChallenge && (
                                                 <button 
                                                     onClick={() => onChallenge(otherId)}
                                                     className="px-2 py-1 bg-[#B39A62] text-[#11100E] rounded text-xs font-bold border border-[#B39A62] hover:bg-[#D0C8B6]"
                                                 >
-                                                    Challenge
+                                                    {matchText(lang, "対局を申し込む", "Challenge")}
                                                 </button>
                                             )}
                                             <button 
                                                 onClick={() => handleRemove(otherId)}
                                                 className="px-2 py-1 bg-transparent text-[#A89C86] hover:text-[#E8E2D7] rounded text-xs border border-[#A89C86]/30 hover:border-[#A89C86]"
                                             >
-                                                Remove
+                                                {matchText(lang, "削除", "Remove")}
                                             </button>
                                         </div>
                                     </div>

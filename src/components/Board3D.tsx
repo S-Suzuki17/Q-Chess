@@ -2,16 +2,18 @@
 
 import React, { useMemo, useEffect } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { OrbitControls, OrthographicCamera, useGLTF, Billboard, Html } from '@react-three/drei';
+import { OrbitControls, OrthographicCamera, useGLTF, Billboard, Html, Sparkles } from '@react-three/drei';
 import * as THREE from 'three';
 import { Token } from '../lib/GameEngine';
 import { QuantumPieceUI } from './QuantumPieceUI';
 import { PieceType } from '../config/gameConfig';
 import type { MoveRecord } from '../lib/gameRecordService';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
-import { BOARD_HEIGHTS, BOARD_THEMES, boardCamera, hintArrowPoints, squareName, type HintMove } from './boardPresentation';
+import { BOARD_HEIGHTS, BOARD_THEMES, PIECE_HEIGHTS, PIECE_MAX_WIDTH, QUANTUM_FEATURED_SCALE, boardCamera, hintArrowPoints, squareName, type HintMove } from './boardPresentation';
 import './board-3d.css';
-import { BoardAtmosphere } from './BoardAtmosphere';
+import { BoardEnvironment3D } from './BoardEnvironment3D';
+import { matchText } from '../locales/matchText';
+import { dict, type Language } from '../locales/dict';
 const ignoreRaycast = () => {};
 
 const MODEL_PATHS: Record<PieceType, string> = {
@@ -30,9 +32,8 @@ if (typeof window !== 'undefined') {
 const QuantumBlock = ({ isWhite, probabilities, candidates, motion = false, phase = 0 }: { isWhite: boolean; probabilities: Token['probabilities']; candidates?: ReadonlySet<PieceType>; quiet?: boolean; motion?: boolean; phase?: number }) => {
     const types: PieceType[] = ['King','Queen','Rook','Bishop','Knight','Pawn'];
     const active = types.filter(type => candidates?.has(type) ?? probabilities[type] > 0);
-    const rows = Math.ceil(active.length / 3);
     const floating = React.useRef<THREE.Group>(null);
-    const orbit = React.useRef<THREE.Group>(null);
+    const figures = React.useRef<(THREE.Group | null)[]>([]);
     useFrame(({clock}) => {
         const time = clock.elapsedTime + phase;
         if (floating.current) {
@@ -40,29 +41,37 @@ const QuantumBlock = ({ isWhite, probabilities, candidates, motion = false, phas
             floating.current.rotation.x = motion ? Math.sin(time*.7)*.018 : 0;
             floating.current.rotation.z = motion ? Math.cos(time*.8)*.018 : 0;
         }
-        if (orbit.current) {
-            orbit.current.position.y = motion ? Math.sin(time*1.1)*.035 : 0;
-            orbit.current.rotation.y = motion ? time*.18 : 0;
-        }
+        // One full-size, changing silhouette replaces six equally tiny figures.
+        // The remaining candidate figures still orbit and wobble around it.
+        const featured = motion ? Math.floor(time / 2.8) % Math.max(1, active.length) : 0;
+        figures.current.forEach((figure, i) => {
+            if (!figure) return;
+            const angle = i / active.length * Math.PI * 2 + (motion ? time * .18 : 0);
+            const hero = i === featured;
+            figure.position.set(hero ? 0 : Math.cos(angle) * .38, hero ? .16 : .2, hero ? 0 : Math.sin(angle) * .38);
+            figure.scale.setScalar(hero ? QUANTUM_FEATURED_SCALE : .23);
+        });
     });
     return <group ref={floating}>
         <mesh castShadow receiveShadow position={[0,.085,0]}>
-            <cylinderGeometry args={[.385,.415,.17,32]}/>
+            <cylinderGeometry args={[.43,.46,.17,32]}/>
             <meshStandardMaterial color={isWhite ? '#ebdfc5' : '#202c3d'} roughness={.55}/>
         </mesh>
         <mesh position={[0,.173,0]} rotation={[-Math.PI/2,0,0]}>
-            <circleGeometry args={[.346,32]}/><meshStandardMaterial color={isWhite ? '#56625b' : '#acb8c3'} roughness={.8}/>
+            <circleGeometry args={[.415,32]}/><meshStandardMaterial color={isWhite ? '#56625b' : '#acb8c3'} roughness={.8}/>
         </mesh>
         <mesh position={[0,.177,0]} rotation={[-Math.PI/2,0,0]}>
-            <ringGeometry args={[.356,.383,32]}/><meshBasicMaterial color={isWhite ? '#f7edda' : '#445979'}/>
+            <ringGeometry args={[.424,.451,32]}/><meshBasicMaterial color="#d4b872"/>
         </mesh>
-        <group ref={orbit}>{active.map((type,i) => {
-            const row = Math.floor(i/3), columns = Math.min(3,active.length - row*3);
+        <group>{active.map((type,i) => {
             const angle=i/active.length*Math.PI*2;
-            return <group key={type} position={motion ? [Math.cos(angle)*.26,.22,Math.sin(angle)*.26] : [(i%3-(columns-1)/2)*.235,.18,(row-(rows-1)/2)*.3]} scale={.28}>
+            return <group key={type} ref={node => { figures.current[i] = node; }} position={i === 0 ? [0,.16,0] : [Math.cos(angle)*.38,.2,Math.sin(angle)*.38]} scale={i === 0 ? QUANTUM_FEATURED_SCALE : .23}>
                 <RealisticPiece type={type} isWhite={isWhite}/>
             </group>;
         })}</group>
+        <Html center position={[0,.45,.44]} style={{pointerEvents:'none'}} zIndexRange={[10,0]}>
+            <span aria-hidden="true" style={{display:'grid',placeItems:'center',width:16,height:16,borderRadius:'50%',background:'#29251c',border:'1px solid #d4b872',color:'#ffe2a0',fontSize:12,fontWeight:800,lineHeight:1}}>?</span>
+        </Html>
     </group>;
 };
 
@@ -79,15 +88,12 @@ const RealisticPiece = ({ type, isWhite, isHologram = false, quiet = false }: { 
         
         if (size.y === 0) return c; // safety
         
-        const heights: Record<PieceType, number> = {
-            King: 1.2, Queen: 1.1, Bishop: 1.0, Knight: 0.94, Rook: 0.85, Pawn: 0.74
-        };
-        const targetHeight = heights[type];
+        const targetHeight = PIECE_HEIGHTS[type];
         
         let s = targetHeight / size.y;
         const maxXZ = Math.max(size.x, size.z) * s;
-        if (maxXZ > 0.75) {
-            s = s * (0.75 / maxXZ);
+        if (maxXZ > PIECE_MAX_WIDTH) {
+            s = s * (PIECE_MAX_WIDTH / maxXZ);
         }
         
         c.scale.setScalar(s);
@@ -325,17 +331,36 @@ function Hint3D({ move }: { move: HintMove }) {
     </group>;
 }
 
-function SceneCamera({ flipped, flat, autoRotate, controls }: { flipped: boolean; flat: boolean; autoRotate?: boolean; controls: React.RefObject<OrbitControlsImpl | null> }) {
+function SceneCamera({ flipped, flat, autoRotate, controls, checkmate = false }: { flipped: boolean; flat: boolean; autoRotate?: boolean; controls: React.RefObject<OrbitControlsImpl | null>; checkmate?: boolean }) {
     const {size}=useThree();
     const view=boardCamera(size.width,size.height,flipped,flat);
+    const cameraRef = React.useRef<THREE.OrthographicCamera>(null);
+    const reducedMotion = React.useRef(false);
+    useEffect(() => {
+        const media = window.matchMedia('(prefers-reduced-motion: reduce)');
+        const update = () => { reducedMotion.current = media.matches; };
+        update();
+        media.addEventListener('change', update);
+        return () => media.removeEventListener('change', update);
+    }, []);
+    useFrame((_, delta) => {
+        const camera = cameraRef.current;
+        if (!camera) return;
+        const targetZoom = view.zoom * (checkmate && !reducedMotion.current ? 1.22 : 1);
+        if (Math.abs(camera.zoom - targetZoom) < .001) return;
+        camera.zoom = THREE.MathUtils.damp(camera.zoom, targetZoom, 2.5, delta);
+        camera.updateProjectionMatrix();
+    });
     return <>
-        <OrthographicCamera makeDefault position={view.position} zoom={view.zoom} near={.1} far={100} onUpdate={camera=>{camera.lookAt(0,0,0);camera.updateProjectionMatrix();}}/>
-        <OrbitControls ref={controls} makeDefault enablePan={false} enableRotate={!flat} minPolarAngle={.15} maxPolarAngle={Math.PI/3.8}
-            minZoom={view.zoom*.8} maxZoom={view.zoom*1.65} autoRotate={autoRotate} autoRotateSpeed={.7}/>
+        <OrthographicCamera ref={cameraRef} makeDefault position={view.position} zoom={view.zoom} near={.1} far={100} onUpdate={camera=>{camera.lookAt(0,0,0);camera.updateProjectionMatrix();}}/>
+        <OrbitControls ref={controls} makeDefault enableZoom={false} enablePan={false} enableRotate={!flat} minPolarAngle={.15} maxPolarAngle={Math.PI/3.8}
+              autoRotate={autoRotate} autoRotateSpeed={.7}/>
     </>;
 }
 
 export interface Board3DProps {
+    lang?: Language;
+    checkmate?: boolean;
     quietLayout?: boolean; is2DView?: boolean; boardDesign?: 'classic'|'marble'|'neon'; hintMove?: HintMove | null; isFlipped?: boolean;
     tokens: Token[]; onlineRole?: 'white'|'black'|'spectator'; selectedTokenId: string | null; opponentSelectedTokenId?: string | null;
     validMoves: {r:number;c:number}[]; moveHistory: MoveRecord[]; showCheckWarning?: boolean;
@@ -344,6 +369,7 @@ export interface Board3DProps {
 }
 
 export const Board3D: React.FC<Board3DProps> = props => {
+    const lang = props.lang ?? 'en';
     const flipped=props.isFlipped ?? (props.onlineRole==='black');
     const design=props.boardDesign ?? 'classic', theme=BOARD_THEMES[design];
     const selected=props.tokens.find(token=>token.id===props.selectedTokenId);
@@ -362,7 +388,6 @@ export const Board3D: React.FC<Board3DProps> = props => {
         return ()=>clearTimeout(timer);
     },[deadTokens]);
     const controls=React.useRef<OrbitControlsImpl>(null);
-    const [reset,setReset]=React.useState(0);
     const [motion,setMotion]=React.useState(false);
     useEffect(()=>{
         const reduced=window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -373,13 +398,14 @@ export const Board3D: React.FC<Board3DProps> = props => {
     const active=props.tokens.filter(token=>!token.isCaptured);
     return <div className="board-3d" data-board-theme={design} style={{background:theme.stage,touchAction:'none'}}>
         <div className="board-scene-tools">
-            <span>{design==='classic'?'CLASSIC · STUDY':design==='marble'?'MARBLE · GALLERY':'NEON · CIRCUIT'}</span>
-            <button aria-pressed={motion} onClick={()=>{setMotion(!motion);localStorage.setItem('qchess_pieceMotion',String(!motion));}}>◌ 駒のゆらぎ {motion?'ON':'OFF'}</button>
+              <span>{design==='classic'?matchText(props.lang || 'en','クラシック · 書斎','Classic · Study'):design==='marble'?matchText(props.lang || 'en','大理石 · ギャラリー','Marble · Gallery'):matchText(props.lang || 'en','ネオン · 回路','Neon · Circuit')}</span>
+            <button aria-pressed={motion} onClick={()=>{setMotion(!motion);localStorage.setItem('qchess_pieceMotion',String(!motion));}}>◌ {matchText(lang,'駒のゆらぎ','Piece motion')} {motion?dict[lang].on:dict[lang].muted}</button>
         </div>
         <div className="board-scene-canvas">
-        <BoardAtmosphere theme={design}/>
         <Canvas shadows dpr={[1,1.75]} gl={{antialias:true}}>
-            <SceneCamera key={`${flipped}-${reset}`} flipped={flipped} flat={!!props.is2DView} autoRotate={props.autoRotate} controls={controls}/>
+            <BoardEnvironment3D theme={design}/>
+            <SceneCamera key={`${flipped}`} flipped={flipped} flat={!!props.is2DView} autoRotate={props.autoRotate} controls={controls} checkmate={props.checkmate}/>
+            {props.checkmate && motion && <Sparkles count={80} scale={[9,3,9]} position={[0,1.5,0]} speed={.6} size={5} color="#ffe5a0"/>}
             <ambientLight intensity={.8}/>
             <directionalLight position={[-4,10,6]} intensity={2.1} color="#fff3df" castShadow shadow-mapSize={[1024,1024]} shadow-camera-left={-6} shadow-camera-right={6} shadow-camera-top={6} shadow-camera-bottom={-6} shadow-normalBias={.025} shadow-bias={-.0003}/>
             <directionalLight position={[5,6,-5]} intensity={1.5} color="#d5e6ff"/>
@@ -398,6 +424,5 @@ export const Board3D: React.FC<Board3DProps> = props => {
             {props.hintMove && <Hint3D move={props.hintMove}/>}
         </Canvas>
         </div>
-        {!props.quietLayout && <button className="board-reset" aria-label="Reset camera" onClick={()=>setReset(value=>value+1)}>↺</button>}
     </div>;
 };

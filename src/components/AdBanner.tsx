@@ -1,5 +1,6 @@
 'use client';
 import React, { useEffect, useRef } from 'react';
+import { matchText } from '../locales/matchText';
 
 interface AdBannerProps {
     adClient?: string;
@@ -86,7 +87,7 @@ export function InterstitialAd({ show, onClose, adSlot, lang = 'en' }: Interstit
         <div className="fixed inset-0 bg-black/90 z-[100] flex flex-col items-center justify-center p-4 animate-fade-in">
             <div className="bg-[#2A2621] border border-[#4A4238] rounded-lg p-6 max-w-md w-full flex flex-col items-center gap-4">
                 <p className="text-[#8C7A5E] text-xs uppercase tracking-widest">
-                    {lang === 'ja' ? '広告' : 'Advertisement'}
+                    {matchText(lang, '広告', 'Advertisement')}
                 </p>
                 <ins
                     className="adsbygoogle"
@@ -99,7 +100,7 @@ export function InterstitialAd({ show, onClose, adSlot, lang = 'en' }: Interstit
                     onClick={onClose}
                     className="mt-4 px-6 py-2 bg-[#D4B872] text-[#1E1C19] rounded font-bold text-sm hover:bg-[#E8E5DF] transition-colors"
                 >
-                    {lang === 'ja' ? '閉じる' : 'Close'}
+                    {matchText(lang, '閉じる', 'Close')}
                 </button>
             </div>
         </div>

@@ -1,6 +1,10 @@
-export type Language = 'en' | 'ja' | 'zh' | 'ru' | 'fr' | 'de' | 'es';
+import { additionalTutorial } from './additionalTutorial';
+import { additionalRules } from './additionalRules';
+import type { Language as AppLanguage } from './dict';
+export type Language = AppLanguage;
 
 export const rulesDict: Record<Language, any> = {
+  ...additionalRules,
   en: {
     back: "< BACK TO Q-GAMBIT",
     title: "Q-GAMBIT: HOW TO PLAY",
@@ -206,7 +210,8 @@ export const rulesDict: Record<Language, any> = {
   }
 };
 
-export const tutorialDict: Record<Language, { play: string, next: string, close: string, title: string, steps: string[] }> = {
+export const tutorialDict: Record<AppLanguage, { play: string, next: string, close: string, title: string, steps: string[] }> = {
+  ...additionalTutorial,
   en: {
     play: "START PLAYING!",
     next: "NEXT",

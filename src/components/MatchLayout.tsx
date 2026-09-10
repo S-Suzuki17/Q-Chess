@@ -2,12 +2,14 @@
 
 import { useState, type ReactNode } from 'react';
 import Image from 'next/image';
-import { Home, Palette, RotateCcw, Settings2, HelpCircle, Flag, Lightbulb, X } from 'lucide-react';
+import { Home, Palette, Settings2, HelpCircle, Flag, Lightbulb, X } from 'lucide-react';
 import type { Token } from '../lib/GameEngine';
 import type { PieceType } from '../config/gameConfig';
 import type { MoveRecord } from '../lib/gameRecordService';
 import type { HintMove } from './boardPresentation';
 import './match-layout.css';
+import './checkmate.css';
+import { matchText } from '../locales/matchText';
 
 type Side = 'white' | 'black';
 type Player = { name: string; clock: string; rating?: number | null; avatar?: string; emote?: string };
@@ -19,7 +21,7 @@ const square = (row: number, col: number) => `${String.fromCharCode(97 + col)}${
 
 interface Props {
     lang: string; mode: string; white: Player; black: Player; bottomSide: Side;
-    currentTurn: Side; spectator?: boolean; finished: boolean;
+    currentTurn: Side; spectator?: boolean; finished: boolean; checkmate?: boolean;
     tokens: Token[]; candidatesMap?: Map<string, ReadonlySet<PieceType>>;
     selectedTokenId: string | null; history?: MoveRecord[];
     validMoveCount: number; onClearSelection: () => void;
@@ -34,8 +36,7 @@ interface Props {
 
 export function MatchLayout(props: Props) {
     const [expanded, setExpanded] = useState(false);
-    const ja = props.lang === 'ja';
-    const label = (jp: string, en: string) => ja ? jp : en;
+    const label = (jp: string, en: string) => matchText(props.lang, jp, en);
     const candidates = (token: Token) => token.promotedTo ? [token.promotedTo]
         : TYPES.filter(type => props.candidatesMap?.get(token.id)?.has(type)
             ?? token.probabilities[type] > 0);
@@ -66,7 +67,7 @@ export function MatchLayout(props: Props) {
                 {player.avatar ? <Image src={player.avatar} alt="" width={36} height={36} unoptimized /> : side === 'white' ? 'W' : 'B'}
             </div>
             <div className="match-player-name"><strong title={player.name}>{player.name}</strong>
-                <span>{side.toUpperCase()}{player.rating != null && ` · ${player.rating}`}
+                <span>{label(side === 'white' ? '白' : '黒', side === 'white' ? 'White' : 'Black')}{player.rating != null && ` · ${player.rating}`}
                     {active && <b>{label(side === props.bottomSide && !props.spectator ? 'あなたの手番' : '思考中', side === props.bottomSide && !props.spectator ? 'YOUR TURN' : 'THINKING')}</b>}
                 </span>
             </div>
@@ -96,12 +97,14 @@ export function MatchLayout(props: Props) {
             <button className={`match-tool ${!props.is2D ? 'selected' : ''}`} onClick={() => props.onViewChange(false)} aria-pressed={!props.is2D}>3D</button>
             <button className={`match-tool ${props.is2D ? 'selected' : ''}`} onClick={() => props.onViewChange(true)} aria-pressed={props.is2D}>2D</button>
             <button className="match-tool" onClick={props.onThemeChange} aria-label={label('盤面のデザインを変更', 'Change board theme')}><Palette size={18}/></button>
-            <button className="match-tool" onClick={props.onResetView} disabled={props.is2D} aria-label={label('視点を戻す', 'Reset view')}><RotateCcw size={18}/></button>
         </nav>
 
         <main className={`match-main ${hasAdvice ? 'has-advice' : ''}`}>
             {playerBar(topSide)}
-            <div className="match-board-area" data-testid="match-board">{props.board}
+            <div className={`match-board-area ${props.checkmate ? 'is-checkmate' : ''}`} data-testid="match-board">{props.board}
+                {props.checkmate && <div className="checkmate-celebration" role="status" data-testid="checkmate-celebration">
+                    <span aria-hidden="true">♔</span><strong>{label('チェックメイト！','Checkmate!')}</strong>
+                </div>}
                 {props.notice && <div className="match-notice" role="status">{props.notice}</div>}
             </div>
             {hasAdvice && <section className="match-advice" role="status" aria-live="polite" aria-atomic="true" data-testid="move-advice">
@@ -125,8 +128,8 @@ export function MatchLayout(props: Props) {
                     {selected && <button className="clear-selection" onClick={props.onClearSelection} aria-label={label('駒の選択を解除', 'Clear selection')}><X size={16}/></button>}
                 </div>
                 <h2>{inspected ? label(`${selectedTypes.length}種類の可能性`, `${selectedTypes.length} possible identities`) : label('すべての駒は、可能性から始まる。', 'Every piece begins with possibilities.')}</h2>
-                <div className="match-candidates">{TYPES.map((type, i) => <div key={type} className={`candidate ${selectedTypes.includes(type) ? 'possible' : inspected ? 'excluded' : ''}`} data-candidate={type} data-possible={selectedTypes.includes(type)} aria-label={`${ja ? NAMES[i] : type}: ${!inspected ? label('未選択', 'no selection') : selectedTypes.includes(type) ? label('候補', 'possible') : label('候補から除外', 'excluded')}`}>
-                    <span aria-hidden="true">{SYMBOLS[i]}</span><small>{ja ? NAMES[i] : type}</small>
+                <div className="match-candidates">{TYPES.map((type, i) => <div key={type} className={`candidate ${selectedTypes.includes(type) ? 'possible' : inspected ? 'excluded' : ''}`} data-candidate={type} data-possible={selectedTypes.includes(type)} aria-label={`${label(NAMES[i], type)}: ${!inspected ? label('未選択', 'no selection') : selectedTypes.includes(type) ? label('候補', 'possible') : label('候補から除外', 'excluded')}`}>
+                    <span aria-hidden="true">{SYMBOLS[i]}</span><small>{label(NAMES[i], type)}</small>
                 </div>)}</div>
                 <p className={`inspector-instruction ${isMyTurn ? 'your-turn' : ''}`} role="status">{instruction}</p>
                 <p className="inspector-note">{label('駒の動きから正体を絞り込む。取り消しはできません。', 'Moves narrow identities. Moves cannot be undone.')}</p>
@@ -134,7 +137,7 @@ export function MatchLayout(props: Props) {
             <div className={`match-secondary ${expanded ? 'expanded' : ''}`} id="match-detail-panels">
                 <section className="match-panel match-pool">
                     <h2>{label('まだ確定していない正体', 'Unresolved identities')}</h2>
-                    <div className="pool-grid"><span/>{SYMBOLS.map((symbol,i)=><span key={i} aria-label={ja ? NAMES[i] : TYPES[i]}>{symbol}</span>)}
+                    <div className="pool-grid"><span/>{SYMBOLS.map((symbol,i)=><span key={i} aria-label={label(NAMES[i], TYPES[i])}>{symbol}</span>)}
                         {(['white','black'] as const).map(side => {
                             const counts = [...LIMITS];
                             props.tokens.filter(token => token.player === side).forEach(token => {
@@ -157,7 +160,7 @@ export function MatchLayout(props: Props) {
         <footer className="match-footer">
             <label className="match-hints"><input type="checkbox" checked={props.showMoveHints} onChange={e=>props.onHintsChange(e.target.checked)}/>{label('移動候補', 'Move hints')}</label>
             {props.onHint && <button className="match-button match-hint-action" onClick={props.onHint} disabled={!isMyTurn || props.hintPending}><Lightbulb size={15}/>{props.hintPending ? label('検討中…', 'Thinking…') : label('ヒント', 'Hint')}</button>}
-            <span className="match-view-hint" role={props.feedback ? 'status' : undefined}>{props.feedback || (props.is2D ? label('選択した駒はもう一度押すと解除', 'Select the same piece again to deselect') : label('ドラッグで回転 · スクロールで拡大', 'Drag to orbit · Scroll to zoom'))}</span>
+            <span className="match-view-hint" role={props.feedback ? 'status' : undefined}>{props.feedback || (props.is2D ? label('選択した駒はもう一度押すと解除', 'Select the same piece again to deselect') : label('ドラッグで回転', 'Drag to orbit'))}</span>
             <button className="match-button mobile-details" onClick={()=>setExpanded(!expanded)} aria-expanded={expanded} aria-controls="match-detail-panels">{label(expanded ? '閉じる' : '棋譜・正体', expanded ? 'Close' : 'Details')}</button>
             <button className="match-button mobile-rules" onClick={props.onRules}>{label('ルール', 'Rules')}</button>
             {!props.finished && !props.spectator && <button className="match-button match-resign" onClick={props.onResign}><Flag size={14}/>{label('投了', 'Resign')}</button>}

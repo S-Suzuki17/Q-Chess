@@ -1,5 +1,6 @@
 'use client';
 import React, { useState } from 'react';
+import { matchText } from '../locales/matchText';
 import { User } from '../types/game';
 import { dict, Language } from '../locales/dict';
 import { AdBanner } from './AdBanner';
@@ -76,11 +77,11 @@ export function TitleScreen({ lang, onLogin }: TitleScreenProps) {
         e.preventDefault();
         setError('');
         if (!inputId.trim() || !inputPassword.trim()) {
-            setError(lang === 'ja' ? 'IDとパスワードを入力してください。' : 'Please enter ID and Password.');
+            setError(matchText(lang, 'IDとパスワードを入力してください。', 'Please enter ID and Password.'));
             return;
         }
         if (!/^[a-zA-Z0-9]+$/.test(inputId)) {
-            setError(lang === 'ja' ? 'アカウント名は半角英数のみ使用できます。' : 'ID must be alphanumeric.');
+            setError(matchText(lang, 'アカウント名は半角英数のみ使用できます。', 'ID must be alphanumeric.'));
             return;
         }
 
@@ -91,14 +92,14 @@ export function TitleScreen({ lang, onLogin }: TitleScreenProps) {
                 p_password: inputPassword
             });
             if (rpcError || !data) {
-                setError(lang === 'ja' ? 'このアカウント名は既に使用されています。' : 'ID already exists.');
+                setError(matchText(lang, 'このアカウント名は既に使用されています。', 'ID already exists.'));
                 setLoading(false);
                 return;
             }
             onLogin({ id: inputId, name: inputId, type: 'registered' });
         } catch (err) {
             console.error(err);
-            setError('Registration failed.');
+            setError(matchText(lang,'登録に失敗しました','Registration failed.'));
             setLoading(false);
         }
     };
@@ -107,7 +108,7 @@ export function TitleScreen({ lang, onLogin }: TitleScreenProps) {
         e.preventDefault();
         setError('');
         if (!inputId.trim() || !inputPassword.trim()) {
-            setError(lang === 'ja' ? 'IDとパスワードを入力してください。' : 'Please enter ID and Password.');
+            setError(matchText(lang, 'IDとパスワードを入力してください。', 'Please enter ID and Password.'));
             return;
         }
 
@@ -118,14 +119,14 @@ export function TitleScreen({ lang, onLogin }: TitleScreenProps) {
                 p_password: inputPassword
             });
             if (rpcError || !data) {
-                setError(lang === 'ja' ? 'アカウント名またはパスワードが間違っています。' : 'Invalid ID or Password.');
+                setError(matchText(lang, 'アカウント名またはパスワードが間違っています。', 'Invalid ID or Password.'));
                 setLoading(false);
                 return;
             }
             onLogin({ id: inputId, name: inputId, type: 'registered' });
         } catch (err) {
             console.error(err);
-            setError('Login failed.');
+            setError(matchText(lang,'ログインに失敗しました','Login failed.'));
             setLoading(false);
         }
     };

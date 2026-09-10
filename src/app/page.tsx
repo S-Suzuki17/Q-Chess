@@ -1,5 +1,6 @@
 'use client';
 import { SocketProvider, useSocket } from '../lib/SocketContext';
+import { matchText } from '../locales/matchText';
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
@@ -17,7 +18,8 @@ import { GameRecord } from '../lib/gameRecordService';
 
 import { useMatchmaking } from '../hooks/useMatchmaking';
 
-function MatchmakingManager({ user, onMatchFound, isSearchingGlobally, cancelSearchGlobally, timeControlTarget }: { user: any, onMatchFound: (room: any) => void, isSearchingGlobally: boolean, cancelSearchGlobally: () => void, timeControlTarget: number }) {
+function MatchmakingManager({ lang, user, onMatchFound, isSearchingGlobally, cancelSearchGlobally, timeControlTarget }: { lang: Language, user: any, onMatchFound: (room: any) => void, isSearchingGlobally: boolean, cancelSearchGlobally: () => void, timeControlTarget: number }) {
+    const t = dict[lang];
     const { isSearching, matchedRoom, error, waitTime, startMatchmaking, cancelMatchmaking } = useMatchmaking(user);
     const { queueStats, isConnected } = useSocket();
     
@@ -47,16 +49,16 @@ function MatchmakingManager({ user, onMatchFound, isSearchingGlobally, cancelSea
                 {matchedRoom ? (
                     <>
                         <h3 className="text-2xl tracking-[0.2em] text-[#B39A62] mb-4 animate-pulse font-serif uppercase">
-                            MATCH FOUND
+                            {matchText(lang,'対局が見つかりました','Match found')}
                         </h3>
                         <p className="text-[#A89C86] text-xs tracking-[0.3em] uppercase">
-                            PREPARING...
+                            {t.adCloudTitle}
                         </p>
                     </>
                 ) : (
                     <>
                         <h3 className="text-xl tracking-[0.2em] text-[#E8E2D7] mb-2 font-serif uppercase drop-shadow-[0_0_8px_rgba(232,226,215,0.4)]">
-                            SEARCHING OPPONENT
+                            {t.searchingOpponent}
                         </h3>
 
                         {/* Real-time Timer */}
@@ -67,11 +69,11 @@ function MatchmakingManager({ user, onMatchFound, isSearchingGlobally, cancelSea
                         {/* Real-time Queue Stats & Connection Status */}
                         <div className="text-xs text-[#A89C86] tracking-wider mb-6 flex flex-col items-center gap-1">
                             {!isConnected ? (
-                                <span className="text-yellow-500/80 animate-pulse text-[11px]">CONNECTING TO SERVER...</span>
+                                <span className="text-yellow-500/80 animate-pulse text-[11px]">{t.loading}</span>
                             ) : (
                                 <div className="flex items-center gap-2">
                                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                                    <span className="text-[11px] font-mono">{waitingCount} PLAYERS WAITING</span>
+                                    <span className="text-[11px] font-mono">{matchText(lang,'待機中のプレイヤー','Players waiting')}: {waitingCount}</span>
                                 </div>
                             )}
                             {error && <span className="text-red-400 text-[11px] mt-1">{error}</span>}
@@ -86,7 +88,7 @@ function MatchmakingManager({ user, onMatchFound, isSearchingGlobally, cancelSea
                             onClick={cancelSearchGlobally}
                             className="px-8 py-3 border border-[#A89C86]/30 hover:bg-[#2A2621] hover:border-[#A89C86] transition-colors rounded text-[#A89C86] hover:text-[#E8E2D7] text-xs font-serif tracking-widest w-full"
                         >
-                            CANCEL SEARCH
+                            {t.cancel}
                         </button>
                     </>
                 )}
@@ -102,6 +104,7 @@ export default function Home() {
     const [gameState, setGameState] = useState<GameState>('title');
     const [user, setUser] = useState<User | null>(null);
     const [cpuLevel, setCpuLevel] = useState<number>(5);
+    const [practiceSide, setPracticeSide] = useState<'white' | 'black'>('white');
     const [timeControl, setTimeControl] = useState<TimeControl>('10m');
     const [hideSettingsGlobal, setHideSettingsGlobal] = useState(false);
     useEffect(() => {
@@ -176,7 +179,7 @@ export default function Home() {
                 setLang(savedLang);
             } else {
                 const browserLang = navigator.language.split('-')[0];
-                if (['en', 'ja', 'zh', 'ru', 'fr', 'de', 'es'].includes(browserLang)) {
+                if (LANGUAGES.some(language => language.code === browserLang)) {
                     setLang(browserLang as Language);
                 }
             }
@@ -189,6 +192,8 @@ export default function Home() {
             localStorage.setItem('qg_language', newLang);
         }
     };
+
+    useEffect(() => { document.documentElement.lang = lang; }, [lang]);
 
     useEffect(() => {
         const unsubscribe = soundManager.subscribe(setSoundConfig);
@@ -252,7 +257,8 @@ export default function Home() {
         setGameState('level_select');
     };
 
-    const handleSelectLevel = (tc: TimeControl, level: number) => {
+    const handleSelectLevel = (tc: TimeControl, level: number, side: 'white' | 'black') => {
+        setPracticeSide(side);
         setCpuLevel(level);
         setTimeControl(tc);
         setOnlineInfo(null);
@@ -289,7 +295,7 @@ export default function Home() {
     return (
         <SocketProvider userId={user?.id}>
             <SystemStatusBanner lang={lang} />
-            <MatchmakingManager 
+            <MatchmakingManager lang={lang}
                 user={user} 
                 isSearchingGlobally={isSearchingGlobally} 
                 cancelSearchGlobally={() => setIsSearchingGlobally(false)} 
@@ -370,6 +376,7 @@ export default function Home() {
                                 <span className="text-[#E8E5DF] font-bold flex-1">{dict[lang]?.language || 'Language'}</span>
                                 <div className="relative font-sans w-1/2">
                                     <select 
+                                        aria-label={dict[lang].language}
                                         value={lang}
                                         onChange={(e) => handleLanguageChange(e.target.value as Language)}
                                         className="w-full px-3 py-2 bg-[#1E1C19] border border-[#4A4238] text-[#D4B872] rounded hover:bg-[#3B342C] transition-colors font-bold tracking-wider cursor-pointer text-xs focus:outline-none appearance-none pr-7 pl-2"
@@ -431,7 +438,7 @@ export default function Home() {
                         user={user} 
                         cpuLevel={onlineInfo ? undefined : cpuLevel} 
                         roomId={onlineInfo?.roomId}
-                        onlineRole={onlineInfo?.role}
+                        onlineRole={onlineInfo?.role ?? practiceSide}
                         matchMode={onlineInfo?.matchMode}
                         opponentId={onlineInfo?.opponentId}
                         timeControl={timeControl}

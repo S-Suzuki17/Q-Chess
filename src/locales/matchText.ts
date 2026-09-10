@@ -1,0 +1,140 @@
+import { dict, type Language } from './dict';
+
+const languages = ['zh','ru','fr','de','es','tr','pl','hi','pt','ta'] as const;
+// Order follows languages above. Brand names and board coordinates are not translated.
+const rows: Record<string, readonly string[]> = {
+    'Hello!':['你好！','Привет!','Bonjour !','Hallo!','¡Hola!','Merhaba!','Cześć!','नमस्ते!','Olá!','வணக்கம்!'],
+    'Well played':['下得好','Хорошо сыграно','Bien joué','Gut gespielt','Bien jugado','İyi oynadın','Dobra gra','अच्छा खेले','Bem jogado','நன்றாக விளையாடினீர்கள்'],
+    'Wow':['哇','Ого','Waouh','Wow','Vaya','Vay','Ojej','वाह','Uau','அருமை'],
+    'Thinking...':['思考中…','Думаю…','Je réfléchis…','Ich überlege…','Pensando…','Düşünüyorum…','Myślę…','सोच रहा हूँ…','Pensando…','யோசிக்கிறேன்…'],
+    'Good game':['精彩的对局','Хорошая игра','Belle partie','Gute Partie','Buena partida','Güzel maç','Dobra partia','अच्छी बाज़ी','Boa partida','நல்ல ஆட்டம்'],
+    'Classic · Study':['经典 · 书房','Классика · Кабинет','Classique · Bureau','Klassisch · Arbeitszimmer','Clásico · Estudio','Klasik · Çalışma odası','Klasyczny · Gabinet','क्लासिक · अध्ययन कक्ष','Clássico · Escritório','பாரம்பரியம் · படிப்பறை'],
+    'Marble · Gallery':['大理石 · 展厅','Мрамор · Галерея','Marbre · Galerie','Marmor · Galerie','Mármol · Galería','Mermer · Galeri','Marmur · Galeria','संगमरमर · दीर्घा','Mármore · Galeria','பளிங்கு · காட்சியகம்'],
+    'Neon · Circuit':['霓虹 · 电路','Неон · Схемы','Néon · Circuit','Neon · Schaltkreis','Neón · Circuito','Neon · Devre','Neon · Obwód','नियॉन · परिपथ','Néon · Circuito','நியான் · மின்சுற்று'],
+    'White':['白方','Белые','Blancs','Weiß','Blancas','Beyaz','Białe','सफ़ेद','Brancas','வெள்ளை'],
+    'Black':['黑方','Чёрные','Noirs','Schwarz','Negras','Siyah','Czarne','काले','Pretas','கருப்பு'],
+    'Hint':['提示','Подсказка','Indice','Tipp','Pista','İpucu','Podpowiedź','संकेत','Dica','குறிப்பு'],
+    'Thinking…':['思考中…','Обдумывание…','Réflexion…','Überlegt…','Pensando…','Düşünüyor…','Myślenie…','सोच रहा है…','Pensando…','சிந்திக்கிறது…'],
+    'Move from':['移动棋子','Откуда','Départ','Von','Origen','Başlangıç','Z pola','यहाँ से चलें','Origem','இங்கிருந்து'],
+    'Move to':['目标格','Куда','Arrivée','Nach','Destino','Hedef','Na pole','यहाँ चलें','Destino','இங்கே செல்லவும்'],
+    'Select blue, then move to gold':['选择蓝色棋子，再移到金色格','Выберите синюю фигуру, затем золотое поле','Choisissez le bleu, puis la case dorée','Blau wählen, dann auf Gold ziehen','Selecciona azul y mueve al dorado','Maviyi seçin, altın kareye gidin','Wybierz niebieską figurę, potem złote pole','नीला मोहरा चुनें, फिर सुनहरे खाने पर जाएँ','Selecione azul e mova para dourado','நீலக் காயைத் தேர்ந்து தங்கக் கட்டத்திற்கு நகர்த்தவும்'],
+    'Drag to orbit':['拖动旋转','Перетащите для поворота','Glisser pour tourner','Ziehen zum Drehen','Arrastra para girar','Döndürmek için sürükleyin','Przeciągnij, aby obrócić','घुमाने के लिए खींचें','Arraste para girar','சுழற்ற இழுக்கவும்'],
+    'Move hints':['可移动位置','Возможные ходы','Coups possibles','Mögliche Züge','Movimientos posibles','Olası hamleler','Możliwe ruchy','संभावित चालें','Lances possíveis','சாத்தியமான நகர்வுகள்'],
+    'Resign':['认输','Сдаться','Abandonner','Aufgeben','Rendirse','Teslim ol','Poddaj się','हार मानें','Desistir','சரணடை'],
+    'Close':['关闭','Закрыть','Fermer','Schließen','Cerrar','Kapat','Zamknij','बंद करें','Fechar','மூடு'],
+    'Details':['详情','Подробности','Détails','Details','Detalles','Ayrıntılar','Szczegóły','विवरण','Detalhes','விவரங்கள்'],
+    'Match complete':['对局结束','Партия завершена','Partie terminée','Partie beendet','Partida terminada','Maç bitti','Partia zakończona','बाज़ी समाप्त','Partida encerrada','ஆட்டம் முடிந்தது'],
+    'Spectating':['观战中','Наблюдение','Spectateur','Zuschauen','Observando','İzleniyor','Obserwacja','देख रहे हैं','Assistindo','பார்வையிடுகிறது'],
+    'Your turn · Select one of your pieces':['你的回合，请选择己方棋子','Ваш ход · Выберите свою фигуру','À vous · Choisissez votre pièce','Du bist dran · Wähle deine Figur','Tu turno · Selecciona tu pieza','Sizin sıranız · Taşınızı seçin','Twój ruch · Wybierz swoją figurę','आपकी बारी · अपना मोहरा चुनें','Sua vez · Selecione sua peça','உங்கள் முறை · உங்கள் காயைத் தேர்ந்தெடுக்கவும்'],
+    'Opponent’s turn. Select a piece to inspect it.':['对手回合，可选择棋子查看','Ход соперника. Можно изучать фигуры.','Tour adverse. Vous pouvez examiner une pièce.','Gegner am Zug. Figuren können betrachtet werden.','Turno rival. Puedes inspeccionar una pieza.','Rakibin sırası. Taşları inceleyebilirsiniz.','Ruch rywala. Możesz sprawdzać figury.','प्रतिद्वंद्वी की बारी। मोहरा चुनकर देखें।','Vez do adversário. Você pode examinar peças.','எதிராளியின் முறை. காயைத் தேர்ந்து பார்க்கலாம்.'],
+    'Inspecting an opponent’s piece. Select your piece to move.':['正在查看对手棋子，请选己方棋子移动','Вы изучаете фигуру соперника. Для хода выберите свою.','Pièce adverse sélectionnée. Choisissez la vôtre pour jouer.','Gegnerische Figur ausgewählt. Wähle deine eigene zum Ziehen.','Inspeccionas una pieza rival. Selecciona la tuya para mover.','Rakip taşı inceleniyor. Hamle için kendi taşınızı seçin.','Oglądasz figurę rywala. Wybierz swoją, aby wykonać ruch.','प्रतिद्वंद्वी का मोहरा देख रहे हैं। चलने के लिए अपना मोहरा चुनें।','Você examina uma peça adversária. Selecione a sua para jogar.','எதிரியின் காயைப் பார்க்கிறீர்கள். நகர்த்த உங்கள் காயைத் தேர்ந்தெடுக்கவும்.'],
+    'No available moves. Select another piece.':['无可用移动，请选其他棋子','Нет ходов. Выберите другую фигуру.','Aucun coup. Choisissez une autre pièce.','Keine Züge. Wähle eine andere Figur.','Sin movimientos. Elige otra pieza.','Hamle yok. Başka taş seçin.','Brak ruchów. Wybierz inną figurę.','कोई चाल नहीं। दूसरा मोहरा चुनें।','Sem lances. Escolha outra peça.','நகர்வுகள் இல்லை. வேறு காயைத் தேர்ந்தெடுக்கவும்.'],
+    'Your turn':['你的回合','Ваш ход','À vous','Du bist dran','Tu turno','Sizin sıranız','Twój ruch','आपकी बारी','Sua vez','உங்கள் முறை'],
+    'No selection':['未选择','Не выбрано','Aucune sélection','Keine Auswahl','Sin selección','Seçilmedi','Brak wyboru','चयन नहीं','Sem seleção','தேர்வு இல்லை'],
+    'Resolved':['已确定','Определена','Identifiée','Bestimmt','Confirmada','Belirlendi','Ustalona','निश्चित','Confirmada','உறுதியானது'],
+    'Possible':['可能','Возможно','Possible','Möglich','Posible','Olası','Możliwa','संभावित','Possível','சாத்தியம்'],
+    'Excluded':['已排除','Исключено','Exclue','Ausgeschlossen','Descartada','Elendi','Wykluczona','हटाया गया','Excluída','நீக்கப்பட்டது'],
+    'Piece candidates':['棋子候选','Возможные фигуры','Identités possibles','Mögliche Identitäten','Identidades posibles','Olası kimlikler','Możliwe tożsamości','संभावित पहचान','Identidades possíveis','சாத்தியமான அடையாளங்கள்'],
+    'Selected piece':['所选棋子','Выбранная фигура','Pièce sélectionnée','Ausgewählte Figur','Pieza seleccionada','Seçili taş','Wybrana figura','चुना मोहरा','Peça selecionada','தேர்ந்தெடுத்த காய்'],
+    'Last moved piece':['上次移动棋子','Последняя фигура','Dernière pièce jouée','Zuletzt bewegte Figur','Última pieza movida','Son oynanan taş','Ostatnio ruszona figura','अंतिम चला मोहरा','Última peça movida','கடைசியாக நகர்ந்த காய்'],
+    'Piece identities':['棋子身份','Типы фигур','Identités des pièces','Figurenidentitäten','Identidades de piezas','Taş kimlikleri','Tożsamości figur','मोहरों की पहचान','Identidades das peças','காய்களின் அடையாளங்கள்'],
+    'Clear selection':['取消选择','Снять выбор','Désélectionner','Auswahl aufheben','Quitar selección','Seçimi kaldır','Usuń wybór','चयन हटाएँ','Limpar seleção','தேர்வை நீக்கு'],
+    'Unresolved identities':['未确定身份','Неопределённые фигуры','Identités non résolues','Unbestimmte Identitäten','Identidades sin resolver','Belirsiz kimlikler','Nieustalone tożsamości','अनिश्चित पहचान','Identidades não resolvidas','உறுதியாகாத அடையாளங்கள்'],
+    'Every piece begins with possibilities.':['每个棋子都从可能性开始。','Каждая фигура начинается с возможностей.','Chaque pièce commence par des possibilités.','Jede Figur beginnt mit Möglichkeiten.','Cada pieza empieza con posibilidades.','Her taş olasılıklarla başlar.','Każda figura zaczyna od możliwości.','हर मोहरा संभावनाओं से शुरू होता है।','Cada peça começa com possibilidades.','ஒவ்வொரு காயும் சாத்தியங்களுடன் தொடங்குகிறது.'],
+    'Moves narrow identities. Moves cannot be undone.':['移动缩小身份范围，落子不可撤销。','Ходы уточняют тип. Отменить ход нельзя.','Les coups précisent les identités et sont irréversibles.','Züge grenzen Identitäten ein und sind nicht rückgängig zu machen.','Los movimientos reducen identidades y no se pueden deshacer.','Hamleler kimlikleri daraltır. Geri alınamaz.','Ruchy zawężają tożsamości. Nie można ich cofać.','चाल पहचान घटाती है। चाल वापस नहीं ले सकते।','Lances reduzem identidades e não podem ser desfeitos.','நகர்வுகள் அடையாளங்களைச் சுருக்கும். நகர்வை மீட்டெடுக்க முடியாது.'],
+    'Board view':['棋盘视图','Вид доски','Vue du plateau','Brettansicht','Vista del tablero','Tahta görünümü','Widok szachownicy','बिसात दृश्य','Vista do tabuleiro','பலகைக் காட்சி'],
+    'Change board theme':['更换棋盘主题','Сменить тему доски','Changer le thème','Brettdesign ändern','Cambiar tema','Tahta temasını değiştir','Zmień motyw','बिसात थीम बदलें','Mudar tema','பலகைத் தோற்றத்தை மாற்று'],
+    'No moves yet':['暂无走子','Ходов пока нет','Aucun coup joué','Noch keine Züge','Aún no hay movimientos','Henüz hamle yok','Brak ruchów','अभी कोई चाल नहीं','Ainda sem lances','இன்னும் நகர்வுகள் இல்லை'],
+    'Newest moves first':['最新走子在前','Новые ходы сначала','Coups récents en premier','Neueste Züge zuerst','Más recientes primero','Yeni hamleler önce','Najnowsze ruchy najpierw','नई चालें पहले','Mais recentes primeiro','புதிய நகர்வுகள் முதலில்'],
+    'Dismiss hint':['关闭提示','Закрыть подсказку','Fermer l’indice','Tipp schließen','Cerrar pista','İpucunu kapat','Zamknij podpowiedź','संकेत बंद करें','Fechar dica','குறிப்பை மூடு'],
+    'Finding a piece and destination…':['正在寻找棋子和目标格…','Поиск фигуры и поля…','Recherche d’une pièce et d’une destination…','Suche nach Figur und Zielfeld…','Buscando pieza y destino…','Taş ve hedef aranıyor…','Szukanie figury i pola…','मोहरा और गंतव्य खोज रहे हैं…','Buscando peça e destino…','காயையும் இலக்கையும் தேடுகிறது…'],
+    'Hint unavailable. Please try again.':['提示不可用，请重试。','Подсказка недоступна. Повторите.','Indice indisponible. Réessayez.','Tipp nicht verfügbar. Erneut versuchen.','Pista no disponible. Inténtalo de nuevo.','İpucu alınamadı. Tekrar deneyin.','Podpowiedź niedostępna. Spróbuj ponownie.','संकेत उपलब्ध नहीं। फिर प्रयास करें।','Dica indisponível. Tente novamente.','குறிப்பு கிடைக்கவில்லை. மீண்டும் முயலுங்கள்.'],
+    'Select the same piece again to deselect':['再次选择同一棋子以取消','Нажмите фигуру ещё раз для отмены выбора','Sélectionnez à nouveau pour désélectionner','Erneut wählen zum Abwählen','Selecciona de nuevo para quitar selección','Seçimi kaldırmak için tekrar seçin','Wybierz ponownie, aby odznaczyć','चयन हटाने के लिए फिर वही मोहरा चुनें','Selecione novamente para desmarcar','தேர்வை நீக்க அதே காயை மீண்டும் தேர்ந்தெடுக்கவும்'],
+    'Piece motion':['棋子浮动','Движение фигур','Animation des pièces','Figurenbewegung','Movimiento de piezas','Taş hareketi','Animacja figur','मोहरों का हिलना','Animação das peças','காய்களின் அசைவு'],
+    'King':['王','Король','Roi','König','Rey','Şah','Król','राजा','Rei','ராஜா'],
+    'Queen':['后','Ферзь','Dame','Dame','Dama','Vezir','Hetman','वज़ीर','Dama','ராணி'],
+    'Rook':['车','Ладья','Tour','Turm','Torre','Kale','Wieża','हाथी','Torre','கோட்டை'],
+    'Bishop':['象','Слон','Fou','Läufer','Alfil','Fil','Goniec','ऊँट','Bispo','மந்திரி'],
+    'Knight':['马','Конь','Cavalier','Springer','Caballo','At','Skoczek','घोड़ा','Cavalo','குதிரை'],
+    'Pawn':['兵','Пешка','Pion','Bauer','Peón','Piyon','Pion','प्यादा','Peão','சிப்பாய்'],
+    'Identity slots not yet resolved, including captures. Not the number of pieces on the board.':['包括被吃棋子在内的未确定身份数量，并非盘上棋子数。','Неопределённые типы, включая взятые фигуры. Это не число фигур на доске.','Identités non résolues, captures incluses. Pas le nombre de pièces sur le plateau.','Ungeklärte Identitäten inklusive geschlagener Figuren, nicht die Figurenanzahl auf dem Brett.','Identidades sin resolver, incluidas capturas. No es el número de piezas en el tablero.','Alınanlar dahil belirsiz kimlik sayısıdır; tahtadaki taş sayısı değildir.','Nieustalone tożsamości, także zbitych figur. To nie liczba figur na szachownicy.','मारे गए मोहरों समेत अनिश्चित पहचानों की संख्या; बिसात पर मोहरों की संख्या नहीं।','Identidades não resolvidas, incluindo capturas. Não é a quantidade de peças no tabuleiro.','வெட்டப்பட்டவை உட்பட உறுதியாகாத அடையாளங்கள்; பலகையிலுள்ள காய்களின் எண்ணிக்கை அல்ல.'],
+    'Review moves after the match':['对局后查看棋谱','Просмотр ходов после партии','Consultez les coups après la partie','Züge nach der Partie ansehen','Revisa los movimientos al terminar','Maçtan sonra hamleleri inceleyin','Przejrzyj ruchy po partii','बाज़ी के बाद चालें देखें','Revise os lances após a partida','ஆட்டத்திற்குப் பிறகு நகர்வுகளைப் பாருங்கள்'],
+    'Choose a destination · {n} squares':['选择目标 · {n}格','Выберите поле · {n} полей','Choisissez une case · {n} cases','Zielfeld wählen · {n} Felder','Elige destino · {n} casillas','Hedef seçin · {n} kare','Wybierz pole · {n} pól','गंतव्य चुनें · {n} खाने','Escolha destino · {n} casas','இலக்கைத் தேர்ந்தெடு · {n} கட்டங்கள்'],
+    '{n} TYPES':['{n}种候选','{n} типов','{n} types','{n} Typen','{n} tipos','{n} tür','{n} typów','{n} प्रकार','{n} tipos','{n} வகைகள்'],
+    '{n} possible identities':['{n}种可能身份','{n} возможных типов','{n} identités possibles','{n} mögliche Identitäten','{n} identidades posibles','{n} olası kimlik','{n} możliwych tożsamości','{n} संभावित पहचान','{n} identidades possíveis','{n} சாத்தியமான அடையாளங்கள்'],
+    'Time remaining {n}':['剩余时间 {n}','Осталось {n}','Temps restant {n}','Restzeit {n}','Tiempo restante {n}','Kalan süre {n}','Pozostały czas {n}','बचा समय {n}','Tempo restante {n}','மீதமுள்ள நேரம் {n}'],
+    'Resign Match?':['确认认输？','Сдаться?','Abandonner la partie ?','Partie aufgeben?','¿Rendirse?','Teslim olmak istiyor musunuz?','Poddać partię?','हार मान लें?','Desistir da partida?','ஆட்டத்தில் சரணடையவா?'],
+    'Resigning will forfeit the match to your opponent. Are you sure?':['认输后对手获胜，确定吗？','При сдаче победит соперник. Продолжить?','Votre adversaire gagnera. Confirmer ?','Dein Gegner gewinnt dann. Fortfahren?','Tu rival ganará. ¿Confirmar?','Teslim olursanız rakibiniz kazanır. Emin misiniz?','Rywal wygra partię. Potwierdzasz?','हार मानने पर प्रतिद्वंद्वी जीतेगा। क्या आप निश्चित हैं?','Seu adversário vencerá. Tem certeza?','சரணடைந்தால் எதிராளி வெல்வார். உறுதியாகவா?'],
+    'Return to Home?':['返回主页？','Вернуться на главную?','Retour à l’accueil ?','Zur Startseite?','¿Volver al inicio?','Ana sayfaya dönülsün mü?','Wrócić na stronę główną?','मुखपृष्ठ पर लौटें?','Voltar ao início?','முகப்பிற்குத் திரும்பவா?'],
+    'Any unsaved progress may be lost.':['未保存的进度可能丢失。','Несохранённый прогресс может быть потерян.','La progression non enregistrée peut être perdue.','Ungespeicherter Fortschritt kann verloren gehen.','El progreso no guardado puede perderse.','Kaydedilmemiş ilerleme kaybolabilir.','Niezapisany postęp może zostać utracony.','बिना सहेजी प्रगति खो सकती है।','O progresso não salvo pode ser perdido.','சேமிக்காத முன்னேற்றம் இழக்கப்படலாம்.'],
+    'Retry CPU turn':['重试电脑回合','Повторить ход компьютера','Réessayer le tour de l’ordinateur','Computerzug erneut versuchen','Reintentar turno de CPU','Bilgisayar hamlesini yeniden dene','Ponów ruch komputera','कंप्यूटर की चाल फिर चलाएँ','Repetir turno do computador','கணினி நகர்வை மீண்டும் முயல்'],
+    'Waiting for reconnection… ':['等待重连… ','Ожидание подключения… ','Reconnexion en attente… ','Warte auf Verbindung… ','Esperando reconexión… ','Bağlantı bekleniyor… ','Oczekiwanie na połączenie… ','पुनः जुड़ने की प्रतीक्षा… ','Aguardando reconexão… ','மீண்டும் இணைக்கக் காத்திருக்கிறது… '],
+    'Reconnecting. Please wait before moving.':['正在重连，请稍后操作。','Переподключение. Подождите перед ходом.','Reconnexion. Patientez avant de jouer.','Verbindung wird hergestellt. Bitte warten.','Reconectando. Espera antes de mover.','Yeniden bağlanıyor. Hamle için bekleyin.','Ponowne łączenie. Zaczekaj z ruchem.','फिर जुड़ रहे हैं। चलने से पहले प्रतीक्षा करें।','Reconectando. Aguarde antes de jogar.','மீண்டும் இணைக்கிறது. நகர்த்தும் முன் காத்திருக்கவும்.'],
+    'Move your own piece on your turn.':['请在己方回合移动己方棋子。','Ходите своей фигурой в свой ход.','Jouez votre pièce à votre tour.','Ziehe deine Figur, wenn du dran bist.','Mueve tu pieza en tu turno.','Sıranızda kendi taşınızı oynayın.','Ruszaj swoją figurą w swojej turze.','अपनी बारी पर अपना मोहरा चलें।','Mova sua peça na sua vez.','உங்கள் முறையில் உங்கள் காயை நகர்த்தவும்.'],
+    'Guest':['访客','Гость','Invité','Gast','Invitado','Misafir','Gość','अतिथि','Visitante','விருந்தினர்'],
+    'Player':['玩家','Игрок','Joueur','Spieler','Jugador','Oyuncu','Gracz','खिलाड़ी','Jogador','வீரர்'],
+    'CPU difficulty':['电脑难度','Сложность компьютера','Niveau de l’ordinateur','Computerstärke','Dificultad de CPU','Bilgisayar zorluğu','Poziom komputera','कंप्यूटर की कठिनाई','Dificuldade do computador','கணினி கடினநிலை'],
+    'Name must be between 1 and 15 characters.':['名称必须为1至15个字符。','Имя должно содержать от 1 до 15 символов.','Le nom doit contenir 1 à 15 caractères.','Der Name muss 1 bis 15 Zeichen haben.','El nombre debe tener entre 1 y 15 caracteres.','Ad 1–15 karakter olmalıdır.','Nazwa musi mieć od 1 do 15 znaków.','नाम 1 से 15 अक्षरों का होना चाहिए।','O nome deve ter de 1 a 15 caracteres.','பெயர் 1 முதல் 15 எழுத்துகள் வரை இருக்க வேண்டும்.'],
+    'Victory:':['胜利：','Победа:','Victoire :','Sieg:','Victoria:','Zafer:','Zwycięstwo:','जीत:','Vitória:','வெற்றி:'],
+    'Superposition:':['叠加：','Суперпозиция:','Superposition :','Superposition:','Superposición:','Süperpozisyon:','Superpozycja:','सुपरपोज़िशन:','Superposição:','மேற்பொருத்தம்:'],
+    'Discovery:':['身份确定：','Определение:','Identification :','Identifizierung:','Identificación:','Kimlik:','Identyfikacja:','पहचान:','Identificação:','அடையாளம்:'],
+    'Add Friend':['添加好友','Добавить друга','Ajouter un ami','Freund hinzufügen','Añadir amigo','Arkadaş ekle','Dodaj znajomego','मित्र जोड़ें','Adicionar amigo','நண்பரைச் சேர்'],
+    'Friend Requests':['好友请求','Запросы в друзья','Demandes d’amis','Freundschaftsanfragen','Solicitudes de amistad','Arkadaşlık istekleri','Zaproszenia do znajomych','मित्र अनुरोध','Solicitações de amizade','நட்புக் கோரிக்கைகள்'],
+    'Accept':['接受','Принять','Accepter','Annehmen','Aceptar','Kabul et','Akceptuj','स्वीकारें','Aceitar','ஏற்றுக்கொள்'],
+    'Decline':['拒绝','Отклонить','Refuser','Ablehnen','Rechazar','Reddet','Odrzuć','अस्वीकारें','Recusar','நிராகரி'],
+    'No friends yet.':['暂无好友。','Друзей пока нет.','Pas encore d’amis.','Noch keine Freunde.','Aún no hay amigos.','Henüz arkadaş yok.','Nie masz jeszcze znajomych.','अभी कोई मित्र नहीं।','Ainda sem amigos.','இன்னும் நண்பர்கள் இல்லை.'],
+    'Challenge':['挑战','Вызвать','Défier','Herausfordern','Desafiar','Meydan oku','Wyzwij','चुनौती दें','Desafiar','சவால் விடு'],
+    'Remove':['移除','Удалить','Supprimer','Entfernen','Eliminar','Kaldır','Usuń','हटाएँ','Remover','நீக்கு'],
+    'No active matches at the moment.':['目前没有进行中的对局。','Сейчас нет активных партий.','Aucune partie en cours.','Derzeit keine laufenden Partien.','No hay partidas activas.','Şu anda aktif maç yok.','Brak trwających partii.','अभी कोई बाज़ी जारी नहीं है।','Nenhuma partida em andamento.','இப்போது ஆட்டங்கள் நடைபெறவில்லை.'],
+    'Spectate':['观战','Наблюдать','Observer','Zuschauen','Observar','İzle','Obserwuj','देखें','Assistir','பார்வையிடு'],
+    'Cannot add yourself':['不能添加自己','Нельзя добавить себя','Vous ne pouvez pas vous ajouter','Du kannst dich nicht selbst hinzufügen','No puedes añadirte','Kendinizi ekleyemezsiniz','Nie możesz dodać siebie','खुद को नहीं जोड़ सकते','Não pode adicionar a si mesmo','உங்களையே சேர்க்க முடியாது'],
+    'Already friends or request pending':['已是好友或请求处理中','Уже друзья или запрос отправлен','Déjà amis ou demande en attente','Bereits befreundet oder Anfrage offen','Ya son amigos o hay una solicitud pendiente','Zaten arkadaşsınız veya istek bekliyor','Już znajomi lub zaproszenie oczekuje','पहले से मित्र या अनुरोध लंबित','Já são amigos ou há solicitação pendente','ஏற்கெனவே நண்பர் அல்லது கோரிக்கை நிலுவையில் உள்ளது'],
+    'Request sent!':['请求已发送！','Запрос отправлен!','Demande envoyée !','Anfrage gesendet!','¡Solicitud enviada!','İstek gönderildi!','Zaproszenie wysłane!','अनुरोध भेजा गया!','Solicitação enviada!','கோரிக்கை அனுப்பப்பட்டது!'],
+    'Failed to send request. Check ID.':['发送失败，请检查ID。','Не удалось отправить. Проверьте ID.','Échec de l’envoi. Vérifiez l’identifiant.','Senden fehlgeschlagen. ID prüfen.','No se pudo enviar. Comprueba el ID.','Gönderilemedi. Kimliği kontrol edin.','Nie udało się wysłać. Sprawdź ID.','भेजना विफल। आईडी जाँचें।','Falha ao enviar. Verifique o ID.','அனுப்ப முடியவில்லை. அடையாளத்தைச் சரிபார்க்கவும்.'],
+    'Advertisement':['广告','Реклама','Publicité','Werbung','Publicidad','Reklam','Reklama','विज्ञापन','Publicidade','விளம்பரம்'],
+    'Easy':['简单','Легко','Facile','Leicht','Fácil','Kolay','Łatwy','आसान','Fácil','எளிது'],
+    'Normal':['普通','Средне','Normal','Normal','Normal','Normal','Normalny','सामान्य','Normal','இயல்பு'],
+    'Hard':['困难','Сложно','Difficile','Schwer','Difícil','Zor','Trudny','कठिन','Difícil','கடினம்'],
+    'Please enter ID and Password.':['请输入ID和密码。','Введите ID и пароль.','Saisissez l’identifiant et le mot de passe.','ID und Passwort eingeben.','Introduce ID y contraseña.','Kimlik ve parola girin.','Wpisz ID i hasło.','आईडी और पासवर्ड दर्ज करें।','Digite ID e senha.','அடையாளத்தையும் கடவுச்சொல்லையும் உள்ளிடவும்.'],
+    'ID must be alphanumeric.':['ID只能包含字母和数字。','ID может содержать только латинские буквы и цифры.','L’identifiant doit contenir des lettres et des chiffres.','ID darf nur Buchstaben und Ziffern enthalten.','El ID debe ser alfanumérico.','Kimlik yalnızca harf ve rakam içermelidir.','ID może zawierać tylko litery i cyfry.','आईडी में केवल अंग्रेज़ी अक्षर और अंक हों।','O ID deve conter letras e números.','அடையாளத்தில் ஆங்கில எழுத்துகளும் எண்களும் மட்டும் இருக்க வேண்டும்.'],
+    'ID already exists.':['ID已存在。','Такой ID уже существует.','Cet identifiant existe déjà.','ID existiert bereits.','El ID ya existe.','Bu kimlik zaten var.','Ten ID już istnieje.','यह आईडी पहले से है।','Este ID já existe.','இந்த அடையாளம் ஏற்கெனவே உள்ளது.'],
+    'Invalid ID or Password.':['ID或密码错误。','Неверный ID или пароль.','Identifiant ou mot de passe incorrect.','ID oder Passwort falsch.','ID o contraseña incorrectos.','Kimlik veya parola yanlış.','Nieprawidłowy ID lub hasło.','आईडी या पासवर्ड गलत है।','ID ou senha incorretos.','அடையாளம் அல்லது கடவுச்சொல் தவறு.'],
+    'Registration failed.':['注册失败。','Регистрация не удалась.','Échec de l’inscription.','Registrierung fehlgeschlagen.','Error de registro.','Kayıt başarısız.','Rejestracja nieudana.','पंजीकरण विफल।','Falha no cadastro.','பதிவு தோல்வியடைந்தது.'],
+    'Login failed.':['登录失败。','Вход не удался.','Échec de la connexion.','Anmeldung fehlgeschlagen.','Error al iniciar sesión.','Giriş başarısız.','Logowanie nieudane.','लॉग इन विफल।','Falha ao entrar.','உள்நுழைவு தோல்வியடைந்தது.'],
+    'UNDER MAINTENANCE':['维护中','Технические работы','Maintenance en cours','Wartungsarbeiten','En mantenimiento','Bakımda','Prace konserwacyjne','रखरखाव जारी','Em manutenção','பராமரிப்பு நடைபெறுகிறது'],
+    'The system is currently undergoing maintenance. Please check back later.':['系统维护中，请稍后再试。','Проводятся технические работы. Зайдите позже.','Maintenance en cours. Revenez plus tard.','Das System wird gewartet. Bitte später versuchen.','El sistema está en mantenimiento. Vuelve más tarde.','Sistem bakımda. Lütfen daha sonra tekrar deneyin.','System jest konserwowany. Wróć później.','सिस्टम का रखरखाव जारी है। बाद में फिर आएँ।','O sistema está em manutenção. Volte mais tarde.','கணினி பராமரிப்பில் உள்ளது. பின்னர் மீண்டும் வரவும்.'],
+    'Match found':['已找到对局','Соперник найден','Partie trouvée','Partie gefunden','Partida encontrada','Maç bulundu','Znaleziono partię','बाज़ी मिली','Partida encontrada','ஆட்டம் கிடைத்தது'],
+    'Players waiting':['等待中的玩家','Игроков ждёт','Joueurs en attente','Wartende Spieler','Jugadores esperando','Bekleyen oyuncular','Oczekujący gracze','प्रतीक्षा में खिलाड़ी','Jogadores aguardando','காத்திருக்கும் வீரர்கள்'],
+    'Online':['在线','В сети','En ligne','Online','En línea','Çevrimiçi','Online','ऑनलाइन','Online','இணையத்தில்'],
+    'Email and password required.':['请输入邮箱和密码。','Введите почту и пароль.','E-mail et mot de passe requis.','E-Mail und Passwort erforderlich.','Se requieren correo y contraseña.','E-posta ve parola gerekli.','Podaj e-mail i hasło.','ईमेल और पासवर्ड आवश्यक हैं।','E-mail e senha são necessários.','மின்னஞ்சலும் கடவுச்சொல்லும் தேவை.'],
+    'Update failed. Incorrect password?':['更新失败，请检查密码。','Обновление не удалось. Проверьте пароль.','Échec. Vérifiez le mot de passe.','Aktualisierung fehlgeschlagen. Passwort prüfen.','Error al actualizar. Revisa la contraseña.','Güncellenemedi. Parolayı kontrol edin.','Aktualizacja nieudana. Sprawdź hasło.','बदलना विफल। पासवर्ड जाँचें।','Falha ao atualizar. Verifique a senha.','புதுப்பிக்க முடியவில்லை. கடவுச்சொல்லைச் சரிபார்க்கவும்.'],
+    'Email updated successfully!':['邮箱已更新！','Почта обновлена!','E-mail mis à jour !','E-Mail aktualisiert!','¡Correo actualizado!','E-posta güncellendi!','E-mail zaktualizowany!','ईमेल बदल दिया गया!','E-mail atualizado!','மின்னஞ்சல் புதுப்பிக்கப்பட்டது!'],
+};
+const aliases:Record<string,string> = {'captured pieces':'captured','captured':'captured','rules':'rulesButton','settings':'settings','home':'home','return home':'home','moves':'turn','move history':'gameReplays','plies':'turn','match':'play','left':'timeLimit',
+    'cancel':'cancel','exit':'back','how to play':'rulesButton','full rules guide':'rulesGuide','online match':'onlineMultiplayer','cpu match':'vsCpu','you win!':'whiteWins','you lose...':'blackWins','connecting to game server...':'loading','choose move type':'castlingConfirmTitle','choose a normal move or castling.':'castlingConfirmDesc','normal move':'normalMoveOption','castling':'castlingOption','promotion':'promotionTitle','choose a piece to promote to:':'promotionDesc','friends':'friends','my friends':'friends','send':'submit','loading...':'loading','live matches':'liveMatch','loading active matches...':'loading',
+    'capture the enemy king or checkmate them.':'rule4','all pieces start with multiple possible identities. moving a piece collapses its possibilities based on how it moved.':'rule2','be careful! any unknown enemy piece could turn out to be their king when revealed.':'rule4'};
+
+const rowIndex = new Map(Object.entries(rows).map(([key, values]) => [key.toLowerCase(), values]));
+export function matchText(lang: string, jp: string, en: string): string {
+    if (lang === 'ja') return jp;
+    if (lang === 'en') return en;
+    const index = languages.indexOf(lang as typeof languages[number]);
+    if (index < 0) return en;
+    if (en.toLowerCase() === 'checkmate!') return dict[lang as Language].checkmate;
+    if (en === 'THINKING') return rows['Thinking…'][index];
+    if (en === 'white player') return rows.White[index];
+    if (en === 'black player') return rows.Black[index];
+    if (en === 'Q-GAMBIT match') return `Q-GAMBIT · ${(dict[lang as Language]).play}`;
+    for (const template of ['Choose a destination · {n} squares','{n} TYPES','{n} possible identities','Time remaining {n}']) {
+        const [before, after] = template.split('{n}');
+        if (en.startsWith(before) && en.endsWith(after)) {
+            const number = en.slice(before.length, after ? -after.length : undefined);
+            if (/^[\d:]+$/.test(number)) return rows[template][index].replace('{n}', number);
+        }
+    }
+    const row = rowIndex.get(en.toLowerCase());
+    if (row) return row[index];
+    const alias = aliases[en.toLowerCase()];
+    if (alias) return (dict[lang as Language] as Record<string,string>)[alias] || en;
+    return en;
+}

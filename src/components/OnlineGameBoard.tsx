@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { matchText } from '../locales/matchText';
 import { useBoardPreferences } from '../hooks/useBoardPreferences';
 import { useSocket } from '../lib/SocketContext';
 import { User, TimeControl } from '../types/game';
@@ -212,7 +213,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
 
         const isGuest = targetId.startsWith('GUEST-');
         if (isGuest) {
-            setFetchedOpponentName(lang === 'ja' ? 'ゲスト' : 'Guest');
+            setFetchedOpponentName(matchText(lang, 'ゲスト', 'Guest'));
             return;
         }
 
@@ -226,10 +227,10 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
                 if (data?.name) {
                     setFetchedOpponentName(data.name);
                 } else {
-                    setFetchedOpponentName(lang === 'ja' ? 'プレイヤー' : 'Player');
+                    setFetchedOpponentName(matchText(lang, 'プレイヤー', 'Player'));
                 }
             } catch (e) {
-                setFetchedOpponentName(lang === 'ja' ? 'プレイヤー' : 'Player');
+                setFetchedOpponentName(matchText(lang, 'プレイヤー', 'Player'));
             }
         };
 
@@ -364,7 +365,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
         setErrorMsg(null);
 
         if (!socket || !isConnected) {
-            setErrorMsg(lang === 'ja' ? '再接続中です。接続が戻ってから操作してください。' : 'Reconnecting. Please wait before moving.');
+            setErrorMsg(matchText(lang, '再接続中です。接続が戻ってから操作してください。', 'Reconnecting. Please wait before moving.'));
             return;
         }
 
@@ -394,7 +395,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
             // Client optimistic action (will be intercepted if ambiguous)
             const token = gameState.pieces.find((p: any) => p.id === numId);
             if (!token || token.team !== expectedTeam || gameState.turn !== expectedTeam) {
-                setErrorMsg(lang === 'ja' ? '自分の手番に自分の駒を動かしてください。' : 'Move your own piece on your turn.');
+                setErrorMsg(matchText(lang, '自分の手番に自分の駒を動かしてください。', 'Move your own piece on your turn.'));
                 return;
             }
             const moveTypes = filterPossibilities(token, targetCol, targetRow, gameState.board, !!clickedOtherPiece, gameState.pieces);
@@ -515,8 +516,8 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
     const hostAvatarUrl = (gameState as any)?.playerAvatars?.host;
     const joinerAvatarUrl = (gameState as any)?.playerAvatars?.joiner;
 
-    const guestLabel = lang === 'ja' ? 'ゲスト' : 'Guest';
-    const playerLabel = lang === 'ja' ? 'プレイヤー' : 'Player';
+    const guestLabel = matchText(lang, 'ゲスト', 'Guest');
+    const playerLabel = matchText(lang, 'プレイヤー', 'Player');
 
     const getOpponentLabel = (id?: string, serverName?: string, fetchedName?: string | null) => {
         if (fetchedName) return fetchedName;
@@ -540,7 +541,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
             <div className="flex flex-col items-center justify-center p-12 bg-black/60 border border-cyan-900/50 rounded-xl max-w-lg w-full">
                 <div className="w-12 h-12 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin mb-4" />
                 <p className="text-cyan-400 font-mono tracking-widest text-sm animate-pulse">
-                    {lang === 'ja' ? 'サーバーと対局データを同期中...' : 'CONNECTING TO GAME SERVER...'}
+                    {matchText(lang, 'サーバーと対局データを同期中...', 'CONNECTING TO GAME SERVER...')}
                 </p>
                 <button 
                     onClick={onHome || (() => window.location.reload())}
@@ -554,10 +555,10 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
 
     return (
         <MatchLayout
-            lang={lang} mode={lang === 'ja' ? 'オンライン対局' : 'ONLINE MATCH'}
+            lang={lang} mode={matchText(lang, 'オンライン対局', 'ONLINE MATCH')}
             white={{name:whiteName,clock:formatTime(timeLeftWhite),avatar:isHost ? (user?.avatar_url || hostAvatarUrl) : hostAvatarUrl,emote:activeEmotes.white ? EMOTES[activeEmotes.white].emoji : undefined}}
             black={{name:blackName,clock:formatTime(timeLeftBlack),avatar:!isHost ? (user?.avatar_url || joinerAvatarUrl) : joinerAvatarUrl,emote:activeEmotes.black ? EMOTES[activeEmotes.black].emoji : undefined}}
-            bottomSide={bottomPlayer} currentTurn={currentTurn} spectator={onlineRole === 'spectator'} finished={!!winner}
+            bottomSide={bottomPlayer} currentTurn={currentTurn} spectator={onlineRole === 'spectator'} finished={!!winner} checkmate={!!winner && gameState.gameOverReason === 'checkmate'}
             tokens={tokens} selectedTokenId={selectedTokenId} 
             validMoveCount={validMoves.length} onClearSelection={() => setSelectedTokenId(null)}
             is2D={is2DView} onViewChange={setIs2DView}
@@ -565,7 +566,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
             onThemeChange={() => { const themes = ['classic','marble','neon'] as const; setBoardDesign(themes[(themes.indexOf(boardDesign)+1)%themes.length]); }}
             onHome={() => setShowHomeConfirm(true)} onRules={() => setShowRules(true)} onResign={() => setShowResignConfirm(true)}
             showMoveHints={showMoveHints} onHintsChange={setShowMoveHints}
-            notice={disconnectTimeLeft !== null ? (lang === 'ja' ? '再接続を待っています… ' : 'Waiting for reconnection… ') + disconnectTimeLeft + 's' : errorMsg || undefined}
+            notice={disconnectTimeLeft !== null ? (matchText(lang, '再接続を待っています… ', 'Waiting for reconnection… ')) + disconnectTimeLeft + 's' : errorMsg || undefined}
             board={is2DView ? (
                     <Board2D quietLayout boardDesign={boardDesign} 
                     tokens={tokens}
@@ -581,7 +582,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
                     currentTurn={currentTurn}
                 />
                 ) : (
-                    <Board3D quietLayout key={viewResetKey} boardDesign={boardDesign} 
+                    <Board3D lang={lang} quietLayout key={viewResetKey} boardDesign={boardDesign} checkmate={!!winner && gameState.gameOverReason === 'checkmate'}
                     tokens={tokens}
                     isFlipped={isFlipped}
                     onlineRole={onlineRole}
@@ -600,15 +601,15 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
                 <div className="absolute inset-0 bg-[#11100E]/90 flex flex-col items-center justify-center z-50 backdrop-blur-sm rounded-lg border border-[#B39A62]/20">
                     <div className="flex flex-col items-center gap-6 px-6 max-w-full">
                         <div className="text-3xl sm:text-4xl md:text-5xl font-serif font-bold text-[#E8E2D7] tracking-[0.2em] text-center animate-stamp">
-                            {winner === 'draw' ? 'DRAW' : 'CHECKMATE'}
+                            {winner === 'draw' ? t.draw : gameState.gameOverReason === 'checkmate' ? t.checkmate : matchText(lang,'対局終了','Match complete')}
                         </div>
                         <div className="w-16 h-px bg-[#B39A62]/50"></div>
                         <div className={`text-base sm:text-lg md:text-xl font-serif tracking-widest text-center ${winner === 'draw' ? 'text-[#A89C86]' : (winner === 'white_wins' && onlineRole === 'white') || (winner === 'black_wins' && onlineRole === 'black') ? 'text-[#E8E2D7]' : 'text-[#A89C86]'}`}>
                             {winner === 'draw' 
-                                ? 'Draw (Stalemate)' 
+                                ? t.draw
                                 : (winner === 'white_wins' && onlineRole === 'white') || (winner === 'black_wins' && onlineRole === 'black')
-                                    ? (lang === 'ja' ? '勝利 (YOU WIN)' : 'YOU WIN!')
-                                    : (lang === 'ja' ? '敗北 (YOU LOSE)' : 'YOU LOSE...')}
+                                    ? (matchText(lang, '勝利 (YOU WIN)', 'YOU WIN!'))
+                                    : (matchText(lang, '敗北 (YOU LOSE)', 'YOU LOSE...'))}
                         </div>
                         <div className="flex flex-wrap gap-3 mt-4 justify-center">
                             <button 
@@ -625,8 +626,8 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
             {/* Resign Confirmation Modal */}
             {castlingPending && (
                 <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
-                    <div role="dialog" aria-modal="true" aria-label={lang === 'ja' ? '移動方法を選択' : 'Choose move type'} className="bg-[#161513] border border-[#B39A62]/30 p-6 rounded-lg max-w-sm w-full text-center">
-                        <p className="text-[#E8E2D7] mb-4">{lang === 'ja' ? '通常移動かキャスリングを選んでください。' : 'Choose a normal move or castling.'}</p>
+                    <div role="dialog" aria-modal="true" aria-label={matchText(lang, '移動方法を選択', 'Choose move type')} className="bg-[#161513] border border-[#B39A62]/30 p-6 rounded-lg max-w-sm w-full text-center">
+                        <p className="text-[#E8E2D7] mb-4">{matchText(lang, '通常移動かキャスリングを選んでください。', 'Choose a normal move or castling.')}</p>
                         {(['normal', 'castle'] as const).map(intention => (
                             <button key={intention} className="p-3 m-1 border border-[#B39A62]/30 rounded text-[#E8E2D7]" onClick={() => {
                                 if (!socket || !isConnected) return;
@@ -643,10 +644,10 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
                                 setCastlingPending(null);
                                 setSelectedTokenId(null);
                             }}>
-                                {intention === 'normal' ? (lang === 'ja' ? '通常移動' : 'Normal move') : (lang === 'ja' ? 'キャスリング' : 'Castling')}
+                                {intention === 'normal' ? (matchText(lang, '通常移動', 'Normal move')) : (matchText(lang, 'キャスリング', 'Castling'))}
                             </button>
                         ))}
-                        <button className="block w-full mt-3 p-2 text-gray-400" onClick={() => setCastlingPending(null)}>{lang === 'ja' ? 'キャンセル' : 'Cancel'}</button>
+                        <button className="block w-full mt-3 p-2 text-gray-400" onClick={() => setCastlingPending(null)}>{matchText(lang, 'キャンセル', 'Cancel')}</button>
                     </div>
                 </div>
             )}
@@ -654,8 +655,8 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
             {promotionPending && (
                 <div className="fixed inset-0 z-50 bg-black/80 flex flex-col items-center justify-center p-4">
                     <div className="bg-[#161513] border border-[#B39A62]/30 p-8 rounded-lg max-w-sm w-full text-center shadow-2xl">
-                        <h3 className="text-xl tracking-[0.2em] font-serif text-[#E8E2D7] mb-2">{lang === 'ja' ? 'プロモーション' : 'Promotion'}</h3>
-                        <p className="text-[#A89C86] text-xs tracking-widest mb-6 font-serif">{lang === 'ja' ? 'どの駒に昇格しますか？' : 'Choose a piece to promote to:'}</p>
+                        <h3 className="text-xl tracking-[0.2em] font-serif text-[#E8E2D7] mb-2">{matchText(lang, 'プロモーション', 'Promotion')}</h3>
+                        <p className="text-[#A89C86] text-xs tracking-widest mb-6 font-serif">{matchText(lang, 'どの駒に昇格しますか？', 'Choose a piece to promote to:')}</p>
                         <div className="grid grid-cols-2 gap-3 mb-6">
                             {(['Queen', 'Rook', 'Bishop', 'Knight'] as const).map(pt => (
                                 <button
@@ -691,11 +692,11 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
                             }}
                             className="w-full p-3 bg-red-950/40 border border-red-500/30 hover:bg-[#2A2621] hover:border-red-400 rounded text-red-300 font-bold transition-all text-sm"
                         >
-                            {lang === 'ja' ? 'キャンセル' : 'Cancel'}
+                            {matchText(lang, 'キャンセル', 'Cancel')}
                         </button>
                     </div>
                         <div className="w-full max-w-sm mt-12 bg-black/50 p-4 rounded-lg">
-                            <p className="text-[#A89C86] text-[10px] tracking-widest text-center mb-2">Advertisement</p>
+                            <p className="text-[#A89C86] text-[10px] tracking-widest text-center mb-2">{matchText(lang, "広告", "Advertisement")}</p>
                             <AdBanner adClient="ca-pub-1116866075179199" adSlot="8798363654" />
                         </div>
                     </div>
@@ -706,17 +707,17 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
                     <div className="bg-[#161513] border border-[#B39A62]/30 rounded-xl p-8 max-w-sm w-full shadow-2xl flex flex-col items-center text-center">
                         <span className="text-4xl mb-3">🏳️</span>
                         <h3 className="text-lg font-bold text-[#E8E2D7] mb-2">
-                            {lang === 'ja' ? '投了しますか？' : 'Resign Match?'}
+                            {matchText(lang, '投了しますか？', 'Resign Match?')}
                         </h3>
                         <p className="text-sm text-gray-400 mb-6">
-                            {lang === 'ja' ? '投了すると相手の勝利となります。本当に対局を終了しますか？' : 'Resigning will forfeit the match to your opponent. Are you sure?'}
+                            {matchText(lang, '投了すると相手の勝利となります。本当に対局を終了しますか？', 'Resigning will forfeit the match to your opponent. Are you sure?')}
                         </p>
                         <div className="flex gap-3 w-full">
                             <button
                                 onClick={() => setShowResignConfirm(false)}
                                 className="flex-1 py-2.5 bg-[#191714] hover:bg-gray-700 border border-gray-600 rounded-lg text-sm text-[#E8E2D7] font-bold transition-colors"
                             >
-                                {lang === 'ja' ? 'キャンセル' : 'Cancel'}
+                                {matchText(lang, 'キャンセル', 'Cancel')}
                             </button>
                             <button
                                 onClick={() => {
@@ -725,7 +726,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
                                 }}
                                 className="flex-1 py-2.5 bg-red-600 hover:bg-red-500 rounded-lg text-sm text-[#E8E2D7] font-bold transition-colors shadow-lg shadow-red-600/30"
                             >
-                                {lang === 'ja' ? '投了する' : 'Resign'}
+                                {matchText(lang, '投了する', 'Resign')}
                             </button>
                         </div>
                     </div>
@@ -737,19 +738,19 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
                 <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 backdrop-blur-sm animate-fade-in">
                     <div className="bg-[#161513] border border-[#B39A62]/30 rounded-xl p-8 max-w-md w-full shadow-2xl flex flex-col gap-4 text-center">
                         <h3 className="text-xl font-bold text-[#E8E2D7] tracking-widest uppercase">
-                            {lang === 'ja' ? '遊び方' : 'How to Play'}
+                            {matchText(lang, '遊び方', 'How to Play')}
                         </h3>
                         <div className="text-sm text-gray-400 text-left space-y-3">
-                            <p>• <strong>{lang === 'ja' ? '勝利条件:' : 'Victory:'}</strong> {lang === 'ja' ? '相手のキングを取るか、チェックメイトすると勝利です。' : 'Capture the enemy King or Checkmate them.'}</p>
-                            <p>• <strong>{lang === 'ja' ? '重ね合わせ:' : 'Superposition:'}</strong> {lang === 'ja' ? '駒は初期状態では複数の正体（可能性）を持っています。駒を動かすことで、その動き方に基づいて可能性が絞り込まれていきます。' : 'All pieces start with multiple possible identities. Moving a piece collapses its possibilities based on how it moved.'}</p>
-                            <p>• <strong>{lang === 'ja' ? '正体の確定:' : 'Discovery:'}</strong> {lang === 'ja' ? '正体が確定していない敵の駒は、実はキングかもしれません。慎重に攻めましょう！' : 'Be careful! Any unknown enemy piece could turn out to be their King when revealed.'}</p>
+                            <p>• <strong>{matchText(lang, '勝利条件:', 'Victory:')}</strong> {matchText(lang, '相手のキングを取るか、チェックメイトすると勝利です。', 'Capture the enemy King or Checkmate them.')}</p>
+                            <p>• <strong>{matchText(lang, '重ね合わせ:', 'Superposition:')}</strong> {matchText(lang, '駒は初期状態では複数の正体（可能性）を持っています。駒を動かすことで、その動き方に基づいて可能性が絞り込まれていきます。', 'All pieces start with multiple possible identities. Moving a piece collapses its possibilities based on how it moved.')}</p>
+                            <p>• <strong>{matchText(lang, '正体の確定:', 'Discovery:')}</strong> {matchText(lang, '正体が確定していない敵の駒は、実はキングかもしれません。慎重に攻めましょう！', 'Be careful! Any unknown enemy piece could turn out to be their King when revealed.')}</p>
                         </div>
                         <div className="flex gap-3 w-full mt-4">
                             <button
                                 onClick={() => setShowRules(false)}
                                 className="flex-1 py-2.5 bg-[#191714] hover:bg-gray-700 border border-gray-600 rounded-lg text-sm text-[#E8E2D7] font-bold transition-colors"
                             >
-                                {lang === 'ja' ? '閉じる' : 'Close'}
+                                {matchText(lang, '閉じる', 'Close')}
                             </button>
                             <a
                                 href="/rules"
@@ -757,7 +758,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
                                 rel="noopener noreferrer"
                                 className="flex-1 py-2.5 bg-[#B39A62] hover:bg-[#D0C8B6] rounded-lg text-sm text-[#11100E] font-bold transition-colors shadow-lg shadow-[#B39A62]/30 block text-center"
                             >
-                                {lang === 'ja' ? '詳しいルール' : 'Full Rules Guide'}
+                                {matchText(lang, '詳しいルール', 'Full Rules Guide')}
                             </a>
                         </div>
                     </div>
@@ -783,7 +784,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
                                 className="flex items-center gap-3 px-4 py-2 hover:bg-[#2A2621] rounded transition-colors whitespace-nowrap text-left border-b border-[#A89C86]/30 pb-2 mb-2"
                             >
                                 <span className="text-2xl">🏳️</span>
-                                <span className="text-[#E8E2D7] text-sm font-bold">{lang === 'ja' ? '投了' : 'Resign'}</span>
+                                <span className="text-[#E8E2D7] text-sm font-bold">{matchText(lang, '投了', 'Resign')}</span>
                             </button>
                             {(Object.keys(EMOTES) as EmoteType[]).map(key => (
                                 <button
@@ -792,7 +793,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
                                     className="flex items-center gap-3 px-4 py-2 hover:bg-[#2A2621] rounded transition-colors whitespace-nowrap text-left"
                                 >
                                     <span className="text-2xl">{EMOTES[key].emoji}</span>
-                                    <span className="text-[#E8E2D7] text-sm font-bold">{lang === 'ja' ? EMOTES[key].labelJa : EMOTES[key].labelEn}</span>
+                                    <span className="text-[#E8E2D7] text-sm font-bold">{matchText(lang, EMOTES[key].labelJa, EMOTES[key].labelEn)}</span>
                                 </button>
                             ))}
                         </div>
@@ -804,23 +805,23 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
                 <div className="absolute inset-0 bg-black/80 z-50 flex flex-col items-center justify-center p-6">
                     <div className="bg-[#2A2621] border-2 border-[#D4B872]/30 rounded-xl p-8 max-w-md w-full text-center relative shadow-2xl animate-stamp">
                         <h2 className="text-[#B39A62] text-xl font-bold mb-4">
-                            {lang === 'ja' ? 'ホームに戻りますか？' : 'Return to Home?'}
+                            {matchText(lang, 'ホームに戻りますか？', 'Return to Home?')}
                         </h2>
                         <p className="text-[#E8E2D7]/80 mb-8 text-sm">
-                            {lang === 'ja' ? '進行中のゲームデータは失われる可能性があります。' : 'Any unsaved progress may be lost.'}
+                            {matchText(lang, '進行中のゲームデータは失われる可能性があります。', 'Any unsaved progress may be lost.')}
                         </p>
                         <div className="flex gap-4">
                             <button
                                 onClick={() => setShowHomeConfirm(false)}
                                 className="flex-1 px-4 py-3 bg-[#11100E] hover:bg-[#191714] border border-[#D4B872]/50 text-[#E8E2D7] font-bold rounded-lg transition-colors"
                             >
-                                {lang === 'ja' ? 'キャンセル' : 'Cancel'}
+                                {matchText(lang, 'キャンセル', 'Cancel')}
                             </button>
                             <button
                                 onClick={onHome}
                                 className="flex-1 px-4 py-3 bg-red-900/60 hover:bg-red-800/80 border border-red-500/50 text-white font-bold rounded-lg transition-colors"
                             >
-                                {lang === 'ja' ? '戻る' : 'Exit'}
+                                {matchText(lang, '戻る', 'Exit')}
                             </button>
                         </div>
                     </div>

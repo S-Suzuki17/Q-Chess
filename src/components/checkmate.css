@@ -1,0 +1,10 @@
+.checkmate-celebration { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; pointer-events:none; z-index:12; background:radial-gradient(ellipse,#f1c86b15 25%,#0b0d0ad9); box-shadow:inset 0 0 80px #e9bd6466; color:#ffe7a7; animation:mate-reveal 1.2s ease-out both; }
+.checkmate-celebration>span { font-size:clamp(60px,10vw,120px); line-height:1.1; text-shadow:0 0 35px #e8ad47; }
+.checkmate-celebration>strong { max-width:95%; overflow-wrap:anywhere; font-size:clamp(20px,3.5vw,48px); text-align:center; text-shadow:0 2px 12px #000; }
+.is-checkmate .board-2d { animation:mate-zoom 1.4s ease-out both; }
+@keyframes mate-reveal { from { opacity:0; transform:scale(1.12); } to { opacity:1; transform:scale(1); } }
+@keyframes mate-zoom { from { scale:1; } to { scale:1.18; } }
+@media(prefers-reduced-motion:reduce) { .checkmate-celebration,.is-checkmate .board-2d { animation:none; } }
+:lang(hi) .match-layout,:lang(ta) .match-layout { font-family:'Nirmala UI',sans-serif; }
+:lang(hi) .match-layout button,:lang(ta) .match-layout button { letter-spacing:normal; white-space:normal; }
+.match-scene-tools { overflow-wrap:anywhere; }

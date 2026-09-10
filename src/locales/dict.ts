@@ -1,4 +1,5 @@
-export type Language = 'en' | 'ja' | 'zh' | 'ru' | 'fr' | 'de' | 'es';
+import { additional } from './additional';
+export type Language = 'en' | 'ja' | 'zh' | 'ru' | 'fr' | 'de' | 'es' | 'tr' | 'pl' | 'hi' | 'pt' | 'ta';
 
 export const LANGUAGES: { code: Language; label: string; flag: string }[] = [
     { code: 'en', label: 'English', flag: '🇺🇸' },
@@ -8,9 +9,15 @@ export const LANGUAGES: { code: Language; label: string; flag: string }[] = [
     { code: 'fr', label: 'Français', flag: '🇫🇷' },
     { code: 'de', label: 'Deutsch', flag: '🇩🇪' },
     { code: 'es', label: 'Español', flag: '🇪🇸' },
+    { code: 'tr', label: 'Türkçe', flag: '🇹🇷' },
+    { code: 'pl', label: 'Polski', flag: '🇵🇱' },
+    { code: 'hi', label: 'हिन्दी', flag: '🇮🇳' },
+    { code: 'pt', label: 'Português', flag: '🇵🇹' },
+    { code: 'ta', label: 'தமிழ்', flag: '🇮🇳' },
 ];
 
-export const dict = {
+const baseDict = {
+    ...additional,
     en: {
         privacyPolicy: 'Privacy Policy',
         rulesGuide: 'READ RULES & STRATEGY GUIDE',
@@ -1085,4 +1092,14 @@ es: {
         global: "GLOBAL",
         mine: "MIS JUEGOS",
     }
+};
+
+export const dict = {
+    ...baseDict,
+    ja: {...baseDict.ja, vsCpu:'CPU対局', ranked:'ランク対局', randomMatch2:'ランダム対局', friendMatch:'友達と対局', joinRoom:'ルームに参加', yourNextGame:'次の対局', play:'対局する', practice:'練習', recentGames:'最近の対局', recordsStr:'棋譜', win:'勝利', loss:'敗北', account:'アカウント', ratings:'レーティング', stats:'対局成績', wins:'勝ち', losses:'負け', draws:'引き分け', edit:'編集', save:'保存', uploading:'アップロード中', ratingLabel:'レーティング', subtitle2:'正体を推理するチェス', global:'全体', mine:'自分の対局'},
+    zh: {...baseDict.zh, privacyPolicy:'隐私政策',rulesGuide:'规则与策略指南',seoDesc:'棋子身份隐藏的量子国际象棋。',vsCpu:'对战电脑',vsCpuDesc:'练习电脑',adCloudTitle:'准备对局',adCloudDesc:'观看简短广告后开始练习。'},
+    ru: {...baseDict.ru,privacyPolicy:'Политика конфиденциальности',rulesGuide:'Правила и стратегия',seoDesc:'Квантовые шахматы со скрытыми типами фигур.',vsCpu:'Против компьютера',vsCpuDesc:'Тренировочный бот',adCloudTitle:'Подготовка партии',adCloudDesc:'Посмотрите короткую рекламу для начала тренировки.'},
+    fr: {...baseDict.fr,privacyPolicy:'Politique de confidentialité',rulesGuide:'Règles et stratégie',seoDesc:'Échecs quantiques aux identités cachées.',vsCpu:'Contre l’ordinateur',vsCpuDesc:'Robot d’entraînement',adCloudTitle:'Préparation de la partie',adCloudDesc:'Regardez une courte publicité pour commencer l’entraînement.',on:'Activé'},
+    de: {...baseDict.de,privacyPolicy:'Datenschutzerklärung',rulesGuide:'Regeln und Strategie',seoDesc:'Quantenschach mit verborgenen Figurenidentitäten.',vsCpu:'Gegen den Computer',vsCpuDesc:'Trainingscomputer',adCloudTitle:'Partie wird vorbereitet',adCloudDesc:'Sieh eine kurze Werbung, um das Training zu beginnen.'},
+    es: {...baseDict.es,privacyPolicy:'Política de privacidad',rulesGuide:'Reglas y estrategia',seoDesc:'Ajedrez cuántico con identidades ocultas.',vsCpu:'Contra el ordenador',vsCpuDesc:'Bot de entrenamiento',adCloudTitle:'Preparando partida',adCloudDesc:'Mira un anuncio breve para comenzar la práctica.',on:'Activado'},
 };

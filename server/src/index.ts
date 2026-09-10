@@ -12,7 +12,7 @@ app.use(cors());
 
 // Phase 4: Health Check & Uptime ping target
 app.get('/health', (req, res) => {
-    res.json({ status: 'ok', timestamp: Date.now() });
+    res.json({ status: 'ok', timestamp: Date.now(), rulesVersion: 'checkmate-v1' });
 });
 
 const server = http.createServer(app);

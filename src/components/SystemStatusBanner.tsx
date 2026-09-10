@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { matchText } from '../locales/matchText';
 import { supabase } from '../lib/supabaseClient';
 import { Language, dict } from '../locales/dict';
 
@@ -70,12 +71,12 @@ export function SystemStatusBanner({ lang }: Props) {
                     <div className="bg-[#2A2621] border-2 border-red-900/50 p-8 rounded-xl max-w-md w-full text-center shadow-2xl">
                         <div className="text-6xl mb-6">🛠️</div>
                         <h2 className="text-3xl font-serif text-[#D4B872] mb-4 font-bold tracking-widest">
-                            {lang === 'ja' ? 'メンテナンス中' : 'UNDER MAINTENANCE'}
+                            {matchText(lang, 'メンテナンス中', 'UNDER MAINTENANCE')}
                         </h2>
                         <p className="text-[#E8E5DF] mb-6 leading-relaxed">
                             {msg && msg.trim() !== '' 
                                 ? msg 
-                                : (lang === 'ja' ? '現在システムメンテナンスを行っております。終了までしばらくお待ちください。' : 'The system is currently undergoing maintenance. Please check back later.')}
+                                : (matchText(lang, '現在システムメンテナンスを行っております。終了までしばらくお待ちください。', 'The system is currently undergoing maintenance. Please check back later.'))}
                         </p>
                         <div className="text-xs text-[#8C7A5E] font-mono">
                             Q-GAMBIT SYSTEM

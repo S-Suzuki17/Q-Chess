@@ -1,5 +1,6 @@
 'use client';
 import { useMatchmaking } from '../hooks/useMatchmaking';
+import { matchText } from '../locales/matchText';
 import { useSocket } from '../lib/SocketContext';
 import { AdBanner } from './AdBanner';
 
@@ -19,7 +20,7 @@ import { InteractiveTutorial } from './InteractiveTutorial';
 interface LevelSelectProps {
     lang: Language;
     user: User;
-    onSelect: (tc: TimeControl, level: CPULevel) => void;
+    onSelect: (tc: TimeControl, level: CPULevel, side: 'white' | 'black') => void;
     onOnlineMatch?: (roomId: string, role: 'white' | 'black' | 'spectator', matchMode: 'random' | 'private' | 'ranked', tc: TimeControl, opponentId?: string) => void;
     onStartGlobalMatch?: (tcSeconds: number) => void;
     onReplay?: (record: GameRecord) => void;
@@ -29,6 +30,7 @@ interface LevelSelectProps {
 export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobalMatch, onReplay, onBack }: LevelSelectProps) {
     const t = { ...dict['en'], ...(dict[lang] || {}) } as any;
     const [practiceLevel, setPracticeLevel] = React.useState<CPULevel>(3);
+    const [practiceSide, setPracticeSide] = React.useState<'white' | 'black'>('white');
     const [showAdModal, setShowAdModal] = React.useState(false);
     const [adProgress, setAdProgress] = React.useState(0);
     const [showOnlineMenu, setShowOnlineMenu] = React.useState(false);
@@ -97,7 +99,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
 
     const handleUpdateName = async () => {
         if (!newName.trim() || newName.trim().length > 15) {
-            alert(lang === 'ja' ? '名前は1〜15文字で入力してください。' : 'Name must be between 1 and 15 characters.');
+            alert(matchText(lang, '名前は1〜15文字で入力してください。', 'Name must be between 1 and 15 characters.'));
             return;
         }
         setNameLoading(true);
@@ -116,7 +118,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
         e.preventDefault();
         setEmailMsg('');
         if (!updateEmail || !updatePassword) {
-            setEmailMsg('Email and password required.');
+            setEmailMsg(matchText(lang,'メールとパスワードを入力してください','Email and password required.'));
             return;
         }
         setEmailLoading(true);
@@ -127,9 +129,9 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
         });
         setEmailLoading(false);
         if (error || !data) {
-            setEmailMsg('Update failed. Incorrect password?');
+            setEmailMsg(matchText(lang,'更新できませんでした。パスワードを確認してください','Update failed. Incorrect password?'));
         } else {
-            setEmailMsg('Email updated successfully!');
+            setEmailMsg(matchText(lang,'メールを更新しました','Email updated successfully!'));
             setUpdatePassword('');
         }
     };
@@ -175,7 +177,8 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
     }, [user.id]);
 
     const refreshUserProfile = React.useCallback(async () => {
-        const { data } = await supabase.from('profiles').select(PUBLIC_PROFILE_COLUMNS).eq('id', user.id).single();
+        const { data, error } = await supabase.from('profiles').select(PUBLIC_PROFILE_COLUMNS).eq('id', user.id).maybeSingle();
+        if (error) return;
         if (data) {
             setUserProfile(data as Profile);
         } else {
@@ -282,7 +285,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
         setPendingAction(null);
 
         if (action.type === 'cpu') {
-            onSelect(tc, practiceLevel);
+            onSelect(tc, practiceLevel, practiceSide);
         } else if (action.type === 'ranked') {
             startRandomMatch('ranked', tc);
         } else if (action.type === 'random') {
@@ -371,18 +374,24 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
                     <div className="bg-[#161513] border border-[#A89C86]/40 p-8 w-full max-w-sm text-center shadow-2xl">
                         {pendingAction.type === 'cpu' && (
                             <fieldset className="mb-6">
-                                <legend className="text-sm text-[#E8E2D7] mb-3">{lang === 'ja' ? 'CPUの強さ' : 'CPU difficulty'}</legend>
+                                <legend className="text-sm text-[#E8E2D7] mb-3">{matchText(lang, 'CPUの強さ', 'CPU difficulty')}</legend>
                                 <div className="flex gap-2">
                                     {CPU_LEVELS.map(level => (
                                         <button key={level} type="button" aria-pressed={practiceLevel === level}
                                             onClick={() => setPracticeLevel(level)}
                                             className={`flex-1 py-3 border transition-colors ${practiceLevel === level ? 'border-[#B39A62] bg-[#B39A62]/20 text-[#E8E2D7]' : 'border-[#A89C86]/40 text-[#A89C86]'}`}>
-                                            {cpuDifficulty(level)[lang === 'ja' ? 'ja' : 'en']}
+                                            {matchText(lang,cpuDifficulty(level).ja,cpuDifficulty(level).en)}
                                         </button>
                                     ))}
                                 </div>
                             </fieldset>
                         )}
+                        {pendingAction.type === 'cpu' && <fieldset className="mb-6">
+                            <legend className="text-sm text-[#E8E2D7] mb-3">{({en:'Your side',ja:'あなたの手番',zh:'选择执棋方',ru:'Ваша сторона',fr:'Votre camp',de:'Deine Seite',es:'Tu bando',tr:'Tarafınız',pl:'Twoja strona',hi:'आपका पक्ष',pt:'Seu lado',ta:'உங்கள் தரப்பு'})[lang]}</legend>
+                            <div className="flex gap-2">{(['white','black'] as const).map(side => <button key={side} type="button" aria-pressed={practiceSide === side} onClick={() => setPracticeSide(side)} className={`flex-1 py-3 border ${practiceSide === side ? 'border-[#B39A62] bg-[#B39A62]/20 text-[#E8E2D7]' : 'border-[#A89C86]/40 text-[#A89C86]'}`}>
+                                {side === 'white' ? ({en:'White · First',ja:'白・先手',zh:'白棋・先手',ru:'Белые · Первый ход',fr:'Blancs · Premier',de:'Weiß · Zuerst',es:'Blancas · Primero',tr:'Beyaz · İlk',pl:'Białe · Pierwsze',hi:'सफ़ेद · पहले',pt:'Brancas · Primeiro',ta:'வெள்ளை · முதலில்'})[lang] : ({en:'Black · Second',ja:'黒・後手',zh:'黑棋・后手',ru:'Чёрные · Второй ход',fr:'Noirs · Second',de:'Schwarz · Danach',es:'Negras · Segundo',tr:'Siyah · İkinci',pl:'Czarne · Drugie',hi:'काले · दूसरे',pt:'Pretas · Segundo',ta:'கருப்பு · அடுத்து'})[lang]}
+                            </button>)}</div>
+                        </fieldset>}
                         <h3 className="text-xl tracking-[0.2em] text-[#E8E2D7] mb-2">{t.selectTimeLimit}</h3>
                         <p className="text-[#A89C86] text-xs tracking-widest mb-8">{t.timeLimit}</p>
                         <div className="flex flex-col gap-4">
@@ -400,7 +409,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
                                         </span>
                                     )}
                                     {pendingAction.type !== 'cpu' && <span className="text-[#A89C86] text-[10px] tracking-widest ml-auto group-hover:text-[#D4B872] transition-colors">
-                                        {queueStats?.[tc === '10s' ? 10 : tc === '3m' ? 180 : 600] || 0} waiting
+                                        {matchText(lang,'待機中のプレイヤー','Players waiting')}: {queueStats?.[tc === '10s' ? 10 : tc === '3m' ? 180 : 600] || 0}
                                     </span>}
 
                                     <span className="text-xs text-[#A89C86]">→</span>
@@ -469,15 +478,15 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
                                 <p className="text-[10px] tracking-[0.2em] text-[#A89C86] mb-2 uppercase">{(t as any).ratings}</p>
                                 <div className="border border-[#A89C86]/20 flex justify-between">
                                     <div className="flex flex-col items-center p-4 border-r border-[#A89C86]/20 flex-1">
-                                        <span className="text-[10px] text-[#A89C86] mb-1 tracking-widest">10 MIN</span>
+                                        <span className="text-[10px] text-[#A89C86] mb-1 tracking-widest">{t.tc10m}</span>
                                         <span className="font-mono text-[#B39A62] text-sm">{userProfile ? Math.floor(userProfile.rating_10m) : '---'}</span>
                                     </div>
                                     <div className="flex flex-col items-center p-4 border-r border-[#A89C86]/20 flex-1">
-                                        <span className="text-[10px] text-[#A89C86] mb-1 tracking-widest">3 MIN</span>
+                                        <span className="text-[10px] text-[#A89C86] mb-1 tracking-widest">{t.tc3m}</span>
                                         <span className="font-mono text-[#B39A62] text-sm">{userProfile ? Math.floor(userProfile.rating_3m) : '---'}</span>
                                     </div>
                                     <div className="flex flex-col items-center p-4 flex-1">
-                                        <span className="text-[10px] text-[#A89C86] mb-1 tracking-widest">10 SEC</span>
+                                        <span className="text-[10px] text-[#A89C86] mb-1 tracking-widest">{t.tc10s}</span>
                                         <span className="font-mono text-[#B39A62] text-sm">{userProfile ? Math.floor(userProfile.rating_10s) : '---'}</span>
                                     </div>
                                 </div>
@@ -595,9 +604,9 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
                 <span className="text-xl md:text-2xl tracking-[0.2em] font-serif text-[#E8E2D7]">Q-GAMBIT</span>
                 <div className="flex items-center gap-4">
                     {queueStats && queueStats[-1] !== undefined && (
-                        <div className="flex items-center gap-1.5 opacity-80" title="Online Players">
+                        <div className="flex items-center gap-1.5 opacity-80" title={matchText(lang,'オンライン','Online')}>
                             <span className="w-1.5 h-1.5 rounded-full bg-[#A89C86] animate-pulse"></span>
-                            <span className="text-[10px] tracking-widest text-[#A89C86] font-mono">{queueStats[-1]} ONLINE</span>
+                            <span className="text-[10px] tracking-widest text-[#A89C86] font-mono">{queueStats[-1]} {matchText(lang,'オンライン','Online')}</span>
                         </div>
                     )}
                     <span className="font-mono text-[#B39A62] text-sm">{userProfile?.rating_10m ? Math.floor(userProfile.rating_10m) : '---'}</span>

@@ -1,16 +1,20 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { LANGUAGES, dict, type Language } from '@/locales/dict';
+import { privacyTranslations } from '@/locales/privacyTranslations';
 
 export default function PrivacyPolicy() {
-  const [lang, setLang] = useState<'en' | 'ja'>('en');
+  const [lang, setLang] = useState<Language>('en');
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const savedLang = localStorage.getItem('qg_language');
-      if (savedLang === 'ja') setLang('ja');
+      const preferred = savedLang || navigator.language.split('-')[0];
+      if (LANGUAGES.some(item => item.code === preferred)) setLang(preferred as Language);
     }
   }, []);
+  useEffect(() => { document.documentElement.lang = lang; }, [lang]);
 
   const content = {
     en: {
@@ -67,12 +71,18 @@ export default function PrivacyPolicy() {
     }
   };
 
-  const c = content[lang];
+  const c = lang === 'en' || lang === 'ja' ? content[lang] : privacyTranslations[lang];
 
   return (
     <div className="h-[100dvh] w-full bg-[#050505] text-gray-300 font-mono p-6 md:p-12 overflow-y-auto">
       <div className="max-w-3xl mx-auto pb-16">
         <Link href="/" className="text-[#D4B872] hover:text-white transition-colors tracking-widest font-bold text-sm mb-8 inline-block">{c.back}</Link>
+        <select aria-label={dict[lang].language} value={lang} onChange={event => {
+          const value = event.target.value as Language;
+          setLang(value); localStorage.setItem('qg_language', value);
+        }} className="block mb-6 max-w-full rounded border border-[#B39A62] bg-[#191714] p-2 text-[#D4B872]">
+          {LANGUAGES.map(({code, label}) => <option key={code} value={code}>{label}</option>)}
+        </select>
 
         <h1 className="text-3xl md:text-4xl font-bold text-[#D4B872] tracking-wider mb-2">{c.title}</h1>
         <p className="text-gray-500 text-sm mb-8">{c.updated}</p>

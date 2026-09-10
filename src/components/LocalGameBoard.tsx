@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { matchText } from '../locales/matchText';
 import { useBoardPreferences } from '../hooks/useBoardPreferences';
 import { useMoveHint } from '../hooks/useMoveHint';
 import { IdentityPool } from '../lib/IdentityPool';
@@ -20,6 +21,7 @@ import { cpuDifficulty } from '../config/cpuDifficulty';
 import { requestCPUSearch } from '../lib/cpuClient';
 import { legacyToQuantumState, quantumToLegacyMove } from '../quantum-engine/adapter';
 import { getWinner } from '../quantum-engine/terminal';
+import { isCheckmateFinish } from '../lib/checkmatePresentation';
 import { createLocalPosition, applyLocalMove } from '../lib/localGame';
 import { soundManager } from '../lib/SoundService';
 
@@ -45,6 +47,8 @@ interface GameBoardProps {
 }
 
 export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, matchMode, opponentId, timeControl = '10m', onHome }: GameBoardProps) {
+    const playerSide = onlineRole === 'black' ? 'black' : 'white';
+    const cpuSide = playerSide === 'white' ? 'black' : 'white';
     const t = { ...dict['en'], ...(dict[lang] || {}) } as any;
     const { is2DView, setIs2DView, boardDesign, setBoardDesign } = useBoardPreferences();
     const [showHomeConfirm, setShowHomeConfirm] = useState(false);
@@ -380,10 +384,10 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
 
     // A worker keeps the board responsive; cancellation discards stale replies.
     useEffect(() => {
-        if (currentTurn !== 'black' || winner || roomId || movingPiece || tokens.length === 0) return;
+        if (currentTurn !== cpuSide || winner || roomId || movingPiece || tokens.length === 0) return;
         const controller = new AbortController();
         setCpuFailed(false);
-        const state = legacyToQuantumState(tokens, pool, 'black', moveHistory.length, moveHistory.at(-1) ?? null);
+        const state = legacyToQuantumState(tokens, pool, cpuSide, moveHistory.length, moveHistory.at(-1) ?? null);
         requestCPUSearch(state, controller.signal, cpuLevel).then(stats => {
             if (controller.signal.aborted) return;
             if (!stats.move) {
@@ -402,7 +406,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
             setCpuFailed(true);
         });
         return () => controller.abort();
-    }, [currentTurn, winner, tokens, pool, roomId, moveHistory, cpuRetry, movingPiece, cpuLevel]);
+    }, [currentTurn, winner, tokens, pool, roomId, moveHistory, cpuRetry, movingPiece, cpuLevel, cpuSide]);
 
     useEffect(() => {
         if (isCheck && !winner) {
@@ -463,8 +467,8 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
                 const blackId = onlineRole === 'black' ? user?.id : (roomId ? opponentId : undefined);
 
                 const record: GameRecord = {
-                    white_player: onlineRole === 'black' ? (fetchedOpponentName || (opponentId?.startsWith('GUEST-') ? 'Guest' : 'Opponent')) : (user?.name || 'Guest'),
-                    black_player: onlineRole === 'white' ? (fetchedOpponentName || (opponentId?.startsWith('GUEST-') ? 'Guest' : 'Opponent')) : (roomId ? (user?.name || 'Guest') : `CPU`),
+                    white_player: !roomId ? (playerSide === 'white' ? user?.name || 'Guest' : 'CPU') : onlineRole === 'black' ? (fetchedOpponentName || 'Opponent') : (user?.name || 'Guest'),
+                    black_player: !roomId ? (playerSide === 'black' ? user?.name || 'Guest' : 'CPU') : onlineRole === 'white' ? (fetchedOpponentName || 'Opponent') : (user?.name || 'Guest'),
                     white_id: whiteId,
                     black_id: blackId,
                     winner,
@@ -523,7 +527,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
 
     const executeMove = (token: Token, targetRow: number, targetCol: number, possibleTypesForMove: PieceType[], targetToken?: Token, isLocalMove: boolean = true, promotedTo?: PieceType) => {
         // Tutorial hint logic (VS CPU only)
-        if (cpuLevel !== undefined && token.player === 'white') {
+        if (cpuLevel !== undefined && token.player === playerSide) {
             const dx = Math.abs(targetCol - token.col);
             const dy = Math.abs(targetRow - token.row);
             
@@ -590,7 +594,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
         if (winner || movingPiece || onlineRole === 'spectator') return;
         
         // Inspection is safe while the CPU thinks; only submitting a move is blocked.
-        if (!roomId && currentTurn === 'black') {
+        if (!roomId && currentTurn === cpuSide) {
             const inspected = tokens.find(token => !token.isCaptured && token.row === targetRow && token.col === targetCol);
             setSelectedTokenId(inspected && inspected.id !== selectedTokenId ? inspected.id : null);
             return;
@@ -688,8 +692,13 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
 
     const playerName = user?.name || 'Player';
     const fallbackOpponent = (opponentId && opponentId.startsWith('GUEST-')) ? 'Guest' : 'Opponent';
-    const opponentName = roomId ? (fetchedOpponentName || fallbackOpponent) : `CPU (${cpuDifficulty(cpuLevel)[lang === 'ja' ? 'ja' : 'en']})`;
+    const opponentName = roomId ? (fetchedOpponentName || fallbackOpponent) : `CPU (${matchText(lang,cpuDifficulty(cpuLevel).ja,cpuDifficulty(cpuLevel).en)})`;
     const myRole = onlineRole === 'spectator' ? 'white' : (onlineRole || 'white');
+    const checkmate = useMemo(() => {
+        if (!winner || winner === 'draw') return false;
+        const state = legacyToQuantumState(tokens, pool, currentTurn, moveHistory.length, moveHistory.at(-1) ?? null);
+        return isCheckmateFinish(winner, state);
+    }, [winner, tokens, pool, currentTurn, moveHistory]);
     const hint = useMoveHint(`${currentTurn}:${moveHistory.length}:${winner ?? 'playing'}`);
     const { hintMove } = hint;
     const requestHint = () => {
@@ -711,10 +720,10 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
 
     return (
         <MatchLayout
-            lang={lang} mode={roomId ? (lang === 'ja' ? 'オンライン対局' : 'ONLINE MATCH') : (lang === 'ja' ? 'CPU 対局' : 'CPU MATCH')}
+            lang={lang} mode={roomId ? (matchText(lang, 'オンライン対局', 'ONLINE MATCH')) : (matchText(lang, 'CPU 対局', 'CPU MATCH'))}
             white={{name:whiteName,clock:formatTime(timeLeftWhite),rating:whiteRatingToDisplay,avatar:myRole === 'white' ? user?.avatar_url : undefined,emote:activeEmotes.white ? EMOTES[activeEmotes.white].emoji : undefined}}
             black={{name:blackName,clock:formatTime(timeLeftBlack),rating:blackRatingToDisplay,avatar:myRole === 'black' ? user?.avatar_url : undefined,emote:activeEmotes.black ? EMOTES[activeEmotes.black].emoji : undefined}}
-            bottomSide={myRole} currentTurn={currentTurn} spectator={onlineRole === 'spectator'} finished={!!winner}
+            bottomSide={myRole} currentTurn={currentTurn} spectator={onlineRole === 'spectator'} finished={!!winner} checkmate={checkmate}
             tokens={tokens} selectedTokenId={selectedTokenId} candidatesMap={pool.piecePossibilities} history={moveHistory}
             validMoveCount={validMoves.length} onClearSelection={() => setSelectedTokenId(null)}
             onHint={!roomId ? requestHint : undefined} hintPending={hint.pending} hintMove={hintMove} hintFailed={hint.failed} onClearHint={hint.clear} feedback={tutorialHint}
@@ -723,7 +732,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
             onThemeChange={() => { const themes = ['classic','marble','neon'] as const; setBoardDesign(themes[(themes.indexOf(boardDesign)+1)%themes.length]); }}
             onHome={() => setShowHomeConfirm(true)} onRules={() => setShowRules(true)} onResign={() => setShowResignConfirm(true)}
             showMoveHints={showMoveHints} onHintsChange={setShowMoveHints}
-            notice={disconnectTimeLeft !== null ? (lang === 'ja' ? '再接続を待っています… ' : 'Waiting for reconnection… ') + disconnectTimeLeft + 's' : errorMsg || undefined}
+            notice={disconnectTimeLeft !== null ? (matchText(lang, '再接続を待っています… ', 'Waiting for reconnection… ')) + disconnectTimeLeft + 's' : errorMsg || undefined}
             board={is2DView ? (
                     <Board2D quietLayout boardDesign={boardDesign} hintMove={hintMove} autoRotate={false} 
                     tokens={tokens}
@@ -738,7 +747,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
                     candidatesMap={pool.piecePossibilities}
                 />
                 ) : (
-                    <Board3D quietLayout key={viewResetKey} boardDesign={boardDesign} hintMove={hintMove} autoRotate={false} 
+                    <Board3D lang={lang} quietLayout key={viewResetKey} boardDesign={boardDesign} hintMove={hintMove} autoRotate={false} checkmate={checkmate}
                     tokens={tokens}
                     onlineRole={onlineRole}
                     selectedTokenId={selectedTokenId}
@@ -766,16 +775,16 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
                 <div className="absolute inset-0 bg-[#11100E]/90 flex flex-col items-center justify-center z-50 backdrop-blur-sm rounded-lg border border-[#B39A62]/20">
                     <div className="flex flex-col items-center gap-6 px-6 max-w-full">
                         <div className="text-3xl sm:text-4xl md:text-5xl font-serif font-bold text-[#E8E2D7] tracking-[0.2em] text-center animate-stamp">
-                            {winner === 'draw' ? 'DRAW' : 'CHECKMATE'}
+                            {winner === 'draw' ? t.draw : checkmate ? t.checkmate : matchText(lang,'対局終了','Match complete')}
                         </div>
                         <div className="w-16 h-px bg-[#B39A62]/50"></div>
                         <div className={`text-base sm:text-lg md:text-xl font-serif tracking-widest text-center ${winner === 'draw' ? 'text-[#A89C86]' : winner === 'white_wins' ? 'text-[#E8E2D7]' : 'text-[#A89C86]'}`}>
                             {winner === 'draw' 
-                                ? 'Draw (Stalemate)' 
+                                ? t.draw
                                 : onlineRole
                                     ? (winner === 'white_wins' && onlineRole === 'white') || (winner === 'black_wins' && onlineRole === 'black')
-                                        ? `You Won! (${winner === 'white_wins' ? t.whiteWon : t.blackWon})`
-                                        : `Opponent Won (${winner === 'white_wins' ? t.whiteWon : t.blackWon})`
+                                        ? `${t.whiteWins} (${winner === 'white_wins' ? t.whiteWon : t.blackWon})`
+                                        : `${t.blackWins} (${winner === 'white_wins' ? t.whiteWon : t.blackWon})`
                                     : winner === 'white_wins'
                                         ? `${whiteName} (${t.whiteWon})`
                                         : `${blackName} (${t.blackWon})`}
@@ -806,7 +815,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
             )}
 
             {cpuFailed && <button onClick={() => setCpuRetry(value => value + 1)} className="match-retry">
-                {lang === 'ja' ? 'CPUの思考を再試行' : 'Retry CPU turn'}
+                {matchText(lang, 'CPUの思考を再試行', 'Retry CPU turn')}
             </button>}
             {/* Resign Confirmation Modal */}
             {showResignConfirm && (
@@ -814,17 +823,17 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
                     <div className="bg-[#161513] border border-[#B39A62]/30 rounded-xl p-8 max-w-sm w-full shadow-2xl flex flex-col items-center text-center">
                         <span className="text-4xl mb-3">🏳️</span>
                         <h3 className="text-lg font-bold text-[#E8E2D7] mb-2">
-                            {lang === 'ja' ? '投了しますか？' : 'Resign Match?'}
+                            {matchText(lang, '投了しますか？', 'Resign Match?')}
                         </h3>
                         <p className="text-sm text-gray-400 mb-6">
-                            {lang === 'ja' ? '投了すると相手の勝利となります。本当に対局を終了しますか？' : 'Resigning will forfeit the match to your opponent. Are you sure?'}
+                            {matchText(lang, '投了すると相手の勝利となります。本当に対局を終了しますか？', 'Resigning will forfeit the match to your opponent. Are you sure?')}
                         </p>
                         <div className="flex gap-3 w-full">
                             <button
                                 onClick={() => setShowResignConfirm(false)}
                                 className="flex-1 py-2.5 bg-[#191714] hover:bg-gray-700 border border-gray-600 rounded-lg text-sm text-[#E8E2D7] font-bold transition-colors"
                             >
-                                {lang === 'ja' ? 'キャンセル' : 'Cancel'}
+                                {matchText(lang, 'キャンセル', 'Cancel')}
                             </button>
                             <button
                                 onClick={() => {
@@ -833,7 +842,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
                                 }}
                                 className="flex-1 py-2.5 bg-red-600 hover:bg-red-500 rounded-lg text-sm text-[#E8E2D7] font-bold transition-colors shadow-lg shadow-red-600/30"
                             >
-                                {lang === 'ja' ? '投了する' : 'Resign'}
+                                {matchText(lang, '投了する', 'Resign')}
                             </button>
                         </div>
                     </div>
@@ -845,19 +854,19 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
                 <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 backdrop-blur-sm animate-fade-in">
                     <div className="bg-[#161513] border border-[#B39A62]/30 rounded-xl p-8 max-w-md w-full shadow-2xl flex flex-col gap-4 text-center">
                         <h3 className="text-xl font-bold text-[#E8E2D7] tracking-widest uppercase">
-                            {lang === 'ja' ? '遊び方' : 'How to Play'}
+                            {matchText(lang, '遊び方', 'How to Play')}
                         </h3>
                         <div className="text-sm text-gray-400 text-left space-y-3">
-                            <p>• <strong>{lang === 'ja' ? '勝利条件:' : 'Victory:'}</strong> {lang === 'ja' ? '相手のキングを取るか、チェックメイトすると勝利です。' : 'Capture the enemy King or Checkmate them.'}</p>
-                            <p>• <strong>{lang === 'ja' ? '重ね合わせ:' : 'Superposition:'}</strong> {lang === 'ja' ? '駒は初期状態では複数の正体（可能性）を持っています。駒を動かすことで、その動き方に基づいて可能性が絞り込まれていきます。' : 'All pieces start with multiple possible identities. Moving a piece collapses its possibilities based on how it moved.'}</p>
-                            <p>• <strong>{lang === 'ja' ? '正体の確定:' : 'Discovery:'}</strong> {lang === 'ja' ? '正体が確定していない敵の駒は、実はキングかもしれません。慎重に攻めましょう！' : 'Be careful! Any unknown enemy piece could turn out to be their King when revealed.'}</p>
+                            <p>• <strong>{matchText(lang, '勝利条件:', 'Victory:')}</strong> {matchText(lang, '相手のキングを取るか、チェックメイトすると勝利です。', 'Capture the enemy King or Checkmate them.')}</p>
+                            <p>• <strong>{matchText(lang, '重ね合わせ:', 'Superposition:')}</strong> {matchText(lang, '駒は初期状態では複数の正体（可能性）を持っています。駒を動かすことで、その動き方に基づいて可能性が絞り込まれていきます。', 'All pieces start with multiple possible identities. Moving a piece collapses its possibilities based on how it moved.')}</p>
+                            <p>• <strong>{matchText(lang, '正体の確定:', 'Discovery:')}</strong> {matchText(lang, '正体が確定していない敵の駒は、実はキングかもしれません。慎重に攻めましょう！', 'Be careful! Any unknown enemy piece could turn out to be their King when revealed.')}</p>
                         </div>
                         <div className="flex gap-3 w-full mt-4">
                             <button
                                 onClick={() => setShowRules(false)}
                                 className="flex-1 py-2.5 bg-[#191714] hover:bg-gray-700 border border-gray-600 rounded-lg text-sm text-[#E8E2D7] font-bold transition-colors"
                             >
-                                {lang === 'ja' ? '閉じる' : 'Close'}
+                                {matchText(lang, '閉じる', 'Close')}
                             </button>
                             <a
                                 href="/rules"
@@ -865,7 +874,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
                                 rel="noopener noreferrer"
                                 className="flex-1 py-2.5 bg-[#B39A62] hover:bg-[#D0C8B6] rounded-lg text-sm text-[#11100E] font-bold transition-colors shadow-lg shadow-[#B39A62]/30 block text-center"
                             >
-                                {lang === 'ja' ? '詳しいルール' : 'Full Rules Guide'}
+                                {matchText(lang, '詳しいルール', 'Full Rules Guide')}
                             </a>
                         </div>
                     </div>
@@ -891,7 +900,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
                                     className="flex items-center gap-3 px-4 py-2 hover:bg-[#2A2621] rounded transition-colors whitespace-nowrap text-left"
                                 >
                                     <span className="text-2xl">{EMOTES[key].emoji}</span>
-                                    <span className="text-[#E8E2D7] text-sm font-bold">{lang === 'ja' ? EMOTES[key].labelJa : EMOTES[key].labelEn}</span>
+                                    <span className="text-[#E8E2D7] text-sm font-bold">{matchText(lang, EMOTES[key].labelJa, EMOTES[key].labelEn)}</span>
                                 </button>
                             ))}
                         </div>
@@ -998,7 +1007,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
                         </button>
                     </div>
                         <div className="w-full max-w-sm mt-12 bg-black/50 p-4 rounded-lg">
-                            <p className="text-[#A89C86] text-[10px] tracking-widest text-center mb-2">Advertisement</p>
+                            <p className="text-[#A89C86] text-[10px] tracking-widest text-center mb-2">{matchText(lang, "広告", "Advertisement")}</p>
                             <AdBanner adClient="ca-pub-1116866075179199" adSlot="8798363654" />
                         </div>
                     </div>
@@ -1008,23 +1017,23 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
                 <div className="absolute inset-0 bg-black/80 z-50 flex flex-col items-center justify-center p-6">
                     <div className="bg-[#2A2621] border-2 border-[#D4B872]/30 rounded-xl p-8 max-w-md w-full text-center relative shadow-2xl animate-stamp">
                         <h2 className="text-[#B39A62] text-xl font-bold mb-4">
-                            {lang === 'ja' ? 'ホームに戻りますか？' : 'Return to Home?'}
+                            {matchText(lang, 'ホームに戻りますか？', 'Return to Home?')}
                         </h2>
                         <p className="text-[#E8E2D7]/80 mb-8 text-sm">
-                            {lang === 'ja' ? '進行中のゲームデータは失われる可能性があります。' : 'Any unsaved progress may be lost.'}
+                            {matchText(lang, '進行中のゲームデータは失われる可能性があります。', 'Any unsaved progress may be lost.')}
                         </p>
                         <div className="flex gap-4">
                             <button
                                 onClick={() => setShowHomeConfirm(false)}
                                 className="flex-1 px-4 py-3 bg-[#11100E] hover:bg-[#191714] border border-[#D4B872]/50 text-[#E8E2D7] font-bold rounded-lg transition-colors"
                             >
-                                {lang === 'ja' ? 'キャンセル' : 'Cancel'}
+                                {matchText(lang, 'キャンセル', 'Cancel')}
                             </button>
                             <button
                                 onClick={onHome}
                                 className="flex-1 px-4 py-3 bg-red-900/60 hover:bg-red-800/80 border border-red-500/50 text-white font-bold rounded-lg transition-colors"
                             >
-                                {lang === 'ja' ? '戻る' : 'Exit'}
+                                {matchText(lang, '戻る', 'Exit')}
                             </button>
                         </div>
                     </div>

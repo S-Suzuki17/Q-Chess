@@ -152,7 +152,7 @@ export function InteractiveTutorial({ lang, onClose }: Props) {
                 {/* Left: Board Demo */}
                 <div className="w-full flex-shrink-0 md:w-1/2 p-0 bg-[#0b0c10] flex items-center justify-center relative aspect-square md:aspect-auto md:min-h-full">
                     <div className="w-full h-full md:min-h-full">
-                        <Board3D 
+                        <Board3D lang={lang}
                             tokens={pieces.filter(p => !p.isCaptured).map(p => ({
                                 id: p.id,
                                 player: p.player,

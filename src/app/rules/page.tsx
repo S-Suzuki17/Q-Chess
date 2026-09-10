@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { rulesDict, Language } from '@/locales/rulesDict';
+import { LANGUAGES, dict } from '@/locales/dict';
 import { AdBanner } from '../../components/AdBanner';
 import { InteractiveTutorial } from '../../components/InteractiveTutorial';
 
@@ -34,12 +35,12 @@ export default function RulesPage() {
                     {c.playTutorial}
                 </button>
                 <select
-                    aria-label="Language"
+                    aria-label={dict[lang].language}
                     value={lang}
                     onChange={e => { const value = e.target.value as Language; setLang(value); localStorage.setItem('qg_language', value); }}
                     className="bg-[#191714] text-[#D4B872] border border-[#B39A62] rounded px-2 py-2"
                 >
-                    {Object.keys(rulesDict).map(code => <option key={code} value={code}>{({ en: 'English', ja: '日本語', zh: '中文', ru: 'Русский', fr: 'Français', de: 'Deutsch', es: 'Español' } as Record<string, string>)[code]}</option>)}
+                    {LANGUAGES.map(({code,label}) => <option key={code} value={code}>{label}</option>)}
                 </select>
             </div>
         </div>

@@ -1,4 +1,6 @@
-import { attemptMove, checkGameOver } from './quantumChess';
+import { attemptLegalMove, checkGameOver, isCheckmate } from './quantumChess';
+
+export type GameOverReason = 'checkmate' | 'king_capture' | 'timeout' | 'resignation';
 
 export interface Piece {
     id: number;
@@ -31,6 +33,7 @@ export interface InternalGameState {
     turn: number; // 0 for white (host), 1 for black (joiner)
     moveCount: number;
     gameOver: 'WHITE' | 'BLACK' | 'DRAW' | null;
+    gameOverReason?: GameOverReason;
     history: any[];
     clock: {
         white: number; // remaining ms
@@ -60,6 +63,7 @@ export interface PublicGameState {
     turn: number;
     moveCount: number;
     gameOver: 'WHITE' | 'BLACK' | 'DRAW' | null;
+    gameOverReason?: GameOverReason;
     lastAction: any | null;
     clock?: {
         white: number;
@@ -135,6 +139,7 @@ export class GameEngine {
             if (this.state.clock.white - elapsed <= 0) {
                 this.state.clock.white = 0;
                 this.state.gameOver = 'BLACK'; // White timed out -> Black wins
+                this.state.gameOverReason = 'timeout';
                 this.state.version += 1;
                 return true;
             }
@@ -142,6 +147,7 @@ export class GameEngine {
             if (this.state.clock.black - elapsed <= 0) {
                 this.state.clock.black = 0;
                 this.state.gameOver = 'WHITE'; // Black timed out -> White wins
+                this.state.gameOverReason = 'timeout';
                 this.state.version += 1;
                 return true;
             }
@@ -150,6 +156,9 @@ export class GameEngine {
     }
 
     public processAction(action: Action): ActionResult {
+        if (action.playerId !== this.state.players.host && action.playerId !== this.state.players.joiner) {
+            return { success: false, message: 'Not a participant' };
+        }
         // Return cached result if idempotent
         if (this.processedActions.has(action.actionId)) {
             return this.processedActions.get(action.actionId)!;
@@ -215,8 +224,8 @@ export class GameEngine {
         if (playerTeam !== expectedTeam) return false;
 
         const { pieceId, toX, toY, intention, promotedTo } = payload;
-
-        const result = attemptMove(this.state.pieces, this.state.board, pieceId, toX, toY, intention, promotedTo);
+        if (!this.state.pieces.some(p => p.id === pieceId && p.team === playerTeam && !p.captured)) return false;
+        const result = attemptLegalMove(this.state.pieces, this.state.board, pieceId, toX, toY, intention, promotedTo);
         
         if (result.success) {
             this.state.pieces = result.pieces;
@@ -226,9 +235,14 @@ export class GameEngine {
             const gameOverResult = checkGameOver(this.state.pieces);
             if (gameOverResult) {
                 this.state.gameOver = gameOverResult;
+                this.state.gameOverReason = 'king_capture';
             } else {
                 // Pass turn
                 this.state.turn = this.state.turn === 0 ? 1 : 0;
+                if (isCheckmate(this.state.board, this.state.pieces, this.state.turn)) {
+                    this.state.gameOver = this.state.turn === 0 ? 'BLACK' : 'WHITE';
+                    this.state.gameOverReason = 'checkmate';
+                }
             }
             this.state.moveCount += 1;
             return true;
@@ -241,6 +255,7 @@ export class GameEngine {
         const isHost = playerId === this.state.players.host;
         // If Host (White) resigns, Black wins ('BLACK'). If Joiner (Black) resigns, White wins ('WHITE').
         this.state.gameOver = isHost ? 'BLACK' : 'WHITE';
+        this.state.gameOverReason = 'resignation';
         return true;
     }
 
@@ -261,6 +276,7 @@ export class GameEngine {
             turn: this.state.turn,
             moveCount: this.state.moveCount,
             gameOver: this.state.gameOver,
+            gameOverReason: this.state.gameOverReason,
             lastAction: this.state.history.length > 0 ? this.state.history[this.state.history.length - 1] : null,
             clock: this.state.clock
         };

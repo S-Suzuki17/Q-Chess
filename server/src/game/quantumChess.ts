@@ -634,3 +634,42 @@ export function isKingInCheck(board, pieces, team) {
 
     return false;
 }
+
+/** Simulate a move without allowing a confirmed king to remain in check. */
+export function attemptLegalMove(pieces: any[], board: any[], pieceId: number, toX: number, toY: number, intention?: 'castle' | 'normal', promotedTo?: string) {
+    const piece = pieces.find(p => p.id === pieceId && !p.captured);
+    const invalid = { success: false, pieces, board, capturedPiece: null, message: 'Invalid move' };
+    if (!piece || !Number.isInteger(toX) || !Number.isInteger(toY) || !isInBounds(toX, toY)) return invalid;
+    const result = attemptMove(pieces, board, pieceId, toX, toY, intention, promotedTo);
+    if (!result.success || isKingInCheck(result.board, result.pieces, piece.team)) return invalid;
+    const moved = result.pieces.find(p => p.id === pieceId);
+    if (moved?.possibilities.includes('K') && Math.abs(toX - piece.x) === 2) {
+        // Castling cannot escape check or cross an attacked square, even when
+        // the move itself resolves the king's identity.
+        const confirmed = pieces.map(p => p.id === pieceId ? { ...p, possibilities: ['K'] } : p);
+        if (isKingInCheck(board, confirmed, piece.team)) return invalid;
+        const middleX = piece.x + Math.sign(toX - piece.x);
+        const middleBoard = [...board];
+        middleBoard[coordToIndex(piece.x, piece.y)] = null;
+        middleBoard[coordToIndex(middleX, piece.y)] = piece.id;
+        const middlePieces = confirmed.map(p => p.id === pieceId ? { ...p, x: middleX } : p);
+        if (isKingInCheck(middleBoard, middlePieces, piece.team)) return invalid;
+    }
+    return result;
+}
+
+/** A superposed king is not checkmated; every legal escape is tested. */
+export function isCheckmate(board: any[], pieces: any[], team: number): boolean {
+    if (!isKingInCheck(board, pieces, team)) return false;
+    for (const piece of pieces.filter(p => p.team === team && !p.captured)) {
+        for (let y = 0; y < 8; y++) {
+            for (let x = 0; x < 8; x++) {
+                // Test both interpretations of a quantum castling move.
+                for (const intention of [undefined, 'normal', 'castle'] as const) {
+                    if (attemptLegalMove(pieces, board, piece.id, x, y, intention).success) return false;
+                }
+            }
+        }
+    }
+    return true;
+}

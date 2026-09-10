@@ -16,6 +16,14 @@ const base: ComponentProps<typeof MatchLayout> = {
 const render = (overrides: Partial<typeof base> = {}) => renderToStaticMarkup(createElement(MatchLayout, {...base,...overrides}));
 
 describe('Match decision feedback', () => {
+    it('shows the cinematic only with a checkmate flag, not merely a finished game', () => {
+        expect(render({finished:true})).not.toContain('checkmate-celebration');
+        expect(render({finished:true,checkmate:true})).toContain('data-testid="checkmate-celebration"');
+    });
+    it('does not offer a camera reset or tell players to zoom', () => {
+        expect(render({is2D:false})).not.toContain('視点を戻す');
+        expect(render({is2D:false})).not.toContain('スクロールで拡大');
+    });
     it('announces both the hinted source and destination without making a move', () => {
         const html=render({hintMove:{fromRow:6,fromCol:4,toRow:4,toCol:4}});
         expect(html).toContain('動かす駒'); expect(html).toContain('移動先');

@@ -96,21 +96,24 @@ export const QuantumPieceUI: React.FC<QuantumPieceProps> = ({ player, probabilit
                 )}
 
                 {confirmedType ? (
-                    <span className={`${responsive ? 'text-[65cqmin]' : 'text-3xl'} ${isPromoted ? 'text-[#B39A62]' : iconColor} opacity-90 drop-shadow-sm`}>
+                    <span className={`${responsive ? 'text-[94cqmin]' : 'text-[46px]'} leading-none ${isPromoted ? 'text-[#B39A62]' : iconColor} drop-shadow-sm`}>
                         {symbols[confirmedType]}
                     </span>
                 ) : (
                     // Superposition: Elegant engraved subtle icons with jitter
-                    <div className="flex flex-wrap justify-center items-center content-center w-full h-full p-1">
+                    <div className="relative flex flex-wrap justify-center items-center content-center w-full h-full p-0.5">
+                        <span aria-hidden="true" className={`absolute inset-0 flex items-center justify-center font-serif font-bold ${responsive ? 'text-[80cqmin]' : 'text-[38px]'} leading-none ${iconColor}`}>?</span>
+                        <div className="absolute inset-x-0 bottom-0 flex justify-center opacity-75">
                         {possibleTypes.map((type, index) => (
                             <span 
                                 key={type} 
-                                className={`quantum-icon ${responsive ? 'text-[24cqmin]' : 'text-[12px]'} leading-none m-[1px] ${iconColor}`}
+                                className={`quantum-icon ${responsive ? 'text-[16cqmin]' : 'text-[8px]'} leading-none ${iconColor}`}
                                 style={{ animationDelay: `${(index * 0.3) % 1}s` }}
                             >
                                 {symbols[type]}
                             </span>
                         ))}
+                        </div>
                     </div>
                 )}
             </div>
