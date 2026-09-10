@@ -1,11 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { BOARD_HEIGHTS, PIECE_HEIGHTS, PIECE_MAX_WIDTH, QUANTUM_FEATURED_SCALE, boardCamera, hintArrowPoints, isValidHintMove, squareName } from './boardPresentation';
+import { BOARD_HEIGHTS, PIECE_HEIGHTS, PIECE_MAX_WIDTH, quantumCandidateSize, boardCamera, hintArrowPoints, isValidHintMove, squareName } from './boardPresentation';
 import { createLocalPosition } from '../lib/localGame';
 import { legacyToQuantumState, quantumToLegacyMove } from '../quantum-engine/adapter';
 
 describe('Readable 3D board and hint coordinates', () => {
-    it('keeps a full-size uncertain silhouette and large confirmed pieces within each square', () => {
-        expect(QUANTUM_FEATURED_SCALE).toBeGreaterThan(.9);
+    it('keeps all remaining candidates equally readable without spilling into the next square', () => {
+        for (const count of [2,3,4,5,6]) {
+            const {scale, radius} = quantumCandidateSize(count);
+            expect(scale).toBeGreaterThan(.37);
+            expect(radius * 2 + scale * PIECE_MAX_WIDTH).toBeLessThan(1);
+        }
         expect(PIECE_MAX_WIDTH).toBeGreaterThan(.9);
         expect(PIECE_MAX_WIDTH).toBeLessThan(1);
         expect(Math.min(...Object.values(PIECE_HEIGHTS))).toBeGreaterThanOrEqual(1.2);

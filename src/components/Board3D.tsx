@@ -9,7 +9,7 @@ import { QuantumPieceUI } from './QuantumPieceUI';
 import { PieceType } from '../config/gameConfig';
 import type { MoveRecord } from '../lib/gameRecordService';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
-import { BOARD_HEIGHTS, BOARD_THEMES, PIECE_HEIGHTS, PIECE_MAX_WIDTH, QUANTUM_FEATURED_SCALE, boardCamera, hintArrowPoints, squareName, type HintMove } from './boardPresentation';
+import { BOARD_HEIGHTS, BOARD_THEMES, PIECE_HEIGHTS, PIECE_MAX_WIDTH, quantumCandidateSize, boardCamera, hintArrowPoints, squareName, type HintMove } from './boardPresentation';
 import './board-3d.css';
 import { BoardEnvironment3D } from './BoardEnvironment3D';
 import { matchText } from '../locales/matchText';
@@ -33,7 +33,8 @@ const QuantumBlock = ({ isWhite, probabilities, candidates, motion = false, phas
     const types: PieceType[] = ['King','Queen','Rook','Bishop','Knight','Pawn'];
     const active = types.filter(type => candidates?.has(type) ?? probabilities[type] > 0);
     const floating = React.useRef<THREE.Group>(null);
-    const figures = React.useRef<(THREE.Group | null)[]>([]);
+    const orbit = React.useRef<THREE.Group>(null);
+    const candidateSize = quantumCandidateSize(active.length);
     useFrame(({clock}) => {
         const time = clock.elapsedTime + phase;
         if (floating.current) {
@@ -41,16 +42,10 @@ const QuantumBlock = ({ isWhite, probabilities, candidates, motion = false, phas
             floating.current.rotation.x = motion ? Math.sin(time*.7)*.018 : 0;
             floating.current.rotation.z = motion ? Math.cos(time*.8)*.018 : 0;
         }
-        // One full-size, changing silhouette replaces six equally tiny figures.
-        // The remaining candidate figures still orbit and wobble around it.
-        const featured = motion ? Math.floor(time / 2.8) % Math.max(1, active.length) : 0;
-        figures.current.forEach((figure, i) => {
-            if (!figure) return;
-            const angle = i / active.length * Math.PI * 2 + (motion ? time * .18 : 0);
-            const hero = i === featured;
-            figure.position.set(hero ? 0 : Math.cos(angle) * .38, hero ? .16 : .2, hero ? 0 : Math.sin(angle) * .38);
-            figure.scale.setScalar(hero ? QUANTUM_FEATURED_SCALE : .23);
-        });
+        if (orbit.current) {
+            orbit.current.position.y = motion ? Math.sin(time * 1.1) * .035 : 0;
+            orbit.current.rotation.y = motion ? time * .18 : 0;
+        }
     });
     return <group ref={floating}>
         <mesh castShadow receiveShadow position={[0,.085,0]}>
@@ -63,15 +58,12 @@ const QuantumBlock = ({ isWhite, probabilities, candidates, motion = false, phas
         <mesh position={[0,.177,0]} rotation={[-Math.PI/2,0,0]}>
             <ringGeometry args={[.424,.451,32]}/><meshBasicMaterial color="#d4b872"/>
         </mesh>
-        <group>{active.map((type,i) => {
+        <group ref={orbit}>{active.map((type,i) => {
             const angle=i/active.length*Math.PI*2;
-            return <group key={type} ref={node => { figures.current[i] = node; }} position={i === 0 ? [0,.16,0] : [Math.cos(angle)*.38,.2,Math.sin(angle)*.38]} scale={i === 0 ? QUANTUM_FEATURED_SCALE : .23}>
+            return <group key={type} position={[Math.cos(angle)*candidateSize.radius,.20,Math.sin(angle)*candidateSize.radius]} scale={candidateSize.scale}>
                 <RealisticPiece type={type} isWhite={isWhite}/>
             </group>;
         })}</group>
-        <Html center position={[0,.45,.44]} style={{pointerEvents:'none'}} zIndexRange={[10,0]}>
-            <span aria-hidden="true" style={{display:'grid',placeItems:'center',width:16,height:16,borderRadius:'50%',background:'#29251c',border:'1px solid #d4b872',color:'#ffe2a0',fontSize:12,fontWeight:800,lineHeight:1}}>?</span>
-        </Html>
     </group>;
 };
 

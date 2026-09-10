@@ -101,19 +101,16 @@ export const QuantumPieceUI: React.FC<QuantumPieceProps> = ({ player, probabilit
                     </span>
                 ) : (
                     // Superposition: Elegant engraved subtle icons with jitter
-                    <div className="relative flex flex-wrap justify-center items-center content-center w-full h-full p-0.5">
-                        <span aria-hidden="true" className={`absolute inset-0 flex items-center justify-center font-serif font-bold ${responsive ? 'text-[80cqmin]' : 'text-[38px]'} leading-none ${iconColor}`}>?</span>
-                        <div className="absolute inset-x-0 bottom-0 flex justify-center opacity-75">
+                    <div className="flex flex-wrap justify-center items-center content-center w-full h-full p-0.5">
                         {possibleTypes.map((type, index) => (
                             <span 
                                 key={type} 
-                                className={`quantum-icon ${responsive ? 'text-[16cqmin]' : 'text-[8px]'} leading-none ${iconColor}`}
+                                className={`quantum-icon ${responsive ? (possibleTypes.length <= 3 ? 'text-[44cqmin]' : 'text-[30cqmin]') : (possibleTypes.length <= 3 ? 'text-[22px]' : 'text-[16px]')} leading-none ${iconColor}`}
                                 style={{ animationDelay: `${(index * 0.3) % 1}s` }}
                             >
                                 {symbols[type]}
                             </span>
                         ))}
-                        </div>
                     </div>
                 )}
             </div>

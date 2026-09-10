@@ -1,7 +1,12 @@
 export type BoardTheme = 'classic' | 'marble' | 'neon';
 export const PIECE_HEIGHTS = { King: 1.48, Queen: 1.42, Bishop: 1.34, Knight: 1.30, Rook: 1.24, Pawn: 1.20 } as const;
 export const PIECE_MAX_WIDTH = .94;
-export const QUANTUM_FEATURED_SCALE = .94;
+export function quantumCandidateSize(count: number) {
+    return count >= 5 ? { scale: .42, radius: .285 }
+        : count === 4 ? { scale: .48, radius: .26 }
+        : count === 3 ? { scale: .54, radius: .235 }
+        : { scale: .60, radius: .20 };
+}
 export type HintMove = { fromRow: number; fromCol: number; toRow: number; toCol: number };
 export const squareName = (row: number, col: number) => `${String.fromCharCode(97 + col)}${8 - row}`;
 export function isValidHintMove(move: HintMove | null): move is HintMove {
