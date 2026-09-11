@@ -74,7 +74,11 @@
 .captured-inline { min-width:0; flex:1; }
 .captured-inline ul { margin:0; padding:0; list-style:none; display:flex; flex-wrap:wrap; gap:4px 8px; }
 .captured-inline li { display:flex; gap:4px; align-items:center; max-width:100%; padding:2px 5px; border-radius:4px; background:#293123; }
-.captured-inline li>span { font-size:20px; flex-shrink:0; }
+.captured-inline li>span { font-size:26px; line-height:1.2; flex-shrink:0; }
+.captured-inline li { flex-wrap:wrap; border:1px solid #647052; gap:2px; }
+.captured-piece-icon { font-family:Georgia,'Segoe UI Symbol',serif; }
+.captured-piece-icon.white { color:#f4e9d5; }
+.captured-piece-icon.black { color:#c8d7ed; }
 .captured-inline strong { font-size:11px; font-weight:500; overflow-wrap:anywhere; }
 .captured-inline small { display:inline; margin-left:5px; color:#aab2a3; font-size:9px; }
 .match-main { grid-template-rows:auto minmax(280px,1fr) auto; }

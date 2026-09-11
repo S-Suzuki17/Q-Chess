@@ -22,15 +22,20 @@ describe('Match decision feedback', () => {
         const html=render({tokens,candidatesMap});
         expect(html.match(/data-captured-token=/g)).toHaveLength(7);
         expect(html).toContain('data-captured-by="white"');
-        expect(html).toContain('<strong>ナイト</strong>');
+        expect(html.match(/data-captured-candidate="Knight"/g)).toHaveLength(7);
+        expect(html).toContain('aria-hidden="true">♞</span>');
+        expect(html).not.toContain('<strong>ナイト</strong>');
         expect(html).not.toContain('<details');
         expect(html).not.toContain('<summary');
         expect(html).toContain('class="captured-inline"');
     });
     it('keeps unresolved capture candidates and respects promotions', () => {
         const html=render({tokens:[{...piece,id:'uncertain',isCaptured:true},{...piece,id:'promoted',isCaptured:true,promotedTo:'Queen'}],candidatesMap:new Map([['uncertain',new Set(['Bishop','Knight'])]])});
-        expect(html).toContain('<strong>ビショップ / ナイト</strong>');
-        expect(html).toContain('<strong>クイーン</strong>');
+        expect(html).toContain('data-captured-candidate="Bishop"');
+        expect(html).toContain('data-captured-candidate="Knight"');
+        expect(html).toContain('data-captured-candidate="Queen"');
+        expect(html).toContain('aria-label="ビショップ / ナイト · 候補"');
+        expect(html).not.toContain('<strong>ビショップ / ナイト</strong>');
     });
     it('shows the cinematic only with a checkmate flag, not merely a finished game', () => {
         expect(render({finished:true})).not.toContain('checkmate-celebration');

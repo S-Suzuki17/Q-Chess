@@ -77,11 +77,9 @@ export function MatchLayout(props: Props) {
                 <div className="captured-inline">
                     {captured.length ? <ul>{captured.map(token => {
                         const types = candidates(token);
-                        return <li key={token.id} data-captured-token={token.id}>
-                            <span aria-hidden="true">{types.length === 1 ? SYMBOLS[TYPES.indexOf(types[0])] : '◉'}</span>
-                            <div><strong>{types.map(type => label(NAMES[TYPES.indexOf(type)],type)).join(' / ') || '—'}</strong>
-                                <small>{types.length === 1 ? label('確定','RESOLVED') : label('候補','possible')}</small>
-                            </div>
+                        return <li key={token.id} data-captured-token={token.id} aria-label={`${types.map(type => label(NAMES[TYPES.indexOf(type)],type)).join(' / ')} · ${types.length === 1 ? label('確定','RESOLVED') : label('候補','possible')}`}>
+                            {types.map(type => <span key={type} className={`captured-piece-icon ${token.player}`} data-captured-candidate={type} aria-hidden="true">{(token.player === 'white' ? SYMBOLS : ['♚','♛','♜','♝','♞','♟'])[TYPES.indexOf(type)]}</span>)}
+                            {!types.length && <span aria-hidden="true">—</span>}
                         </li>;
                     })}</ul> : <span>—</span>}
                 </div>
