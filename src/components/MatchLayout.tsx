@@ -72,12 +72,19 @@ export function MatchLayout(props: Props) {
                 </span>
             </div>
             {player.emote && <span className="match-emote">{player.emote}</span>}
-            <div className="match-captured" aria-label={label('獲得した駒', 'Captured pieces')}>
-                <small>{label('獲得した駒', 'CAPTURED')}</small>
-                {captured.length ? <span>{captured.slice(0, 5).map(token => {
-                    const types = candidates(token);
-                    return <i key={token.id} title={types.join(' / ')}>{types.length === 1 ? SYMBOLS[TYPES.indexOf(types[0])] : '◉'}</i>;
-                })}{captured.length > 5 && `+${captured.length - 5}`}</span> : <span>—</span>}
+            <div className="match-captured-list" data-captured-by={side} aria-label={label('獲得した駒', 'Captured pieces')}>
+                <span className="captured-heading">{label('獲得した駒', 'Captured pieces')} <b>{captured.length}</b></span>
+                <div className="captured-inline">
+                    {captured.length ? <ul>{captured.map(token => {
+                        const types = candidates(token);
+                        return <li key={token.id} data-captured-token={token.id}>
+                            <span aria-hidden="true">{types.length === 1 ? SYMBOLS[TYPES.indexOf(types[0])] : '◉'}</span>
+                            <div><strong>{types.map(type => label(NAMES[TYPES.indexOf(type)],type)).join(' / ') || '—'}</strong>
+                                <small>{types.length === 1 ? label('確定','RESOLVED') : label('候補','possible')}</small>
+                            </div>
+                        </li>;
+                    })}</ul> : <span>—</span>}
+                </div>
             </div>
             <time className={`match-clock ${active ? 'active' : ''} ${urgent ? 'urgent' : ''}`} aria-label={label(`残り時間 ${player.clock}`, `Time remaining ${player.clock}`)}>{urgent && <small>{label('残り', 'LEFT')}</small>}{player.clock}</time>
         </section>;
