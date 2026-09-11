@@ -57,7 +57,7 @@
   .match-layout { gap:8px; padding-bottom:max(12px,env(safe-area-inset-bottom)); }
   .match-header { min-height:52px; }.match-tools { gap:8px; }.match-tool { height:44px; }
   .match-main { gap:8px; grid-template-rows:52px auto 52px; }
-  .match-board-area { max-height:calc(100dvh - 400px); min-height:min(calc(100vw - 32px),320px); aspect-ratio:auto; height:calc(100vw - 32px); }
+  .match-board-area { max-height:none; min-height:0; aspect-ratio:auto; height:calc(100vw + 22px); margin-inline:-12px; border-radius:0; }
   .match-player { padding:6px 10px; }.match-avatar { flex-basis:30px; height:30px; }.match-clock { font-size:25px; }
   .match-panel { padding:10px 12px; }.inspector-title { padding-right:30px; gap:8px; margin-bottom:7px; }.inspector-title>span { display:block; padding:0; font-size:10px; }.inspector-title>strong { font-size:23px; }.inspector-title>small { margin-left:auto; font-size:10px; }.clear-selection { top:-5px; right:-7px; }
   .candidate>span { font-size:24px; }.candidate>small { font-size:9px; }.candidate { padding:2px 0; }
@@ -66,3 +66,12 @@
   .match-emote-control { position:absolute; top:59px; right:20px; bottom:auto; }.match-layout:has(.match-emote-control) .match-footer { padding-right:0; }
 }
 @media(max-width:380px) { .inspector-title>span { font-size:9px; }.match-footer { gap:4px; }.match-button { padding:8px; }.match-inspector .inspector-instruction { font-size:10px; } }
+
+/* No decorative backdrop: reserve the available area for the board. */
+.match-layout { background:#111611; }
+@media(min-width:1000px) {
+  .match-layout { grid-template-columns:48px minmax(0,1fr) 270px; gap:8px 12px; padding:0 12px 8px; }
+  .match-main { grid-template-rows:48px minmax(0,1fr) 48px; gap:6px; }
+  .match-main.has-advice { grid-template-rows:48px minmax(0,1fr) auto 48px; }
+}
+@media(max-width:380px) { .match-board-area { margin-inline:-6px; } }

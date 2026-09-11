@@ -2,9 +2,9 @@ import { describe, expect, it, vi } from 'vitest';
 import { graphicsQuality, observeGraphicsContext } from './boardGraphics';
 
 describe('mobile graphics recovery', () => {
-    it('uses a smaller drawing buffer and no shadow map on mobile', () => {
-        expect(graphicsQuality(true)).toEqual({dpr:1, shadows:false});
-        expect(graphicsQuality(false)).toEqual({dpr:1.5, shadows:true});
+    it('preserves the original resolution on mobile and desktop', () => {
+        expect(graphicsQuality(true)).toEqual({dpr:[1,1.75], shadows:false});
+        expect(graphicsQuality(false)).toEqual({dpr:[1,1.75], shadows:true});
     });
     it('allows the browser to restore a lost context and cleans up listeners', () => {
         const canvas = new EventTarget();

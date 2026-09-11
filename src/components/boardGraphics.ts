@@ -1,5 +1,5 @@
 export function graphicsQuality(compact: boolean) {
-    return { dpr: compact ? 1 : 1.5, shadows: !compact };
+    return { dpr: [1, 1.75] as [number, number], shadows: !compact };
 }
 
 /** Keep context recovery separate from game state and remove every listener. */

@@ -160,7 +160,7 @@ export function MatchLayout(props: Props) {
         <footer className="match-footer">
             <label className="match-hints"><input type="checkbox" checked={props.showMoveHints} onChange={e=>props.onHintsChange(e.target.checked)}/>{label('移動候補', 'Move hints')}</label>
             {props.onHint && <button className="match-button match-hint-action" onClick={props.onHint} disabled={!isMyTurn || props.hintPending}><Lightbulb size={15}/>{props.hintPending ? label('検討中…', 'Thinking…') : label('ヒント', 'Hint')}</button>}
-            <span className="match-view-hint" role={props.feedback ? 'status' : undefined}>{props.feedback || (props.is2D ? label('選択した駒はもう一度押すと解除', 'Select the same piece again to deselect') : label('ドラッグで回転', 'Drag to orbit'))}</span>
+            <span className="match-view-hint" role={props.feedback ? 'status' : undefined}>{props.feedback || label('選択した駒はもう一度押すと解除', 'Select the same piece again to deselect')}</span>
             <button className="match-button mobile-details" onClick={()=>setExpanded(!expanded)} aria-expanded={expanded} aria-controls="match-detail-panels">{label(expanded ? '閉じる' : '棋譜・正体', expanded ? 'Close' : 'Details')}</button>
             <button className="match-button mobile-rules" onClick={props.onRules}>{label('ルール', 'Rules')}</button>
             {!props.finished && !props.spectator && <button className="match-button match-resign" onClick={props.onResign}><Flag size={14}/>{label('投了', 'Resign')}</button>}

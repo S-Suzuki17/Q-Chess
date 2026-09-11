@@ -4,16 +4,14 @@ import React, { useMemo, useEffect } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { ResilientBoardCanvas } from './ResilientBoardCanvas';
 import { Board2D } from './Board2D';
-import { OrbitControls, OrthographicCamera, useGLTF, Billboard, Html, Sparkles } from '@react-three/drei';
+import { OrthographicCamera, useGLTF, Billboard, Html, Sparkles } from '@react-three/drei';
 import * as THREE from 'three';
 import { Token } from '../lib/GameEngine';
 import { QuantumPieceUI } from './QuantumPieceUI';
 import { PieceType } from '../config/gameConfig';
 import type { MoveRecord } from '../lib/gameRecordService';
-import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import { BOARD_HEIGHTS, BOARD_THEMES, PIECE_HEIGHTS, PIECE_MAX_WIDTH, quantumCandidateSize, boardCamera, hintArrowPoints, squareName, type HintMove } from './boardPresentation';
 import './board-3d.css';
-import { BoardEnvironment3D } from './BoardEnvironment3D';
 import { matchText } from '../locales/matchText';
 import { dict, type Language } from '../locales/dict';
 const ignoreRaycast = () => {};
@@ -125,10 +123,12 @@ const RealisticPiece = ({ type, isWhite, isHologram = false, quiet = false }: { 
                 } else {
                     child.castShadow = true;
                     child.receiveShadow = true;
-                    const mat = new THREE.MeshStandardMaterial({
-                        color: isWhite ? '#f3e7cc' : '#28364a',
-                        roughness: 0.48,
-                        metalness: 0.1
+                    const mat = new THREE.MeshPhysicalMaterial({
+                        color: isWhite ? '#f4e9d5' : '#26374b',
+                        roughness: 0.30,
+                        metalness: 0.16,
+                        clearcoat: 0.55,
+                        clearcoatRoughness: 0.24
                     });
                     child.material = mat;
                     materials.push(mat);
@@ -325,7 +325,7 @@ function Hint3D({ move }: { move: HintMove }) {
     </group>;
 }
 
-function SceneCamera({ flipped, flat, autoRotate, controls, checkmate = false }: { flipped: boolean; flat: boolean; autoRotate?: boolean; controls: React.RefObject<OrbitControlsImpl | null>; checkmate?: boolean }) {
+function SceneCamera({ flipped, flat, checkmate = false }: { flipped: boolean; flat: boolean; checkmate?: boolean }) {
     const {size}=useThree();
     const view=boardCamera(size.width,size.height,flipped,flat);
     const cameraRef = React.useRef<THREE.OrthographicCamera>(null);
@@ -347,8 +347,6 @@ function SceneCamera({ flipped, flat, autoRotate, controls, checkmate = false }:
     });
     return <>
         <OrthographicCamera ref={cameraRef} makeDefault position={view.position} zoom={view.zoom} near={.1} far={100} onUpdate={camera=>{camera.lookAt(0,0,0);camera.updateProjectionMatrix();}}/>
-        <OrbitControls ref={controls} makeDefault enableZoom={false} enablePan={false} enableRotate={!flat} minPolarAngle={.15} maxPolarAngle={Math.PI/3.8}
-              autoRotate={autoRotate} autoRotateSpeed={.7}/>
     </>;
 }
 
@@ -381,7 +379,6 @@ export const Board3D: React.FC<Board3DProps> = props => {
         const timer=setTimeout(()=>setDeadTokens([]),1000);
         return ()=>clearTimeout(timer);
     },[deadTokens]);
-    const controls=React.useRef<OrbitControlsImpl>(null);
     const [motion,setMotion]=React.useState(false);
     useEffect(()=>{
         const reduced=window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -390,22 +387,18 @@ export const Board3D: React.FC<Board3DProps> = props => {
         return ()=>reduced.removeEventListener('change',read);
     },[]);
     const active=props.tokens.filter(token=>!token.isCaptured);
-    return <div className="board-3d" data-board-theme={design} style={{background:theme.stage,touchAction:'none'}}>
+    return <div className="board-3d" data-board-theme={design} data-camera="fixed" style={{touchAction:'pan-y'}}>
         <div className="board-scene-tools">
-              <span>{design==='classic'?matchText(props.lang || 'en','クラシック · 書斎','Classic · Study'):design==='marble'?matchText(props.lang || 'en','大理石 · ギャラリー','Marble · Gallery'):matchText(props.lang || 'en','ネオン · 回路','Neon · Circuit')}</span>
             <button aria-pressed={motion} onClick={()=>{setMotion(!motion);localStorage.setItem('qchess_pieceMotion',String(!motion));}}>◌ {matchText(lang,'駒のゆらぎ','Piece motion')} {motion?dict[lang].on:dict[lang].muted}</button>
         </div>
         <div className="board-scene-canvas">
         <ResilientBoardCanvas lang={lang} fallback={<Board2D {...props} isFlipped={flipped}/>} onRetry={() => Object.values(MODEL_PATHS).forEach(path => useGLTF.clear(path))}>
-            <BoardEnvironment3D theme={design}/>
-            <SceneCamera key={`${flipped}`} flipped={flipped} flat={!!props.is2DView} autoRotate={props.autoRotate} controls={controls} checkmate={props.checkmate}/>
+            <SceneCamera key={`${flipped}`} flipped={flipped} flat={!!props.is2DView} checkmate={props.checkmate}/>
             {props.checkmate && motion && <Sparkles count={80} scale={[9,3,9]} position={[0,1.5,0]} speed={.6} size={5} color="#ffe5a0"/>}
             <ambientLight intensity={.8}/>
+            <hemisphereLight args={['#f7edda','#45546c',.8]}/>
             <directionalLight position={[-4,10,6]} intensity={2.1} color="#fff3df" castShadow shadow-mapSize={[1024,1024]} shadow-camera-left={-6} shadow-camera-right={6} shadow-camera-top={6} shadow-camera-bottom={-6} shadow-normalBias={.025} shadow-bias={-.0003}/>
             <directionalLight position={[5,6,-5]} intensity={1.5} color="#d5e6ff"/>
-            <mesh position={[0,BOARD_HEIGHTS.stage,0]} rotation={[-Math.PI/2,0,0]} receiveShadow raycast={ignoreRaycast}>
-                <planeGeometry args={[40,40]}/><shadowMaterial transparent opacity={.32}/>
-            </mesh>
             <group>
                 <mesh position={[0,-.3,0]} castShadow receiveShadow><boxGeometry args={[8.85,.38,8.85]}/><meshStandardMaterial color={theme.frame} roughness={.58}/></mesh>
                 <mesh position={[0,-.12,0]}><boxGeometry args={[8.78,.04,8.78]}/><meshStandardMaterial color={theme.rim} roughness={.45} metalness={.3} emissive={design==='neon'?theme.rim:'#000000'} emissiveIntensity={.35}/></mesh>

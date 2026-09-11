@@ -9,6 +9,7 @@ export default function manifest(): MetadataRoute.Manifest {
     description: 'Quantum Superposition Chess',
     start_url: '/',
     display: 'standalone',
+    orientation: 'portrait',
     background_color: '#000000',
     theme_color: '#00ff41',
     icons: [

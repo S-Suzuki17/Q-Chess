@@ -64,7 +64,7 @@ export function ResilientBoardCanvas({children, fallback, lang, onRetry}: {
         {phase !== 'ready' && <div className="board-render-fallback">{fallback}</div>}
         {phase !== 'failed' && <div className="board-webgl-layer" style={{visibility: phase === 'ready' ? 'visible' : 'hidden'}}>
             <GraphicsBoundary key={epoch} onError={fail}>
-                <Canvas shadows={quality.shadows} dpr={quality.dpr} gl={{antialias:false, powerPreference:'low-power'}}
+                <Canvas shadows={quality.shadows} dpr={quality.dpr} gl={{antialias:true, alpha:true}}
                     resize={{scroll:false, debounce:0}}>
                     <React.Suspense fallback={null}>
                         {children}

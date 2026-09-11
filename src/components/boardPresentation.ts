@@ -1,11 +1,11 @@
 export type BoardTheme = 'classic' | 'marble' | 'neon';
-export const PIECE_HEIGHTS = { King: 1.48, Queen: 1.42, Bishop: 1.34, Knight: 1.30, Rook: 1.24, Pawn: 1.20 } as const;
-export const PIECE_MAX_WIDTH = .94;
+export const PIECE_HEIGHTS = { King: 1.55, Queen: 1.49, Bishop: 1.42, Knight: 1.38, Rook: 1.32, Pawn: 1.28 } as const;
+export const PIECE_MAX_WIDTH = .96;
 export function quantumCandidateSize(count: number) {
-    return count >= 5 ? { scale: .42, radius: .285 }
-        : count === 4 ? { scale: .48, radius: .26 }
-        : count === 3 ? { scale: .54, radius: .235 }
-        : { scale: .60, radius: .20 };
+    return count >= 5 ? { scale: .46, radius: .27 }
+        : count === 4 ? { scale: .51, radius: .25 }
+        : count === 3 ? { scale: .57, radius: .22 }
+        : { scale: .63, radius: .19 };
 }
 export type HintMove = { fromRow: number; fromCol: number; toRow: number; toCol: number };
 export const squareName = (row: number, col: number) => `${String.fromCharCode(97 + col)}${8 - row}`;
@@ -23,10 +23,9 @@ export const BOARD_THEMES = {
 } satisfies Record<BoardTheme, Record<string, string>>;
 
 export function boardCamera(width: number, height: number, flipped = false, flat = false) {
-    const narrow = width / height < 1.15;
     return {
-        position: [0, flat ? 15 : 13, (flipped ? -1 : 1) * (flat ? 0.01 : narrow ? 5.5 : 7.5)] as [number, number, number],
-        zoom: Math.min(width / 9.15, height / 9.05),
+        position: [0, flat ? 15 : 14, (flipped ? -1 : 1) * (flat ? 0.01 : 5)] as [number, number, number],
+        zoom: Math.min(width / 8.9, height / 8.9),
     };
 }
 
