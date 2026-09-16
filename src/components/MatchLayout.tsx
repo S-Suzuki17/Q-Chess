@@ -2,7 +2,7 @@
 
 import { useState, type ReactNode } from 'react';
 import Image from 'next/image';
-import { Home, Palette, Settings2, HelpCircle, Flag, Lightbulb, X } from 'lucide-react';
+import { Palette, Settings2, HelpCircle, Flag, Lightbulb, X } from 'lucide-react';
 import type { Token } from '../lib/GameEngine';
 import type { PieceType } from '../config/gameConfig';
 import type { MoveRecord } from '../lib/gameRecordService';
@@ -10,6 +10,8 @@ import type { HintMove } from './boardPresentation';
 import './match-layout.css';
 import './checkmate.css';
 import { matchText } from '../locales/matchText';
+import type { VictoryFinish } from '../config/campaign';
+import { VictoryCelebration } from './VictoryCelebration';
 
 type Side = 'white' | 'black';
 type Player = { name: string; clock: string; rating?: number | null; avatar?: string; emote?: string };
@@ -32,6 +34,7 @@ interface Props {
     onHome: () => void; onRules: () => void; onResign: () => void;
     showMoveHints: boolean; onHintsChange: (show: boolean) => void;
     board: ReactNode; notice?: ReactNode; children?: ReactNode;
+    victory?:boolean; victoryEffect?:VictoryFinish;
 }
 
 export function MatchLayout(props: Props) {
@@ -88,21 +91,22 @@ export function MatchLayout(props: Props) {
         </section>;
     }
 
-    return <section className="match-layout" data-layout="quiet-strategy-v1" aria-label={label('Q-GAMBIT 対局画面', 'Q-GAMBIT match')}>
+    return <section className="match-layout" data-layout="strategy-studio-v2" aria-label={label('Q-GAMBIT 対局画面', 'Q-GAMBIT match')}>
+        {props.victory && props.victoryEffect && <VictoryCelebration effect={props.victoryEffect}/>}
         <header className="match-header">
             <button className="match-brand" onClick={props.onHome} aria-label={label('ホームに戻る', 'Return home')}><span>Q</span><strong>GAMBIT</strong></button>
             <span className="match-heading">{label('対局', 'MATCH')}</span>
             <span className="match-mode">{props.mode}</span>
+            <nav className="match-tools" aria-label={label('盤面の表示', 'Board view')}>
+                <div className="match-view-switch">
+                    <button className={`match-tool ${!props.is2D ? 'selected' : ''}`} onClick={() => props.onViewChange(false)} aria-pressed={!props.is2D}>3D</button>
+                    <button className={`match-tool ${props.is2D ? 'selected' : ''}`} onClick={() => props.onViewChange(true)} aria-pressed={props.is2D}>2D</button>
+                </div>
+                <button className="match-tool match-theme" onClick={props.onThemeChange} aria-label={label('盤面のデザインを変更', 'Change board theme')}><Palette size={18}/></button>
+            </nav>
             <button className="match-button header-help" onClick={props.onRules}><HelpCircle size={16}/>{label('ルール', 'Rules')}</button>
             <button className="match-button" onClick={() => window.dispatchEvent(new CustomEvent('qg-open-settings'))} aria-label={label('設定', 'Settings')}><Settings2 size={17}/><span className="desktop-label">{label('設定', 'Settings')}</span></button>
         </header>
-
-        <nav className="match-tools" aria-label={label('盤面の表示', 'Board view')}>
-            <button className="match-tool" onClick={props.onHome} aria-label={label('ホーム', 'Home')}><Home size={19}/></button>
-            <button className={`match-tool ${!props.is2D ? 'selected' : ''}`} onClick={() => props.onViewChange(false)} aria-pressed={!props.is2D}>3D</button>
-            <button className={`match-tool ${props.is2D ? 'selected' : ''}`} onClick={() => props.onViewChange(true)} aria-pressed={props.is2D}>2D</button>
-            <button className="match-tool" onClick={props.onThemeChange} aria-label={label('盤面のデザインを変更', 'Change board theme')}><Palette size={18}/></button>
-        </nav>
 
         <main className={`match-main ${hasAdvice ? 'has-advice' : ''}`}>
             {playerBar(topSide)}

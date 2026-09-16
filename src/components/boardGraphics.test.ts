@@ -1,7 +1,33 @@
 import { describe, expect, it, vi } from 'vitest';
-import { graphicsQuality, observeGraphicsContext } from './boardGraphics';
+import { boardFrameLoop, graphicsQuality, observeGraphicsContext, observePageVisibility } from './boardGraphics';
 
 describe('mobile graphics recovery', () => {
+    it('renders static accessible boards on demand and keeps normal animation continuous', () => {
+        expect(boardFrameLoop(true, true)).toBe('demand');
+        expect(boardFrameLoop(true, false)).toBe('always');
+        expect(boardFrameLoop(false, true)).toBe('never');
+        expect(boardFrameLoop(false, false)).toBe('never');
+    });
+    it('does not flash the 2D fallback on a healthy return to the app', () => {
+        const page = Object.assign(new EventTarget(), {visibilityState:'visible'});
+        const restored = vi.fn();
+        const dispose = observeGraphicsContext(new EventTarget(), page as unknown as Document, () => false, vi.fn(), restored);
+        page.dispatchEvent(new Event('visibilitychange'));
+        expect(restored).not.toHaveBeenCalled();
+        dispose();
+    });
+    it('observes app visibility immediately and removes its listener on unmount', () => {
+        const page = Object.assign(new EventTarget(), {visibilityState:'hidden'});
+        const update = vi.fn();
+        const dispose = observePageVisibility(page as unknown as Document, update);
+        expect(update).toHaveBeenLastCalledWith(false);
+        page.visibilityState = 'visible';
+        page.dispatchEvent(new Event('visibilitychange'));
+        expect(update).toHaveBeenLastCalledWith(true);
+        dispose();
+        page.dispatchEvent(new Event('visibilitychange'));
+        expect(update).toHaveBeenCalledTimes(2);
+    });
     it('preserves the original resolution on mobile and desktop', () => {
         expect(graphicsQuality(true)).toEqual({dpr:[1,1.75], shadows:false});
         expect(graphicsQuality(false)).toEqual({dpr:[1,1.75], shadows:true});

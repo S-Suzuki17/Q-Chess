@@ -16,6 +16,9 @@ import { FriendsMenu } from './FriendsMenu';
 import { LiveMatchesMenu } from './LiveMatchesMenu';
 import { CPU_LEVELS, cpuDifficulty, type CPULevel } from '../config/cpuDifficulty';
 import { InteractiveTutorial } from './InteractiveTutorial';
+import { ArrowUpRight } from 'lucide-react';
+import './lobby-studio.css';
+import { campaignText } from '../locales/campaignText';
 
 interface LevelSelectProps {
     lang: Language;
@@ -25,9 +28,10 @@ interface LevelSelectProps {
     onStartGlobalMatch?: (tcSeconds: number) => void;
     onReplay?: (record: GameRecord) => void;
     onBack: () => void;
+    onCampaign?:()=>void;
 }
 
-export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobalMatch, onReplay, onBack }: LevelSelectProps) {
+export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobalMatch, onReplay, onBack, onCampaign }: LevelSelectProps) {
     const t = { ...dict['en'], ...(dict[lang] || {}) } as any;
     const [practiceLevel, setPracticeLevel] = React.useState<CPULevel>(3);
     const [practiceSide, setPracticeSide] = React.useState<'white' | 'black'>('white');
@@ -307,7 +311,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
         };
     }, []);
     return (
-        <div className="w-full h-full flex flex-col bg-transparent text-[#E8E2D7] font-sans px-6 py-6 md:px-8 md:py-8 overflow-hidden relative">
+        <div className="lobby-studio w-full h-full flex flex-col bg-transparent text-[#E8E2D7] font-sans px-6 py-6 md:px-8 md:py-8 overflow-hidden relative">
             {showTutorial && <InteractiveTutorial lang={lang} onClose={() => setShowTutorial(false)} />}
 
             
@@ -397,7 +401,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
                         <div className="flex flex-col gap-4">
                             {(['10s', '3m', '10m'] as TimeControl[]).map(tc => (
                                 <button
-                                    key={tc}
+                                    key={tc} data-time-control={tc}
                                     onClick={() => handleTimeControlConfirm(tc)}
                                     className="w-full py-4 bg-[#161513] border border-[#A89C86]/40 hover:border-[#B39A62] transition-colors text-[#E8E2D7] tracking-widest text-sm flex justify-between px-6 items-center group"
                                 >
@@ -600,7 +604,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
 
             {/* --- HOME SCREEN MAIN UI --- */}
             
-            <div className="flex justify-between items-center w-full max-w-lg mx-auto shrink-0 z-10 pt-4">
+            <div className="lobby-heading flex justify-between items-center w-full max-w-lg mx-auto shrink-0 z-10 pt-4">
                 <span className="text-xl md:text-2xl tracking-[0.2em] font-serif text-[#E8E2D7]">Q-GAMBIT</span>
                 <div className="flex items-center gap-4">
                     {queueStats && queueStats[-1] !== undefined && (
@@ -613,18 +617,19 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
                 </div>
             </div>
 
-            <div className="flex-grow flex flex-col justify-center w-full max-w-lg mx-auto z-10 gap-12 mt-8">
+            <div className="lobby-content flex-grow flex flex-col justify-center w-full max-w-lg mx-auto z-10 gap-12 mt-8">
                 
-                <div className="flex flex-col gap-6 w-full">
+                <div className="lobby-play-panel flex flex-col gap-6 w-full">
+                    {onCampaign && <button className="lobby-campaign-action" onClick={onCampaign}><span aria-hidden="true">♛</span><span>{campaignText(lang,'title')}</span><ArrowUpRight size={20}/></button>}
                     <div className="flex flex-col items-center w-full">
                         <h2 className="text-[10px] tracking-[0.3em] text-[#A89C86] uppercase mb-4">{(t as any).yourNextGame}</h2>
-                        <button onClick={() => setShowPlayMenu(true)} className="w-full py-8 bg-transparent border border-[#A89C86]/50 hover:bg-[#E8E2D7] hover:text-[#161513] text-[#E8E2D7] transition-all group relative overflow-hidden">
-                            <span className="relative z-10 text-2xl tracking-[0.3em] font-serif transition-colors">{(t as any).play}</span>
+                        <button onClick={() => setShowPlayMenu(true)} className="lobby-play-action w-full group relative">
+                            <span>{(t as any).play}</span><ArrowUpRight size={28} aria-hidden="true"/>
                         </button>
                     </div>
 
                     
-                    <div className="flex gap-2">
+                    <div className="lobby-shortcuts flex gap-2">
                         <button onClick={handleVsCpuClick} className="flex-1 py-4 bg-transparent border border-[#A89C86]/20 hover:bg-[#24211D] text-xs tracking-[0.2em] transition-colors text-[#A89C86] hover:text-[#E8E2D7] uppercase">
                             {(t as any).practice}
                         </button>
@@ -635,7 +640,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
 
                 </div>
 
-                <div className="flex flex-col w-full">
+                <div className="lobby-recent flex flex-col w-full">
                     <div className="border-b border-[#A89C86]/20 pb-2 mb-2 flex justify-between items-end">
                         <span className="text-[10px] tracking-[0.2em] text-[#A89C86] uppercase">{(t as any).recentGames}</span>
                     </div>
@@ -662,7 +667,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
                 </div>
             </div>
 
-            <div className="shrink-0 w-full max-w-lg mx-auto flex flex-wrap justify-center sm:justify-between items-center border-t border-[#A89C86]/20 pt-6 pb-2 text-[10px] tracking-[0.2em] text-[#A89C86] gap-y-4 z-10">
+            <div className="lobby-navigation shrink-0 w-full max-w-lg mx-auto flex flex-wrap justify-center sm:justify-between items-center border-t border-[#A89C86]/20 pt-6 pb-2 text-[10px] tracking-[0.2em] text-[#A89C86] gap-y-4 z-10">
                 <div className="flex gap-6 justify-center w-full sm:w-auto">
                     <button onClick={() => { setShowReplays(true); loadReplays(replayCategory); }} className="hover:text-[#E8E2D7] transition-colors uppercase">{t.gameReplays}</button>
                     <button onClick={() => { setShowLeaderboard(true); loadLeaderboard(); }} className="hover:text-[#E8E2D7] transition-colors uppercase">{t.globalRankings}</button>

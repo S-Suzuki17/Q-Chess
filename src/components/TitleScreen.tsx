@@ -6,6 +6,8 @@ import { dict, Language } from '../locales/dict';
 import { AdBanner } from './AdBanner';
 import { supabase } from '../lib/supabaseClient';
 import Link from 'next/link';
+import './title-screen.css';
+import { ArrowUpRight, ChevronRight } from 'lucide-react';
 
 import { Capacitor } from '@capacitor/core';
 import { App as CapApp } from '@capacitor/app';
@@ -132,23 +134,23 @@ export function TitleScreen({ lang, onLogin }: TitleScreenProps) {
     };
 
     return (
-        <div className="flex flex-col items-center justify-center w-full h-full bg-transparent text-[#E8E2D7] p-4 font-sans selection:bg-[#B39A62]/30 overflow-hidden">
+        <div className="title-screen flex flex-col items-center w-full bg-transparent text-[#E8E2D7] font-sans selection:bg-[#B39A62]/30">
             {/* Minimal Board Pattern Background */}
-            <div className="relative z-10 text-center mb-16">
-                <h1 className="text-5xl md:text-7xl font-serif text-[#E8E2D7] tracking-[0.2em] mb-4">
-                    Q-GAMBIT
+            <div className="title-screen-heading relative z-10">
+                <div className="title-edition"><span aria-hidden="true">◌</span>{t.subtitle}</div>
+                <h1 className="font-serif text-[#E8E2D7] mb-4">
+                    <span>Q</span>-GAMBIT
                 </h1>
                 <p className="text-xs md:text-sm tracking-[0.4em] text-[#A89C86] font-light uppercase">{(t as any)?.subtitle2 || "A game of hidden identity"}</p>
-                
-                
+                <div className="title-identities" aria-hidden="true">{['♔','♕','♖','♗','♘','♙'].map(symbol=><span key={symbol}>{symbol}</span>)}</div>
             </div>
 
-            <div className="relative z-10 w-full max-w-sm flex flex-col gap-6">
+            <div className="title-screen-actions relative z-10 w-full flex flex-col gap-6">
                 {mode === 'select' && (
                     <div className="flex flex-col gap-4">
-                        <button onClick={handleGuest} className="w-full py-4 bg-[#191714] border border-[#B39A62]/50 hover:bg-[#B39A62] hover:text-[#11100E] transition-colors text-lg tracking-[0.2em] text-[#B39A62]">{(t as any)?.guestLogin || "PLAY AS GUEST"}</button>
+                        <button onClick={handleGuest} className="title-play">{(t as any)?.guestLogin || "PLAY AS GUEST"}<ArrowUpRight size={24} aria-hidden="true"/></button>
                         
-                        <div className="flex flex-col gap-3 mt-4">
+                        <div className="title-auth-actions flex flex-col gap-3 mt-4">
                             <button onClick={() => { setMode('login'); setError(''); }} className="w-full py-3 bg-[#191714]/80 border border-[#A89C86]/30 hover:bg-[#A89C86]/20 transition-colors text-sm tracking-widest text-[#E8E2D7]">{(t as any)?.login || "SIGN IN"}</button>
                             <button onClick={() => { setMode('register'); setError(''); }} className="w-full py-3 bg-transparent border border-[#A89C86]/30 hover:bg-[#A89C86]/10 transition-colors text-sm tracking-widest text-[#E8E2D7]">{(t as any)?.createAccount || "CREATE ACCOUNT"}</button>
                         </div>
@@ -217,22 +219,23 @@ export function TitleScreen({ lang, onLogin }: TitleScreenProps) {
             </div>
             
             {/* SEO & User Content Section for AdSense Quality */}
-            <div className="absolute bottom-16 w-full z-[100] flex flex-col items-center max-w-2xl px-6 text-center pointer-events-auto">
+            <div className="title-screen-description relative w-full z-10 flex flex-col items-center max-w-2xl text-center">
                 <p className="text-gray-400 text-xs md:text-sm mb-2 font-sans pointer-events-none">
                     {(t as any)?.seoDesc || 'Q-GAMBIT is a revolutionary Quantum Chess experience where pieces exist in a state of superposition. Master the art of information warfare and quantum collapse.'}
                 </p>
                 <div className="flex gap-4">
-                    <Link href="/rules" className="text-[#D4B872] hover:text-white transition-colors text-sm font-bold tracking-widest underline underline-offset-4 decoration-[#D4B872]/50 hover:decoration-white relative z-[200] cursor-pointer">
+                    <Link href="/rules" className="title-rules">
                         {(t as any)?.rulesGuide || 'READ RULES & STRATEGY GUIDE'}
+                        <ChevronRight size={17} aria-hidden="true"/>
                     </Link>
                 </div>
             </div>
 
-            <div className="absolute bottom-2 w-full z-20 flex flex-col items-center pointer-events-none">
+            <div className="title-badge relative w-full z-10 flex flex-col items-center pointer-events-none">
                 <div className="mb-2 opacity-20 hover:opacity-100 grayscale hover:grayscale-0 transition-all duration-300 pointer-events-auto">
                     <a href="https://pixelpicked.com/game/7TmlOxj21Ub/q-gambit/" target="_blank" rel="noopener noreferrer">
                         <img src="https://api.pixelpicked.com/api/badges/7TmlOxj21Ub/live.png?theme=dark"
-                            width="100" alt="Approved on PixelPicked" className="h-auto" />
+                            width="100" alt="Approved on PixelPicked" className="h-auto" onError={event => { event.currentTarget.hidden = true; }} />
                     </a>
                 </div>
             </div>

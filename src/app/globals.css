@@ -5,6 +5,14 @@
   --foreground: #E8E2D7;
 }
 
+/* Entry screens scroll in normal flow; decorations never cover their controls. */
+main[data-screen="title"],main[data-screen="level_select"] { background:#111511; }
+main[data-screen="title"] { overflow-y:auto; justify-content:flex-start; }
+main[data-screen="title"]>div.flex-grow { flex:1 0 auto; }
+main[data-screen="title"]>footer { flex-shrink:0; }
+main[data-screen="title"]>div.pointer-events-none,
+main[data-screen="level_select"]>div.pointer-events-none { display:none; }
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);

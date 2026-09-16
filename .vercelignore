@@ -1,0 +1,8 @@
+# Native packaging/signing and local QA artifacts are not part of the Web deployment.
+android/
+itch-build/
+scratch/
+.agents/
+.env*
+*.jks
+*.keystore

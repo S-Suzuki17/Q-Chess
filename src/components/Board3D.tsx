@@ -10,11 +10,23 @@ import { Token } from '../lib/GameEngine';
 import { QuantumPieceUI } from './QuantumPieceUI';
 import { PieceType } from '../config/gameConfig';
 import type { MoveRecord } from '../lib/gameRecordService';
-import { BOARD_HEIGHTS, BOARD_THEMES, PIECE_HEIGHTS, PIECE_MAX_WIDTH, quantumCandidateSize, boardCamera, hintArrowPoints, squareName, type HintMove } from './boardPresentation';
+import { BOARD_HEIGHTS, BOARD_THEMES, quantumCandidateSize, boardCamera, hintArrowPoints, squareName, type HintMove } from './boardPresentation';
+import { createPieceModelLibrary } from './pieceModelLibrary';
+import { useReducedMotion } from '../hooks/useReducedMotion';
+import { rewardBoard, type BoardFinish, type PieceFinish } from '../config/campaign';
+import { championshipReward } from '../config/championshipRewards';
+import { BoardRewardFrame } from './BoardRewardFrame';
 import './board-3d.css';
 import { matchText } from '../locales/matchText';
 import { dict, type Language } from '../locales/dict';
 const ignoreRaycast = () => {};
+const PieceModelsContext = React.createContext<ReturnType<typeof createPieceModelLibrary> | null>(null);
+
+function PieceModels({children,finish}: {children: React.ReactNode;finish:PieceFinish}) {
+    const library = useMemo(()=>createPieceModelLibrary(finish), [finish]);
+    useEffect(() => () => library.dispose(), [library]);
+    return <PieceModelsContext.Provider value={library}>{children}</PieceModelsContext.Provider>;
+}
 
 const MODEL_PATHS: Record<PieceType, string> = {
     Pawn: '/models/pawn.glb',
@@ -67,82 +79,20 @@ const QuantumBlock = ({ isWhite, probabilities, candidates, motion = false, phas
     </group>;
 };
 
-const RealisticPiece = ({ type, isWhite, isHologram = false, quiet = false }: { type: PieceType, isWhite: boolean, isHologram?: boolean, quiet?: boolean }) => {
+const RealisticPiece = ({ type, isWhite }: { type: PieceType; isWhite: boolean }) => {
     const { scene } = useGLTF(MODEL_PATHS[type]);
-    
+    const library = React.useContext(PieceModelsContext);
     const clone = useMemo(() => {
-        const c = scene.clone();
-        c.updateMatrixWorld(true);
-        
-        const box = new THREE.Box3().setFromObject(c);
-        const size = new THREE.Vector3();
-        box.getSize(size);
-        
-        if (size.y === 0) return c; // safety
-        
-        const targetHeight = PIECE_HEIGHTS[type];
-        
-        let s = targetHeight / size.y;
-        const maxXZ = Math.max(size.x, size.z) * s;
-        if (maxXZ > PIECE_MAX_WIDTH) {
-            s = s * (PIECE_MAX_WIDTH / maxXZ);
-        }
-        
-        c.scale.setScalar(s);
-        c.updateMatrixWorld(true);
-        
-        const scaledBox = new THREE.Box3().setFromObject(c);
-        const center = new THREE.Vector3();
-        scaledBox.getCenter(center);
-        
-        const wrapper = new THREE.Group();
-        c.position.set(-center.x, -scaledBox.min.y, -center.z);
-        wrapper.add(c);
-        return wrapper;
-    }, [scene, type]);
-    
-    useEffect(() => {
-        const materials: THREE.Material[] = [];
-        clone.traverse((child) => {
-            if (child instanceof THREE.Mesh) {
-                if (isHologram) {
-                    child.castShadow = false;
-                    child.receiveShadow = false;
-                    const mat = new THREE.MeshPhysicalMaterial({
-                        color: isWhite ? '#88ccff' : '#ff88aa',
-                        transparent: true,
-                        opacity: 0.8,
-                        roughness: 0.1,
-                        transmission: 0.9,
-                        thickness: 0.5,
-                        emissive: isWhite ? '#00e5ff' : '#ff3366',
-                        emissiveIntensity: 0.4
-                    });
-                    child.material = mat;
-                    materials.push(mat);
-                } else {
-                    child.castShadow = true;
-                    child.receiveShadow = true;
-                    const mat = new THREE.MeshPhysicalMaterial({
-                        color: isWhite ? '#f4e9d5' : '#26374b',
-                        roughness: 0.30,
-                        metalness: 0.16,
-                        clearcoat: 0.55,
-                        clearcoatRoughness: 0.24
-                    });
-                    child.material = mat;
-                    materials.push(mat);
-                }
-            }
-        });
-        return () => materials.forEach(material => material.dispose());
-    }, [clone, isWhite, isHologram, quiet]);
+        if (!library) throw new Error('PieceModels provider is required');
+        return library.instantiate(scene, type, isWhite);
+    }, [library, scene, type, isWhite]);
 
     const rotY = isWhite ? 0 : Math.PI;
     return <primitive object={clone} position={[0, 0, 0]} rotation={[0, rotY, 0]} dispose={null} />;
 };
 
-const Piece3D = ({ token, isSelected, isOpponentSelected, candidates, onSquareClick, isDead = false, is2DView = false, quiet = false, motion = false }: { token: Token, isSelected: boolean, isOpponentSelected?: boolean, candidates?: ReadonlySet<PieceType>, onSquareClick: (r:number, c:number) => void, isDead?: boolean, is2DView?: boolean, isFlipped?: boolean, quiet?: boolean, motion?: boolean }) => {
+const Piece3D = ({ token, isSelected, isOpponentSelected, candidates, onSquareClick, isDead = false, is2DView = false, quiet = false, motion = false, reducedMotion = false }: { token: Token, isSelected: boolean, isOpponentSelected?: boolean, candidates?: ReadonlySet<PieceType>, onSquareClick: (r:number, c:number) => void, isDead?: boolean, is2DView?: boolean, isFlipped?: boolean, quiet?: boolean, motion?: boolean, reducedMotion?: boolean }) => {
+    const invalidate = useThree(state => state.invalidate);
     const possibleTypes = (Object.keys(token.probabilities) as PieceType[]).filter(t => candidates ? candidates.has(t) : token.probabilities[t as PieceType] > 0);
     const confirmedType = token.promotedTo ? token.promotedTo : (possibleTypes.length === 1 ? possibleTypes[0] : null);
     const isWhite = token.player === 'white';
@@ -165,11 +115,21 @@ const Piece3D = ({ token, isSelected, isOpponentSelected, candidates, onSquareCl
             startPos.current.copy(currentPos.current);
             animTarget.current.set(targetX, 0, targetZ);
             moveProgress.current = 0.0;
+            invalidate();
         }
-    }, [targetX, targetZ]);
+    }, [targetX, targetZ, invalidate]);
 
     useFrame((state, delta) => {
         if (!groupRef.current) return;
+
+        if (reducedMotion) {
+            moveProgress.current = 1;
+            currentPos.current.copy(animTarget.current);
+            groupRef.current.position.copy(currentPos.current);
+            groupRef.current.scale.setScalar(isDead ? 0 : 1);
+            groupRef.current.rotation.y = 0;
+            return;
+        }
 
         // Move Animation (Parabola)
         if (moveProgress.current < 1.0) {
@@ -203,9 +163,9 @@ const Piece3D = ({ token, isSelected, isOpponentSelected, candidates, onSquareCl
         } else {
             // Selection Lift Animation
             if (isSelected) {
-                liftProgress.current = THREE.MathUtils.lerp(liftProgress.current, 1.0, delta * 10.0);
+                liftProgress.current = THREE.MathUtils.damp(liftProgress.current, 1.0, 10, delta);
             } else {
-                liftProgress.current = THREE.MathUtils.lerp(liftProgress.current, 0.0, delta * 10.0);
+                liftProgress.current = THREE.MathUtils.damp(liftProgress.current, 0.0, 10, delta);
             }
             // Add a slight hover effect using state.clock.elapsedTime when fully lifted
             const hover = 0;
@@ -252,7 +212,7 @@ const Piece3D = ({ token, isSelected, isOpponentSelected, candidates, onSquareCl
             ) : (
                 <>
                 {confirmedType ? (
-                    <RealisticPiece type={confirmedType} isWhite={isWhite} quiet={quiet} />
+                    <RealisticPiece type={confirmedType} isWhite={isWhite} />
                 ) : (
                     <QuantumBlock isWhite={isWhite} probabilities={token.probabilities} candidates={candidates} quiet={quiet} motion={motion && !isSelected} phase={token.row*.7+token.col*.4} />
                 )}
@@ -271,7 +231,7 @@ function SquareOutline({ color, overlay = false }: { color: string; overlay?: bo
 }
 
 function BoardSquares({ props, enemySelected }: { props: Board3DProps; enemySelected: boolean }) {
-    const last = props.moveHistory.at(-1), theme = BOARD_THEMES[props.boardDesign ?? 'classic'];
+    const last = props.moveHistory.at(-1), theme = rewardBoard(props.boardFinish??'standard') ?? BOARD_THEMES[props.boardDesign ?? 'classic'];
     return <group>{Array.from({length:64},(_,i)=> {
         const row=Math.floor(i/8), col=i%8;
         const token = props.tokens.find(t=>!t.isCaptured && t.row===row && t.col===col);
@@ -325,24 +285,16 @@ function Hint3D({ move }: { move: HintMove }) {
     </group>;
 }
 
-function SceneCamera({ flipped, flat, checkmate = false }: { flipped: boolean; flat: boolean; checkmate?: boolean }) {
+function SceneCamera({ flipped, flat, checkmate = false, reducedMotion }: { flipped: boolean; flat: boolean; checkmate?: boolean; reducedMotion: boolean }) {
     const {size}=useThree();
     const view=boardCamera(size.width,size.height,flipped,flat);
     const cameraRef = React.useRef<THREE.OrthographicCamera>(null);
-    const reducedMotion = React.useRef(false);
-    useEffect(() => {
-        const media = window.matchMedia('(prefers-reduced-motion: reduce)');
-        const update = () => { reducedMotion.current = media.matches; };
-        update();
-        media.addEventListener('change', update);
-        return () => media.removeEventListener('change', update);
-    }, []);
     useFrame((_, delta) => {
         const camera = cameraRef.current;
         if (!camera) return;
-        const targetZoom = view.zoom * (checkmate && !reducedMotion.current ? 1.22 : 1);
+        const targetZoom = view.zoom * (checkmate && !reducedMotion ? 1.22 : 1);
         if (Math.abs(camera.zoom - targetZoom) < .001) return;
-        camera.zoom = THREE.MathUtils.damp(camera.zoom, targetZoom, 2.5, delta);
+        camera.zoom = reducedMotion ? targetZoom : THREE.MathUtils.damp(camera.zoom, targetZoom, 2.5, delta);
         camera.updateProjectionMatrix();
     });
     return <>
@@ -351,6 +303,8 @@ function SceneCamera({ flipped, flat, checkmate = false }: { flipped: boolean; f
 }
 
 export interface Board3DProps {
+    boardFinish?:BoardFinish;
+    pieceFinish?:PieceFinish;
     lang?: Language;
     checkmate?: boolean;
     quietLayout?: boolean; is2DView?: boolean; boardDesign?: 'classic'|'marble'|'neon'; hintMove?: HintMove | null; isFlipped?: boolean;
@@ -361,9 +315,12 @@ export interface Board3DProps {
 }
 
 export const Board3D: React.FC<Board3DProps> = props => {
+    const reducedMotion = useReducedMotion();
     const lang = props.lang ?? 'en';
     const flipped=props.isFlipped ?? (props.onlineRole==='black');
-    const design=props.boardDesign ?? 'classic', theme=BOARD_THEMES[design];
+    const design=props.boardDesign ?? 'classic';
+    const theme=rewardBoard(props.boardFinish??'standard') ?? BOARD_THEMES[design];
+    const frameReward=championshipReward(props.boardFinish??'standard');
     const selected=props.tokens.find(token=>token.id===props.selectedTokenId);
     const enemySelected=!!selected && selected.player!==(props.onlineRole && props.onlineRole!=='spectator' ? props.onlineRole : props.currentTurn);
     const [deadTokens,setDeadTokens]=React.useState<Token[]>([]);
@@ -372,43 +329,47 @@ export const Board3D: React.FC<Board3DProps> = props => {
         const current=props.tokens.filter(token=>!token.isCaptured);
         const dead=previous.current.filter(token=>!current.some(other=>other.id===token.id));
         previous.current=current;
-        if (dead.length) setDeadTokens(old=>[...old,...dead]);
-    },[props.tokens]);
+        if (dead.length && !reducedMotion) setDeadTokens(old=>[...old,...dead]);
+    },[props.tokens,reducedMotion]);
     useEffect(()=>{
         if (!deadTokens.length) return;
         const timer=setTimeout(()=>setDeadTokens([]),1000);
         return ()=>clearTimeout(timer);
     },[deadTokens]);
-    const [motion,setMotion]=React.useState(false);
+    const [motionEnabled,setMotionEnabled]=React.useState(true);
     useEffect(()=>{
-        const reduced=window.matchMedia('(prefers-reduced-motion: reduce)');
-        const read=()=>setMotion(!reduced.matches && localStorage.getItem('qchess_pieceMotion')!=='false');
-        read(); reduced.addEventListener('change',read);
-        return ()=>reduced.removeEventListener('change',read);
+        try { setMotionEnabled(localStorage.getItem('qchess_pieceMotion')!=='false'); } catch { /* Storage may be blocked. */ }
     },[]);
+    const motion = motionEnabled && !reducedMotion;
     const active=props.tokens.filter(token=>!token.isCaptured);
-    return <div className="board-3d" data-board-theme={design} data-camera="fixed" style={{touchAction:'pan-y'}}>
+    return <div className="board-3d" data-board-theme={design} data-board-finish={props.boardFinish ?? 'standard'} data-piece-finish={props.pieceFinish ?? 'standard'} data-camera="fixed" data-piece-motion={motion ? 'on' : 'off'} data-reduced-motion={reducedMotion} style={{touchAction:'pan-y'}}>
         <div className="board-scene-tools">
-            <button aria-pressed={motion} onClick={()=>{setMotion(!motion);localStorage.setItem('qchess_pieceMotion',String(!motion));}}>◌ {matchText(lang,'駒のゆらぎ','Piece motion')} {motion?dict[lang].on:dict[lang].muted}</button>
+            <button aria-pressed={motion} disabled={reducedMotion} onClick={()=>{
+                setMotionEnabled(!motionEnabled);
+                try { localStorage.setItem('qchess_pieceMotion',String(!motionEnabled)); } catch { /* Keep the session usable. */ }
+            }}>◌ {matchText(lang,'駒のゆらぎ','Piece motion')} {motion?dict[lang].on:dict[lang].muted}</button>
         </div>
         <div className="board-scene-canvas">
-        <ResilientBoardCanvas lang={lang} fallback={<Board2D {...props} isFlipped={flipped}/>} onRetry={() => Object.values(MODEL_PATHS).forEach(path => useGLTF.clear(path))}>
-            <SceneCamera key={`${flipped}`} flipped={flipped} flat={!!props.is2DView} checkmate={props.checkmate}/>
+        <ResilientBoardCanvas lang={lang} reducedMotion={reducedMotion} fallback={<Board2D {...props} isFlipped={flipped}/>} onRetry={() => Object.values(MODEL_PATHS).forEach(path => useGLTF.clear(path))}>
+            <PieceModels key={props.pieceFinish ?? 'standard'} finish={props.pieceFinish ?? 'standard'}>
+            <SceneCamera key={`${flipped}`} flipped={flipped} flat={!!props.is2DView} checkmate={props.checkmate} reducedMotion={reducedMotion}/>
             {props.checkmate && motion && <Sparkles count={80} scale={[9,3,9]} position={[0,1.5,0]} speed={.6} size={5} color="#ffe5a0"/>}
             <ambientLight intensity={.8}/>
             <hemisphereLight args={['#f7edda','#45546c',.8]}/>
             <directionalLight position={[-4,10,6]} intensity={2.1} color="#fff3df" castShadow shadow-mapSize={[1024,1024]} shadow-camera-left={-6} shadow-camera-right={6} shadow-camera-top={6} shadow-camera-bottom={-6} shadow-normalBias={.025} shadow-bias={-.0003}/>
             <directionalLight position={[5,6,-5]} intensity={1.5} color="#d5e6ff"/>
             <group>
-                <mesh position={[0,-.3,0]} castShadow receiveShadow><boxGeometry args={[8.85,.38,8.85]}/><meshStandardMaterial color={theme.frame} roughness={.58}/></mesh>
+                <mesh position={[0,-.3,0]} castShadow receiveShadow><boxGeometry args={[8.85,.38,8.85]}/><meshStandardMaterial color={theme.frame} roughness={'roughness' in theme?theme.roughness:.58} metalness={'metalness' in theme?theme.metalness:0}/></mesh>
                 <mesh position={[0,-.12,0]}><boxGeometry args={[8.78,.04,8.78]}/><meshStandardMaterial color={theme.rim} roughness={.45} metalness={.3} emissive={design==='neon'?theme.rim:'#000000'} emissiveIntensity={.35}/></mesh>
                 <mesh position={[0,-.07,0]} receiveShadow><boxGeometry args={[8.7,.08,8.7]}/><meshStandardMaterial color={theme.frame} roughness={.72}/></mesh>
             </group>
+            {frameReward?.kind==='board' && <BoardRewardFrame preset={frameReward}/>}
             <BoardSquares props={props} enemySelected={enemySelected}/>
             <BoardCoordinates color={theme.label}/>
             {[...active,...deadTokens].map(token=><Piece3D key={token.id} token={token} candidates={props.candidatesMap?.get(token.id)} isSelected={props.selectedTokenId===token.id}
-                isOpponentSelected={props.opponentSelectedTokenId===token.id} isDead={deadTokens.some(dead=>dead.id===token.id)} onSquareClick={props.onSquareClick} is2DView={!!props.is2DView} motion={motion} quiet/>)}
+                isOpponentSelected={props.opponentSelectedTokenId===token.id} isDead={deadTokens.some(dead=>dead.id===token.id)} onSquareClick={props.onSquareClick} is2DView={!!props.is2DView} motion={motion} reducedMotion={reducedMotion} quiet/>)}
             {props.hintMove && <Hint3D move={props.hintMove}/>}
+            </PieceModels>
         </ResilientBoardCanvas>
         </div>
     </div>;

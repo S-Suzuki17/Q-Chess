@@ -1,0 +1,15 @@
+@keyframes quantum-jitter {
+ 0%,100% { transform:translate(0,0) rotate(0deg); opacity:.7; }
+ 33% { transform:translate(.5px,-.5px) rotate(1deg); opacity:.9; }
+ 66% { transform:translate(-.5px,.5px) rotate(-1deg); opacity:.65; }
+}
+.quantum-icon { animation:quantum-jitter 2s infinite alternate ease-in-out; display:inline-block; }
+@keyframes identity-flash {
+ 0% { box-shadow:0 0 0 0 #d4b872cc; }
+ 50% { box-shadow:0 0 20px 10px #d4b87200; }
+ 100% { box-shadow:0 0 0 0 #d4b87200; }
+}
+.flash-effect { animation:identity-flash 1.5s ease-out!important; border-color:#d4b872!important; }
+@media(prefers-reduced-motion:reduce) {
+ .quantum-icon,.flash-effect { animation:none!important; opacity:1; }
+}

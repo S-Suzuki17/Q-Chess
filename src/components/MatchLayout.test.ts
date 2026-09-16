@@ -3,6 +3,8 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { MatchLayout } from './MatchLayout';
 import type { Token } from '../lib/GameEngine';
+import { LANGUAGES } from '../locales/dict';
+import { matchText } from '../locales/matchText';
 
 const piece: Token = { id:'white_1', player:'white', row:6, col:4,
     probabilities:{King:1, Queen:1, Rook:1, Bishop:1, Knight:1, Pawn:1} };
@@ -16,6 +18,19 @@ const base: ComponentProps<typeof MatchLayout> = {
 const render = (overrides: Partial<typeof base> = {}) => renderToStaticMarkup(createElement(MatchLayout, {...base,...overrides}));
 
 describe('Match decision feedback', () => {
+    it.each(LANGUAGES.map(language => language.code))('keeps captured icons and both hint endpoints available in %s', lang => {
+        const captured = {...piece, id:'captured', player:'black' as const, isCaptured:true};
+        const html = render({lang, tokens:[piece,captured],
+            candidatesMap:new Map([[captured.id,new Set(['Queen','Knight'])]]),
+            hintMove:{fromRow:6,fromCol:4,toRow:4,toCol:4}});
+        expect(html).toContain('data-captured-candidate="Queen"');
+        expect(html).toContain('data-captured-candidate="Knight"');
+        expect(html).toContain('data-testid="hint-source">e2');
+        expect(html).toContain('data-testid="hint-destination">e4');
+        expect(html).toContain(matchText(lang,'獲得した駒','Captured pieces'));
+        expect(html).not.toContain('<details');
+        expect(html).not.toContain('undefined');
+    });
     it('lists every captured piece with authoritative translated identities', () => {
         const tokens = Array.from({length:7},(_,i)=>({...piece,id:`captured_${i}`,player:'black' as const,isCaptured:true}));
         const candidatesMap = new Map(tokens.map(token=>[token.id,new Set(['Knight' as const])]));

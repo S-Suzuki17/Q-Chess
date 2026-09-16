@@ -18,6 +18,6 @@ export interface Profile {
     avatar_url?: string; // Newly added for user photos
 }
 
-export type GameState = 'title' | 'level_select' | 'playing' | 'replay';
+export type GameState = 'title' | 'level_select' | 'playing' | 'replay' | 'campaign';
 
 export type TimeControl = '10s' | '3m' | '10m';

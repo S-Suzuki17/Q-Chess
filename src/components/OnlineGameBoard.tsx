@@ -80,7 +80,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
     }, [socket]);
     const [showMoveHints, setShowMoveHints] = useState<boolean>(true);
     const [showRules, setShowRules] = useState(false);
-    const { is2DView, setIs2DView, boardDesign, setBoardDesign } = useBoardPreferences();
+    const { is2DView, setIs2DView, boardDesign, boardFinish, pieceFinish, victoryEffect, cycleBoard } = useBoardPreferences();
     const [showHomeConfirm, setShowHomeConfirm] = useState(false);
     const [viewResetKey, setViewResetKey] = useState(0);
     const [showResignConfirm, setShowResignConfirm] = useState<boolean>(false);
@@ -555,6 +555,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
 
     return (
         <MatchLayout
+            victory={onlineRole!=='spectator' && winner===`${onlineRole}_wins`} victoryEffect={victoryEffect}
             lang={lang} mode={matchText(lang, 'オンライン対局', 'ONLINE MATCH')}
             white={{name:whiteName,clock:formatTime(timeLeftWhite),avatar:isHost ? (user?.avatar_url || hostAvatarUrl) : hostAvatarUrl,emote:activeEmotes.white ? EMOTES[activeEmotes.white].emoji : undefined}}
             black={{name:blackName,clock:formatTime(timeLeftBlack),avatar:!isHost ? (user?.avatar_url || joinerAvatarUrl) : joinerAvatarUrl,emote:activeEmotes.black ? EMOTES[activeEmotes.black].emoji : undefined}}
@@ -563,12 +564,12 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
             validMoveCount={validMoves.length} onClearSelection={() => setSelectedTokenId(null)}
             is2D={is2DView} onViewChange={setIs2DView}
             onResetView={() => setViewResetKey(key => key + 1)}
-            onThemeChange={() => { const themes = ['classic','marble','neon'] as const; setBoardDesign(themes[(themes.indexOf(boardDesign)+1)%themes.length]); }}
+            onThemeChange={cycleBoard}
             onHome={() => setShowHomeConfirm(true)} onRules={() => setShowRules(true)} onResign={() => setShowResignConfirm(true)}
             showMoveHints={showMoveHints} onHintsChange={setShowMoveHints}
             notice={disconnectTimeLeft !== null ? (matchText(lang, '再接続を待っています… ', 'Waiting for reconnection… ')) + disconnectTimeLeft + 's' : errorMsg || undefined}
             board={is2DView ? (
-                    <Board2D quietLayout boardDesign={boardDesign} 
+                    <Board2D quietLayout boardDesign={boardDesign} boardFinish={boardFinish}
                     tokens={tokens}
                     isFlipped={isFlipped}
                     onlineRole={onlineRole}
@@ -582,7 +583,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
                     currentTurn={currentTurn}
                 />
                 ) : (
-                    <Board3D lang={lang} quietLayout key={viewResetKey} boardDesign={boardDesign} checkmate={!!winner && gameState.gameOverReason === 'checkmate'}
+                    <Board3D lang={lang} quietLayout key={viewResetKey} boardDesign={boardDesign} boardFinish={boardFinish} pieceFinish={pieceFinish} checkmate={!!winner && gameState.gameOverReason === 'checkmate'}
                     tokens={tokens}
                     isFlipped={isFlipped}
                     onlineRole={onlineRole}

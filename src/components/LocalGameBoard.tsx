@@ -24,6 +24,8 @@ import { getWinner } from '../quantum-engine/terminal';
 import { isCheckmateFinish } from '../lib/checkmatePresentation';
 import { createLocalPosition, applyLocalMove } from '../lib/localGame';
 import { soundManager } from '../lib/SoundService';
+import type { CPUPersonality, CampaignOutcome } from '../config/campaign';
+import type { CPUSearchProfile } from '../config/cpuDifficulty';
 
 export type EmoteType = 'hello' | 'well_played' | 'wow' | 'thinking' | 'resign';
 export const EMOTES: Record<EmoteType, { emoji: string; labelJa: string; labelEn: string }> = {
@@ -44,13 +46,21 @@ interface GameBoardProps {
     opponentId?: string;
     timeControl?: TimeControl;
     onHome?: () => void;
+    cpuPersonality?: CPUPersonality;
+    cpuSearchProfile?:CPUSearchProfile;
+    opponentLabel?: string;
+    campaignLabel?: string;
+    onComplete?: (outcome:CampaignOutcome) => void;
+    resultPanel?: React.ReactNode;
 }
 
-export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, matchMode, opponentId, timeControl = '10m', onHome }: GameBoardProps) {
+export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, matchMode, opponentId, timeControl = '10m', onHome, cpuPersonality, cpuSearchProfile, opponentLabel, campaignLabel, onComplete, resultPanel }: GameBoardProps) {
     const playerSide = onlineRole === 'black' ? 'black' : 'white';
     const cpuSide = playerSide === 'white' ? 'black' : 'white';
     const t = { ...dict['en'], ...(dict[lang] || {}) } as any;
-    const { is2DView, setIs2DView, boardDesign, setBoardDesign } = useBoardPreferences();
+    const { is2DView, setIs2DView, boardDesign, boardFinish, pieceFinish, victoryEffect, cycleBoard } = useBoardPreferences();
+    const hintsUsed=useRef(0);
+    const resultReported=useRef(false);
     const [showHomeConfirm, setShowHomeConfirm] = useState(false);
     const [viewResetKey, setViewResetKey] = useState(0);
     const [initialPosition] = useState(createLocalPosition);
@@ -388,7 +398,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
         const controller = new AbortController();
         setCpuFailed(false);
         const state = legacyToQuantumState(tokens, pool, cpuSide, moveHistory.length, moveHistory.at(-1) ?? null);
-        requestCPUSearch(state, controller.signal, cpuLevel).then(stats => {
+        requestCPUSearch(state, controller.signal, cpuLevel, cpuPersonality, cpuSearchProfile).then(stats => {
             if (controller.signal.aborted) return;
             if (!stats.move) {
                 const result = getWinner(state);
@@ -406,7 +416,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
             setCpuFailed(true);
         });
         return () => controller.abort();
-    }, [currentTurn, winner, tokens, pool, roomId, moveHistory, cpuRetry, movingPiece, cpuLevel, cpuSide]);
+    }, [currentTurn, winner, tokens, pool, roomId, moveHistory, cpuRetry, movingPiece, cpuLevel, cpuSide, cpuPersonality, cpuSearchProfile]);
 
     useEffect(() => {
         if (isCheck && !winner) {
@@ -692,7 +702,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
 
     const playerName = user?.name || 'Player';
     const fallbackOpponent = (opponentId && opponentId.startsWith('GUEST-')) ? 'Guest' : 'Opponent';
-    const opponentName = roomId ? (fetchedOpponentName || fallbackOpponent) : `CPU (${matchText(lang,cpuDifficulty(cpuLevel).ja,cpuDifficulty(cpuLevel).en)})`;
+    const opponentName = roomId ? (fetchedOpponentName || fallbackOpponent) : opponentLabel || `CPU (${matchText(lang,cpuDifficulty(cpuLevel).ja,cpuDifficulty(cpuLevel).en)})`;
     const myRole = onlineRole === 'spectator' ? 'white' : (onlineRole || 'white');
     const checkmate = useMemo(() => {
         if (!winner || winner === 'draw') return false;
@@ -703,6 +713,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
     const { hintMove } = hint;
     const requestHint = () => {
         if (winner || hint.pending || currentTurn !== myRole || !tokens.length || roomId) return;
+        hintsUsed.current++;
         const state = legacyToQuantumState(tokens, pool, myRole, moveHistory.length, moveHistory.at(-1) ?? null);
         void hint.request(async signal => {
             const stats = await requestCPUSearch(state, signal, 5);
@@ -717,10 +728,17 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
     
     const whiteRatingToDisplay = onlineRole === 'spectator' ? null : (myRole === 'white' ? myRating : opponentRating);
     const blackRatingToDisplay = onlineRole === 'spectator' ? null : (myRole === 'black' ? myRating : opponentRating);
+    useEffect(()=>{
+        if (!winner || !onComplete || resultReported.current) return;
+        resultReported.current=true;
+        onComplete({won:winner===`${playerSide}_wins`,draw:winner==='draw',
+            playerMoves:moveHistory.filter(move=>move.player===playerSide).length,hintsUsed:hintsUsed.current});
+    },[winner,onComplete,playerSide,moveHistory]);
 
     return (
         <MatchLayout
-            lang={lang} mode={roomId ? (matchText(lang, 'オンライン対局', 'ONLINE MATCH')) : (matchText(lang, 'CPU 対局', 'CPU MATCH'))}
+            victory={!campaignLabel && winner===`${playerSide}_wins`} victoryEffect={victoryEffect}
+            lang={lang} mode={campaignLabel || (roomId ? (matchText(lang, 'オンライン対局', 'ONLINE MATCH')) : (matchText(lang, 'CPU 対局', 'CPU MATCH')))}
             white={{name:whiteName,clock:formatTime(timeLeftWhite),rating:whiteRatingToDisplay,avatar:myRole === 'white' ? user?.avatar_url : undefined,emote:activeEmotes.white ? EMOTES[activeEmotes.white].emoji : undefined}}
             black={{name:blackName,clock:formatTime(timeLeftBlack),rating:blackRatingToDisplay,avatar:myRole === 'black' ? user?.avatar_url : undefined,emote:activeEmotes.black ? EMOTES[activeEmotes.black].emoji : undefined}}
             bottomSide={myRole} currentTurn={currentTurn} spectator={onlineRole === 'spectator'} finished={!!winner} checkmate={checkmate}
@@ -729,12 +747,12 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
             onHint={!roomId ? requestHint : undefined} hintPending={hint.pending} hintMove={hintMove} hintFailed={hint.failed} onClearHint={hint.clear} feedback={tutorialHint}
             is2D={is2DView} onViewChange={setIs2DView}
             onResetView={() => setViewResetKey(key => key + 1)}
-            onThemeChange={() => { const themes = ['classic','marble','neon'] as const; setBoardDesign(themes[(themes.indexOf(boardDesign)+1)%themes.length]); }}
+            onThemeChange={cycleBoard}
             onHome={() => setShowHomeConfirm(true)} onRules={() => setShowRules(true)} onResign={() => setShowResignConfirm(true)}
             showMoveHints={showMoveHints} onHintsChange={setShowMoveHints}
             notice={disconnectTimeLeft !== null ? (matchText(lang, '再接続を待っています… ', 'Waiting for reconnection… ')) + disconnectTimeLeft + 's' : errorMsg || undefined}
             board={is2DView ? (
-                    <Board2D quietLayout boardDesign={boardDesign} hintMove={hintMove} autoRotate={false} 
+                    <Board2D quietLayout boardDesign={boardDesign} boardFinish={boardFinish} hintMove={hintMove} autoRotate={false}
                     tokens={tokens}
                     onlineRole={onlineRole}
                     selectedTokenId={selectedTokenId}
@@ -747,7 +765,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
                     candidatesMap={pool.piecePossibilities}
                 />
                 ) : (
-                    <Board3D lang={lang} quietLayout key={viewResetKey} boardDesign={boardDesign} hintMove={hintMove} autoRotate={false} checkmate={checkmate}
+                    <Board3D lang={lang} quietLayout key={viewResetKey} boardDesign={boardDesign} boardFinish={boardFinish} pieceFinish={pieceFinish} hintMove={hintMove} autoRotate={false} checkmate={checkmate}
                     tokens={tokens}
                     onlineRole={onlineRole}
                     selectedTokenId={selectedTokenId}
@@ -771,7 +789,8 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
                 </div>
             )}
 
-            {winner && (
+            {winner && campaignLabel && resultPanel}
+            {winner && !campaignLabel && (
                 <div className="absolute inset-0 bg-[#11100E]/90 flex flex-col items-center justify-center z-50 backdrop-blur-sm rounded-lg border border-[#B39A62]/20">
                     <div className="flex flex-col items-center gap-6 px-6 max-w-full">
                         <div className="text-3xl sm:text-4xl md:text-5xl font-serif font-bold text-[#E8E2D7] tracking-[0.2em] text-center animate-stamp">

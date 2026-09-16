@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { graphicsQuality, observeGraphicsContext } from './boardGraphics';
+import { boardFrameLoop, graphicsQuality, observeGraphicsContext, observePageVisibility } from './boardGraphics';
 import { matchText } from '../locales/matchText';
 import { dict, type Language } from '../locales/dict';
 
@@ -26,17 +26,20 @@ function FrameHealth({onReady, onLost, onRestoring}: {onReady: () => void; onLos
         if (lost.current || gl.getContext().isContextLost() || size.width < 1 || size.height < 1 || frames.current >= 2) return;
         frames.current++;
         if (frames.current === 2) onReady();
+        else invalidate(); // Demand mode must also complete the initial/recovery frame pair.
     });
     return null;
 }
 
 /** Never remove the playable board while WebGL loads or recovers. */
-export function ResilientBoardCanvas({children, fallback, lang, onRetry}: {
-    children: React.ReactNode; fallback: React.ReactNode; lang: Language; onRetry: () => void;
+export function ResilientBoardCanvas({children, fallback, lang, onRetry, reducedMotion = false}: {
+    children: React.ReactNode; fallback: React.ReactNode; lang: Language; onRetry: () => void; reducedMotion?: boolean;
 }) {
     const [phase, setPhase] = useState<'loading' | 'ready' | 'recovering' | 'failed'>('loading');
     const [epoch, setEpoch] = useState(0);
     const [compact, setCompact] = useState(true);
+    const [visible, setVisible] = useState(true);
+    useEffect(() => observePageVisibility(document, setVisible), []);
     const recoveryCount = useRef(0);
     useEffect(() => {
         const media = window.matchMedia('(max-width: 999px), (pointer: coarse)');
@@ -49,7 +52,7 @@ export function ResilientBoardCanvas({children, fallback, lang, onRetry}: {
     const restoring = useCallback(() => setPhase('loading'), []);
     const fail = useCallback(() => setPhase('failed'), []);
     useEffect(() => {
-        if (phase === 'ready' || phase === 'failed') return;
+        if (!visible || phase === 'ready' || phase === 'failed') return;
         const timer = setTimeout(() => {
             if (phase === 'recovering' && recoveryCount.current < 1) {
                 recoveryCount.current++;
@@ -58,13 +61,14 @@ export function ResilientBoardCanvas({children, fallback, lang, onRetry}: {
             } else setPhase('failed');
         }, phase === 'recovering' ? 4000 : 15000);
         return () => clearTimeout(timer);
-    }, [phase, epoch]);
+    }, [phase, epoch, visible]);
     const quality = graphicsQuality(compact);
-    return <div className="board-render-surface" data-graphics-state={phase} data-graphics-quality={compact ? 'mobile' : 'desktop'}>
+    const frameloop = boardFrameLoop(visible, reducedMotion);
+    return <div className="board-render-surface" data-graphics-state={phase} data-render-active={visible} data-render-loop={frameloop} data-graphics-quality={compact ? 'mobile' : 'desktop'}>
         {phase !== 'ready' && <div className="board-render-fallback">{fallback}</div>}
         {phase !== 'failed' && <div className="board-webgl-layer" style={{visibility: phase === 'ready' ? 'visible' : 'hidden'}}>
             <GraphicsBoundary key={epoch} onError={fail}>
-                <Canvas shadows={quality.shadows} dpr={quality.dpr} gl={{antialias:true, alpha:true}}
+                <Canvas frameloop={frameloop} shadows={quality.shadows} dpr={quality.dpr} gl={{antialias:true, alpha:true}}
                     resize={{scroll:false, debounce:0}}>
                     <React.Suspense fallback={null}>
                         {children}

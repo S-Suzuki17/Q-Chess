@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import './quantum-piece.css';
 import { PieceType } from '../config/gameConfig';
 
 interface QuantumPieceProps {
@@ -55,27 +56,6 @@ export const QuantumPieceUI: React.FC<QuantumPieceProps> = ({ player, probabilit
 
     return (
         <>
-            <style>{`
-                @keyframes quantum-jitter {
-                    0% { transform: translate(0px, 0px) rotate(0deg); opacity: 0.6; }
-                    33% { transform: translate(0.5px, -0.5px) rotate(1deg); opacity: 0.8; }
-                    66% { transform: translate(-0.5px, 0.5px) rotate(-1deg); opacity: 0.5; }
-                    100% { transform: translate(0px, 0px) rotate(0deg); opacity: 0.6; }
-                }
-                .quantum-icon {
-                    animation: quantum-jitter 2s infinite alternate ease-in-out;
-                    display: inline-block;
-                }
-                @keyframes identity-flash {
-                    0% { box-shadow: 0 0 0 0 rgba(212, 184, 114, 0.8); }
-                    50% { box-shadow: 0 0 20px 10px rgba(212, 184, 114, 0); }
-                    100% { box-shadow: 0 0 0 0 rgba(212, 184, 114, 0); }
-                }
-                .flash-effect {
-                    animation: identity-flash 1.5s ease-out !important;
-                    border-color: #D4B872 !important;
-                }
-            `}</style>
             <div 
                 onClick={onClick}
                 style={responsive ? { containerType: 'size' } : undefined}

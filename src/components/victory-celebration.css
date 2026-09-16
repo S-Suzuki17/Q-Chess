@@ -1,0 +1,13 @@
+.victory-fx { position:fixed; inset:0; z-index:80; overflow:hidden; pointer-events:none; perspective:800px; }
+.victory-fx i { position:absolute; left:50%; top:50%; width:var(--size); height:var(--size); background:var(--fx-color); box-shadow:0 0 9px var(--fx-accent); opacity:0; animation:champion-burst var(--fx-duration) ease-out var(--delay) both; }
+.victory-fx-rings i { border-radius:50%; }.victory-fx-shards i { clip-path:polygon(50% 0,100% 40%,70% 100%,0 70%); }
+.victory-fx-starfall i { left:var(--origin); top:-10%; height:calc(var(--size)*3); clip-path:polygon(50% 0,70% 38%,100% 50%,70% 65%,50% 100%,30% 65%,0 50%,30% 38%); animation-name:champion-fall; }
+.victory-fx-corona i { width:2px; height:calc(var(--size)*5); background:linear-gradient(var(--fx-accent),transparent); }
+.victory-fx-ring { position:absolute; left:50%; top:50%; width:calc(12vmin + var(--ring)*8vmin); aspect-ratio:1; border:1px solid var(--fx-color); border-radius:50%; opacity:0; animation:champion-ring var(--fx-duration) ease-out calc(var(--ring)*.12s) both; }
+.victory-fx-shards .victory-fx-ring { border-radius:18%; }.victory-fx-corona .victory-fx-ring { border:3px double var(--fx-accent); }
+.victory-fx-crown { position:absolute; inset:12% 0 auto; text-align:center; color:var(--fx-accent); font:clamp(32px,7vmin,70px) Georgia,serif; opacity:0; animation:champion-crown var(--fx-duration) ease-out both; }
+@keyframes champion-burst { 0% {opacity:0;transform:rotate(var(--angle)) translateY(4vmin) scale(.2);} 12% {opacity:.8;} 75% {opacity:.6;} 100% {opacity:0;transform:rotate(var(--angle)) translateY(var(--distance)) rotateX(160deg) scale(.5);} }
+@keyframes champion-fall { 0% {opacity:0;transform:translateY(0) rotate(0);} 15% {opacity:.8;} 100% {opacity:0;transform:translate(var(--drift),100vh) rotate(260deg);} }
+@keyframes champion-ring { 0% {opacity:0;transform:translate(-50%,-50%) scale(.3) rotate(0);} 18% {opacity:.55;} 100% {opacity:0;transform:translate(-50%,-50%) scale(5) rotate(50deg);} }
+@keyframes champion-crown { 0% {opacity:0;transform:translateY(20px);} 25%,65% {opacity:.7;} 100% {opacity:0;transform:translateY(-15px);} }
+@media(prefers-reduced-motion:reduce) { .victory-fx { display:none; }.victory-fx * { animation:none !important; } }

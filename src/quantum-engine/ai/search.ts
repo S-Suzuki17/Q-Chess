@@ -4,10 +4,17 @@ import { getAllConcreteMoves } from './random';
 import { applyMove } from '../stateTransition';
 import { isPlayerInCheck } from '../terminal';
 
-export interface TacticalSearchOptions { timeLimitMs?: number; maxDepth?: number }
+export interface TacticalSearchOptions { timeLimitMs?: number; maxDepth?: number; tieBreakSeed?:number }
 export interface TacticalSearchResult { move: Move | null; depth: number; nodes: number; timeMs: number; score: number }
 const MATE = 10000;
 const TIMEOUT = Symbol('search deadline');
+
+export function moveTiePriority(move:Move,seed=0) {
+    if (!seed) return 0;
+    let hash=seed>>>0;
+    for (const char of `${move.pieceId}:${move.target.row}:${move.target.col}:${move.chosenType??0}:${move.promotionTarget??0}`) hash=Math.imul(hash^char.charCodeAt(0),16777619)>>>0;
+    return hash/4294967296;
+}
 
 /** Iterative deepening: retain only fully searched iterations, with capture extensions. */
 export function searchBestMove(state: GameState, evaluator: Evaluator, options: TacticalSearchOptions = {}): TacticalSearchResult {
@@ -16,7 +23,7 @@ export function searchBestMove(state: GameState, evaluator: Evaluator, options: 
     let nodes = 0;
     const checkTime = () => { if (performance.now() >= deadline) throw TIMEOUT; };
     const terminal = (s: GameState, ply: number) => s.winner === 'draw' ? 0 : s.winner === s.sideToMove ? MATE - ply : -MATE + ply;
-    const order = (s: GameState, preferred?: Move) => {
+    const order = (s: GameState, preferred?: Move, rememberRoot = false) => {
         const children = [];
         for (const move of getAllConcreteMoves(s)) {
             checkTime();
@@ -25,9 +32,12 @@ export function searchBestMove(state: GameState, evaluator: Evaluator, options: 
             const previousBest = preferred?.pieceId === move.pieceId && preferred.target.row === move.target.row &&
                 preferred.target.col === move.target.col && preferred.chosenType === move.chosenType;
             const score = next.winner ? (next.winner === s.sideToMove ? MATE : -MATE) : evaluator.evaluate(next, s.sideToMove);
+            if (rememberRoot && (score > bestScore || (score === bestScore && moveTiePriority(move,options.tieBreakSeed)>moveTiePriority(bestMove!,options.tieBreakSeed)))) {
+                bestMove=move; bestScore=score;
+            }
             children.push({ move, next, capture, score, priority: (previousBest ? 2 * MATE : 0) + score + (capture ? 1 : 0) });
         }
-        return children.sort((a, b) => b.priority - a.priority);
+        return children.sort((a, b) => b.priority - a.priority || (s===state ? moveTiePriority(b.move,options.tieBreakSeed)-moveTiePriority(a.move,options.tieBreakSeed) : 0));
     };
     const negamax = (s: GameState, depth: number, alpha: number, beta: number, ply: number, extensions: number): number => {
         checkTime(); nodes++;
@@ -55,11 +65,12 @@ export function searchBestMove(state: GameState, evaluator: Evaluator, options: 
     // Always retain a legal fallback even if the budget expires during ordering.
     const legal = getAllConcreteMoves(state);
     let bestMove = legal[0] ?? null;
-    let bestScore = -Infinity;
+    let bestScore = 0;
     let completedDepth = 0;
     if (!bestMove) return { move: null, depth: 0, nodes, timeMs: performance.now() - start, score: isPlayerInCheck(state.sideToMove, state) ? -MATE : 0 };
+    bestScore=evaluator.evaluate(applyMove(state,bestMove),state.sideToMove);
     try {
-        const root = order(state);
+        const root = order(state,undefined,true);
         bestMove = root[0].move;
         bestScore = root[0].score;
         // A proven win must not be lost to a time limit or sampling noise.

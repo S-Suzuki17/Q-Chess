@@ -11,6 +11,7 @@ import { SystemStatusBanner } from '../components/SystemStatusBanner';
 import { supabase } from '../lib/supabaseClient';
 import { TitleScreen } from '../components/TitleScreen';
 import { LevelSelect } from '../components/LevelSelect';
+import { CampaignMode } from '../components/CampaignMode';
 import ReplayBoard from '../components/ReplayBoard';
 import { Language, LANGUAGES, dict } from '../locales/dict';
 import { User, GameState, TimeControl } from '../types/game';
@@ -305,10 +306,10 @@ export default function Home() {
                 }} 
             />
             <SpeedInsights />
-        <main className="fixed inset-0 flex flex-col items-center justify-between bg-[#11100E] text-[#E8E2D7] font-sans overflow-hidden">
+        <main data-screen={gameState} className="fixed inset-0 flex flex-col items-center justify-between bg-[#11100E] text-[#E8E2D7] font-sans overflow-hidden">
             <div className="relative z-40 w-full max-w-5xl flex items-center justify-between text-sm mb-4">
                 {/* 右上のコントロール群 */}
-                <div className={`fixed right-4 top-4 z-40 flex gap-2 items-center ${showSettings || hideSettingsGlobal || gameState === 'playing' ? 'hidden' : ''}`}>
+                <div className={`fixed right-4 top-4 z-40 flex gap-2 items-center ${showSettings || hideSettingsGlobal || gameState === 'playing' || gameState === 'campaign' ? 'hidden' : ''}`}>
                     <button 
                         onClick={() => setShowSettings(true)}
                         className="px-3 py-2 bg-[#2A2621] border border-[#4A4238] text-[#D4B872] rounded hover:bg-[#3B342C] transition-colors font-sans font-bold tracking-widest flex items-center justify-center text-xs"
@@ -422,6 +423,7 @@ export default function Home() {
                         lang={lang} 
                         user={user} 
                         onSelect={handleSelectLevel} 
+                        onCampaign={()=>setGameState('campaign')}
                         onOnlineMatch={handleOnlineMatch}
                         onStartGlobalMatch={(tcSeconds) => { setIsSearchingGlobally(true); setTimeControlTarget(tcSeconds); }}
                         onReplay={(record) => {
@@ -432,6 +434,7 @@ export default function Home() {
                     />
                 )}
 
+                {gameState === 'campaign' && user && <CampaignMode lang={lang} user={user} onBack={()=>setGameState('level_select')}/>}
                 {gameState === 'playing' && user && (
                     <GameBoard 
                         lang={lang} 

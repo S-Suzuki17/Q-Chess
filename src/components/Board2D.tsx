@@ -4,8 +4,10 @@ import { Token } from '../lib/GameEngine';
 import { PieceType } from '../config/gameConfig';
 import type { MoveRecord } from '../lib/gameRecordService';
 import { HintArrow2D } from './HintArrow2D';
+import { rewardBoard, type BoardFinish } from '../config/campaign';
 
 export interface Board2DProps {
+    boardFinish?:BoardFinish;
     quietLayout?: boolean;
     autoRotate?: boolean;
     onlineRole?: 'white' | 'black' | 'spectator';
@@ -38,6 +40,7 @@ export function Board2D({
     showMoveHints,
     candidatesMap,
     boardDesign = 'classic',
+    boardFinish = 'standard',
     hintMove
 }: Board2DProps) {
     const isFlipped = flipped ?? (onlineRole === 'black');
@@ -45,6 +48,7 @@ export function Board2D({
     const isEnemySelected = selectedToken ? selectedToken.player !== (onlineRole && onlineRole !== 'spectator' ? onlineRole : currentTurn) : false;
     const renderMoves = showMoveHints ? validMoves : [];
     const lastMove = moveHistory.length > 0 ? moveHistory[moveHistory.length - 1] : null;
+    const finish=rewardBoard(boardFinish);
 
     return (
         <div className="board-2d w-full h-full flex items-center justify-center" style={{ containerType: 'size' }}>
@@ -80,6 +84,7 @@ export function Board2D({
                     return (
                         <div 
                             key={i} 
+                            style={finish ? {backgroundColor:isDark ? finish.dark : finish.light} : undefined}
                             role="button"
                             tabIndex={0}
                             aria-label={`${String.fromCharCode(97 + col)}${8 - row}`}
@@ -119,6 +124,7 @@ export function Board2D({
                 return (
                     <div 
                         key={token.id}
+                        data-piece-overlay={token.id} aria-hidden="true"
                         className="absolute flex items-center justify-center cursor-pointer pointer-events-none"
                         style={{
                             width: '12.5%',
@@ -131,8 +137,7 @@ export function Board2D({
                         }}
                     >
                         <div 
-                            className="w-full h-full scale-[0.94] flex items-center justify-center pointer-events-auto"
-                            onClick={(e) => { e.stopPropagation(); onSquareClick(token.row, token.col); }}
+                            className="w-full h-full scale-[0.94] flex items-center justify-center pointer-events-none"
                             style={{ transform: isFlipped ? 'rotate(180deg)' : 'none' }}
                         >
                             <QuantumPieceUI 
