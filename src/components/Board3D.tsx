@@ -240,9 +240,10 @@ function BoardSquares({ props, enemySelected }: { props: Board3DProps; enemySele
         const lastSquare = last && ((last.from[0]===row && last.from[1]===col) || (last.to[0]===row && last.to[1]===col));
         return <group key={i} position={[col-3.5,0,row-3.5]} onClick={event=>{event.stopPropagation();props.onSquareClick(row,col);}}>
             <mesh position={[0,-.05,0]} receiveShadow>
-                <boxGeometry args={[.994,.1,.994]}/>
-                <meshStandardMaterial color={(row+col)%2===0 ? theme.light : theme.dark} roughness={.76} metalness={.03}/>
-            </mesh>
+                  <boxGeometry args={[.994,.1,.994]}/>
+                  <meshPhysicalMaterial color={design==='neon'?'#000000':((row+col)%2===0 ? theme.light : theme.dark)} roughness={design==='neon'?0.05:.76} metalness={design==='neon'?1:.03} clearcoat={design==='neon'?1:0}/>
+                  {design === 'neon' && <Edges threshold={15} color={(row+col)%2===0 ? '#00e5ff' : '#ff00ff'} />}
+              </mesh>
             {lastSquare && <mesh position={[0,.012,0]} rotation={[-Math.PI/2,0,0]} raycast={ignoreRaycast}>
                 <planeGeometry args={[.98,.98]}/><meshBasicMaterial color="#efcd7a" transparent opacity={.26} depthWrite={false}/>
             </mesh>}

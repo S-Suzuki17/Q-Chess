@@ -14,7 +14,7 @@ export function createPieceModelLibrary(finish:PieceFinish='standard') {
             const surface=REWARD_PIECES[finish];
             material = new THREE.MeshPhysicalMaterial({
                 color: isWhite ? surface.white : surface.black,
-                roughness:surface.roughness, metalness:surface.metalness, clearcoat:surface.clearcoat, clearcoatRoughness:.24,
+                roughness:0.05, metalness:0.2, clearcoat:1.0, clearcoatRoughness:0.1, transmission:0.95, thickness:1.5, ior:1.5, transparent:true, opacity:1.0, emissive:isWhite ? '#88ccff' : '#00e5ff', emissiveIntensity:0.6,
             });
             materials.set(isWhite, material);
         }
