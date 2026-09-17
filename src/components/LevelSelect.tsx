@@ -2,6 +2,8 @@
 import { useMatchmaking } from '../hooks/useMatchmaking';
 import { matchText } from '../locales/matchText';
 import { useSocket } from '../lib/SocketContext';
+import { AccountAvatar } from './AccountAvatar';
+import { useCampaignProgress } from '../hooks/useCampaignProgress';
 import { AdBanner } from './AdBanner';
 
 import React from 'react';
@@ -13,6 +15,8 @@ import { useRealtimeRefresh } from '../hooks/useRealtimeRefresh';
 import { soundManager } from '../lib/SoundService';
 import { getTitleFromRating } from '../lib/rankSystem';
 import { FriendsMenu } from './FriendsMenu';
+import { SettingsDialog } from './SettingsDialog';
+import { formatFriendRating } from '../lib/friendDirectory';
 import { LiveMatchesMenu } from './LiveMatchesMenu';
 import { CPU_LEVELS, cpuDifficulty, type CPULevel } from '../config/cpuDifficulty';
 import { InteractiveTutorial } from './InteractiveTutorial';
@@ -21,6 +25,8 @@ import './lobby-studio.css';
 import { campaignText } from '../locales/campaignText';
 
 interface LevelSelectProps {
+    settingsPanel?:'friends'|'account'|null;
+    onCloseSettingsPanel?:()=>void;
     lang: Language;
     user: User;
     onSelect: (tc: TimeControl, level: CPULevel, side: 'white' | 'black') => void;
@@ -31,8 +37,9 @@ interface LevelSelectProps {
     onCampaign?:()=>void;
 }
 
-export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobalMatch, onReplay, onBack, onCampaign }: LevelSelectProps) {
+export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobalMatch, onReplay, onBack, onCampaign,settingsPanel,onCloseSettingsPanel }: LevelSelectProps) {
     const t = { ...dict['en'], ...(dict[lang] || {}) } as any;
+    const {progress:cosmetics}=useCampaignProgress();
     const [practiceLevel, setPracticeLevel] = React.useState<CPULevel>(3);
     const [practiceSide, setPracticeSide] = React.useState<'white' | 'black'>('white');
     const [showAdModal, setShowAdModal] = React.useState(false);
@@ -54,7 +61,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
     const [pendingAction, setPendingAction] = React.useState<{ type: 'cpu' | 'ranked' | 'random' | 'host' | 'join'; roomId?: string } | null>(null);
     const [userProfile, setUserProfile] = React.useState<Profile | null>(null);
     const [userStats, setUserStats] = React.useState<UserStats | null>(null);
-    const [showAccount, setShowAccount] = React.useState(false);
+    const showAccount=settingsPanel==='account';
     const [updateEmail, setUpdateEmail] = React.useState('');
     const [updatePassword, setUpdatePassword] = React.useState('');
     const [emailMsg, setEmailMsg] = React.useState('');
@@ -139,13 +146,15 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
             setUpdatePassword('');
         }
     };
-    const [showFriends, setShowFriends] = React.useState(false);
+    const showFriends=settingsPanel==='friends';
     const [showTutorial, setShowTutorial] = React.useState(false);
     const [showLiveMatches, setShowLiveMatches] = React.useState(false);
     const [showPlayMenu, setShowPlayMenu] = React.useState(false);
     const [recentGames, setRecentGames] = React.useState<any[]>([]);
     React.useEffect(() => { getGameRecords(3, user.id).then(setRecentGames); }, [user.id]);
     const anyModalOpen = showPlayMenu || showReplays || showLeaderboard || showFriends || showAccount || showTutorial || showAdModal || !!pendingAction || showLiveMatches;
+    
+    
     React.useEffect(() => {
         window.dispatchEvent(new CustomEvent('hide-settings', { detail: anyModalOpen }));
         return () => { window.dispatchEvent(new CustomEvent('hide-settings', { detail: false })); };
@@ -349,7 +358,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
 
                             {/* FRIEND MATCH */}
                             <button onClick={() => {
-                                setShowFriends(true);
+                                setPendingAction({type:'host',roomId:Math.random().toString(36).substring(2,8).toUpperCase()});
                                 setShowPlayMenu(false);
                             }} className="w-full text-left py-6 border-b border-[#A89C86]/10 hover:bg-[#24211D] group transition-colors flex flex-col gap-2 px-4">
                                 <span className="text-lg tracking-[0.15em] text-[#E8E2D7] group-hover:text-[#B39A62]">{(t as any).friendMatch}</span>
@@ -431,22 +440,18 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
             
 
             {showAccount && (
-                <div className="fixed inset-0 bg-[#161513]/95 z-50 flex flex-col items-center justify-center p-4 backdrop-blur-sm">
+                <SettingsDialog label={t.account} onClose={()=>onCloseSettingsPanel?.()}>
                     <div className="bg-[#161513] border border-[#A89C86]/40 p-6 md:p-8 w-full max-w-md shadow-2xl max-h-[90vh] overflow-y-auto custom-scrollbar">
                         <div className="flex justify-between items-center mb-6 pb-4 border-b border-[#A89C86]/20">
                             <h3 className="text-lg tracking-[0.2em] text-[#E8E2D7] font-serif">{(t as any).account}</h3>
-                            <button onClick={() => setShowAccount(false)} className="text-[#A89C86] hover:text-[#E8E2D7] text-xl">✕</button>
+                            <button aria-label={t.settings} onClick={onCloseSettingsPanel} className="text-[#A89C86] hover:text-[#E8E2D7] text-xl min-w-11 min-h-11">←</button>
                         </div>
                         
                         <div className="flex flex-col gap-6 text-left">
                             <div className="flex items-center gap-6">
                                 <label className="cursor-pointer group relative">
-                                    <div className="w-20 h-20 rounded-full border border-[#A89C86]/50 overflow-hidden bg-[#161513] flex items-center justify-center transition-all group-hover:border-[#B39A62]">
-                                        {userProfile?.avatar_url ? (
-                                            <img src={userProfile.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
-                                        ) : (
-                                            <span className="text-[#A89C86] text-xl">?</span>
-                                        )}
+                                    <div className="relative w-20 h-20">
+                                        <AccountAvatar name={userProfile?.name||user.name} url={userProfile?.avatar_url||user.avatar_url} frame={cosmetics.avatar} size={80}/>
                                         {uploadingAvatar && (
                                             <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
                                                 <span className="text-[10px] tracking-widest text-white animate-pulse">{(t as any).uploading}</span>
@@ -483,15 +488,15 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
                                 <div className="border border-[#A89C86]/20 flex justify-between">
                                     <div className="flex flex-col items-center p-4 border-r border-[#A89C86]/20 flex-1">
                                         <span className="text-[10px] text-[#A89C86] mb-1 tracking-widest">{t.tc10m}</span>
-                                        <span className="font-mono text-[#B39A62] text-sm">{userProfile ? Math.floor(userProfile.rating_10m) : '---'}</span>
+                                        <span className="font-mono text-[#B39A62] text-sm">{formatFriendRating(userProfile?.rating_10m)}</span>
                                     </div>
                                     <div className="flex flex-col items-center p-4 border-r border-[#A89C86]/20 flex-1">
                                         <span className="text-[10px] text-[#A89C86] mb-1 tracking-widest">{t.tc3m}</span>
-                                        <span className="font-mono text-[#B39A62] text-sm">{userProfile ? Math.floor(userProfile.rating_3m) : '---'}</span>
+                                        <span className="font-mono text-[#B39A62] text-sm">{formatFriendRating(userProfile?.rating_3m)}</span>
                                     </div>
                                     <div className="flex flex-col items-center p-4 flex-1">
                                         <span className="text-[10px] text-[#A89C86] mb-1 tracking-widest">{t.tc10s}</span>
-                                        <span className="font-mono text-[#B39A62] text-sm">{userProfile ? Math.floor(userProfile.rating_10s) : '---'}</span>
+                                        <span className="font-mono text-[#B39A62] text-sm">{formatFriendRating(userProfile?.rating_10s)}</span>
                                     </div>
                                 </div>
                             </div>
@@ -501,7 +506,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
                             </button>
                         </div>
                     </div>
-                </div>
+                </SettingsDialog>
             )}
 
             {showReplays && (
@@ -583,13 +588,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
             )}
 
             {showFriends && (
-                <div className="fixed inset-0 z-50 bg-[#161513]">
-                    <FriendsMenu user={user} lang={lang} onlineUsers={onlineUsers} onClose={() => setShowFriends(false)} onChallenge={(friendId) => {
-                        const newRoomId = Math.random().toString(36).substring(2, 8).toUpperCase();
-                        setPendingAction({ type: 'host', roomId: newRoomId });
-                        setShowFriends(false);
-                    }} />
-                </div>
+                <FriendsMenu user={user} lang={lang} onlineUsers={onlineUsers} onClose={()=>onCloseSettingsPanel?.()}/>
             )}
 
             {showLiveMatches && (
@@ -600,7 +599,6 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
                     }} />
                 </div>
             )}
-
 
             {/* --- HOME SCREEN MAIN UI --- */}
             
@@ -671,9 +669,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
                 <div className="flex gap-6 justify-center w-full sm:w-auto">
                     <button onClick={() => { setShowReplays(true); loadReplays(replayCategory); }} className="hover:text-[#E8E2D7] transition-colors uppercase">{t.gameReplays}</button>
                     <button onClick={() => { setShowLeaderboard(true); loadLeaderboard(); }} className="hover:text-[#E8E2D7] transition-colors uppercase">{t.globalRankings}</button>
-                    <button onClick={() => setShowFriends(true)} className="hover:text-[#E8E2D7] transition-colors uppercase">{(t as any).friends}</button>
                 </div>
-                <button onClick={() => setShowAccount(true)} className="hover:text-[#E8E2D7] transition-colors uppercase w-full sm:w-auto text-center">{(t as any).account}</button>
             </div>
         </div>
     );

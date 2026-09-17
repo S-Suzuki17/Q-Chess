@@ -16,7 +16,7 @@ export function createCampaignStore(getStorage: () => ProgressStorage) {
         const saved = parseCampaign(getStorage().getItem(CAMPAIGN_STORAGE_KEY));
         // A failed save leaves the in-memory equipment newer than localStorage.
         return { ...mergeCampaignProgress(snapshot.progress,saved), ...(snapshot.storageError ? {
-            board: snapshot.progress.board, piece: snapshot.progress.piece, effect:snapshot.progress.effect,
+            board: snapshot.progress.board, piece: snapshot.progress.piece, effect:snapshot.progress.effect, music:snapshot.progress.music,avatar:snapshot.progress.avatar,
         } : {}) };
     };
     const load = () => {

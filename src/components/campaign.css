@@ -22,13 +22,73 @@
 .campaign-board-swatch { width:42px; height:42px; flex-shrink:0; display:grid; grid-template-columns:repeat(3,1fr); border-radius:6px; overflow:hidden; }.campaign-piece-swatch { display:grid; place-items:center; width:42px; height:42px; flex-shrink:0; border-radius:8px; font:34px Georgia,serif; }
 .campaign-save-error { color:#ffc3a4; font-size:13px; padding:12px; border:1px solid #875b44; border-radius:10px; }
 .campaign-circuit { padding:18px 20px; margin-bottom:24px; border:1px solid #3c4436; border-radius:16px; background:#191f19; }.campaign-circuit-nav { display:flex; align-items:center; gap:16px; }.campaign-circuit-nav strong { margin-right:auto; font-size:18px; }.campaign-record { display:flex; flex-wrap:wrap; gap:24px; padding:16px 0 0; color:#abb59f; font-size:12px; }.campaign-record b { color:#e5d7b6; margin-left:6px; }.campaign-circuit p { color:#a8b0a0; font-size:11px; line-height:1.7; margin:12px 0 0; }.campaign-circuit .campaign-primary { margin-top:16px; }
-.championship-collection { margin-top:32px; border-top:1px solid #35402f; padding-top:24px; }.championship-collection>header { display:flex; align-items:center; flex-wrap:wrap; gap:16px; justify-content:space-between; margin-bottom:20px; }.championship-collection h2 { margin:0 0 8px; font-weight:500; font-size:22px; }.championship-collection p,.championship-collection label { font-size:12px; color:#abb59f; }.championship-collection select { display:block; margin-top:8px; min-height:44px; background:#20281f; color:#ebe7db; border:1px solid #526044; border-radius:8px; padding:8px 12px; }
-.championship-grid { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:12px; }.campaign-screen .championship-reward { display:flex; flex-direction:column; align-items:stretch; min-width:0; padding:14px; text-align:left; background:#1b211a; }.campaign-screen .championship-reward:disabled { opacity:.65; }.championship-reward[aria-pressed=true] { border-color:#d3bc87; }.championship-number { display:flex; justify-content:space-between; color:#c6b58d; font:11px var(--font-geist-mono),monospace; }
-.championship-board-preview { width:88px; height:88px; max-width:100%; display:grid; grid-template-columns:repeat(4,1fr); border:6px solid; margin:18px auto; }.championship-board-preview.motif-artisan { border-radius:7px; }.championship-board-preview.motif-stone { clip-path:polygon(8% 0,92% 0,100% 8%,100% 92%,92% 100%,8% 100%,0 92%,0 8%); }.championship-board-preview.motif-forge { border-style:ridge; }.championship-board-preview.motif-crystal { border-style:double; transform:rotate(-5deg); }.championship-board-preview.motif-obsidian { border-radius:16px 2px; }.championship-board-preview.motif-imperial { border-style:double; border-width:8px; }
-.championship-effect-preview { display:grid; place-items:center; position:relative; width:88px; height:88px; margin:18px auto; font:60px Georgia,serif; border:1px solid; border-radius:50%; }.championship-effect-preview i { position:absolute; bottom:-12px; font:16px Georgia,serif; letter-spacing:1px; }.championship-effect-preview.motif-shards { border-radius:15%; }.championship-effect-preview.motif-starfall { border-style:dotted; }.championship-effect-preview.motif-corona { border-style:double; border-width:3px; }
-.championship-reward strong { font-size:12px; line-height:1.5; overflow-wrap:anywhere; }.championship-reward small { font-size:10px; color:#abb59f; margin-top:4px; }.championship-unlock { display:block; border-top:1px solid #3b4537; padding-top:10px; margin-top:12px; font-size:10px; line-height:1.6; color:#d5c49d; }.championship-pager { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:18px 0; }.championship-pager span { font-size:12px; color:#b4bea8; }.championship-default-effect { margin-top:6px; }
+.championship-collection { margin-top: 48px; padding-top: 32px; border-top: 1px solid #333; font-family: var(--font-geist-sans), system-ui, sans-serif; }.championship-collection>header { display:flex; align-items:center; flex-wrap:wrap; gap:16px; justify-content:space-between; margin-bottom:20px; }.championship-collection h2 { margin: 0 0 8px; font-weight: 600; font-family: var(--font-geist-sans), system-ui, sans-serif; font-size: 24px; letter-spacing: -0.02em; color: #fff; text-transform: none; }.championship-collection p,.championship-collection label { font-size:12px; color:#abb59f; }.championship-collection select { display: block; margin-top: 8px; min-height: 40px; background: #000; color: #fff; border: 1px solid #333; border-radius: 6px; padding: 8px 12px; font-family: var(--font-geist-mono), monospace; font-size: 14px; outline: none; transition: border-color 0.15s ease; box-shadow: 0 1px 2px rgba(0,0,0,0.05); } .championship-collection select:focus { border-color: #888; } .championship-collection select:focus { border-color: #B39A62; }
+.championship-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }
+.campaign-screen .championship-reward { display: flex; flex-direction: column; align-items: stretch; padding: 16px; text-align: left; background: #000; border: 1px solid #222; border-radius: 8px; transition: all 0.2s ease; position: relative; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.5); } .campaign-screen .championship-reward:hover { border-color: #555; background: #0a0a0a; } .campaign-screen .championship-reward:hover { transform: translateY(-4px); border-color: rgba(179, 154, 98, 0.4); box-shadow: 0 8px 30px rgba(0,0,0,0.7); }
+.championship-number { display:flex; align-items:center; justify-content:space-between; color:#d3c5a5; font:11px var(--font-geist-mono),monospace; letter-spacing:.08em; }
+.championship-edition { color:#84907c; font-size:9px; letter-spacing:0; }
+.campaign-screen .reward-art-stage { position: relative; display: grid; place-items: center; width: calc(100% + 32px); margin: -16px -16px 16px; min-height: 160px; aspect-ratio: 1.35; overflow: hidden; background: #050505; border-bottom: 1px solid #222; }
+.reward-art-stage::after { display: none; }
+.reward-board-art { width:100%; height:auto; max-height:190px; filter:drop-shadow(0 12px 8px #00000035); }
+.reward-effect-art { width:72%; max-width:162px; aspect-ratio:1; }
+.reward-sigil { display:block; width:100%; height:100%; }
+.reward-grade-line { display:flex; gap:3px; margin:7px 0 12px; }
+.reward-grade-line i { height:2px; flex:1; background:#35402f; }
+.reward-grade-line i[data-active=true] { background:#ae9663; }
+.championship-reward strong { font-size: 14px; font-weight: 500; line-height: 1.5; color: #fff; letter-spacing: normal; text-transform: none; }
+.championship-reward .reward-craft-caption { min-height: 3em; font-size: 12px; line-height: 1.5; color: #888; margin-top: 4px; }
+.championship-unlock { display: block; border-top: 1px solid #222; padding-top: 12px; margin-top: 16px; font-size: 11px; line-height: 1.5; color: #a1a1aa; font-family: var(--font-geist-mono), monospace; text-transform: uppercase; }
+.championship-pager { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:18px 0; }.championship-pager span { font-size:12px; color:#b4bea8; }.championship-default-effect { margin-top:6px; }
+@media(hover:hover) and (prefers-reduced-motion:no-preference) { .reward-board-art,.reward-effect-art { transition:transform .3s ease; }.reward-art-stage:hover .reward-board-art,.reward-art-stage:hover .reward-effect-art { transform:translateY(-3px); } }
+@media(min-width:701px) and (max-width:1000px) { .championship-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; } }
 .championship-effect-actions { display:flex; flex-wrap:wrap; gap:12px; align-items:center; }
-@media(max-width:700px) { .championship-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }.campaign-circuit { padding:16px; }.campaign-circuit-nav { gap:8px; }.campaign-circuit-nav strong { font-size:15px; }.campaign-record { gap:12px; }.championship-collection h2 { font-size:20px; } }
+.campaign-equipment-item { min-width:0; border:1px solid #3b4537; border-radius:12px; padding:8px; display:grid; gap:8px; }
+.campaign-equipment-item>button { width:100%; }
+.championship-reward-actions { margin-top: auto; padding-top: 12px; display: grid; gap: 8px; }
+
+.campaign-screen .championship-reward { border:1px solid #394333; border-radius:8px; }
+
+.reward-material-note { display:flex; align-items:center; gap:10px; margin:16px 0; font-size:11px; line-height:1.7; color:#c8c9b7; }
+.reward-material-note>span { display:flex; flex-shrink:0; }
+.reward-material-note i { width:17px; height:17px; border:1px solid #ffffff40; border-radius:50%; margin-left:-3px; }
+.reward-preview-dialog { margin: auto; width: min(640px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow: auto; padding: 24px; border: 1px solid #222; border-radius: 12px; background: #000; color: #fff; box-shadow: 0 16px 48px rgba(0,0,0,0.45); font-family: var(--font-geist-sans), system-ui, sans-serif; }
+.reward-preview-dialog::backdrop { background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(4px); }
+.reward-preview-dialog header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 24px; }
+.reward-preview-dialog h2 { font-size: 24px; font-weight: 600; line-height: 1.2; margin: 4px 0 0 0; color: #fff; letter-spacing: -0.02em; text-transform: none; font-family: inherit; }
+.reward-preview-dialog small, 
+.reward-preview-dialog p { margin:12px 0; }
+.reward-preview-dialog button { min-height: 40px; padding: 8px 16px; border: 1px solid #333; border-radius: 6px; background: transparent; color: #ededed; cursor: pointer; font-size: 14px; font-weight: 500; transition: all 0.15s ease; letter-spacing: normal; text-transform: none; }  
+.reward-preview-dialog button:disabled { opacity:.5; cursor:default; }
+.reward-preview-dialog button:focus-visible { outline:2px solid #e5d7b6; outline-offset:3px; }
+.reward-preview-board { position: relative; isolation: isolate; height: min(440px, calc(100vw - 80px)); overflow: hidden; border: 1px solid #222; border-radius: 8px; background: #050505; margin: 24px 0; }
+.reward-preview-board .board-3d { width:100%; height:100%; min-height:0; }
+.reward-preview-board .board-scene-tools { display:none; }
+.reward-preview-board .victory-fx { position:absolute; }
+.reward-preview-dialog footer { display: flex; gap: 12px; justify-content: flex-end; margin-top: 24px; border-top: 1px solid #222; padding-top: 24px; }
+.campaign-music { grid-template-columns:repeat(2,minmax(0,1fr)); }
+@media(max-width:700px) { .campaign-music { grid-template-columns:1fr; } }
+@media(max-width:700px) { .championship-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; }.campaign-circuit { padding:16px; }.campaign-circuit-nav { gap:8px; }.campaign-circuit-nav strong { font-size:15px; }.campaign-record { gap:12px; }.championship-collection h2 { margin: 0 0 8px; font-weight: 600; font-family: var(--font-geist-sans), system-ui, sans-serif; font-size: 24px; letter-spacing: -0.02em; color: #fff; text-transform: none; } }
 .campaign-result { margin:auto; padding:0; border:1px solid #6f6447; border-radius:24px; width:min(480px,calc(100vw - 32px)); max-height:calc(100dvh - 32px); background:#1b211a; color:#f0eee7; }
 .campaign-result::backdrop { background:#080d08d9; }.campaign-result-card { padding:32px; text-align:center; }.campaign-result-emblem { font:70px Georgia,serif; color:#e5d7b6; }.campaign-result h2 { font-size:28px; font-weight:500; line-height:1.4; }.campaign-result p { margin:16px 0; font-size:12px; line-height:1.7; color:#b2bca6; }.campaign-stars { color:#e0c486; font-size:34px; letter-spacing:.16em; }.campaign-reward-earned { display:flex; justify-content:center; gap:8px; align-items:center; }.campaign-result-actions { display:flex; flex-wrap:wrap; gap:10px; margin-top:24px; }.campaign-result-actions>button { flex:1; }.campaign-result-actions>.campaign-primary { flex-basis:100%; }
 @media(max-width:700px) { .campaign-screen { padding:0 16px 32px; }.campaign-header { gap:12px; min-height:64px; font-size:12px; }.campaign-intro { padding:24px 0; }.campaign-journey { grid-template-columns:1fr; gap:16px; }.campaign-screen .campaign-round { padding:12px 16px; }.campaign-boss-icon { font-size:34px; }.campaign-boss-card { padding:20px; }.campaign-equipment { grid-template-columns:1fr; }.campaign-result-card { padding:24px; } }
+
+
+
+
+
+
+
+
+
+
+.championship-reward-actions button { min-height: 36px; background: #fff; border: 1px solid #fff; color: #000; border-radius: 6px; font-size: 13px; font-weight: 500; letter-spacing: normal; text-transform: none; cursor: pointer; transition: all 0.15s ease; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+.championship-reward-actions button:hover:not(:disabled) { background: #e5e5e5; border-color: #e5e5e5; }
+.championship-reward-actions button:disabled { opacity: 0.5; cursor: not-allowed; }
+.championship-reward-actions button:first-child { background: transparent; border-color: #333; color: #ededed; box-shadow: none; }
+.championship-reward-actions button:first-child:hover:not(:disabled) { background: #111; border-color: #444; }
+.campaign-screen .championship-reward[data-equipped=true] { border-color: #fff; }
+
+.reward-preview-dialog small { font-family: var(--font-geist-mono), monospace; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: #666; }
+.reward-preview-dialog p { margin: 8px 0; color: #a1a1aa; font-size: 14px; line-height: 1.6; }
+
+.reward-preview-dialog button:hover:not(:disabled) { background: #111; color: #fff; border-color: #444; }

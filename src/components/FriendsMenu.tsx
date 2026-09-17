@@ -1,180 +1,93 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import { useState,useEffect,useCallback,useRef } from 'react';
 import { matchText } from '../locales/matchText';
-import { User } from '../types/game';
-import { Friend, getFriends, sendFriendRequest, acceptFriendRequest, removeFriend, Profile, getProfile } from '../lib/gameRecordService';
-import { dict, Language } from '../locales/dict';
+import type { User } from '../types/game';
+import { sendFriendRequest,acceptFriendRequest,removeFriend,type Friend,type Profile } from '../lib/gameRecordService';
+import { getFriendDirectory,formatFriendRating,validFriendId } from '../lib/friendDirectory';
+import { dict,type Language } from '../locales/dict';
+import { friendsText } from '../locales/friendsText';
 import { useRealtimeRefresh } from '../hooks/useRealtimeRefresh';
+import { SettingsDialog } from './SettingsDialog';
+import './friends.css';
 
-interface FriendsMenuProps {
-    user: User;
-    lang: Language;
-    onlineUsers: Set<string>;
-    onClose: () => void;
-    onChallenge?: (friendId: string) => void;
-}
-
-export function FriendsMenu({ user, lang, onlineUsers, onClose, onChallenge }: FriendsMenuProps) {
-    const t = { ...dict['en'], ...(dict[lang] || {}) } as any;
-    const [friends, setFriends] = useState<Friend[]>([]);
-    const [profiles, setProfiles] = useState<Record<string, Profile>>({});
-    const [loading, setLoading] = useState(true);
-    const [searchId, setSearchId] = useState('');
-    const [msg, setMsg] = useState('');
-
-    const loadFriends = async () => {
+interface FriendsMenuProps {user:User;lang:Language;onlineUsers:Set<string>;onClose:()=>void}
+export function FriendsMenu({user,lang,onlineUsers,onClose}:FriendsMenuProps) {
+    const t=dict[lang],f=(key:Parameters<typeof friendsText>[1])=>friendsText(lang,key);
+    const [friends,setFriends]=useState<Friend[]>([]);
+    const [profiles,setProfiles]=useState<Record<string,Profile>>({});
+    const [loading,setLoading]=useState(true),[error,setError]=useState(false),[partial,setPartial]=useState(false);
+    const [searchId,setSearchId]=useState(''),[msg,setMsg]=useState(''),[busy,setBusy]=useState(false);
+    const [removeId,setRemoveId]=useState<string|null>(null);
+    const request=useRef(0),acting=useRef(false);
+    const registered=user.type==='registered';
+    const loadFriends=useCallback(async()=>{
+        if(!registered) {setLoading(false);return;}
+        const serial=++request.current;
         setLoading(true);
-        const data = await getFriends(user.id);
-        setFriends(data);
-        
-        // Load profiles for all friends
-        const profileMap: Record<string, Profile> = {};
-        for (const f of data) {
-            const otherId = f.user_id === user.id ? f.friend_id : f.user_id;
-            if (!profileMap[otherId]) {
-                const p = await getProfile(otherId);
-                if (p) profileMap[otherId] = p;
-            }
-        }
-        setProfiles(profileMap);
-        setLoading(false);
+        try {
+            const result=await getFriendDirectory(user.id);
+            if(serial!==request.current) return;
+            setFriends(result.friends);setProfiles(result.profiles);setPartial(result.profilesUnavailable);setError(false);
+        } catch {
+            if(serial===request.current) setError(true);
+        } finally {if(serial===request.current) setLoading(false);}
+    },[user.id,registered]);
+    useEffect(()=>{void loadFriends();return()=>{request.current++;};},[loadFriends]);
+    useRealtimeRefresh(['friends','profiles'],loadFriends,registered);
+    const run=async(operation:()=>Promise<boolean>,success?:()=>void)=>{
+        if(acting.current) return;
+        acting.current=true;setBusy(true);setMsg('');
+        try {
+            if(await operation()) {success?.();await loadFriends();}
+            else setMsg(f('actionError'));
+        } catch {setMsg(f('actionError'));}
+        finally {acting.current=false;setBusy(false);}
     };
-
-    useEffect(() => {
-        loadFriends();
-    }, [user.id]);
-
-    useRealtimeRefresh(['friends', 'profiles'], loadFriends);
-
-    const handleSendRequest = async () => {
-        if (!searchId.trim()) return;
-        if (searchId === user.id) {
-            setMsg(matchText(lang,'自分は追加できません','Cannot add yourself'));
-            return;
-        }
-        // Basic check if already friends
-        if (friends.some(f => f.user_id === searchId || f.friend_id === searchId)) {
-            setMsg(matchText(lang,'友達登録済み、または申請中です','Already friends or request pending'));
-            return;
-        }
-
-        const success = await sendFriendRequest(user.id, searchId);
-        if (success) {
-            setMsg(matchText(lang,'申請を送信しました','Request sent!'));
-            setSearchId('');
-            loadFriends();
-        } else {
-            setMsg(matchText(lang,'送信できませんでした。IDを確認してください','Failed to send request. Check ID.'));
-        }
+    const send=()=>{
+        const id=searchId.trim();
+        if(!validFriendId(id)) {setMsg(matchText(lang,'送信できませんでした。IDを確認してください','Failed to send request. Check ID.'));return;}
+        if(id===user.id) {setMsg(matchText(lang,'自分は追加できません','Cannot add yourself'));return;}
+        if(friends.some(row=>row.user_id===id||row.friend_id===id)) {setMsg(matchText(lang,'友達登録済み、または申請中です','Already friends or request pending'));return;}
+        void run(()=>sendFriendRequest(user.id,id),()=>{setSearchId('');setMsg(matchText(lang,'申請を送信しました','Request sent!'));});
     };
-
-    const handleAccept = async (friendId: string) => {
-        const success = await acceptFriendRequest(user.id, friendId);
-        if (success) loadFriends();
-    };
-
-    const handleRemove = async (friendId: string) => {
-        const success = await removeFriend(user.id, friendId);
-        if (success) loadFriends();
-    };
-
-    const acceptedFriends = friends.filter(f => f.status === 'accepted');
-    const pendingRequestsMe = friends.filter(f => f.status === 'pending' && f.friend_id === user.id);
-    const pendingRequestsSent = friends.filter(f => f.status === 'pending' && f.user_id === user.id);
-
-    return (
-        <div className="fixed inset-0 bg-black/90 z-50 flex flex-col items-center justify-center p-4">
-            <div className="bg-[#11100E] border border-[#B39A62]/30 p-6 rounded-lg max-w-md w-full shadow-2xl max-h-[80vh] overflow-y-auto">
-                <div className="flex justify-between items-center mb-6">
-                    <h3 className="text-2xl font-bold text-[#E8E2D7] font-serif tracking-widest">{matchText(lang, "フレンド", "Friends")}</h3>
-                    <button onClick={onClose} className="text-[#A89C86] hover:text-[#E8E2D7]">✕</button>
-                </div>
-
-                {/* Add Friend Section */}
-                <div className="mb-6 p-4 bg-[#191714] border border-[#A89C86]/20 rounded">
-                    <h4 className="text-sm font-bold text-[#B39A62] font-serif tracking-widest mb-2">{matchText(lang, "友達を追加", "Add Friend")}</h4>
-                    <div className="flex gap-2">
-                        <input
-                            type="text"
-                            placeholder={t.enterId}
-                            value={searchId}
-                            onChange={(e) => setSearchId(e.target.value)}
-                            className="flex-1 bg-[#11100E] border border-[#A89C86]/30 rounded px-3 py-2 text-[#E8E2D7] focus:outline-none focus:border-[#B39A62] text-sm"
-                        />
-                        <button
-                            onClick={handleSendRequest}
-                            className="px-4 py-2 bg-purple-900/50 hover:bg-purple-800 border border-purple-500 rounded text-[#E8E2D7] font-serif tracking-widest font-bold transition-colors text-sm"
-                        >
-                            {matchText(lang, "送信", "Send")}
-                        </button>
-                    </div>
-                    {msg && <p className="text-xs text-[#B39A62] font-serif tracking-widest mt-2">{msg}</p>}
-                </div>
-
-                {/* Friend Requests (Received) */}
-                {pendingRequestsMe.length > 0 && (
-                    <div className="mb-6">
-                        <h4 className="text-sm font-bold text-[#E8E2D7] font-serif tracking-widest mb-2">{matchText(lang, "友達申請", "Friend Requests")}</h4>
-                        <div className="flex flex-col gap-2">
-                            {pendingRequestsMe.map(req => (
-                                <div key={req.id} className="flex justify-between items-center p-3 bg-[#191714] border border-[#A89C86]/20 rounded">
-                                    <span className="text-[#E8E2D7]">{profiles[req.user_id]?.name || req.user_id}</span>
-                                    <div className="flex gap-2">
-                                        <button onClick={() => handleAccept(req.user_id)} className="px-3 py-1 bg-[#B39A62] text-[#11100E] rounded text-xs font-bold border border-[#B39A62]">{matchText(lang, "承認", "Accept")}</button>
-                                        <button onClick={() => handleRemove(req.user_id)} className="px-3 py-1 bg-transparent text-[#A89C86] hover:text-[#E8E2D7] rounded text-xs border border-[#A89C86]/30 hover:border-[#A89C86]">{matchText(lang, "拒否", "Decline")}</button>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                )}
-
-                {/* Friends List */}
-                <div>
-                    <h4 className="text-sm font-bold text-[#B39A62] font-serif tracking-widest mb-2">{t.friends} ({acceptedFriends.length})</h4>
-                    {loading ? (
-                        <p className="text-gray-500 text-sm text-center py-4">{matchText(lang, "読み込み中…", "Loading...")}</p>
-                    ) : acceptedFriends.length === 0 ? (
-                        <p className="text-gray-600 text-sm text-center py-4">{matchText(lang, "まだ友達がいません", "No friends yet.")}</p>
-                    ) : (
-                        <div className="flex flex-col gap-2">
-                            {acceptedFriends.map(f => {
-                                const otherId = f.user_id === user.id ? f.friend_id : f.user_id;
-                                const isOnline = onlineUsers.has(otherId);
-                                const profile = profiles[otherId];
-                                
-                                return (
-                                    <div key={f.id} className="flex justify-between items-center p-3 bg-[#191714] border border-[#A89C86]/20 rounded group">
-                                        <div className="flex flex-col">
-                                            <div className="flex items-center gap-2">
-                                                <span className={`w-2 h-2 rounded-full ${isOnline ? 'bg-green-500' : 'bg-gray-600'}`}></span>
-                                                <span className="font-bold text-[#E8E2D7]">{profile?.name || otherId}</span>
-                                            </div>
-                                            <span className="text-[10px] text-gray-500 ml-4">ID: {otherId}</span>
-                                        </div>
-                                        <div className="flex gap-2 flex-wrap">
-                                            {isOnline && onChallenge && (
-                                                <button 
-                                                    onClick={() => onChallenge(otherId)}
-                                                    className="px-2 py-1 bg-[#B39A62] text-[#11100E] rounded text-xs font-bold border border-[#B39A62] hover:bg-[#D0C8B6]"
-                                                >
-                                                    {matchText(lang, "対局を申し込む", "Challenge")}
-                                                </button>
-                                            )}
-                                            <button 
-                                                onClick={() => handleRemove(otherId)}
-                                                className="px-2 py-1 bg-transparent text-[#A89C86] hover:text-[#E8E2D7] rounded text-xs border border-[#A89C86]/30 hover:border-[#A89C86]"
-                                            >
-                                                {matchText(lang, "削除", "Remove")}
-                                            </button>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    )}
-                </div>
-            </div>
-        </div>
-    );
+    const accepted=friends.filter(row=>row.status==='accepted');
+    const received=friends.filter(row=>row.status==='pending'&&row.friend_id===user.id);
+    const sent=friends.filter(row=>row.status==='pending'&&row.user_id===user.id);
+    const name=(id:string)=>profiles[id]?.name||id;
+    return <SettingsDialog label={t.friends} onClose={onClose}>
+        <section className="friends-panel" data-testid="friends-panel" aria-busy={loading}>
+            <header><div><small>{t.settings}</small><h2>{t.friends}</h2></div><button autoFocus aria-label={t.settings} onClick={onClose}>←</button></header>
+            {!registered?<p role="status">{f('signIn')}</p>:<>
+                <form className="friend-add" onSubmit={event=>{event.preventDefault();send();}}>
+                    <label htmlFor="friend-id">{matchText(lang,'友達を追加','Add Friend')}</label>
+                    <div><input id="friend-id" value={searchId} onChange={event=>setSearchId(event.target.value)} placeholder={t.enterId} autoComplete="off" autoCapitalize="none" spellCheck={false} maxLength={128}/>
+                    <button type="submit" disabled={busy||loading||error||!searchId.trim()}>{matchText(lang,'送信','Send')}</button></div>
+                </form>
+                {msg&&<p className="friend-notice" role="status">{msg}</p>}
+                {error&&<div className="friend-error" role="alert"><p>{f('loadError')}</p><button disabled={loading} onClick={()=>void loadFriends()}>{f('retry')}</button></div>}
+                {partial&&!error&&<p className="friend-notice" role="status">{f('profileError')}</p>}
+                {received.length>0&&<section className="friend-group"><h3>{matchText(lang,'友達申請','Friend Requests')} · {received.length}</h3>
+                    {received.map(row=><article className="friend-request" key={row.id}><strong>{name(row.user_id)}</strong><div>
+                        <button disabled={busy||loading||error} onClick={()=>void run(()=>acceptFriendRequest(user.id,row.user_id))}>{matchText(lang,'承認','Accept')}</button>
+                        <button disabled={busy||loading||error} onClick={()=>void run(()=>removeFriend(user.id,row.user_id))}>{matchText(lang,'拒否','Decline')}</button>
+                    </div></article>)}
+                </section>}
+                <section className="friend-group"><h3>{t.friends} · {accepted.length}</h3>
+                    {loading&&<p role="status">{t.loading}</p>}
+                    {!loading&&!error&&accepted.length===0&&<p className="friend-empty">{matchText(lang,'まだ友達がいません','No friends yet.')}</p>}
+                    {accepted.map(row=>{
+                        const id=row.user_id===user.id?row.friend_id:row.user_id,profile=profiles[id];
+                        return <article className="friend-card" data-friend-id={id} key={id}>
+                            <div className="friend-identity"><span className="friend-avatar" aria-hidden="true">{(profile?.name||'?').slice(0,1)}</span><div><strong>{name(id)}</strong>
+                                <small><span aria-hidden="true" className={onlineUsers.has(id)?'friend-online':'friend-offline'}/> {onlineUsers.has(id)?matchText(lang,'オンライン','Online'):id}</small></div></div>
+                            <dl className="friend-ratings" aria-label={t.ratings}>{([['rating_10s',t.tc10s],['rating_3m',t.lb3m],['rating_10m',t.lb10m]] as const).map(([key,label])=><div key={key}><dt>{label}</dt><dd data-rating={key}>{formatFriendRating(profile?.[key])}</dd></div>)}</dl>
+                            {removeId===id?<div className="friend-confirm"><p>{f('confirmRemove')}</p><button disabled={busy||loading||error} onClick={()=>void run(()=>removeFriend(user.id,id),()=>setRemoveId(null))}>{matchText(lang,'削除','Remove')}</button><button disabled={busy} onClick={()=>setRemoveId(null)}>{t.cancel}</button></div>
+                            :<button className="friend-remove" disabled={busy||loading||error} onClick={()=>setRemoveId(id)}>{matchText(lang,'削除','Remove')}</button>}
+                        </article>;
+                    })}
+                </section>
+                {sent.length>0&&<section className="friend-group"><h3>{f('pending')} · {sent.length}</h3>{sent.map(row=><article className="friend-request" key={row.id}><strong>{name(row.friend_id)}</strong><button disabled={busy||loading||error} onClick={()=>void run(()=>removeFriend(user.id,row.friend_id))}>{t.cancel}</button></article>)}</section>}
+            </>}
+        </section>
+    </SettingsDialog>;
 }

@@ -1,19 +1,24 @@
 import { describe, expect, it } from 'vitest';
-import { CHAMPIONSHIP_REWARDS, championshipReward } from './championshipRewards';
+import { CHAMPIONSHIP_REWARDS,LEGACY_CHAMPIONSHIP_REWARDS, championshipReward } from './championshipRewards';
 import { BOSSES, campaignOpponent, emptyCampaign, equipReward, finishBoss, highestUnlockedLap, lapStars, mergeCampaignProgress, parseCampaign, rewardBoard, rewardUnlocked } from './campaign';
 import { cpuSearchProfile } from './cpuDifficulty';
 import { LANGUAGES } from '../locales/dict';
 import { championshipKeys, championshipName, championshipText } from '../locales/championshipText';
 import { moveTiePriority } from '../quantum-engine/ai/search';
+import { rewardFrameParts } from '../components/rewardCraft';
+import { rewardCraftText } from '../locales/rewardCraftText';
 
-const victory={won:true,draw:false,playerMoves:16,hintsUsed:0};
+const victory={won:true,draw:false,playerMoves:16,hintsUsed:0,initialSeconds:600,remainingSeconds:420};
 const clearLap=(progress:ReturnType<typeof emptyCampaign>,lap:number)=>BOSSES.reduce((value,boss)=>finishBoss(value,boss.id,victory,lap),progress);
 
 describe('100 championship rewards',()=>{
-    it('contains exactly 60 board presets and 40 victory effects in ten grades',()=>{
+    it('contains 30 boards, 25 materials, 20 effects, 15 frames and 10 scores in ten grades',()=>{
         expect(CHAMPIONSHIP_REWARDS).toHaveLength(100);
-        expect(CHAMPIONSHIP_REWARDS.filter(item=>item.kind==='board')).toHaveLength(60);
-        expect(CHAMPIONSHIP_REWARDS.filter(item=>item.kind==='effect')).toHaveLength(40);
+        expect(CHAMPIONSHIP_REWARDS.filter(item=>item.kind==='board')).toHaveLength(30);
+        expect(CHAMPIONSHIP_REWARDS.filter(item=>item.kind==='piece')).toHaveLength(25);
+        expect(CHAMPIONSHIP_REWARDS.filter(item=>item.kind==='effect')).toHaveLength(20);
+        expect(CHAMPIONSHIP_REWARDS.filter(item=>item.kind==='music')).toHaveLength(10);
+        expect(CHAMPIONSHIP_REWARDS.filter(item=>item.kind==='avatar')).toHaveLength(15);
         expect(new Set(CHAMPIONSHIP_REWARDS.map(item=>item.id)).size).toBe(100);
         expect(CHAMPIONSHIP_REWARDS.map(item=>item.requiredWins)).toEqual(Array.from({length:100},(_,i)=>i+1));
         for(let tier=1;tier<=10;tier++) expect(CHAMPIONSHIP_REWARDS.filter(item=>item.tier===tier)).toHaveLength(10);
@@ -82,10 +87,17 @@ describe('100 championship rewards',()=>{
     });
     it('makes each grade richer without unbounded effect cost',()=>{
         for(let family=0;family<6;family++) {
-            const presets=CHAMPIONSHIP_REWARDS.filter(item=>item.kind==='board'&&item.familyIndex===family);
+            const presets=LEGACY_CHAMPIONSHIP_REWARDS.filter(item=>item.kind==='board'&&item.familyIndex===family);
             expect(presets).toHaveLength(10);
             expect(new Set(presets.map(item=>JSON.stringify(item))).size).toBe(10);
-            if(presets[0].kind==='board'&&presets[9].kind==='board') expect(presets[9].metalness).toBeGreaterThan(presets[0].metalness);
+            let previous=0;
+            for(const preset of presets) if(preset.kind==='board') {
+                const parts=rewardFrameParts(preset);
+                expect(parts.length).toBeGreaterThan(previous);
+                previous=parts.length;
+                expect(parts.length).toBeLessThanOrEqual(128);
+                if(preset.motif==='walnut'||preset.motif==='marble') expect(preset.surface.metalness).toBe(0);
+            }
         }
         for(const preset of CHAMPIONSHIP_REWARDS) if(preset.kind==='effect') {
             expect(preset.count).toBeLessThanOrEqual(52);
@@ -98,5 +110,6 @@ describe('100 championship rewards',()=>{
         expect(new Set(names).size).toBe(100);
         expect(names.every(name=>name&&!name.includes('undefined'))).toBe(true);
         for(const key of championshipKeys) expect(championshipText(lang,key).length).toBeGreaterThan(0);
+        for(const reward of CHAMPIONSHIP_REWARDS) if(reward.kind==='board') expect(rewardCraftText(lang,reward.motif)).toBeTruthy();
     });
 });

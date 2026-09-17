@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, type ReactNode } from 'react';
-import Image from 'next/image';
+import { AccountAvatar } from './AccountAvatar';
 import { Palette, Settings2, HelpCircle, Flag, Lightbulb, X } from 'lucide-react';
 import type { Token } from '../lib/GameEngine';
 import type { PieceType } from '../config/gameConfig';
@@ -14,7 +14,7 @@ import type { VictoryFinish } from '../config/campaign';
 import { VictoryCelebration } from './VictoryCelebration';
 
 type Side = 'white' | 'black';
-type Player = { name: string; clock: string; rating?: number | null; avatar?: string; emote?: string };
+type Player = { name: string; clock: string; rating?: number | null; avatar?: string; frame?: string; emote?: string };
 const TYPES: PieceType[] = ['King', 'Queen', 'Rook', 'Bishop', 'Knight', 'Pawn'];
 const SYMBOLS = ['♔', '♕', '♖', '♗', '♘', '♙'];
 const NAMES = ['キング', 'クイーン', 'ルーク', 'ビショップ', 'ナイト', 'ポーン'];
@@ -35,6 +35,7 @@ interface Props {
     showMoveHints: boolean; onHintsChange: (show: boolean) => void;
     board: ReactNode; notice?: ReactNode; children?: ReactNode;
     victory?:boolean; victoryEffect?:VictoryFinish;
+    resultVisible?:boolean; checkNotice?:string; checkEvent?:string|number;
 }
 
 export function MatchLayout(props: Props) {
@@ -66,9 +67,7 @@ export function MatchLayout(props: Props) {
         const urgent = !props.finished && minutes * 60 + seconds <= 30;
         const captured = props.tokens.filter(token => token.isCaptured && token.player !== side);
         return <section className={`match-player ${active ? 'is-active' : ''}`} aria-label={label(side === 'white' ? '白の対局者' : '黒の対局者', `${side} player`)}>
-            <div className={`match-avatar ${side}`}>
-                {player.avatar ? <Image src={player.avatar} alt="" width={36} height={36} unoptimized /> : side === 'white' ? 'W' : 'B'}
-            </div>
+            <AccountAvatar name={player.name} url={player.avatar} frame={player.frame} size={36}/>
             <div className="match-player-name"><strong title={player.name}>{player.name}</strong>
                 <span>{label(side === 'white' ? '白' : '黒', side === 'white' ? 'White' : 'Black')}{player.rating != null && ` · ${player.rating}`}
                     {active && <b>{label(side === props.bottomSide && !props.spectator ? 'あなたの手番' : '思考中', side === props.bottomSide && !props.spectator ? 'YOUR TURN' : 'THINKING')}</b>}
@@ -111,10 +110,11 @@ export function MatchLayout(props: Props) {
         <main className={`match-main ${hasAdvice ? 'has-advice' : ''}`}>
             {playerBar(topSide)}
             <div className={`match-board-area ${props.checkmate ? 'is-checkmate' : ''}`} data-testid="match-board">{props.board}
-                {props.checkmate && <div className="checkmate-celebration" role="status" data-testid="checkmate-celebration">
+                {props.checkmate && !props.resultVisible && <div className="checkmate-celebration" role="status" data-testid="checkmate-celebration">
                     <span aria-hidden="true">♔</span><strong>{label('チェックメイト！','Checkmate!')}</strong>
                 </div>}
-                {props.notice && <div className="match-notice" role="status">{props.notice}</div>}
+                {props.checkNotice && !props.finished && <div className="match-check-warning" key={props.checkEvent} role="status" data-testid="check-warning">{props.checkNotice}</div>}
+                {props.notice && !props.finished && <div className="match-notice" role="status">{props.notice}</div>}
             </div>
             {hasAdvice && <section className="match-advice" role="status" aria-live="polite" aria-atomic="true" data-testid="move-advice">
                 <Lightbulb size={18} aria-hidden="true"/>
@@ -172,7 +172,7 @@ export function MatchLayout(props: Props) {
             <span className="match-view-hint" role={props.feedback ? 'status' : undefined}>{props.feedback || label('選択した駒はもう一度押すと解除', 'Select the same piece again to deselect')}</span>
             <button className="match-button mobile-details" onClick={()=>setExpanded(!expanded)} aria-expanded={expanded} aria-controls="match-detail-panels">{label(expanded ? '閉じる' : '棋譜・正体', expanded ? 'Close' : 'Details')}</button>
             <button className="match-button mobile-rules" onClick={props.onRules}>{label('ルール', 'Rules')}</button>
-            {!props.finished && !props.spectator && <button className="match-button match-resign" onClick={props.onResign}><Flag size={14}/>{label('投了', 'Resign')}</button>}
+            {!props.finished && !props.spectator && <button className="match-button match-resign" onClick={props.onResign}><Flag size={14}/>{label('リザイン', 'Resign')}</button>}
         </footer>
         {props.children}
     </section>;

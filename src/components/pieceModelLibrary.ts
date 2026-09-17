@@ -1,28 +1,46 @@
 import * as THREE from 'three';
 import type { PieceType } from '../config/gameConfig';
 import { PIECE_HEIGHTS, PIECE_MAX_WIDTH } from './boardPresentation';
-import { REWARD_PIECES, type PieceFinish } from '../config/campaign';
+import { rewardPiece, type PieceFinish } from '../config/campaign';
+import { championshipReward } from '../config/championshipRewards';
+import { createCraftTextures } from './craftTextures';
+import { sculptPieceGeometry } from './pieceForms';
 
 /** One library per Canvas: GLTF geometry is borrowed, materials are owned here. */
-export function createPieceModelLibrary(finish:PieceFinish='standard') {
+export function createPieceModelLibrary(finish: PieceFinish = 'boxwood') {
     const prototypes = new WeakMap<THREE.Object3D, Map<PieceType, THREE.Group>>();
-    const materials = new Map<boolean, THREE.MeshPhysicalMaterial>();
+    const ownedGeometry=new Set<THREE.BufferGeometry>();
+    const materials = new Map<string, THREE.MeshPhysicalMaterial>();
+    const reward=championshipReward(finish),motif=reward?.kind==='piece'?reward.motif:finish;
+    const glass=['iceglass','neonglass','crystal','jade'].includes(motif);
+    const textureMotif=motif==='alabaster'?'marble':motif==='crystal'||motif==='jade'?'crystal':motif==='gold'?'gold':['bronze','silver','copper'].includes(motif)?'brass':'walnut';
+    let textures:ReturnType<typeof createCraftTextures>|undefined;
 
-    function materialFor(isWhite: boolean) {
-        let material = materials.get(isWhite);
+    function materialFor(isWhite: boolean,candidate:boolean) {
+        const key=String(isWhite)+(glass&&candidate?':candidate':'');
+        let material = materials.get(key);
         if (!material) {
-            const surface=REWARD_PIECES[finish];
+            const surface=rewardPiece(finish);
+            if(!glass)textures??=createCraftTextures(textureMotif);
             material = new THREE.MeshPhysicalMaterial({
                 color: isWhite ? surface.white : surface.black,
-                roughness:surface.roughness, metalness:surface.metalness, clearcoat:surface.clearcoat, clearcoatRoughness:.24,
+                roughness:glass?.07:surface.roughness, metalness:surface.metalness, clearcoat:glass?1:surface.clearcoat, clearcoatRoughness:glass?.06:.24,
+                map:textures?.map,bumpMap:textures?.detailMap,roughnessMap:textures?.detailMap,bumpScale:textureMotif==='walnut'?.0018:.0006,
+                // Transparent candidate shells avoid a refraction pass for all
+                // 192 possibilities. Resolved pieces use optical transmission.
+                transmission:glass&&!candidate?.92:0,thickness:glass?.12:0,ior:1.45,envMapIntensity:glass?1.25:1,
+                transparent:glass&&candidate,opacity:glass&&candidate?(isWhite?.28:.34):1,depthWrite:!(glass&&candidate),
+                attenuationColor:isWhite?surface.white:surface.black,attenuationDistance:5,
+                emissive:'#000000',emissiveIntensity:0,
             });
-            materials.set(isWhite, material);
+            materials.set(key, material);
         }
         return material;
     }
 
     return {
-        instantiate(scene: THREE.Object3D, type: PieceType, isWhite: boolean) {
+        glass,
+        instantiate(scene: THREE.Object3D, type: PieceType, isWhite: boolean,candidate=false) {
             let byType = prototypes.get(scene);
             if (!byType) { byType = new Map(); prototypes.set(scene, byType); }
             let prototype = byType.get(type);
@@ -41,15 +59,20 @@ export function createPieceModelLibrary(finish:PieceFinish='standard') {
                     model.position.set(-center.x, -bounds.min.y, -center.z);
                 }
                 prototype = new THREE.Group();
-                prototype.add(model);
+                const form=reward?.kind==='piece'?reward.form:undefined;
+                if(form&&form!=='staunton'){
+                    const geometry=sculptPieceGeometry(model,form);
+                    ownedGeometry.add(geometry);
+                    prototype.add(new THREE.Mesh(geometry,materialFor(isWhite,candidate)));
+                }else prototype.add(model);
                 byType.set(type, prototype);
             }
             const instance = prototype.clone(true);
-            const material = materialFor(isWhite);
+            const material = materialFor(isWhite,candidate);
             instance.traverse(child => {
                 if (child instanceof THREE.Mesh) {
                     child.material = material;
-                    child.castShadow = true;
+                    child.castShadow = !glass;
                     child.receiveShadow = true;
                 }
             });
@@ -59,6 +82,8 @@ export function createPieceModelLibrary(finish:PieceFinish='standard') {
             // Never dispose cached GLTF geometry or another Canvas's materials.
             materials.forEach(material => material.dispose());
             materials.clear();
+            ownedGeometry.forEach(geometry=>geometry.dispose());ownedGeometry.clear();
+            textures?.dispose();textures=undefined;
         },
     };
 }

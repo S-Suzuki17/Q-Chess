@@ -18,7 +18,8 @@ export class SoundService {
 
     constructor() {
         if (typeof window !== 'undefined') {
-            const saved = localStorage.getItem('qg_sound_config');
+            let saved:string|null=null;
+            try { saved=localStorage.getItem('qg_sound_config'); } catch { /* Session audio works without storage. */ }
             if (saved) {
                 try {
                     this.config = JSON.parse(saved);
@@ -34,15 +35,16 @@ export class SoundService {
     public updateConfig(newConfig: Partial<SoundConfig>) {
         this.config = { ...this.config, ...newConfig };
         if (typeof window !== 'undefined') {
-            localStorage.setItem('qg_sound_config', JSON.stringify(this.config));
+            try { localStorage.setItem('qg_sound_config', JSON.stringify(this.config)); } catch { /* Keep session settings. */ }
         }
         
         if (this.bgmAudio) {
             this.bgmAudio.volume = this.config.bgmVolume;
             if (this.config.masterMute || this.config.bgmVolume === 0) {
                 if (this.playPromise !== undefined) {
+                    const audio=this.bgmAudio;
                     this.playPromise.then(() => {
-                        this.bgmAudio?.pause();
+                        if (audio!==this.bgmAudio || this.config.masterMute || this.config.bgmVolume===0) audio.pause();
                     }).catch(() => {});
                 } else {
                     this.bgmAudio.pause();
@@ -93,6 +95,7 @@ export class SoundService {
     public stopBGM() {
         if (this.bgmAudio) {
             const audio = this.bgmAudio;
+            audio.pause();
             if (this.playPromise !== undefined) {
                 this.playPromise.then(() => {
                     audio.pause();
@@ -105,6 +108,22 @@ export class SoundService {
             this.bgmAudio = null;
         }
         this.currentTrack = null;
+        this.playPromise=undefined;
+    }
+
+    /** Retry after user activation and pause while the app is hidden. */
+    public resumeBGM() {
+        if (!this.bgmAudio) return;
+        if (document.hidden || this.config.masterMute || this.config.bgmVolume===0) {
+            this.bgmAudio.pause();
+            return;
+        }
+        const audio=this.bgmAudio;
+        if (!audio.paused) return;
+        this.playPromise=audio.play();
+        this.playPromise.then(()=>{
+            if (audio!==this.bgmAudio || document.hidden || this.config.masterMute || this.config.bgmVolume===0) audio.pause();
+        }).catch(()=>{ /* A later user gesture can retry autoplay. */ });
     }
 
     public playSE(trackUrl: string) {

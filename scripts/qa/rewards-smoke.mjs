@@ -32,13 +32,13 @@ try {
         for(let grade=1;grade<=10;grade++) {
             await page.locator('.championship-collection select').selectOption(String(grade));
             for(const id of await page.locator('[data-championship-reward]').evaluateAll(nodes=>nodes.map(node=>node.dataset.championshipReward))) ids.add(id);
-            assert.equal(await page.locator('[data-championship-reward]:disabled').count(),0);
+            assert.equal(await page.locator('[data-equip-reward]:disabled').count(),0);
         }
         assert.equal(ids.size,100);
         await page.locator('.championship-collection').scrollIntoViewIfNeeded();
         await page.screenshot({path:resolve(output,`collection-${viewport.width}.png`)});
-        await page.locator('[data-championship-reward="champion-board-100"]').click();
-        await page.locator('[data-championship-reward="champion-effect-099"]').click();
+        await page.locator('[data-equip-reward="champion-board-100"]').click();
+        await page.locator('[data-equip-reward="champion-effect-099"]').click();
         await page.locator('[data-testid="preview-victory-effect"]').click();
         await page.locator('[data-victory-effect="champion-effect-099"]').waitFor();
         assert.equal(await page.locator('.victory-fx i').count(),52);

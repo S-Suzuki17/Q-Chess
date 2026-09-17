@@ -10,7 +10,8 @@ const server=createServer(async(request,response)=>{
         if(path!==root&&!path.startsWith(root+sep)) {response.writeHead(403).end();return;}
         const info=await stat(path);
         if(info.isDirectory()) path=resolve(path,'index.html');
-        response.writeHead(200,{'Content-Type':mime[extname(path)]||'application/octet-stream','Cache-Control':'no-store'});
+        const fileInfo=await stat(path);
+        response.writeHead(200,{'Content-Type':extname(path)==='.wav'?'audio/wav':mime[extname(path)]||'application/octet-stream','Content-Length':fileInfo.size,'Cache-Control':'no-store'});
         createReadStream(path).on('error',()=>response.destroy()).pipe(response);
     } catch {response.writeHead(404).end('Not found');}
 });

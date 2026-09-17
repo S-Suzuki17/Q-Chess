@@ -15,14 +15,16 @@ import { createPieceModelLibrary } from './pieceModelLibrary';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { rewardBoard, type BoardFinish, type PieceFinish } from '../config/campaign';
 import { championshipReward } from '../config/championshipRewards';
-import { BoardRewardFrame } from './BoardRewardFrame';
+import { BoardRewardFrame, RewardBoardPlinth } from './BoardRewardFrame';
+import { createRewardMaterials } from './rewardMaterials';
+import { StudioReflections } from './StudioReflections';
 import './board-3d.css';
 import { matchText } from '../locales/matchText';
 import { dict, type Language } from '../locales/dict';
 const ignoreRaycast = () => {};
 const PieceModelsContext = React.createContext<ReturnType<typeof createPieceModelLibrary> | null>(null);
 
-function PieceModels({children,finish}: {children: React.ReactNode;finish:PieceFinish}) {
+function PieceModels({children,finish}: {children: React.ReactNode;finish:PieceFinish|'boxwood'}) {
     const library = useMemo(()=>createPieceModelLibrary(finish), [finish]);
     useEffect(() => () => library.dispose(), [library]);
     return <PieceModelsContext.Provider value={library}>{children}</PieceModelsContext.Provider>;
@@ -42,6 +44,7 @@ if (typeof window !== 'undefined') {
 }
 
 const QuantumBlock = ({ isWhite, probabilities, candidates, motion = false, phase = 0 }: { isWhite: boolean; probabilities: Token['probabilities']; candidates?: ReadonlySet<PieceType>; quiet?: boolean; motion?: boolean; phase?: number }) => {
+    const glass=React.useContext(PieceModelsContext)?.glass??false;
     const types: PieceType[] = ['King','Queen','Rook','Bishop','Knight','Pawn'];
     const active = types.filter(type => candidates?.has(type) ?? probabilities[type] > 0);
     const floating = React.useRef<THREE.Group>(null);
@@ -62,30 +65,30 @@ const QuantumBlock = ({ isWhite, probabilities, candidates, motion = false, phas
     return <group ref={floating}>
         <mesh castShadow receiveShadow position={[0,.085,0]}>
             <cylinderGeometry args={[.43,.46,.17,32]}/>
-            <meshStandardMaterial color={isWhite ? '#ebdfc5' : '#202c3d'} roughness={.55}/>
+            <meshStandardMaterial color={glass?(isWhite?'#b8cbd3':'#21192e'):(isWhite ? '#ebdfc5' : '#202c3d')} roughness={.55}/>
         </mesh>
         <mesh position={[0,.173,0]} rotation={[-Math.PI/2,0,0]}>
-            <circleGeometry args={[.415,32]}/><meshStandardMaterial color={isWhite ? '#56625b' : '#acb8c3'} roughness={.8}/>
+            <circleGeometry args={[.415,32]}/><meshStandardMaterial color={glass?(isWhite?'#5c8293':'#382041'):(isWhite ? '#56625b' : '#acb8c3')} roughness={glass ? .72 : .8}/>
         </mesh>
         <mesh position={[0,.177,0]} rotation={[-Math.PI/2,0,0]}>
-            <ringGeometry args={[.424,.451,32]}/><meshBasicMaterial color="#d4b872"/>
+            <ringGeometry args={[.424,.451,32]}/>{glass?<meshStandardMaterial color={isWhite?'#e3edf1':'#bd91d0'} roughness={.3} metalness={.4}/>:<meshBasicMaterial color="#d4b872"/>}
         </mesh>
         <group ref={orbit}>{active.map((type,i) => {
             const angle=i/active.length*Math.PI*2;
             return <group key={type} position={[Math.cos(angle)*candidateSize.radius,.20,Math.sin(angle)*candidateSize.radius]} scale={candidateSize.scale}>
-                <RealisticPiece type={type} isWhite={isWhite}/>
+                <RealisticPiece type={type} isWhite={isWhite} candidate/>
             </group>;
         })}</group>
     </group>;
 };
 
-const RealisticPiece = ({ type, isWhite }: { type: PieceType; isWhite: boolean }) => {
+const RealisticPiece = ({ type, isWhite,candidate=false }: { type: PieceType; isWhite: boolean;candidate?:boolean }) => {
     const { scene } = useGLTF(MODEL_PATHS[type]);
     const library = React.useContext(PieceModelsContext);
     const clone = useMemo(() => {
         if (!library) throw new Error('PieceModels provider is required');
-        return library.instantiate(scene, type, isWhite);
-    }, [library, scene, type, isWhite]);
+        return library.instantiate(scene, type, isWhite,candidate);
+    }, [library, scene, type, isWhite,candidate]);
 
     const rotY = isWhite ? 0 : Math.PI;
     return <primitive object={clone} position={[0, 0, 0]} rotation={[0, rotY, 0]} dispose={null} />;
@@ -230,7 +233,7 @@ function SquareOutline({ color, overlay = false }: { color: string; overlay?: bo
     </group>;
 }
 
-function BoardSquares({ props, enemySelected }: { props: Board3DProps; enemySelected: boolean }) {
+function BoardSquares({ props, enemySelected, materials }: { props: Board3DProps; enemySelected: boolean; materials:ReturnType<typeof createRewardMaterials>|null }) {
     const last = props.moveHistory.at(-1), theme = rewardBoard(props.boardFinish??'standard') ?? BOARD_THEMES[props.boardDesign ?? 'classic'];
     return <group>{Array.from({length:64},(_,i)=> {
         const row=Math.floor(i/8), col=i%8;
@@ -239,9 +242,9 @@ function BoardSquares({ props, enemySelected }: { props: Board3DProps; enemySele
         const valid = props.showMoveHints && props.validMoves.some(move=>move.r===row && move.c===col);
         const lastSquare = last && ((last.from[0]===row && last.from[1]===col) || (last.to[0]===row && last.to[1]===col));
         return <group key={i} position={[col-3.5,0,row-3.5]} onClick={event=>{event.stopPropagation();props.onSquareClick(row,col);}}>
-            <mesh position={[0,-.05,0]} receiveShadow>
+            <mesh position={[0,-.05,0]} receiveShadow material={materials?((row+col)%2===0?materials.light:materials.dark):undefined}>
                 <boxGeometry args={[.994,.1,.994]}/>
-                <meshStandardMaterial color={(row+col)%2===0 ? theme.light : theme.dark} roughness={.76} metalness={.03}/>
+                {!materials && <meshStandardMaterial color={(row+col)%2===0 ? theme.light : theme.dark} roughness={.76} metalness={.03}/>}
             </mesh>
             {lastSquare && <mesh position={[0,.012,0]} rotation={[-Math.PI/2,0,0]} raycast={ignoreRaycast}>
                 <planeGeometry args={[.98,.98]}/><meshBasicMaterial color="#efcd7a" transparent opacity={.26} depthWrite={false}/>
@@ -321,6 +324,8 @@ export const Board3D: React.FC<Board3DProps> = props => {
     const design=props.boardDesign ?? 'classic';
     const theme=rewardBoard(props.boardFinish??'standard') ?? BOARD_THEMES[design];
     const frameReward=championshipReward(props.boardFinish??'standard');
+    const materials=useMemo(()=>frameReward?.kind==='board'?createRewardMaterials(frameReward):null,[frameReward]);
+    useEffect(()=>()=>materials?.dispose(),[materials]);
     const selected=props.tokens.find(token=>token.id===props.selectedTokenId);
     const enemySelected=!!selected && selected.player!==(props.onlineRole && props.onlineRole!=='spectator' ? props.onlineRole : props.currentTurn);
     const [deadTokens,setDeadTokens]=React.useState<Token[]>([]);
@@ -351,20 +356,25 @@ export const Board3D: React.FC<Board3DProps> = props => {
         </div>
         <div className="board-scene-canvas">
         <ResilientBoardCanvas lang={lang} reducedMotion={reducedMotion} fallback={<Board2D {...props} isFlipped={flipped}/>} onRetry={() => Object.values(MODEL_PATHS).forEach(path => useGLTF.clear(path))}>
-            <PieceModels key={props.pieceFinish ?? 'standard'} finish={props.pieceFinish ?? 'standard'}>
+            <PieceModels key={props.pieceFinish ?? 'boxwood'} finish={props.pieceFinish ?? 'boxwood'}>
+            <StudioReflections/>
             <SceneCamera key={`${flipped}`} flipped={flipped} flat={!!props.is2DView} checkmate={props.checkmate} reducedMotion={reducedMotion}/>
             {props.checkmate && motion && <Sparkles count={80} scale={[9,3,9]} position={[0,1.5,0]} speed={.6} size={5} color="#ffe5a0"/>}
-            <ambientLight intensity={.8}/>
-            <hemisphereLight args={['#f7edda','#45546c',.8]}/>
-            <directionalLight position={[-4,10,6]} intensity={2.1} color="#fff3df" castShadow shadow-mapSize={[1024,1024]} shadow-camera-left={-6} shadow-camera-right={6} shadow-camera-top={6} shadow-camera-bottom={-6} shadow-normalBias={.025} shadow-bias={-.0003}/>
-            <directionalLight position={[5,6,-5]} intensity={1.5} color="#d5e6ff"/>
-            <group>
-                <mesh position={[0,-.3,0]} castShadow receiveShadow><boxGeometry args={[8.85,.38,8.85]}/><meshStandardMaterial color={theme.frame} roughness={'roughness' in theme?theme.roughness:.58} metalness={'metalness' in theme?theme.metalness:0}/></mesh>
-                <mesh position={[0,-.12,0]}><boxGeometry args={[8.78,.04,8.78]}/><meshStandardMaterial color={theme.rim} roughness={.45} metalness={.3} emissive={design==='neon'?theme.rim:'#000000'} emissiveIntensity={.35}/></mesh>
-                <mesh position={[0,-.07,0]} receiveShadow><boxGeometry args={[8.7,.08,8.7]}/><meshStandardMaterial color={theme.frame} roughness={.72}/></mesh>
-            </group>
-            {frameReward?.kind==='board' && <BoardRewardFrame preset={frameReward}/>}
-            <BoardSquares props={props} enemySelected={enemySelected}/>
+            <ambientLight intensity={.35}/>
+            <hemisphereLight args={['#f7edda','#45546c',.45]}/>
+            <directionalLight position={[-4,10,6]} intensity={1.55} color="#fff3df" castShadow shadow-mapSize={[1024,1024]} shadow-camera-left={-6} shadow-camera-right={6} shadow-camera-top={6} shadow-camera-bottom={-6} shadow-normalBias={.025} shadow-bias={-.0003}/>
+            <directionalLight position={[5,6,-5]} intensity={.65} color="#d5e6ff"/>
+            {materials&&frameReward?.kind==='board'?<RewardBoardPlinth materials={materials} preset={frameReward}/>:<group>
+                <mesh position={[0,-.3,0]} castShadow receiveShadow><boxGeometry args={[8.85,.38,8.85]}/><meshStandardMaterial color={('frameColor' in theme) ? theme.frameColor : theme.frame} roughness={.58}/></mesh>
+                <mesh position={[0,-.12,0]}><boxGeometry args={[8.78,.04,8.78]}/><meshStandardMaterial color={theme.rim} roughness={.45} metalness={.3} emissive={design==='neon'&&!rewardBoard(props.boardFinish??'standard')?theme.rim:'#000000'} emissiveIntensity={.35}/></mesh>
+                <mesh position={[0,-.07,0]} receiveShadow><boxGeometry args={[8.7,.08,8.7]}/><meshStandardMaterial color={('frameColor' in theme) ? theme.frameColor : theme.frame} roughness={.72}/></mesh>
+            </group>}
+            {frameReward?.kind==='board' && materials && <BoardRewardFrame preset={frameReward} materials={materials}/>}
+            <BoardSquares props={props} enemySelected={enemySelected} materials={materials}/>
+            {props.boardFinish==='champion-board-reference-neon'&&<group>{Array.from({length:9},(_,i)=><group key={i}>
+                <mesh position={[i-4,.008,0]} raycast={ignoreRaycast}><boxGeometry args={[.012,.008,8]}/><meshBasicMaterial color={i<4?'#4fc7d5':'#c64dbe'} toneMapped={false}/></mesh>
+                <mesh position={[0,.008,i-4]} raycast={ignoreRaycast}><boxGeometry args={[8,.008,.012]}/><meshBasicMaterial color={i<4?'#c64dbe':'#4fc7d5'} toneMapped={false}/></mesh>
+            </group>)}</group>}
             <BoardCoordinates color={theme.label}/>
             {[...active,...deadTokens].map(token=><Piece3D key={token.id} token={token} candidates={props.candidatesMap?.get(token.id)} isSelected={props.selectedTokenId===token.id}
                 isOpponentSelected={props.opponentSelectedTokenId===token.id} isDead={deadTokens.some(dead=>dead.id===token.id)} onSquareClick={props.onSquareClick} is2DView={!!props.is2DView} motion={motion} reducedMotion={reducedMotion} quiet/>)}

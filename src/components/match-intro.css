@@ -1,0 +1,20 @@
+.match-intro{color:#ece6d7;background:radial-gradient(ellipse at 50% 0,#3b3425 0,transparent 70%),#121411;border:1px solid #a18b59;border-radius:18px;padding:30px;width:min(620px,calc(100vw - 28px));max-height:90dvh;overflow:auto;text-align:center;box-shadow:0 28px 100px #0009}
+.match-intro::backdrop{background:#050907b8;backdrop-filter:blur(8px)}
+.match-intro .intro-eyebrow{font-size:11px;letter-spacing:.14em;color:#c7b781}
+.match-intro h2{font-family:Georgia,serif;font-weight:400;font-size:24px;margin:12px 0 24px}
+.intro-lineup{position:relative;display:grid;grid-template-columns:1fr 1fr;gap:46px}
+.intro-player{display:flex;flex-direction:column;align-items:center;gap:14px;min-width:0}
+.intro-player strong{font-size:18px;overflow-wrap:anywhere;max-width:100%;line-height:1.25}
+.intro-player small{color:#c3bbaa;font-variant-numeric:tabular-nums;white-space:pre-line}
+.intro-vs{position:absolute;left:50%;top:34px;transform:translateX(-50%);color:#a58f59;font:italic 20px Georgia,serif}
+.intro-rule{height:1px;background:linear-gradient(90deg,transparent,#ab9056,transparent);margin:28px 0 16px}
+.match-intro button{min-height:44px;padding:8px 24px;border:1px solid #8d7a5080;border-radius:6px;color:#eee2bf;background:#ffffff05;cursor:pointer}
+.match-intro button:focus-visible{outline:2px solid #e3c888;outline-offset:4px}
+.match-intro[open]{animation:intro-arrive .32s ease-out both}
+.match-intro-inline{position:fixed;z-index:50;right:14px;bottom:14px;pointer-events:none;width:min(440px,calc(100vw - 28px));padding:16px;opacity:.96}
+.match-intro-inline button{pointer-events:auto}
+.match-intro-inline h2{font-size:18px;margin:8px 0}.match-intro-inline .intro-rule{margin:12px 0}
+.avatar-reward-preview{min-height:360px;display:grid;place-items:center;background:radial-gradient(ellipse,#45403155,transparent 65%)}
+@keyframes intro-arrive{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+@media(max-width:430px){.match-intro{padding:24px 16px}.intro-lineup{gap:30px}.intro-player strong{font-size:16px}}
+@media(prefers-reduced-motion:reduce){.match-intro[open]{animation:none}}

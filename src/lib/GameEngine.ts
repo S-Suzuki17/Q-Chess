@@ -138,7 +138,8 @@ export function isTokenThreatened(target: Token, tokens: Token[], pool: Identity
         const moveTypes = deduceMoveTypes(enemy, target.row, target.col, tokens);
         if (moveTypes.length === 0) continue;
         
-        const enemyPossibilities = pool.piecePossibilities.get(enemy.id);
+        // The pool records the original identity (Pawn), not its promoted movement.
+        const enemyPossibilities = enemy.promotedTo ? new Set([enemy.promotedTo]) : pool.piecePossibilities.get(enemy.id);
         if (!enemyPossibilities) continue;
         
         // 敵の正体の可能性の中に、この移動を可能にする駒タイプが含まれているか
@@ -149,7 +150,7 @@ export function isTokenThreatened(target: Token, tokens: Token[], pool: Identity
     return false;
 }
 
-// プレイヤーがチェック（王手）されているか判定
+// プレイヤーがチェックされているか判定
 export function isPlayerInCheck(player: 'white'|'black', tokens: Token[], pool: IdentityPool): boolean {
     // 盤面上に存在し、キングである可能性が残っている味方の駒を全て取得
     const friendlyPotentialKings = tokens.filter(t => 

@@ -18,6 +18,12 @@ const base: ComponentProps<typeof MatchLayout> = {
 const render = (overrides: Partial<typeof base> = {}) => renderToStaticMarkup(createElement(MatchLayout, {...base,...overrides}));
 
 describe('Match decision feedback', () => {
+    it('shows a check once on the board and hides it after the finish',()=>{
+        expect(render({checkNotice:'チェック！'}).match(/data-testid="check-warning"/g)).toHaveLength(1);
+        expect(render({checkNotice:'チェック！',finished:true})).not.toContain('data-testid="check-warning"');
+        expect(render({checkmate:true,finished:true,resultVisible:true})).not.toContain('data-testid="checkmate-celebration"');
+        expect(render({checkmate:true,finished:true})).toContain('data-testid="checkmate-celebration"');
+    });
     it.each(LANGUAGES.map(language => language.code))('keeps captured icons and both hint endpoints available in %s', lang => {
         const captured = {...piece, id:'captured', player:'black' as const, isCaptured:true};
         const html = render({lang, tokens:[piece,captured],

@@ -11,6 +11,7 @@ import { SystemStatusBanner } from '../components/SystemStatusBanner';
 import { supabase } from '../lib/supabaseClient';
 import { TitleScreen } from '../components/TitleScreen';
 import { LevelSelect } from '../components/LevelSelect';
+import { SettingsDialog } from '../components/SettingsDialog';
 import { CampaignMode } from '../components/CampaignMode';
 import ReplayBoard from '../components/ReplayBoard';
 import { Language, LANGUAGES, dict } from '../locales/dict';
@@ -98,9 +99,23 @@ function MatchmakingManager({ lang, user, onMatchFound, isSearchingGlobally, can
     );
 }
 
+import { useCampaignProgress } from '../hooks/useCampaignProgress';
+import { battleMusicUrl } from '../config/circuitMusic';
 import { soundManager } from '../lib/SoundService';
 
 export default function Home() {
+    const {progress:campaignProgress}=useCampaignProgress();
+    useEffect(()=>{
+        const resume=()=>soundManager.resumeBGM();
+        window.addEventListener('pointerdown',resume);
+        window.addEventListener('keydown',resume);
+        document.addEventListener('visibilitychange',resume);
+        return ()=>{
+            window.removeEventListener('pointerdown',resume);
+            window.removeEventListener('keydown',resume);
+            document.removeEventListener('visibilitychange',resume);
+        };
+    },[]);
     const [lang, setLang] = useState<Language>('en');
     const [gameState, setGameState] = useState<GameState>('title');
     const [user, setUser] = useState<User | null>(null);
@@ -118,6 +133,7 @@ export default function Home() {
     const [replayRecord, setReplayRecord] = useState<GameRecord | null>(null);
     const [soundConfig, setSoundConfig] = useState(() => soundManager.getConfig());
     const [showSettings, setShowSettings] = useState(false);
+    const [settingsPanel,setSettingsPanel]=useState<'friends'|'account'|null>(null);
     useEffect(() => {
         const openSettings = () => setShowSettings(true);
         window.addEventListener('qg-open-settings', openSettings);
@@ -205,13 +221,13 @@ export default function Home() {
         if (gameState === 'title') {
             soundManager.playBGM('/audio/bgm_title.mp3');
         } else if (gameState === 'playing') {
-            soundManager.playBGM('/audio/bgm_playing.mp3');
+            soundManager.playBGM(battleMusicUrl(campaignProgress.music));
         } else if (gameState === 'replay') {
             soundManager.playBGM('/audio/bgm_replay.mp3');
-        } else {
+        } else if (gameState!=='campaign' && gameState!=='level_select') {
             soundManager.stopBGM();
         }
-    }, [gameState]);
+    }, [gameState,campaignProgress.music]);
 
     useEffect(() => {
         if (typeof window !== 'undefined') {
@@ -320,11 +336,11 @@ export default function Home() {
             </div>
 
             {showSettings && (
-                <div className="fixed inset-0 bg-black/80 z-[300] flex items-center justify-center p-4 backdrop-blur-sm">
+                <SettingsDialog label={dict[lang].settings} onClose={()=>setShowSettings(false)}>
                     <div className="bg-[#2A2621] border border-[#4A4238] rounded-xl p-8 w-full max-w-md shadow-2xl font-sans max-h-[90vh] overflow-y-auto">
                         <div className="flex justify-between items-center mb-8">
                             <h2 className="text-2xl font-serif text-[#D4B872]">⚙️ {dict[lang]?.settings || 'SETTINGS'}</h2>
-                            <button onClick={() => setShowSettings(false)} className="text-gray-400 hover:text-white text-xl">✕</button>
+                            <button aria-label={matchText(lang,'閉じる','Close')} onClick={() => setShowSettings(false)} className="text-gray-400 hover:text-white text-xl min-w-11 min-h-11">✕</button>
                         </div>
                         
                         <div className="flex flex-col gap-6">
@@ -394,9 +410,20 @@ export default function Home() {
                                 </div>
                             </div>
 
+                            {user && gameState==='level_select' && (
+                                <div className="flex flex-col gap-3 mt-4 pt-6 border-t border-[#4A4238]">
+                                    <button data-settings-panel="account" onClick={() => { setShowSettings(false);setSettingsPanel('account'); }} className="w-full py-3 bg-[#1E1C19] border border-[#4A4238] text-[#D4B872] rounded hover:bg-[#3B342C] transition-colors font-bold tracking-widest text-xs uppercase text-center">
+                                        {dict[lang]?.account || 'ACCOUNT'}
+                                    </button>
+                                    <button data-settings-panel="friends" onClick={() => { setShowSettings(false);setSettingsPanel('friends'); }} className="w-full py-3 bg-[#1E1C19] border border-[#4A4238] text-[#D4B872] rounded hover:bg-[#3B342C] transition-colors font-bold tracking-widest text-xs uppercase text-center">
+                                        {dict[lang]?.friends || 'FRIENDS'}
+                                    </button>
+                                </div>
+                            )}
+
                         </div>
                     </div>
-                </div>
+                </SettingsDialog>
             )}
 
             
@@ -420,6 +447,8 @@ export default function Home() {
 
                 {gameState === 'level_select' && user && (
                     <LevelSelect 
+                        settingsPanel={settingsPanel}
+                        onCloseSettingsPanel={()=>{setSettingsPanel(null);setShowSettings(true);}}
                         lang={lang} 
                         user={user} 
                         onSelect={handleSelectLevel} 

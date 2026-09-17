@@ -1,3 +1,5 @@
+import { stageText } from './stageText';
+import { rewardFormText } from './rewardFormText';
 import type { Language } from './dict';
 import type { ChampionshipReward } from '../config/championshipRewards';
 
@@ -34,4 +36,9 @@ const families:Record<Language,readonly [string,string,string,string,string,stri
 export const championshipText=(lang:Language,key:typeof championshipKeys[number])=>text[lang][championshipKeys.indexOf(key)];
 const preview:Record<Language,string>={en:'Preview effect',ja:'エフェクトをプレビュー',zh:'预览特效',ru:'Просмотр эффекта',fr:'Aperçu de l’effet',de:'Effektvorschau',es:'Ver efecto',tr:'Efekti önizle',pl:'Podgląd efektu',hi:'प्रभाव देखें',pt:'Prévia do efeito',ta:'விளைவு முன்னோட்டம்'};
 export const effectPreviewLabel=(lang:Language)=>preview[lang];
-export const championshipName=(lang:Language,reward:ChampionshipReward)=>`${families[lang][reward.familyIndex+(reward.kind==='effect'?6:0)]} ${['I','II','III','IV','V','VI','VII','VIII','IX','X'][reward.tier-1]}`;
+const extras:Record<Language,readonly [string,string]>={en:['Staunton finish','Circuit score'],ja:['スタントン・マテリアル','サーキット・スコア'],zh:['斯汤顿材质','巡回乐章'],ru:['Материал Стаунтона','Музыка цикла'],fr:['Finition Staunton','Partition du circuit'],de:['Staunton-Material','Turniermusik'],es:['Acabado Staunton','Música del circuito'],tr:['Staunton kaplama','Döngü müziği'],pl:['Wykończenie Staunton','Muzyka cyklu'],hi:['स्टॉन्टन सामग्री','चक्र संगीत'],pt:['Acabamento Staunton','Música do circuito'],ta:['ஸ்டான்டன் மேற்பரப்பு','சுற்று இசை']};
+export const championshipName=(lang:Language,reward:ChampionshipReward)=>{
+    const name=reward.kind==='avatar'?stageText(lang,'frame'):reward.kind==='piece'?extras[lang][0]:reward.kind==='music'?extras[lang][1]:families[lang][reward.familyIndex+(reward.kind==='effect'?6:0)];
+    const style=rewardFormText(lang,reward.kind==='piece'?reward.form:reward.kind==='board'?reward.profile:undefined);
+    return `${name}${style?' · '+style:''} ${(reward.kind==='piece'||reward.kind==='avatar')?String(reward.requiredWins).padStart(3,'0'):['I','II','III','IV','V','VI','VII','VIII','IX','X'][reward.tier-1]}`;
+};

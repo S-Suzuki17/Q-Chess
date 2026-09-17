@@ -11,7 +11,7 @@ export function useMoveHint(positionKey: string) {
     const [failedKey, setFailedKey] = useState<string | null>(null);
     useEffect(() => () => { controller.current?.abort(); controller.current = null; }, [positionKey]);
 
-    async function request(search: (signal: AbortSignal) => Promise<HintMove | null>) {
+    async function request(search: (signal: AbortSignal) => Promise<HintMove | null>, onDelivered?:()=>void) {
         controller.current?.abort();
         const active = new AbortController();
         controller.current = active;
@@ -21,7 +21,7 @@ export function useMoveHint(positionKey: string) {
         try {
             const move = await search(active.signal);
             if (active.signal.aborted) return;
-            if (isValidHintMove(move)) setResult({ key: positionKey, move });
+            if (isValidHintMove(move)) { setResult({ key: positionKey, move }); onDelivered?.(); }
             else setFailedKey(positionKey);
         } catch {
             if (!active.signal.aborted) setFailedKey(positionKey);

@@ -17,6 +17,7 @@ export interface PlayerSession {
 
 export interface MatchSession {
     justStartedFlag?: boolean;
+    appearances?:{host?:{avatar?:string;frame?:string;intro?:boolean};joiner?:{avatar?:string;frame?:string;intro?:boolean}};
     matchId: string;
     state: MatchState;
     timeControl: number;
@@ -215,7 +216,7 @@ export class MatchmakingService {
         return { success: false };
     }
 
-        public connectMatch(userId: string, matchId: string, userName?: string, avatarUrl?: string): { success: boolean, match?: MatchSession, engine?: GameEngine, justStarted?: boolean } {
+        public connectMatch(userId: string, matchId: string, userName?: string, avatarUrl?: string, avatarFrame?:string,introVersion?:number): { success: boolean, match?: MatchSession, engine?: GameEngine, justStarted?: boolean } {
         let session = this.players.get(userId);
         let match = this.matches.get(matchId);
 
@@ -270,6 +271,8 @@ export class MatchmakingService {
             }
         }
 
+        const role=isHost?'host':'joiner';
+        (match.appearances??={})[role]={avatar:avatarUrl,frame:avatarFrame,intro:introVersion===1};
         this.clearDisconnectTimer(userId);
 
         // Mark as connected
@@ -280,10 +283,16 @@ export class MatchmakingService {
         if ((match.state === 'CONNECTING' || match.state === 'WAITING_FOR_JOINER') && match.connected.host && match.connected.joiner) {
             match.state = 'IN_GAME';
             const initialBoard = createInitialBoard();
-            match.engine = new GameEngine(matchId, match.players.host, match.players.joiner, initialBoard, match.timeControl, match.playerNames);
+            match.engine = new GameEngine(matchId, match.players.host, match.players.joiner, initialBoard, match.timeControl, match.playerNames,4000,!!match.appearances?.host?.intro&&!!match.appearances?.joiner?.intro);
+            // A lost readiness message must never leave a room paused forever.
+            setTimeout(()=>{if(match?.state==='IN_GAME'&&match.engine?.completeIntro())this.io.to(matchId).emit('sync_state',match.engine.getPublicState(userId));},15000);
             match.justStartedFlag = true;
         }
 
+        for(const role of ['host','joiner'] as const) {
+            const appearance=match.appearances?.[role];
+            if(appearance) match.engine?.setPlayerAppearance(role,appearance.avatar,appearance.frame);
+        }
         // If reconnected to an ongoing match, broadcast to opponent
         const updatedMatch = this.matches.get(matchId);
         if (!updatedMatch) return { success: false };

@@ -57,7 +57,8 @@ export function Board2D({
             style={{ 
                 width: 'min(100cqw, 100cqh, 900px)',
                 flexShrink: 0,
-                background: boardDesign === 'marble' ? '#a0a0a0' : boardDesign === 'neon' ? '#180a24' : '#11100E',
+                background: finish?.frameColor ?? (boardDesign === 'marble' ? '#a0a0a0' : boardDesign === 'neon' ? '#180a24' : '#11100E'),
+                borderColor: finish?.rim,
                 transform: isFlipped ? 'rotate(180deg)' : 'none'
             }}
         >
@@ -77,6 +78,7 @@ export function Board2D({
                     let bgClass = quietLayout
                         ? (isDark ? 'bg-[#343c30]' : 'bg-[#737c65]')
                         : (isDark ? 'bg-[#b58863]' : 'bg-[#f0d9b5]');
+                    if (boardDesign === 'marble') bgClass = isDark ? 'bg-[#54636e]' : 'bg-[#c7cfd1]';
                     if (boardDesign === 'marble') bgClass = isDark ? 'bg-[#54636e]' : 'bg-[#c7cfd1]';
                     if (boardDesign === 'neon') bgClass = isDark ? 'bg-[#6a00ff]' : 'bg-[#00e5ff]'; // visible contrast
 
@@ -99,7 +101,7 @@ export function Board2D({
                         >
                             {isLastMove && <div className="absolute inset-0 bg-[#dfc782]/25 border-2 border-[#dfc782]/50 pointer-events-none" />}
                             {isSelectedSquare && <div className="absolute inset-0 border-[3px] border-[#f3d48b] bg-[#e2bf69]/20 pointer-events-none" />}
-                            {(col === 0 || row === 7) && <span className="absolute left-0.5 bottom-0 text-[9px] text-[#f4efdb] pointer-events-none z-[1]" style={{transform:isFlipped ? 'rotate(180deg)' : 'none'}}>{col === 0 && row !== 7 ? 8 - row : String.fromCharCode(97 + col)}</span>}
+                            {(col === 0 || row === 7) && <span className="absolute left-0.5 bottom-0 text-[9px] text-[#f4efdb] pointer-events-none z-[1]" style={{color:finish?(isDark?finish.light:finish.dark):undefined,transform:isFlipped ? 'rotate(180deg)' : 'none'}}>{col === 0 && row !== 7 ? 8 - row : String.fromCharCode(97 + col)}</span>}
                             {isMoveCandidate && (
                                 <div className="absolute inset-0 grid place-items-center pointer-events-none">
                                     <span className={occupant ? 'absolute inset-[3%] rounded-full border-[3px] border-[#f2ad83]' : `w-[22%] h-[22%] rounded-full border ${isEnemySelected ? 'bg-[#efa183]/80 border-[#f6c5ad]' : 'bg-[#f3db9c]/75 border-[#fff1c5]'}`} />

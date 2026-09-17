@@ -8,6 +8,8 @@ import { IdentityPool } from '../lib/IdentityPool';
 import { Token, deduceMoveTypes, isPlayerInCheck } from '../lib/GameEngine';
 import { QuantumPieceUI } from './QuantumPieceUI';
 import { Board3D } from './Board3D';
+import { MatchResultDialog } from './MatchResultDialog';
+import { MatchIntro } from './MatchIntro';
 import { MatchLayout } from './MatchLayout';
 import { Board2D } from './Board2D';
 import { AdBanner } from './AdBanner';
@@ -58,8 +60,12 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
     const playerSide = onlineRole === 'black' ? 'black' : 'white';
     const cpuSide = playerSide === 'white' ? 'black' : 'white';
     const t = { ...dict['en'], ...(dict[lang] || {}) } as any;
-    const { is2DView, setIs2DView, boardDesign, boardFinish, pieceFinish, victoryEffect, cycleBoard } = useBoardPreferences();
+    const { is2DView, setIs2DView, boardDesign, boardFinish, pieceFinish, victoryEffect, avatarFrame, cycleBoard } = useBoardPreferences();
     const hintsUsed=useRef(0);
+    const [introDone,setIntroDone]=useState(!!roomId);
+    const finishIntro=useCallback(()=>setIntroDone(true),[]);
+    const perMoveTime=useRef({turns:0,remaining:0});
+    const turnClock=useRef({start:0,base:timeControl==='10s'?10:timeControl==='3m'?180:600});
     const resultReported=useRef(false);
     const [showHomeConfirm, setShowHomeConfirm] = useState(false);
     const [viewResetKey, setViewResetKey] = useState(0);
@@ -91,28 +97,21 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
     const [myRating, setMyRating] = useState<number | null>(null);
     const [opponentRating, setOpponentRating] = useState<number | null>(null);
 
-    // Fetch profiles
-    useEffect(() => {
-        const ratingCol = timeControl === '10s' ? 'rating_10s' : timeControl === '3m' ? 'rating_3m' : 'rating_10m';
-        
-        import('../lib/supabaseClient').then(({ supabase }) => {
-            // Fetch my rating
-            if (user?.id && !user.id.startsWith('GUEST-') && matchMode === 'ranked') {
-                supabase.from('profiles').select(ratingCol).eq('id', user.id).single().then(({ data }) => {
-                    const d = data as any;
-                    if (d && d[ratingCol]) setMyRating(d[ratingCol]);
-                });
-            }
-            // Fetch opponent name & rating
-            if (opponentId && !opponentId.startsWith('GUEST-')) {
-                supabase.from('profiles').select(`name, ${ratingCol}`).eq('id', opponentId).single().then(({ data }) => {
-                    const d = data as any;
-                    if (d?.name) setFetchedOpponentName(d.name);
-                    if (d && d[ratingCol] && matchMode === 'ranked') setOpponentRating(d[ratingCol]);
-                });
-            }
-        });
-    }, [opponentId, user?.id, timeControl, matchMode]);
+    // Fetch only public fields; missing ratings remain unavailable, never fabricated.
+    useEffect(()=>{
+        let cancelled=false;
+        const ratingCol=timeControl==='10s'?'rating_10s':timeControl==='3m'?'rating_3m':'rating_10m';
+        const fetchRating=async(id:string|undefined,own:boolean)=>{
+            if(!id||id.startsWith('GUEST-'))return;
+            const {data,error}=await supabase.from('profiles').select('name,'+ratingCol).eq('id',id).maybeSingle();
+            if(cancelled||error||!data)return;
+            const profile=data as unknown as Record<string,unknown>,rating=profile[ratingCol];
+            if(typeof rating==='number'&&Number.isFinite(rating)&&rating>=0)(own?setMyRating:setOpponentRating)(rating);
+            if(!own&&typeof profile.name==='string')setFetchedOpponentName(profile.name);
+        };
+        void fetchRating(user?.id,true);void fetchRating(opponentId,false);
+        return()=>{cancelled=true;};
+    },[user?.id,opponentId,timeControl]);
     const [isCheck, setIsCheck] = useState<boolean>(false);
     const [showMoveHints, setShowMoveHints] = useState<boolean>(true);
     const [showResignConfirm, setShowResignConfirm] = useState<boolean>(false);
@@ -147,23 +146,21 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
         }
     }, [winner]);
 
-    useEffect(() => {
-        if (winner || tokens.length === 0) return; // Don't tick if game over or not started
-        const timer = setInterval(() => {
-            if (currentTurn === 'white') {
-                setTimeLeftWhite(prev => {
-                    if (prev <= 1) { setWinner('black_wins'); return 0; }
-                    return prev - 1;
-                });
-            } else {
-                setTimeLeftBlack(prev => {
-                    if (prev <= 1) { setWinner('white_wins'); return 0; }
-                    return prev - 1;
-                });
-            }
-        }, 1000);
-        return () => clearInterval(timer);
-    }, [currentTurn, winner, tokens.length]);
+    useEffect(()=>{
+        if(winner||!introDone)return;
+        const base=currentTurn==='white'?timeLeftWhite:timeLeftBlack;
+        const start=performance.now();
+        turnClock.current={start,base};
+        const tick=()=>{
+            const remaining=Math.max(0,base-(performance.now()-start)/1000);
+            (currentTurn==='white'?setTimeLeftWhite:setTimeLeftBlack)(remaining);
+            if(remaining===0)setWinner(currentTurn==='white'?'black_wins':'white_wins');
+        };
+        const timer=setInterval(tick,100);
+        return()=>clearInterval(timer);
+        // A turn has one fixed deadline; rerendering must not reset it.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    },[currentTurn,winner,introDone]);
 
     // Initial timeout if opponent never connects from the start
     useEffect(() => {
@@ -206,7 +203,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
     } | null>(null);
 
     const [moveHistory, setMoveHistory] = useState<MoveRecord[]>([]);
-    const anyModalOpen = showGameOver || showRules || promotionPending !== null || castlingPending !== null;
+    const anyModalOpen = !introDone || showGameOver || showRules || promotionPending !== null || castlingPending !== null;
     useEffect(() => {
         window.dispatchEvent(new CustomEvent('hide-settings', { detail: anyModalOpen }));
         return () => { window.dispatchEvent(new CustomEvent('hide-settings', { detail: false })); };
@@ -394,7 +391,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
 
     // A worker keeps the board responsive; cancellation discards stale replies.
     useEffect(() => {
-        if (currentTurn !== cpuSide || winner || roomId || movingPiece || tokens.length === 0) return;
+        if (!introDone || currentTurn !== cpuSide || winner || roomId || movingPiece || tokens.length === 0) return;
         const controller = new AbortController();
         setCpuFailed(false);
         const state = legacyToQuantumState(tokens, pool, cpuSide, moveHistory.length, moveHistory.at(-1) ?? null);
@@ -416,7 +413,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
             setCpuFailed(true);
         });
         return () => controller.abort();
-    }, [currentTurn, winner, tokens, pool, roomId, moveHistory, cpuRetry, movingPiece, cpuLevel, cpuSide, cpuPersonality, cpuSearchProfile]);
+    }, [currentTurn, winner, tokens, pool, roomId, moveHistory, cpuRetry, movingPiece, cpuLevel, cpuSide, cpuPersonality, cpuSearchProfile, introDone]);
 
     useEffect(() => {
         if (isCheck && !winner) {
@@ -426,7 +423,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
         } else {
             setShowCheckWarning(false);
         }
-    }, [isCheck, winner]);
+    }, [isCheck, winner, moveHistory.length]);
 
     // Active Match Registration
     useEffect(() => {
@@ -559,7 +556,9 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
             setTimeout(() => setTutorialHint(null), 7000);
         }
 
-        if (winner || movingPiece) return;
+        if (!introDone || winner || movingPiece) return;
+        const remaining=Math.max(0,turnClock.current.base-(performance.now()-turnClock.current.start)/1000);
+        if(remaining===0){setWinner(currentTurn==='white'?'black_wins':'white_wins');return;}
         let result;
         try {
             result = applyLocalMove(tokens, pool, {
@@ -570,6 +569,8 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
             setErrorMsg(t.errInvalidMove);
             return;
         }
+        (currentTurn==='white'?setTimeLeftWhite:setTimeLeftBlack)(remaining);
+        if(currentTurn===playerSide&&timeControl==='10s'){perMoveTime.current.turns++;perMoveTime.current.remaining+=remaining;}
         if (isLocalMove && channelRef.current) {
             channelRef.current.send({ type: 'broadcast', event: 'move',
                 payload: { userId: user?.id, tokenId: token.id, targetRow, targetCol,
@@ -601,7 +602,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
     };
 
     const handleSquareClick = (targetRow: number, targetCol: number) => {
-        if (winner || movingPiece || onlineRole === 'spectator') return;
+        if (!introDone || winner || movingPiece || onlineRole === 'spectator') return;
         
         // Inspection is safe while the CPU thinks; only submitting a move is blocked.
         if (!roomId && currentTurn === cpuSide) {
@@ -695,6 +696,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
     };
 
     const formatTime = (seconds: number) => {
+        seconds=Math.ceil(Math.max(0,seconds));
         const m = Math.floor(seconds / 60);
         const s = seconds % 60;
         return `${m}:${s.toString().padStart(2, '0')}`;
@@ -712,8 +714,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
     const hint = useMoveHint(`${currentTurn}:${moveHistory.length}:${winner ?? 'playing'}`);
     const { hintMove } = hint;
     const requestHint = () => {
-        if (winner || hint.pending || currentTurn !== myRole || !tokens.length || roomId) return;
-        hintsUsed.current++;
+        if (!introDone || winner || hint.pending || currentTurn !== myRole || !tokens.length || roomId) return;
         const state = legacyToQuantumState(tokens, pool, myRole, moveHistory.length, moveHistory.at(-1) ?? null);
         void hint.request(async signal => {
             const stats = await requestCPUSearch(state, signal, 5);
@@ -721,7 +722,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
             const legacy = quantumToLegacyMove(stats.move, state);
             const fromToken = tokens.find(token => !token.isCaptured && token.id === legacy.tokenId);
             return fromToken ? {fromRow:fromToken.row, fromCol:fromToken.col, toRow:legacy.targetRow, toCol:legacy.targetCol} : null;
-        });
+        },()=>{hintsUsed.current++;});
     };
     const whiteName = onlineRole === 'spectator' ? 'White Player' : (myRole === 'white' ? playerName : opponentName);
     const blackName = onlineRole === 'spectator' ? 'Black Player' : (myRole === 'black' ? playerName : opponentName);
@@ -732,16 +733,18 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
         if (!winner || !onComplete || resultReported.current) return;
         resultReported.current=true;
         onComplete({won:winner===`${playerSide}_wins`,draw:winner==='draw',
-            playerMoves:moveHistory.filter(move=>move.player===playerSide).length,hintsUsed:hintsUsed.current});
-    },[winner,onComplete,playerSide,moveHistory]);
+            playerMoves:moveHistory.filter(move=>move.player===playerSide).length,hintsUsed:hintsUsed.current,
+            initialSeconds:timeControl==='10s'?perMoveTime.current.turns*10:initialTime,remainingSeconds:timeControl==='10s'?perMoveTime.current.remaining:playerSide==='white'?timeLeftWhite:timeLeftBlack});
+    },[winner,onComplete,playerSide,moveHistory,initialTime,timeLeftWhite,timeLeftBlack,timeControl]);
 
     return (
         <MatchLayout
             victory={!campaignLabel && winner===`${playerSide}_wins`} victoryEffect={victoryEffect}
             lang={lang} mode={campaignLabel || (roomId ? (matchText(lang, 'オンライン対局', 'ONLINE MATCH')) : (matchText(lang, 'CPU 対局', 'CPU MATCH')))}
-            white={{name:whiteName,clock:formatTime(timeLeftWhite),rating:whiteRatingToDisplay,avatar:myRole === 'white' ? user?.avatar_url : undefined,emote:activeEmotes.white ? EMOTES[activeEmotes.white].emoji : undefined}}
-            black={{name:blackName,clock:formatTime(timeLeftBlack),rating:blackRatingToDisplay,avatar:myRole === 'black' ? user?.avatar_url : undefined,emote:activeEmotes.black ? EMOTES[activeEmotes.black].emoji : undefined}}
-            bottomSide={myRole} currentTurn={currentTurn} spectator={onlineRole === 'spectator'} finished={!!winner} checkmate={checkmate}
+            white={{name:whiteName,clock:formatTime(timeLeftWhite),rating:whiteRatingToDisplay,avatar:myRole === 'white' ? user?.avatar_url : undefined,frame:myRole==='white'?avatarFrame:undefined,emote:activeEmotes.white ? EMOTES[activeEmotes.white].emoji : undefined}}
+            black={{name:blackName,clock:formatTime(timeLeftBlack),rating:blackRatingToDisplay,avatar:myRole === 'black' ? user?.avatar_url : undefined,frame:myRole==='black'?avatarFrame:undefined,emote:activeEmotes.black ? EMOTES[activeEmotes.black].emoji : undefined}}
+            bottomSide={myRole} currentTurn={currentTurn} spectator={onlineRole === 'spectator'} finished={!!winner} checkmate={checkmate} resultVisible={showGameOver}
+            checkNotice={showCheckWarning&&!winner?t.check:undefined} checkEvent={moveHistory.length}
             tokens={tokens} selectedTokenId={selectedTokenId} candidatesMap={pool.piecePossibilities} history={moveHistory}
             validMoveCount={validMoves.length} onClearSelection={() => setSelectedTokenId(null)}
             onHint={!roomId ? requestHint : undefined} hintPending={hint.pending} hintMove={hintMove} hintFailed={hint.failed} onClearHint={hint.clear} feedback={tutorialHint}
@@ -779,35 +782,13 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
                 />
                 )}
         >
-            {showCheckWarning && !winner && (
-                <div className="absolute inset-0 z-40 pointer-events-none flex items-center justify-center">
-                    <div className="bg-black/60 backdrop-blur-sm px-8 py-3 border border-[#B39A62]/50 rounded animate-stamp">
-                        <span className="text-xl md:text-2xl font-serif font-bold text-[#B39A62] tracking-[0.3em] uppercase">
-                            {t.quantumCheck}
-                        </span>
-                    </div>
-                </div>
-            )}
 
-            {winner && campaignLabel && resultPanel}
-            {winner && !campaignLabel && (
-                <div className="absolute inset-0 bg-[#11100E]/90 flex flex-col items-center justify-center z-50 backdrop-blur-sm rounded-lg border border-[#B39A62]/20">
-                    <div className="flex flex-col items-center gap-6 px-6 max-w-full">
-                        <div className="text-3xl sm:text-4xl md:text-5xl font-serif font-bold text-[#E8E2D7] tracking-[0.2em] text-center animate-stamp">
-                            {winner === 'draw' ? t.draw : checkmate ? t.checkmate : matchText(lang,'対局終了','Match complete')}
-                        </div>
-                        <div className="w-16 h-px bg-[#B39A62]/50"></div>
-                        <div className={`text-base sm:text-lg md:text-xl font-serif tracking-widest text-center ${winner === 'draw' ? 'text-[#A89C86]' : winner === 'white_wins' ? 'text-[#E8E2D7]' : 'text-[#A89C86]'}`}>
-                            {winner === 'draw' 
-                                ? t.draw
-                                : onlineRole
-                                    ? (winner === 'white_wins' && onlineRole === 'white') || (winner === 'black_wins' && onlineRole === 'black')
-                                        ? `${t.whiteWins} (${winner === 'white_wins' ? t.whiteWon : t.blackWon})`
-                                        : `${t.blackWins} (${winner === 'white_wins' ? t.whiteWon : t.blackWon})`
-                                    : winner === 'white_wins'
-                                        ? `${whiteName} (${t.whiteWon})`
-                                        : `${blackName} (${t.blackWon})`}
-                        </div>
+            {!introDone&&<MatchIntro lang={lang} label={campaignLabel||t.vsCPU||'CPU'} onDone={finishIntro}
+                white={{name:whiteName,rating:whiteRatingToDisplay,avatar:myRole==='white'?user?.avatar_url:undefined,frame:myRole==='white'?avatarFrame:undefined,detail:myRole==='black'?matchText(lang,cpuDifficulty(cpuLevel).ja,cpuDifficulty(cpuLevel).en):undefined}}
+                black={{name:blackName,rating:blackRatingToDisplay,avatar:myRole==='black'?user?.avatar_url:undefined,frame:myRole==='black'?avatarFrame:undefined,detail:myRole==='white'?matchText(lang,cpuDifficulty(cpuLevel).ja,cpuDifficulty(cpuLevel).en):undefined}}/>}
+            {winner && showGameOver && campaignLabel && resultPanel}
+            {winner && showGameOver && !campaignLabel && (
+                <MatchResultDialog lang={lang} winner={winner} side={onlineRole==='spectator'?'spectator':playerSide}>
                         <div className="flex flex-wrap gap-3 mt-4 justify-center">
                             <button 
                                 onClick={onHome || (() => window.location.reload())}
@@ -829,8 +810,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
                                 <span className="font-mono text-[10px] select-all text-[#B39A62] bg-black/50 px-2 py-1 rounded">{savedRecordId}</span>
                             </div>
                         )}
-                    </div>
-                </div>
+                </MatchResultDialog>
             )}
 
             {cpuFailed && <button onClick={() => setCpuRetry(value => value + 1)} className="match-retry">
@@ -842,10 +822,10 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
                     <div className="bg-[#161513] border border-[#B39A62]/30 rounded-xl p-8 max-w-sm w-full shadow-2xl flex flex-col items-center text-center">
                         <span className="text-4xl mb-3">🏳️</span>
                         <h3 className="text-lg font-bold text-[#E8E2D7] mb-2">
-                            {matchText(lang, '投了しますか？', 'Resign Match?')}
+                            {matchText(lang, 'リザインしますか？', 'Resign Match?')}
                         </h3>
                         <p className="text-sm text-gray-400 mb-6">
-                            {matchText(lang, '投了すると相手の勝利となります。本当に対局を終了しますか？', 'Resigning will forfeit the match to your opponent. Are you sure?')}
+                            {matchText(lang, 'リザインすると相手の勝利となります。本当に対局を終了しますか？', 'Resigning will forfeit the match to your opponent. Are you sure?')}
                         </p>
                         <div className="flex gap-3 w-full">
                             <button
@@ -861,7 +841,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
                                 }}
                                 className="flex-1 py-2.5 bg-red-600 hover:bg-red-500 rounded-lg text-sm text-[#E8E2D7] font-bold transition-colors shadow-lg shadow-red-600/30"
                             >
-                                {matchText(lang, '投了する', 'Resign')}
+                                {matchText(lang, 'リザインする', 'Resign')}
                             </button>
                         </div>
                     </div>

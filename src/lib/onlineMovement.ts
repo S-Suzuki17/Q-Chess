@@ -155,3 +155,9 @@ export function filterPossibilities(piece: any, toX: number, toY: number, board:
     );
 }
 
+/** Presentation-only mirror of the server's confirmed-king check rule. */
+export function onlineKingInCheck(board:(number|null)[],pieces:any[],team:number):boolean {
+    const king=pieces.find(piece=>piece.team===team&&!piece.captured&&piece.possibilities.length===1&&piece.possibilities[0]==='K');
+    return !!king && pieces.some(piece=>piece.team!==team&&!piece.captured&&filterPossibilities(piece,king.x,king.y,board,true).length>0);
+}
+

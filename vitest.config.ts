@@ -5,7 +5,7 @@ export default defineConfig({
     test: {
         globals: true,
         environment: 'node',
-        include: ['src/**/*.test.ts', 'server/src/game/checkmate.test.ts'],
+        include: ['src/**/*.test.ts', 'server/src/game/checkmate.test.ts', 'server/src/game/intro.test.ts'],
     },
     resolve: {
         alias: {

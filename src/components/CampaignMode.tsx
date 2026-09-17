@@ -1,133 +1,158 @@
 'use client';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowLeft, ArrowUpRight, Check, LockKeyhole, Trophy } from 'lucide-react';
-import { BOSSES, bossUnlocked, equipReward, finishBoss, outcomeStars, rewardUnlocked, REWARD_BOARDS, REWARD_PIECES, highestUnlockedLap, lapStars, lapCleared, campaignOpponent, type BossId, type CampaignOutcome, type VictoryFinish } from '../config/campaign';
-import { CHAMPIONSHIP_REWARDS } from '../config/championshipRewards';
+import { equipReward, outcomeStars, rewardUnlocked, rewardPiece, rewardBoard, type CampaignOutcome, type VictoryFinish, type BoardFinish, type PieceFinish } from '../config/campaign';
+import { CHAMPIONSHIP_REWARDS, championshipReward } from '../config/championshipRewards';
 import { championshipText } from '../locales/championshipText';
-import { campaignText, bossDescription, rewardName } from '../locales/campaignText';
-import { cpuDifficulty } from '../config/cpuDifficulty';
-import { matchText } from '../locales/matchText';
+import { campaignText, rewardName } from '../locales/campaignText';
 import { dict, type Language } from '../locales/dict';
 import type { User } from '../types/game';
 import { useCampaignProgress } from '../hooks/useCampaignProgress';
 import LocalGameBoard from './LocalGameBoard';
 import { ChampionshipCollection } from './ChampionshipCollection';
 import { VictoryCelebration } from './VictoryCelebration';
+import { RewardSigil } from './RewardArtwork';
+import { CIRCUIT_MUSIC, battleMusicUrl } from '../config/circuitMusic';
+import { circuitText } from '../locales/circuitText';
+import { soundManager } from '../lib/SoundService';
+import { RewardPreview, type VisualReward } from './RewardPreview';
+import { CIRCUIT_STAGES, finishStage, stageUnlocked } from '../config/circuitStages';
+import { stageText } from '../locales/stageText';
+import { requestCircuitInterstitial } from '../lib/adPolicy';
 import './campaign.css';
 
-function Result({lang,bossIndex,lap,effect,outcome,onNext,onRetry,onBack,saveError}: {
-    lang:Language; bossIndex:number; lap:number; effect:VictoryFinish; outcome:CampaignOutcome; onNext?:()=>void; onRetry:()=>void; onBack:()=>void; saveError:boolean;
+const duration=(seconds:number)=>`${Math.floor(seconds/60)}:${String(Math.floor(seconds%60)).padStart(2,'0')}`;
+function Result({lang,stageId,firstClear,effect,outcome,onNext,onRetry,onBack,saveError}: {
+    lang:Language;stageId:number;firstClear:boolean;effect:VictoryFinish;outcome:CampaignOutcome;onNext?:()=>void;onRetry:()=>void;onBack:()=>void;saveError:boolean;
 }) {
     const dialog=useRef<HTMLDialogElement>(null);
-    useEffect(()=>{ const node=dialog.current; node?.showModal(); return ()=>node?.close(); },[]);
+    useEffect(()=>{const node=dialog.current;node?.showModal();return()=>node?.close();},[]);
     const t=(key:Parameters<typeof campaignText>[1])=>campaignText(lang,key);
-    const boss=BOSSES[bossIndex];
-    const stars=outcomeStars(outcome);
-    const championReward=bossIndex===BOSSES.length-1 ? CHAMPIONSHIP_REWARDS[lap-1] : undefined;
+    const stage=CIRCUIT_STAGES[stageId-1],reward=CHAMPIONSHIP_REWARDS[stageId-1],stars=outcomeStars(outcome);
+    const victoryDesign=championshipReward(effect);
+    const perMove=stage.timeControl==='10s';
+    const average=outcome.initialSeconds>0?outcome.remainingSeconds/outcome.initialSeconds*10:0;
     return <dialog ref={dialog} className="campaign-result" aria-labelledby="campaign-result-title" onCancel={event=>event.preventDefault()}>
-        {outcome.won && <VictoryCelebration effect={effect}/>}
+        {outcome.won&&<VictoryCelebration effect={effect}/>}
         <div className="campaign-result-card">
-            <span className="campaign-result-emblem" aria-hidden="true">{outcome.won ? '♛' : boss.symbol}</span>
-            <p>{championshipText(lang,'lap')} {lap} · {boss.name} · {t('round')} {bossIndex+1}</p>
-            <h2 id="campaign-result-title">{outcome.won ? bossIndex===BOSSES.length-1 ? t('champion') : t('win') : outcome.draw ? t('draw') : t('retry')}</h2>
-            {!outcome.won && !outcome.draw && <p>{t('loss')}</p>}
-            {outcome.won && <>
-                <div className="campaign-stars" aria-label={`${stars}/3`}>{'★'.repeat(stars)}{'☆'.repeat(3-stars)}</div>
-                {lap===1 && <p className="campaign-reward-earned"><Check size={18}/>{t('rewards')} · {rewardName(lang,boss.reward)}</p>}
-                {championReward && <p className="campaign-reward-earned"><Trophy size={18}/>{rewardName(lang,championReward.id)}</p>}
-            </>}
+            <span className="campaign-result-emblem" aria-hidden="true"><RewardSigil motif={victoryDesign?.kind==='effect'?victoryDesign.motif:'corona'} tier={victoryDesign?.tier??1}/></span>
+            <p>{stageText(lang,'stage')} {stageId} / 100 · {stage.opponent}</p>
+            <h2 id="campaign-result-title">{outcome.won?(stageId===100?t('champion'):t('win')):outcome.draw?t('draw'):t('loss')}</h2>
+            {outcome.won&&<><div className="campaign-stars" aria-label={`${stars}/3`}>{'★'.repeat(stars)}{'☆'.repeat(3-stars)}</div>
+                <p className="campaign-reward-earned"><Trophy size={18}/>{stageText(lang,firstClear?'newReward':'clearedReward')} · {rewardName(lang,reward.id)}</p></>}
             <p>{t('noHints')} · {t('quick')}</p>
-            {saveError && <p role="alert">{t('saveError')}</p>}
+            <p>{perMove?stageText(lang,'timeAverage'):circuitText(lang,'timeLeft')} · {duration(perMove?average:outcome.remainingSeconds)} / {duration(perMove?10:outcome.initialSeconds)}</p>
+            {saveError&&<p role="alert">{t('saveError')}</p>}
             <div className="campaign-result-actions">
-                {onNext && <button className="campaign-primary" onClick={onNext}>{bossIndex===BOSSES.length-1?championshipText(lang,'advance'):t('next')}<ArrowUpRight size={18}/></button>}
+                {onNext&&<button className="campaign-primary" onClick={onNext}>{t('next')}<ArrowUpRight size={18}/></button>}
                 <button onClick={onRetry}>{t('retry')}</button><button onClick={onBack}>{t('back')}</button>
             </div>
         </div>
     </dialog>;
 }
 
-export function CampaignMode({lang,user,onBack}: {lang:Language;user:User;onBack:()=>void}) {
+export function CampaignMode({lang,user,onBack}:{lang:Language;user:User;onBack:()=>void}) {
     const {progress,loaded,storageError,update}=useCampaignProgress();
     const [selection,setSelected]=useState<number|null>(null);
-    const [activeId,setActiveId]=useState<BossId|null>(null);
-    const [chosenLap,setChosenLap]=useState<number|null>(null);
-    const [activeLap,setActiveLap]=useState(1);
+    const [activeId,setActiveId]=useState<number|null>(null);
+    const [chosenPage,setPage]=useState<number|null>(null);
+    const [firstClear,setFirstClear]=useState(false);
     const [run,setRun]=useState(0);
     const [side,setSide]=useState<'white'|'black'>('white');
+    const [preview,setPreview]=useState<VisualReward|null>(null);
     const [outcome,setOutcome]=useState<CampaignOutcome|null>(null);
+    const adBreakHandled=useRef('');
+    useEffect(()=>{
+        soundManager.playBGM(activeId?battleMusicUrl(progress.music):'/audio/bgm_title.mp3');
+        return()=>soundManager.stopBGM();
+    },[activeId,progress.music]);
     const t=(key:Parameters<typeof campaignText>[1])=>campaignText(lang,key);
-    const unlockedLap=highestUnlockedLap(progress);
-    const lap=chosenLap??unlockedLap;
-    const roundStars=lapStars(progress,lap);
-    const cleared=Object.keys(roundStars).length;
-    const selected=selection??Math.min(cleared,BOSSES.length-1);
-    const boss=BOSSES[selected];
-    const previewOpponent=campaignOpponent(selected,lap);
-    const activeIndex=Math.max(0,BOSSES.findIndex(item=>item.id===activeId));
-    const activeOpponent=useMemo(()=>campaignOpponent(activeIndex,activeLap),[activeIndex,activeLap]);
     const loop=(key:Parameters<typeof championshipText>[1])=>championshipText(lang,key);
+    const cleared=progress.stageStars?.length??0;
+    const selected=selection??Math.min(cleared+1,100);
+    const stage=CIRCUIT_STAGES[selected-1],reward=CHAMPIONSHIP_REWARDS[selected-1];
+    const page=chosenPage??Math.floor((selected-1)/10);
     const complete=useCallback((result:CampaignOutcome)=>{
-        if (!activeId) return;
-        update(value=>finishBoss(value,activeId,result,activeLap));
+        if(!activeId)return;
+        update(value=>finishStage(value,activeId,result));
         setOutcome(result);
-    },[activeId,activeLap,update]);
-    const start=(index:number,circuit=lap)=>{
-        const target=BOSSES[index];
-        if (!loaded || !target || !bossUnlocked(progress,target.id,circuit)) return;
-        setChosenLap(circuit); setActiveLap(circuit); setSelected(index); setOutcome(null); setRun(value=>value+1); setActiveId(target.id);
+    },[activeId,update]);
+    const start=(id:number)=>{
+        if(!loaded||!stageUnlocked(progress,id))return;
+        setFirstClear(!progress.stageStars?.[id-1]);setSelected(id);setOutcome(null);setRun(value=>value+1);setActiveId(id);
     };
-    if (activeId) {
-        const active=BOSSES[activeIndex];
-        return <LocalGameBoard key={`${activeLap}-${activeId}-${run}`} lang={lang} user={user} cpuLevel={activeOpponent.level}
-            cpuPersonality={activeOpponent.personality} cpuSearchProfile={activeOpponent.search} campaignLabel={`${loop('lap')} ${activeLap} · ${t('round')} ${activeIndex+1}`} opponentLabel={active.name}
-            onlineRole={side} timeControl="10m" onComplete={complete} onHome={()=>setActiveId(null)}
-            resultPanel={outcome && <Result lang={lang} bossIndex={activeIndex} lap={activeLap} effect={progress.effect} outcome={outcome} saveError={storageError}
-                onRetry={()=>start(activeIndex,activeLap)} onBack={()=>setActiveId(null)}
-                onNext={outcome.won ? ()=>activeIndex<BOSSES.length-1 ? start(activeIndex+1,activeLap) : start(0,activeLap+1) : undefined}/>}/>;
+    const afterResult=async(action:()=>void)=>{
+        const key=`${activeId}-${run}`;
+        if(adBreakHandled.current===key)return;
+        adBreakHandled.current=key;
+        try { await requestCircuitInterstitial(key); } finally { action(); }
+    };
+    if(activeId) {
+        const active=CIRCUIT_STAGES[activeId-1];
+        return <LocalGameBoard key={`${activeId}-${run}`} lang={lang} user={user} cpuLevel={active.strength<12?1:active.strength<23?3:5}
+            cpuPersonality={active.personality} cpuSearchProfile={active.search} campaignLabel={`${stageText(lang,'stage')} ${activeId} / 100 · ${loop('strength')} ${active.strength}`} opponentLabel={active.opponent}
+            onlineRole={side} timeControl={active.timeControl} onComplete={complete} onHome={()=>setActiveId(null)}
+            resultPanel={outcome&&<Result lang={lang} stageId={activeId} firstClear={firstClear} effect={progress.effect} outcome={outcome} saveError={storageError}
+                onRetry={()=>void afterResult(()=>start(activeId))} onBack={()=>void afterResult(()=>setActiveId(null))}
+                onNext={outcome.won&&activeId<100?()=>void afterResult(()=>start(activeId+1)):undefined}/>}/>;
     }
-    return <section className="campaign-screen" data-campaign-lap={lap} aria-label={t('title')}>
-        <header className="campaign-header"><button onClick={onBack}><ArrowLeft size={18}/>{t('back')}</button><span>Q-GAMBIT</span><span>{cleared}/4 <Trophy size={16}/></span></header>
-        <div className="campaign-intro"><p>{t('title')}</p><h1>{lap>1?loop('ascension'):cleared===4 ? t('champion') : t('intro')}</h1><p>{t('local')}</p></div>
-        {storageError && <p className="campaign-save-error" role="alert">{t('saveError')}</p>}
+    return <section className="campaign-screen" data-circuit-stage={selected} aria-label={t('title')}>
+        <header className="campaign-header"><button onClick={onBack}><ArrowLeft size={18}/>{t('back')}</button><span>Q-GAMBIT</span><span>{cleared}/100 <Trophy size={16}/></span></header>
+        <div className="campaign-intro"><p>{t('title')}</p><h1>{stageText(lang,'intro')}</h1><p>{stageText(lang,'rules')}</p><p>{t('local')}</p></div>
+        {storageError&&<p className="campaign-save-error" role="alert">{t('saveError')}</p>}
         <section className="campaign-circuit" aria-label={loop('record')}>
-            <div className="campaign-circuit-nav"><button disabled={lap===1} onClick={()=>{setChosenLap(lap-1);setSelected(null);}}>{loop('previous')}</button><strong>{loop('lap')} {lap}</strong><button disabled={lap>=unlockedLap} onClick={()=>{setChosenLap(lap+1);setSelected(null);}}>{loop('next')}</button></div>
-            <div className="campaign-record"><span>{loop('wins')} <b>{unlockedLap-1}</b></span><span>{loop('medals')} <b>{Object.values(roundStars).reduce((sum,stars)=>sum+(stars??0),0)}/12</b></span><span>{loop('strength')} <b>{previewOpponent.strength}/5</b></span></div>
-            <p>{loop('cap')}</p>
-            {lapCleared(progress,lap) && <button className="campaign-primary" onClick={()=>{setChosenLap(lap+1);setSelected(null);}}>{loop('advance')}<ArrowUpRight size={18}/></button>}
+            <div className="campaign-record"><span>{t('cleared')} <b>{cleared}/100</b></span><span>{loop('medals')} <b>{(progress.stageStars??[]).reduce((sum,value)=>sum+value,0)}/300</b></span><span>{loop('strength')} <b>{stage.strength}/34</b></span></div>
+            <div className="campaign-circuit-nav"><button disabled={page===0} onClick={()=>setPage(page-1)}>{loop('previous')}</button><strong>{stageText(lang,'stage')} {page*10+1}–{page*10+10}</strong><button disabled={page===9} onClick={()=>setPage(page+1)}>{loop('next')}</button></div>
         </section>
         <div className="campaign-journey">
-            <nav className="campaign-rounds" aria-label={t('title')}>{BOSSES.map((item,index)=>{
-                const unlocked=bossUnlocked(progress,item.id,lap), stars=roundStars[item.id]??0;
-                return <button key={item.id} className="campaign-round" aria-pressed={selected===index} onClick={()=>setSelected(index)} data-boss={item.id}>
-                    <span className="campaign-round-number">0{index+1}</span><span className="campaign-boss-icon" aria-hidden="true">{item.symbol}</span>
-                    <span><strong>{item.name}</strong><small>{stars ? t('cleared') : unlocked ? `${t('round')} ${index+1}` : t('locked')}</small></span>
-                    <span className="campaign-round-status">{stars ? <span aria-label={`${stars}/3`}>{'★'.repeat(stars)}</span> : unlocked ? <ArrowUpRight size={18}/> : <LockKeyhole size={17}/>}</span>
+            <nav className="campaign-rounds" aria-label={t('title')}>{CIRCUIT_STAGES.slice(page*10,page*10+10).map(item=>{
+                const unlocked=stageUnlocked(progress,item.id),stars=progress.stageStars?.[item.id-1]??0;
+                return <button key={item.id} className="campaign-round" aria-pressed={selected===item.id} onClick={()=>setSelected(item.id)} data-stage={item.id}>
+                    <span className="campaign-round-number">{String(item.id).padStart(3,'0')}</span>
+                    <span><strong>{item.opponent}</strong><small>{item.timeControl==='10m'?dict[lang].tc10m:item.timeControl==='3m'?dict[lang].tc3m:dict[lang].tc10s}</small></span>
+                    <span className="campaign-round-status">{stars?<span aria-label={`${stars}/3`}>{'★'.repeat(stars)}</span>:unlocked?<ArrowUpRight size={18}/>:<LockKeyhole size={17}/>}</span>
                 </button>;
             })}</nav>
             <article className="campaign-boss-card">
-                <div className="campaign-boss-heading"><span className="campaign-boss-seal" aria-hidden="true">{boss.symbol}</span><div><p>{t('round')} {selected+1} / 4</p><h2>{boss.name}</h2></div></div>
-                <p>{lap===1?bossDescription(lang,selected):loop(previewOpponent.personality)}</p>
-                <span className="campaign-difficulty">{matchText(lang,cpuDifficulty(previewOpponent.level).ja,cpuDifficulty(previewOpponent.level).en)} · {loop(previewOpponent.personality)}</span>
-                <div className="campaign-boss-reward"><Trophy size={20}/><span><small>{t('rewards')} · {t(boss.rewardKind==='board'?'board':'piece')}</small><strong>{rewardName(lang,boss.reward)}</strong></span>{rewardUnlocked(progress,boss.reward) && <Check size={18}/>}</div>
+                <div className="campaign-boss-heading"><span className="campaign-boss-seal" aria-hidden="true"><RewardSigil motif="corona" tier={Math.ceil(selected/10)}/></span><div><p>{stageText(lang,'stage')} {selected} / 100</p><h2>{stage.opponent}</h2></div></div>
+                <p>{stageText(lang,'rules')}</p>
+                <span className="campaign-difficulty">{loop('strength')} {stage.strength} / 34 · {stage.timeControl==='10m'?dict[lang].tc10m:stage.timeControl==='3m'?dict[lang].tc3m:dict[lang].tc10s}</span>
+                <div className="campaign-boss-reward"><Trophy size={20}/><span><small>{t('rewards')}</small><strong>{rewardName(lang,reward.id)}</strong></span>{rewardUnlocked(progress,reward.id)&&<Check size={18}/>}</div>
+                {reward.kind!=='music'&&<button data-preview-reward={reward.id} onClick={()=>setPreview({kind:reward.kind,id:reward.id})}>{circuitText(lang,'preview')}</button>}
                 <fieldset className="campaign-side"><legend>{t('challenge')}</legend>{(['white','black'] as const).map(value=><button key={value} type="button" aria-pressed={side===value} onClick={()=>setSide(value)}>{t(value)}</button>)}</fieldset>
-                <button className="campaign-primary" disabled={!loaded || !bossUnlocked(progress,boss.id,lap)} onClick={()=>start(selected)}>{!loaded ? dict[lang].loading : bossUnlocked(progress,boss.id,lap) ? t('challenge') : t('locked')}<ArrowUpRight size={20}/></button>
+                <button className="campaign-primary" disabled={!loaded||!stageUnlocked(progress,selected)} onClick={()=>start(selected)}>{!loaded?dict[lang].loading:stageUnlocked(progress,selected)?t('challenge'):t('locked')}<ArrowUpRight size={20}/></button>
                 <p className="campaign-medal-help">★ {t('win')} · ★ {t('noHints')} · ★ {t('quick')}</p>
+                {stage.timeControl==='10s'&&<p className="campaign-medal-help">{stageText(lang,'timeAverage')} ≥ 0:05</p>}
             </article>
         </div>
         <section className="campaign-collection" aria-label={t('rewards')}><h2>{t('rewards')}</h2>
             {(['board','piece'] as const).map(kind=><div className="campaign-equipment-group" key={kind}><h3>{t(kind)}</h3><div className="campaign-equipment">
-                {(kind==='board' ? ['standard','slate','obsidian'] : ['standard','copper','jade']).map(value=>{
+                {(kind==='board' ? ['standard','walnut','mahogany','marble','slate','obsidian'] : ['standard','boxwood','ebony','alabaster','bronze','silver','gold','crystal','copper','jade']).filter(value=>rewardUnlocked(progress,value)).map(value=>{
                     const unlocked=rewardUnlocked(progress,value), equipped=progress[kind]===value;
-                    const colors=kind==='board' ? value==='standard' ? {light:'#adb494',dark:'#424e3d'} : REWARD_BOARDS[value as keyof typeof REWARD_BOARDS] : null;
-                    return <button key={value} disabled={!loaded||!unlocked} aria-pressed={equipped} onClick={()=>update(current=>equipReward(current,kind,value))} data-equipment={`${kind}-${value}`}>
-                        {colors ? <span className="campaign-board-swatch" aria-hidden="true">{Array.from({length:9},(_,index)=><i key={index} style={{background:index%2?colors.dark:colors.light}}/>)}</span>
-                            : <span className="campaign-piece-swatch" aria-hidden="true" style={{color:REWARD_PIECES[value as keyof typeof REWARD_PIECES].white,background:REWARD_PIECES[value as keyof typeof REWARD_PIECES].black}}>♞</span>}
+                    return <div key={value} className="campaign-equipment-item"><button disabled={!loaded||!unlocked} aria-pressed={equipped} onClick={()=>update(current=>equipReward(current,kind,value))} data-equipment={`${kind}-${value}`}>
+                        <div className="campaign-equipment-swatch">
+                            {kind === 'board' ? <span className="campaign-board-swatch" aria-hidden="true" style={{background:rewardBoard(value as BoardFinish)?.dark,borderColor:rewardBoard(value as BoardFinish)?.light}}/>
+                            : kind === 'piece' ? <span className="campaign-piece-swatch" aria-hidden="true" style={{color:rewardPiece(value as PieceFinish).white,background:rewardPiece(value as PieceFinish).black}}>♞</span>
+                            : kind === 'music' ? <span className="campaign-music-swatch" aria-hidden="true">♪</span>
+                            : <span className="campaign-effect-swatch" aria-hidden="true">✨</span>}
+                        </div>
                         <span><strong>{rewardName(lang,value)}</strong><small>{equipped ? t('equipped') : unlocked ? t('equip') : t('locked')}</small></span>
                         {equipped ? <Check size={16}/> : !unlocked ? <LockKeyhole size={16}/> : null}
-                    </button>;
+                    </button><button data-preview-reward={value} onClick={()=>setPreview({kind,id:value})}>{circuitText(lang,'preview')}</button></div>;
                 })}
             </div></div>)}
         </section>
+        <section className="campaign-collection" aria-label={circuitText(lang,'music')}><h2>{circuitText(lang,'music')}</h2><p>{circuitText(lang,'musicHelp')}</p>
+            <div className="campaign-equipment campaign-music">{(['standard',...CIRCUIT_MUSIC.filter(track=>rewardUnlocked(progress,track.id)).map(track=>track.id)] as const).map(id=>{
+                const unlocked=rewardUnlocked(progress,id),track=CIRCUIT_MUSIC.find(value=>value.id===id);
+                return <button key={id} data-music={id} disabled={!loaded||!unlocked} aria-pressed={progress.music===id} onClick={()=>update(value=>equipReward(value,'music',id))}>
+                    <span aria-hidden="true">♫</span><span><strong>{id==='standard'?t('standard'):circuitText(lang,id)}</strong>
+                    <small>{progress.music===id?t('equipped'):unlocked?t('equip'):track?.boss?'NOX · '+t('cleared'):loop('wins')+' · '+track?.requiredWins}</small></span>
+                    {!unlocked?<LockKeyhole size={16}/>:progress.music===id?<Check size={16}/>:null}
+                </button>;
+            })}</div>
+        </section>
+        {preview && <RewardPreview lang={lang} reward={preview} progress={progress} onClose={()=>setPreview(null)} onEquip={(kind,id)=>update(value=>equipReward(value,kind,id))}/>}
         <ChampionshipCollection lang={lang} progress={progress} onEquip={(kind,id)=>update(value=>equipReward(value,kind,id))}/>
     </section>;
 }

@@ -75,7 +75,7 @@ try {
         return image.data.length;
     });
     await page.locator('.match-resign').click();
-    await page.getByRole('button', { name: '投了する', exact: true }).click();
+    await page.getByRole('button', { name: 'リザインする', exact: true }).click();
     await page.locator('dialog.campaign-result[open]').waitFor();
     await page.getByRole('button', { name: '再挑戦', exact: true }).click();
     await page.waitForFunction(() => document.querySelector('[data-graphics-state]')?.getAttribute('data-graphics-state') === 'ready', null, { polling: 100, timeout: 20000 });

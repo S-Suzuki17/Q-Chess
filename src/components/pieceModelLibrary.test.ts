@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { describe, expect, it, vi } from 'vitest';
 import { createPieceModelLibrary } from './pieceModelLibrary';
 import { PIECE_HEIGHTS, PIECE_MAX_WIDTH } from './boardPresentation';
-import { REWARD_PIECES } from '../config/campaign';
+import { rewardPiece } from '../config/campaign';
 
 function sourceModel() {
     const scene = new THREE.Group();
@@ -18,13 +18,29 @@ function meshOf(instance: THREE.Object3D) {
 }
 
 describe('Canvas-scoped piece resources', () => {
-    it.each(['standard', 'copper', 'jade'] as const)('applies %s without changing geometry or dimensions', finish => {
+    it.each(['iceglass','neonglass','crystal'] as const)('renders %s as non-emissive transparent glass with bounded shared materials',finish=>{
+        const library=createPieceModelLibrary(finish),{scene}=sourceModel();
+        const pieces=Array.from({length:192},(_,i)=>library.instantiate(scene,'Pawn',i<96,true));
+        const materials=pieces.map(piece=>meshOf(piece).material as THREE.MeshPhysicalMaterial);
+        expect(new Set(materials).size).toBe(2);
+        for(const material of materials){
+            expect(material.emissive.getHex()).toBe(0);expect(material.emissiveIntensity).toBe(0);
+            expect(material.transparent).toBe(true);expect(material.opacity).toBeLessThan(.6);
+            expect(material.transmission).toBe(0);expect(material.depthWrite).toBe(false);
+        }
+        const resolved=meshOf(library.instantiate(scene,'Queen',true));
+        expect((resolved.material as THREE.MeshPhysicalMaterial).transmission).toBeGreaterThan(.9);
+        expect(resolved.castShadow).toBe(false);
+        expect(meshOf(pieces[0]).geometry).toBe(resolved.geometry);
+        library.dispose();
+    });
+    it.each(['boxwood', 'ebony', 'alabaster'] as const)('applies %s without changing geometry or dimensions', finish => {
         const library = createPieceModelLibrary(finish);
         const {scene, mesh} = sourceModel();
         const piece = library.instantiate(scene, 'Knight', true);
         const material = meshOf(piece).material as THREE.MeshPhysicalMaterial;
-        expect(material.color.getHexString()).toBe(REWARD_PIECES[finish].white.slice(1));
-        expect(material.metalness).toBe(REWARD_PIECES[finish].metalness);
+        expect(material.color.getHexString()).toBe(rewardPiece(finish).white.slice(1));
+        expect(material.metalness).toBe(rewardPiece(finish).metalness);
         expect(meshOf(piece).geometry).toBe(mesh.geometry);
         expect(new THREE.Box3().setFromObject(piece).getSize(new THREE.Vector3()).y).toBeCloseTo(PIECE_HEIGHTS.Knight);
         library.dispose();

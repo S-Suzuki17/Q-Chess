@@ -1,0 +1,36 @@
+.friends-panel{background:#161513;border:1px solid #5a503c;border-radius:14px;padding:24px;color:#e8e2d7}
+.friends-panel header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}
+.friends-panel header small,.friend-ratings dt{color:#b4aa96;font-size:12px}
+.friends-panel h2{font:600 25px/1.3 Georgia,serif;margin:4px 0}
+.friends-panel h3{font-size:13px;color:#cfb77e;margin:0 0 12px}
+.friends-panel button{min-height:44px;padding:8px 14px;border:1px solid #66583e;border-radius:6px;color:#e0c98f;background:#27231c;font-size:13px;cursor:pointer}
+.friends-panel button:hover:not(:disabled){background:#393225;border-color:#c4ad76}
+.friends-panel button:disabled{opacity:.5;cursor:default}
+.friends-panel :is(button,input):focus-visible{outline:2px solid #e4ca8c;outline-offset:3px}
+.friend-add{padding-bottom:20px;border-bottom:1px solid #383329}
+.friend-add label{display:block;font-size:13px;margin-bottom:9px}
+.friend-add>div{display:flex;gap:8px}
+.friend-add input{min-width:0;flex:1;background:#100f0d;border:1px solid #514837;border-radius:6px;padding:10px;font-size:16px}
+.friend-group{margin-top:24px}
+.friend-card,.friend-request{padding:16px;border:1px solid #40382c;border-radius:9px;background:linear-gradient(120deg,#201e19,#191815);margin-top:10px;min-width:0}
+.friend-identity{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+.friend-identity>div{min-width:0;flex:1}
+.friend-identity strong,.friend-request strong{display:block;font-size:15px;overflow-wrap:anywhere}
+.friend-identity small{display:block;font-size:10px;color:#b4aa96;overflow-wrap:anywhere;margin-top:4px}
+.friend-avatar{display:grid;place-items:center;flex:none;width:40px;height:40px;border:1px solid #8b7751;border-radius:50%;background:#302b21;color:#e4c889;font:20px Georgia,serif}
+.friend-online,.friend-offline{display:inline-block;width:6px;height:6px;border-radius:50%;background:#73b190}
+.friend-offline{background:#77756c}
+.friend-ratings{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:1px solid #40382c;border-bottom:1px solid #40382c;padding:12px 0;gap:6px}
+.friend-ratings>div+div{border-left:1px solid #40382c}
+.friend-ratings>div{text-align:center;min-width:0}
+.friend-ratings dt{font-size:11px;overflow-wrap:anywhere}
+.friend-ratings dd{font:500 21px/1.4 ui-monospace,monospace;font-variant-numeric:tabular-nums;color:#e1c88e;margin-top:4px}
+.friends-panel .friend-remove{display:block;margin:8px 0 -8px auto;background:transparent;border-color:transparent;color:#b6ac99}
+.friend-request{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px}
+.friend-request>div{display:flex;gap:8px}
+.friend-confirm{margin-top:14px;font-size:13px}
+.friend-confirm p{margin-bottom:8px}
+.friend-confirm button+button{margin-left:8px}
+.friend-error{border-left:3px solid #c48669;background:#3d2720;padding:12px;font-size:13px;margin-top:16px}
+.friend-notice,.friend-empty{font-size:13px;line-height:1.7;color:#c4b79f;margin-top:14px}
+@media(max-width:400px){.friends-panel{padding:16px}.friend-card{padding:12px}}

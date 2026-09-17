@@ -28,6 +28,10 @@ export interface InternalGameState {
         host?: string;
         joiner?: string;
     };
+    introPending?:boolean;
+    startsAt?: number;
+    serverNow?: number;
+    playerFrames?: {host?:string;joiner?:string};
     board: (number | null)[];
     pieces: Piece[];
     turn: number; // 0 for white (host), 1 for black (joiner)
@@ -58,6 +62,10 @@ export interface PublicGameState {
         host?: string;
         joiner?: string;
     };
+    introPending?:boolean;
+    startsAt?: number;
+    serverNow?: number;
+    playerFrames?: {host?:string;joiner?:string};
     board: (number | null)[];
     pieces: Piece[];
     turn: number;
@@ -94,6 +102,7 @@ export class GameEngine {
     private state: InternalGameState;
     // Map of actionId -> ActionResult for idempotent recovery
     private processedActions = new Map<string, ActionResult>();
+    private introReady=new Set<string>();
 
     constructor(
         matchId: string, 
@@ -101,9 +110,13 @@ export class GameEngine {
         joiner: string, 
         initialBoard: any, 
         timeControl: number = 600,
-        playerNames?: { host?: string; joiner?: string }
+        playerNames?: { host?: string; joiner?: string },
+        introMs=0,
+        waitForIntro=false
     ) {
         this.state = {
+            introPending:waitForIntro,
+            startsAt:Date.now()+Math.max(0,Math.min(4000,introMs)),
             version: 0,
             matchId,
             players: { host, joiner },
@@ -118,7 +131,7 @@ export class GameEngine {
             clock: {
                 white: timeControl * 1000,
                 black: timeControl * 1000,
-                lastMoveAt: Date.now(),
+                lastMoveAt: Date.now()+Math.max(0,Math.min(4000,introMs)),
                 timeControl: timeControl * 1000
             }
         };
@@ -129,11 +142,30 @@ export class GameEngine {
         this.state.playerNames[role] = name;
     }
 
+    public setPlayerAppearance(role:'host'|'joiner',avatar:unknown,frame:unknown) {
+        if(typeof avatar==='string'&&avatar.length<=2048) {
+            try { if(new URL(avatar).protocol==='https:') (this.state.playerAvatars??={})[role]=avatar; } catch { /* Invalid URL is ignored. */ }
+        }
+        if(typeof frame==='string'&&/^(standard|avatar-frame-(0[1-9]|1[0-5]))$/.test(frame)) (this.state.playerFrames??={})[role]=frame;
+    }
+
+    public acknowledgeIntro(playerId:string):boolean {
+        if(playerId!==this.state.players.host&&playerId!==this.state.players.joiner)return false;
+        this.introReady.add(playerId);
+        return this.introReady.size===2?this.completeIntro():false;
+    }
+    public completeIntro():boolean {
+        if(!this.state.introPending||this.state.gameOver)return false;
+        this.state.introPending=false;
+        this.state.startsAt=Date.now()+250;
+        this.state.clock.lastMoveAt=this.state.startsAt;
+        return true;
+    }
     public checkTimeout(): boolean {
-        if (this.state.gameOver) return false;
+        if (this.state.gameOver || this.state.introPending || Date.now() < (this.state.startsAt??0)) return false;
         
         const now = Date.now();
-        const elapsed = now - this.state.clock.lastMoveAt;
+        const elapsed = Math.max(0,now - this.state.clock.lastMoveAt);
         
         if (this.state.turn === 0) {
             if (this.state.clock.white - elapsed <= 0) {
@@ -159,6 +191,7 @@ export class GameEngine {
         if (action.playerId !== this.state.players.host && action.playerId !== this.state.players.joiner) {
             return { success: false, message: 'Not a participant' };
         }
+        if(action.action.type==='MOVE'&&(this.state.introPending||Date.now()<(this.state.startsAt??0))) return {success:false,message:'Match is preparing'};
         // Return cached result if idempotent
         if (this.processedActions.has(action.actionId)) {
             return this.processedActions.get(action.actionId)!;
@@ -196,7 +229,7 @@ export class GameEngine {
         if (result) {
             // Deduct time for the player who just moved
             const now = Date.now();
-            const elapsed = now - this.state.clock.lastMoveAt;
+            const elapsed = Math.max(0,now - this.state.clock.lastMoveAt);
             if (turnBefore === 0) {
                 this.state.clock.white -= elapsed;
             } else {
@@ -278,7 +311,10 @@ export class GameEngine {
             gameOver: this.state.gameOver,
             gameOverReason: this.state.gameOverReason,
             lastAction: this.state.history.length > 0 ? this.state.history[this.state.history.length - 1] : null,
-            clock: this.state.clock
+            introPending:this.state.introPending,startsAt:this.state.startsAt,serverNow:Date.now(),playerFrames:this.state.playerFrames,
+            clock:{...this.state.clock,
+                white:Math.max(0,this.state.clock.white-(!this.state.introPending&&!this.state.gameOver&&this.state.turn===0?Math.max(0,Date.now()-this.state.clock.lastMoveAt):0)),
+                black:Math.max(0,this.state.clock.black-(!this.state.introPending&&!this.state.gameOver&&this.state.turn===1?Math.max(0,Date.now()-this.state.clock.lastMoveAt):0))}
         };
     }
 }

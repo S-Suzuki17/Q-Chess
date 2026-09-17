@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { BOSSES, emptyCampaign, bossUnlocked, rewardUnlocked, outcomeStars, finishBoss, equipReward, parseCampaign } from './campaign';
-const win = {won:true,draw:false,playerMoves:14,hintsUsed:0};
+const win = {won:true,draw:false,playerMoves:14,hintsUsed:0,initialSeconds:600,remainingSeconds:420};
 describe('campaign progression and cosmetic rewards', () => {
     it('starts with only the opening round available', () => {
         expect(BOSSES.map(boss=>bossUnlocked(emptyCampaign(),boss.id))).toEqual([true,false,false,false]);
@@ -26,7 +26,7 @@ describe('campaign progression and cosmetic rewards', () => {
         expect(finishBoss(progress,'nox',{...win,hintsUsed:1,playerMoves:30})).toEqual(progress);
     });
     it('makes medals optional for unlocking the next boss', () => {
-        const progress=finishBoss(emptyCampaign(),'nox',{...win,hintsUsed:2,playerMoves:40});
+        const progress=finishBoss(emptyCampaign(),'nox',{...win,hintsUsed:2,playerMoves:40,remainingSeconds:299});
         expect(progress.stars.nox).toBe(1);
         expect(bossUnlocked(progress,'ember')).toBe(true);
         expect(outcomeStars({...win,won:false})).toBe(0);

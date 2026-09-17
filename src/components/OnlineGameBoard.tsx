@@ -8,13 +8,15 @@ import { User, TimeControl } from '../types/game';
 import { Language, dict } from '../locales/dict';
 import { QuantumPieceUI } from './QuantumPieceUI';
 import { Board3D } from './Board3D';
+import { MatchResultDialog } from './MatchResultDialog';
+import { MatchIntro } from './MatchIntro';
 import { MatchLayout } from './MatchLayout';
 import { Board2D } from './Board2D';
 import { AdBanner } from './AdBanner';
 import { PieceType } from '../config/gameConfig';
 import { v4 as uuidv4 } from 'uuid';
 import { Token } from '../lib/GameEngine';
-import { filterPossibilities } from '../lib/onlineMovement';
+import { filterPossibilities, onlineKingInCheck } from '../lib/onlineMovement';
 import { supabase } from '../lib/supabaseClient';
 
 export type EmoteType = 'hello' | 'well_played' | 'wow' | 'thinking' | 'resign';
@@ -54,6 +56,35 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
     const { socket, isConnected } = useSocket();
 
     const [gameState, setGameState] = useState<any>(null);
+    const [latency, setLatency] = useState<number | null>(null);
+    const [introDuration,setIntroDuration]=useState(0);
+    const [matchReady,setMatchReady]=useState(true);
+    const introSeen=useRef<string|null>(null);
+    const introCompleted=useRef(false);
+    const [ratings,setRatings]=useState<Record<string,number>>({});
+    const serverOffset=useRef(0);
+    const finishIntro=()=>{
+        introCompleted.current=true;
+        setIntroDuration(0);
+        socket?.emit('intro_ready',{matchId:roomId});
+    };
+    useEffect(()=>{
+        if(!gameState)return;
+        if(gameState.introPending){
+            setMatchReady(false);
+            if(introSeen.current!==roomId&&initialOnlineRole!=='spectator'){
+                introSeen.current=roomId??null;introCompleted.current=false;setIntroDuration(3200);
+            }else if(introCompleted.current)socket?.emit('intro_ready',{matchId:roomId});
+            return;
+        }
+        const assumedDelivery = latency ? latency / 2 : 150;
+        const timeSinceReceipt = performance.now() - (gameState.receivedAt ?? performance.now());
+        const estimatedServerTime = (gameState.serverNow ?? Date.now()) + assumedDelivery + timeSinceReceipt;
+        const wait = Number.isFinite(gameState.startsAt) ? Math.max(0, gameState.startsAt - estimatedServerTime) : 0;
+        setMatchReady(wait===0);
+        const timer=setTimeout(()=>setMatchReady(true),wait);
+        return()=>clearTimeout(timer);
+    },[gameState,roomId,initialOnlineRole,socket,introDuration,latency]);
     // Recover the authoritative side, including matches restored with a stale role.
     const onlineRole = initialOnlineRole === 'spectator' ? 'spectator'
         : user?.id && gameState?.players?.host === user.id ? 'white'
@@ -80,7 +111,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
     }, [socket]);
     const [showMoveHints, setShowMoveHints] = useState<boolean>(true);
     const [showRules, setShowRules] = useState(false);
-    const { is2DView, setIs2DView, boardDesign, boardFinish, pieceFinish, victoryEffect, cycleBoard } = useBoardPreferences();
+    const { is2DView, setIs2DView, boardDesign, boardFinish, pieceFinish, victoryEffect, avatarFrame, cycleBoard } = useBoardPreferences();
     const [showHomeConfirm, setShowHomeConfirm] = useState(false);
     const [viewResetKey, setViewResetKey] = useState(0);
     const [showResignConfirm, setShowResignConfirm] = useState<boolean>(false);
@@ -91,7 +122,6 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
     } | null>(null);
 
     // Latency Measurement
-    const [latency, setLatency] = useState<number | null>(null);
 
     useEffect(() => {
         prevGameStateRef.current = gameState;
@@ -103,10 +133,12 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
         const onPong = (data: { clientTime: number, serverTime: number }) => {
             const currentLatency = Date.now() - data.clientTime;
             setLatency(currentLatency);
+            if(Number.isFinite(data.serverTime))serverOffset.current=data.serverTime-(data.clientTime+Date.now())/2;
         };
         
         socket.on('pong', onPong);
         
+        socket.emit('ping',{clientTime:Date.now()});
         const pingInterval = setInterval(() => {
             socket.emit('ping', { clientTime: Date.now() });
         }, 2000);
@@ -198,44 +230,26 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
         setShowEmoteMenu(false);
     }, [roomId, onlineRole, triggerEmote, socket]);
 
-    // Fetch opponent's display name from Supabase profiles
-    useEffect(() => {
-        let targetId = opponentId;
-        if (!targetId && gameState?.players) {
-            const myId = user?.id || '';
-            const myClean = myId.replace('GUEST-', '');
-            const hostClean = (gameState.players.host || '').replace('GUEST-', '');
-            const joinerClean = (gameState.players.joiner || '').replace('GUEST-', '');
-            targetId = myClean === hostClean ? joinerClean : hostClean;
-        }
-
-        if (!targetId) return;
-
-        const isGuest = targetId.startsWith('GUEST-');
-        if (isGuest) {
-            setFetchedOpponentName(matchText(lang, 'ゲスト', 'Guest'));
-            return;
-        }
-
-        const fetchProfileName = async () => {
-            try {
-                const { data } = await supabase
-                    .from('profiles')
-                    .select('name')
-                    .eq('id', targetId)
-                    .single();
-                if (data?.name) {
-                    setFetchedOpponentName(data.name);
-                } else {
-                    setFetchedOpponentName(matchText(lang, 'プレイヤー', 'Player'));
-                }
-            } catch (e) {
-                setFetchedOpponentName(matchText(lang, 'プレイヤー', 'Player'));
+    // The current time-control rating is public profile data, never a guessed value.
+    const hostId=gameState?.players?.host as string|undefined,joinerId=gameState?.players?.joiner as string|undefined;
+    useEffect(()=>{
+        let cancelled=false;
+        const ids=[hostId,joinerId].filter((id):id is string=>!!id&&!id.startsWith('GUEST-'));
+        if(!ids.length)return;
+        const column=timeControl==='10s'?'rating_10s':timeControl==='3m'?'rating_3m':'rating_10m';
+        void (async()=>{
+            const {data,error}=await supabase.from('profiles').select('id,name,'+column).in('id',ids);
+            if(cancelled||error)return;
+            const next:Record<string,number>={};
+            for(const row of data??[]){
+                const profile=row as unknown as Record<string,unknown>,rating=profile[column];
+                if(typeof rating==='number'&&Number.isFinite(rating)&&rating>=0)next[String(profile.id)]=rating;
+                if(profile.id!==user?.id&&typeof profile.name==='string')setFetchedOpponentName(profile.name);
             }
-        };
-
-        fetchProfileName();
-    }, [opponentId, gameState?.players, user?.id, lang]);
+            setRatings(next);
+        })();
+        return()=>{cancelled=true;};
+    },[hostId,joinerId,user?.id,timeControl]);
 
     // Connect & Sync on mount or reconnection
     useEffect(() => {
@@ -243,7 +257,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
 
         const syncMatch = () => {
             console.log('[OnlineGameBoard] Connecting/Syncing match:', roomId, 'User:', user?.name);
-            socket.emit('connect_match', { matchId: roomId, userName: user?.name, avatarUrl: user?.avatar_url });
+            socket.emit('connect_match', { matchId: roomId, userName: user?.name, avatarUrl: user?.avatar_url,avatarFrame,introVersion:1 });
             socket.emit('request_sync', { matchId: roomId });
         };
 
@@ -251,10 +265,10 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
 
         const onMatchStart = (state: any) => {
             console.log('[OnlineGameBoard] match_start received:', state);
-            setGameState(state);
+            setGameState({...state,receivedAt:performance.now()});
         };
         const onSyncState = (state: any) => {
-            setGameState(state);
+            setGameState({...state, receivedAt: performance.now()});
             playPickupSound();
         setTimeout(() => playLandingSound(), 400);
             if (disconnectTimerRef.current) {
@@ -327,7 +341,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
                 disconnectTimerRef.current = null;
             }
         };
-    }, [socket, roomId, isConnected, user?.name, playMoveSound, triggerEmote]);
+    }, [socket, roomId, isConnected, user?.name, user?.avatar_url, avatarFrame, playMoveSound, triggerEmote]);
 
     // Timer sync
     useEffect(() => {
@@ -342,9 +356,13 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
             return;
         }
 
-        const localStartTime = Date.now();
+        const localStartTime = gameState.receivedAt??performance.now();
+        const startDelay=Number.isFinite(gameState.startsAt)&&Number.isFinite(gameState.serverNow)?Math.max(0,gameState.startsAt-gameState.serverNow):0;
         const updateClocks = () => {
-            const elapsed = Date.now() - localStartTime;
+            const assumedDelivery = latency ? latency / 2 : 150;
+            const timeSinceReceipt = performance.now() - localStartTime;
+            const estimatedServerTime = (gameState.serverNow ?? Date.now()) + assumedDelivery + timeSinceReceipt;
+            const elapsed = gameState.introPending ? 0 : Number.isFinite(gameState.serverNow) ? Math.max(0, estimatedServerTime - Math.max(gameState.serverNow, gameState.startsAt ?? 0)) : Math.max(0, timeSinceReceipt - startDelay);
             let w = gameState.clock.white;
             let b = gameState.clock.black;
             if (gameState.turn === 0) w -= elapsed;
@@ -355,12 +373,12 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
         };
         
         updateClocks();
-        const interval = setInterval(updateClocks, 1000);
+        const interval = setInterval(updateClocks, 100);
         return () => clearInterval(interval);
-    }, [gameState]);
+    }, [gameState, latency]);
 
     const handleSquareClick = (targetRow: number, targetCol: number) => {
-        if (!gameState || gameState.gameOver || onlineRole === 'spectator') return;
+        if (!matchReady || !gameState || gameState.gameOver || onlineRole === 'spectator') return;
 
         setErrorMsg(null);
 
@@ -505,6 +523,17 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
         return 'draw';
     }, [gameState]);
 
+    const isCheck=useMemo(()=>!!gameState && !winner && onlineKingInCheck(gameState.board,gameState.pieces,gameState.turn),[gameState,winner]);
+    const [showCheckWarning,setShowCheckWarning]=useState(false);
+    // Clock/socket updates must not restart the animation; a new move must.
+    const checkEvent=tokens.map(token=>`${token.id}:${token.row},${token.col}:${token.isCaptured}`).join('|');
+    useEffect(()=>{
+        setShowCheckWarning(isCheck);
+        if (!isCheck) return;
+        const timer=setTimeout(()=>setShowCheckWarning(false),2500);
+        return ()=>clearTimeout(timer);
+    },[isCheck,checkEvent]);
+
     const formatTime = (seconds: number) => {
         const m = Math.floor(seconds / 60);
         const s = seconds % 60;
@@ -531,8 +560,8 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
     const opponentServerName = isHost ? joinerServerName : hostServerName;
     const resolvedOpponent = getOpponentLabel(opponentId, opponentServerName, fetchedOpponentName);
 
-    const whiteName = isHost ? (user?.name || playerLabel) : resolvedOpponent;
-    const blackName = !isHost ? (user?.name || playerLabel) : resolvedOpponent;
+    const whiteName = onlineRole==='spectator'?(hostServerName||playerLabel):isHost ? (user?.name || playerLabel) : resolvedOpponent;
+    const blackName = onlineRole==='spectator'?(joinerServerName||playerLabel):!isHost ? (user?.name || playerLabel) : resolvedOpponent;
     const playerName = isHost ? whiteName : blackName;
     const opponentName = isHost ? blackName : whiteName;
 
@@ -557,9 +586,9 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
         <MatchLayout
             victory={onlineRole!=='spectator' && winner===`${onlineRole}_wins`} victoryEffect={victoryEffect}
             lang={lang} mode={matchText(lang, 'オンライン対局', 'ONLINE MATCH')}
-            white={{name:whiteName,clock:formatTime(timeLeftWhite),avatar:isHost ? (user?.avatar_url || hostAvatarUrl) : hostAvatarUrl,emote:activeEmotes.white ? EMOTES[activeEmotes.white].emoji : undefined}}
-            black={{name:blackName,clock:formatTime(timeLeftBlack),avatar:!isHost ? (user?.avatar_url || joinerAvatarUrl) : joinerAvatarUrl,emote:activeEmotes.black ? EMOTES[activeEmotes.black].emoji : undefined}}
-            bottomSide={bottomPlayer} currentTurn={currentTurn} spectator={onlineRole === 'spectator'} finished={!!winner} checkmate={!!winner && gameState.gameOverReason === 'checkmate'}
+            white={{name:whiteName,clock:formatTime(timeLeftWhite),rating:ratings[hostId??''],frame:isHost?avatarFrame:gameState.playerFrames?.host,avatar:isHost ? (user?.avatar_url || hostAvatarUrl) : hostAvatarUrl,emote:activeEmotes.white ? EMOTES[activeEmotes.white].emoji : undefined}}
+            black={{name:blackName,clock:formatTime(timeLeftBlack),rating:ratings[joinerId??''],frame:onlineRole==='black'?avatarFrame:gameState.playerFrames?.joiner,avatar:onlineRole==='black' ? (user?.avatar_url || joinerAvatarUrl) : joinerAvatarUrl,emote:activeEmotes.black ? EMOTES[activeEmotes.black].emoji : undefined}}
+            bottomSide={bottomPlayer} currentTurn={currentTurn} spectator={onlineRole === 'spectator'} finished={!!winner} resultVisible={showGameOver} checkNotice={showCheckWarning&&!winner?t.check:undefined} checkEvent={checkEvent} checkmate={!!winner && gameState.gameOverReason === 'checkmate'}
             tokens={tokens} selectedTokenId={selectedTokenId} 
             validMoveCount={validMoves.length} onClearSelection={() => setSelectedTokenId(null)}
             is2D={is2DView} onViewChange={setIs2DView}
@@ -567,7 +596,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
             onThemeChange={cycleBoard}
             onHome={() => setShowHomeConfirm(true)} onRules={() => setShowRules(true)} onResign={() => setShowResignConfirm(true)}
             showMoveHints={showMoveHints} onHintsChange={setShowMoveHints}
-            notice={disconnectTimeLeft !== null ? (matchText(lang, '再接続を待っています… ', 'Waiting for reconnection… ')) + disconnectTimeLeft + 's' : errorMsg || undefined}
+            notice={!matchReady ? t.adCloudTitle : disconnectTimeLeft !== null ? (matchText(lang, '再接続を待っています… ', 'Waiting for reconnection… ')) + disconnectTimeLeft + 's' : errorMsg || undefined}
             board={is2DView ? (
                     <Board2D quietLayout boardDesign={boardDesign} boardFinish={boardFinish}
                     tokens={tokens}
@@ -577,7 +606,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
                     opponentSelectedTokenId={opponentSelectedId}
                     validMoves={validMoves}
                     moveHistory={[]} 
-                    showCheckWarning={false}
+                    showCheckWarning={showCheckWarning}
                     onSquareClick={handleSquareClick}
                     showMoveHints={showMoveHints}
                     currentTurn={currentTurn}
@@ -591,27 +620,18 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
                     opponentSelectedTokenId={opponentSelectedId}
                     validMoves={validMoves}
                     moveHistory={[]} 
-                    showCheckWarning={false}
+                    showCheckWarning={showCheckWarning}
                     onSquareClick={handleSquareClick}
                     showMoveHints={showMoveHints}
                     currentTurn={currentTurn}
                 />
                 )}
         >
+            {introDuration>0&&<MatchIntro lang={lang} label={timeControl==='10s'?t.tc10s:timeControl==='3m'?t.tc3m:t.tc10m} duration={introDuration} onDone={finishIntro}
+                white={{name:whiteName,avatar:isHost?user?.avatar_url||hostAvatarUrl:hostAvatarUrl,frame:isHost?avatarFrame:gameState.playerFrames?.host,rating:ratings[hostId??'']}}
+                black={{name:blackName,avatar:onlineRole==='black'?user?.avatar_url||joinerAvatarUrl:joinerAvatarUrl,frame:onlineRole==='black'?avatarFrame:gameState.playerFrames?.joiner,rating:ratings[joinerId??'']}}/>}
             {winner && showGameOver && (
-                <div className="absolute inset-0 bg-[#11100E]/90 flex flex-col items-center justify-center z-50 backdrop-blur-sm rounded-lg border border-[#B39A62]/20">
-                    <div className="flex flex-col items-center gap-6 px-6 max-w-full">
-                        <div className="text-3xl sm:text-4xl md:text-5xl font-serif font-bold text-[#E8E2D7] tracking-[0.2em] text-center animate-stamp">
-                            {winner === 'draw' ? t.draw : gameState.gameOverReason === 'checkmate' ? t.checkmate : matchText(lang,'対局終了','Match complete')}
-                        </div>
-                        <div className="w-16 h-px bg-[#B39A62]/50"></div>
-                        <div className={`text-base sm:text-lg md:text-xl font-serif tracking-widest text-center ${winner === 'draw' ? 'text-[#A89C86]' : (winner === 'white_wins' && onlineRole === 'white') || (winner === 'black_wins' && onlineRole === 'black') ? 'text-[#E8E2D7]' : 'text-[#A89C86]'}`}>
-                            {winner === 'draw' 
-                                ? t.draw
-                                : (winner === 'white_wins' && onlineRole === 'white') || (winner === 'black_wins' && onlineRole === 'black')
-                                    ? (matchText(lang, '勝利 (YOU WIN)', 'YOU WIN!'))
-                                    : (matchText(lang, '敗北 (YOU LOSE)', 'YOU LOSE...'))}
-                        </div>
+                <MatchResultDialog lang={lang} winner={winner} side={onlineRole??'spectator'}>
                         <div className="flex flex-wrap gap-3 mt-4 justify-center">
                             <button 
                                 onClick={() => window.location.reload()}
@@ -620,8 +640,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
                                 {t.home || 'HOME'}
                             </button>
                         </div>
-                    </div>
-                </div>
+                </MatchResultDialog>
             )}
 
             {/* Resign Confirmation Modal */}
@@ -708,10 +727,10 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
                     <div className="bg-[#161513] border border-[#B39A62]/30 rounded-xl p-8 max-w-sm w-full shadow-2xl flex flex-col items-center text-center">
                         <span className="text-4xl mb-3">🏳️</span>
                         <h3 className="text-lg font-bold text-[#E8E2D7] mb-2">
-                            {matchText(lang, '投了しますか？', 'Resign Match?')}
+                            {matchText(lang, 'リザインしますか？', 'Resign Match?')}
                         </h3>
                         <p className="text-sm text-gray-400 mb-6">
-                            {matchText(lang, '投了すると相手の勝利となります。本当に対局を終了しますか？', 'Resigning will forfeit the match to your opponent. Are you sure?')}
+                            {matchText(lang, 'リザインすると相手の勝利となります。本当に対局を終了しますか？', 'Resigning will forfeit the match to your opponent. Are you sure?')}
                         </p>
                         <div className="flex gap-3 w-full">
                             <button
@@ -727,7 +746,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
                                 }}
                                 className="flex-1 py-2.5 bg-red-600 hover:bg-red-500 rounded-lg text-sm text-[#E8E2D7] font-bold transition-colors shadow-lg shadow-red-600/30"
                             >
-                                {matchText(lang, '投了する', 'Resign')}
+                                {matchText(lang, 'リザインする', 'Resign')}
                             </button>
                         </div>
                     </div>
@@ -785,7 +804,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
                                 className="flex items-center gap-3 px-4 py-2 hover:bg-[#2A2621] rounded transition-colors whitespace-nowrap text-left border-b border-[#A89C86]/30 pb-2 mb-2"
                             >
                                 <span className="text-2xl">🏳️</span>
-                                <span className="text-[#E8E2D7] text-sm font-bold">{matchText(lang, '投了', 'Resign')}</span>
+                                <span className="text-[#E8E2D7] text-sm font-bold">{matchText(lang, 'リザイン', 'Resign')}</span>
                             </button>
                             {(Object.keys(EMOTES) as EmoteType[]).map(key => (
                                 <button

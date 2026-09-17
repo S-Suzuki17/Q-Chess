@@ -48,9 +48,9 @@ try {
         assert.equal(await page.locator('.board-3d').getAttribute('data-board-finish'), 'standard');
         await page.screenshot({ path: resolve(output, `match-black-${viewport.width}.png`) });
         await page.locator('.match-resign').click();
-        await page.getByRole('button', { name: '投了する', exact: true }).click();
+        await page.getByRole('button', { name: 'リザインする', exact: true }).click();
         await page.locator('dialog.campaign-result[open]').waitFor();
-        assert.equal(await page.locator('#campaign-result-title').innerText(), '再挑戦');
+        assert.equal(await page.locator('#campaign-result-title').innerText(), 'YOU LOSE (敗北)...');
         assert.equal(await page.locator('.campaign-reward-earned').count(), 0);
         assert.deepEqual(await page.evaluate(() => JSON.parse(localStorage.getItem('qg_campaign_v1')).stars), {});
         await page.screenshot({ path: resolve(output, `loss-${viewport.width}.png`) });

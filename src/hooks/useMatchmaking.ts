@@ -31,7 +31,7 @@ export function useMatchmaking(user: User | null) {
             console.log('[Matchmaking] Match found!', data);
             
             // Inform the server we are connecting with our username
-            socket.emit('connect_match', { matchId: data.matchId, userName: user?.name });
+            socket.emit('connect_match', { matchId: data.matchId, userName: user?.name,introVersion:1 });
 
             setMatchedRoom({
                 id: data.matchId,

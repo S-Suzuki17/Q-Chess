@@ -142,9 +142,10 @@ io.on('connection', (socket: Socket) => {
     matchmaking.leaveQueue(userId);
   });
 
-  socket.on('connect_match', (data: { matchId: string, userName?: string, avatarUrl?: string }) => {
-    const result = matchmaking.connectMatch(userId, data.matchId, data.userName, data.avatarUrl);
+  socket.on('connect_match', (data: { matchId: string, userName?: string, avatarUrl?: string, avatarFrame?:string,introVersion?:number }) => {
+    const result = matchmaking.connectMatch(userId, data.matchId, data.userName, data.avatarUrl, data.avatarFrame,data.introVersion);
     
+    if(!result.success)return;
     socket.join(data.matchId);
 
     if (result.success && result.engine) {
@@ -168,6 +169,11 @@ io.on('connection', (socket: Socket) => {
           socket.emit('sync_state', publicState);
       }
     }
+  });
+
+  socket.on('intro_ready',(data:{matchId:string})=>{
+    const match=matchmaking.getMatch(data.matchId);
+    if(match?.engine?.acknowledgeIntro(userId))io.to(data.matchId).emit('sync_state',match.engine.getPublicState(userId));
   });
 
   socket.on('emote', (data: { roomId?: string, matchId?: string, emote: string, player?: string }) => {

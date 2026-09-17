@@ -240,6 +240,7 @@ export async function ensureProfile(id: string, name: string): Promise<Profile |
 // ─── Friend System ───
 
 export async function sendFriendRequest(userId: string, friendId: string): Promise<boolean> {
+    if(!/^[a-zA-Z0-9_-]{1,128}$/.test(userId)||!/^[a-zA-Z0-9_-]{1,128}$/.test(friendId)||userId===friendId) return false;
     const { error } = await supabase
         .from('friends')
         .insert({ user_id: userId, friend_id: friendId, status: 'pending' });
@@ -251,35 +252,32 @@ export async function sendFriendRequest(userId: string, friendId: string): Promi
 }
 
 export async function acceptFriendRequest(userId: string, friendId: string): Promise<boolean> {
-    const { error } = await supabase
+    const { data,error } = await supabase
         .from('friends')
         .update({ status: 'accepted' })
-        .match({ user_id: friendId, friend_id: userId, status: 'pending' });
-    
-    // Also create the reverse relationship for easy querying
-    if (!error) {
-        await supabase.from('friends').insert({ user_id: userId, friend_id: friendId, status: 'accepted' });
-        return true;
-    }
-    return false;
+        .match({ user_id: friendId, friend_id: userId, status: 'pending' }).select('id');
+    // Both directions are already queried. Never create a second friendship.
+    return !error&&!!data?.length;
 }
 
 export async function removeFriend(userId: string, friendId: string): Promise<boolean> {
-    const { error } = await supabase
+    if(!/^[a-zA-Z0-9_-]{1,128}$/.test(userId)||!/^[a-zA-Z0-9_-]{1,128}$/.test(friendId)) return false;
+    const { data,error } = await supabase
         .from('friends')
         .delete()
-        .or(`and(user_id.eq.${userId},friend_id.eq.${friendId}),and(user_id.eq.${friendId},friend_id.eq.${userId})`);
-    return !error;
+        .or(`and(user_id.eq.${userId},friend_id.eq.${friendId}),and(user_id.eq.${friendId},friend_id.eq.${userId})`).select('id');
+    return !error&&!!data?.length;
 }
 
 export async function getFriends(userId: string): Promise<Friend[]> {
+    if(!/^[a-zA-Z0-9_-]{1,128}$/.test(userId)) throw new Error('Invalid friend directory identity');
     const { data, error } = await supabase
         .from('friends')
-        .select('*')
+        .select('id,user_id,friend_id,status,created_at')
         .or(`user_id.eq.${userId},friend_id.eq.${userId}`);
     if (error) {
         console.error('Error fetching friends:', error);
-        return [];
+        throw new Error('Friend directory unavailable');
     }
     return data || [];
 }

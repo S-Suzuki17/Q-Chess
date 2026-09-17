@@ -1,11 +1,14 @@
 import { cpuDifficulty, type CPULevel, type CPUSearchProfile } from './cpuDifficulty';
 import type { QoppeliaWeights } from '../quantum-engine/ai/evalQoppelia';
-import { championshipReward, type ChampionBoardId, type ChampionEffectId } from './championshipRewards';
+import { championshipReward, CHAMPIONSHIP_REWARDS, referencePieceForBoard, type ChampionBoardId, type ChampionEffectId, type ChampionPieceId, type ChampionMusicId } from './championshipRewards';
+import { circuitMusic, type MusicReward } from './circuitMusic';
+import { avatarFrame,type AvatarFrameId } from './avatarFrames';
+import { parseStageStars } from './circuitStages';
 
 export type BossId = 'nox' | 'ember' | 'oracle' | 'sovereign';
 export type CPUPersonality = 'balanced' | 'attacker' | 'guardian';
-export type BoardFinish = 'standard' | 'slate' | 'obsidian' | ChampionBoardId;
-export type PieceFinish = 'standard' | 'copper' | 'jade';
+export type BoardFinish = 'standard' | 'slate' | 'obsidian' | 'walnut' | 'mahogany' | 'marble' | ChampionBoardId;
+export type PieceFinish = 'standard' | 'iceglass' | 'neonglass' | 'copper' | 'jade' | 'boxwood' | 'ebony' | 'alabaster' | 'bronze' | 'silver' | 'gold' | 'crystal' | ChampionPieceId;
 export type VictoryFinish = 'standard' | ChampionEffectId;
 export const CAMPAIGN_STORAGE_KEY = 'qg_campaign_v1';
 export const PERSONALITY_WEIGHTS: Record<CPUPersonality, Partial<QoppeliaWeights>> = {
@@ -14,10 +17,10 @@ export const PERSONALITY_WEIGHTS: Record<CPUPersonality, Partial<QoppeliaWeights
     guardian: {pieceValue:1, originValue:.015, mobility:.025, safety:1.25, candidateAllocation:1.15, kingCandidate:1.6},
 };
 export const BOSSES: readonly {id:BossId; name:string; symbol:string; level:CPULevel; personality:CPUPersonality; reward:BoardFinish | PieceFinish; rewardKind:'board'|'piece'}[] = [
-    {id:'nox', name:'NOX', symbol:'♞', level:1, personality:'balanced', reward:'slate', rewardKind:'board'},
-    {id:'ember', name:'EMBER', symbol:'♜', level:3, personality:'attacker', reward:'copper', rewardKind:'piece'},
-    {id:'oracle', name:'ORACLE', symbol:'♝', level:3, personality:'guardian', reward:'obsidian', rewardKind:'board'},
-    {id:'sovereign', name:'SOVEREIGN', symbol:'♛', level:5, personality:'balanced', reward:'jade', rewardKind:'piece'},
+    {id:'nox', name:'NOX', symbol:'♞', level:1, personality:'balanced', reward:'mahogany', rewardKind:'board'},
+    {id:'ember', name:'EMBER', symbol:'♜', level:3, personality:'attacker', reward:'ebony', rewardKind:'piece'},
+    {id:'oracle', name:'ORACLE', symbol:'♝', level:3, personality:'guardian', reward:'marble', rewardKind:'board'},
+    {id:'sovereign', name:'SOVEREIGN', symbol:'♛', level:5, personality:'balanced', reward:'alabaster', rewardKind:'piece'},
 ];
 
 export interface CampaignProgress {
@@ -27,9 +30,13 @@ export interface CampaignProgress {
     board:BoardFinish;
     piece:PieceFinish;
     effect:VictoryFinish;
+    music:MusicReward;
+    stageStars?:number[];
+    avatar?:'standard'|AvatarFrameId;
 }
-export interface CampaignOutcome { won:boolean; draw:boolean; playerMoves:number; hintsUsed:number }
-export const emptyCampaign = (): CampaignProgress => ({version:2,stars:{},ascensions:[],board:'standard',piece:'standard',effect:'standard'});
+export interface CampaignOutcome { won:boolean; draw:boolean; playerMoves:number; hintsUsed:number; initialSeconds:number; remainingSeconds:number }
+export const emptyCampaign = (): CampaignProgress => ({version:2,stars:{},ascensions:[],board:'standard',piece:'standard',effect:'standard',music:'standard',stageStars:[],avatar:'standard'});
+export const rewardClearCount=(progress:CampaignProgress)=>Math.max(progress.stageStars?.length??0,highestUnlockedLap(progress)-1);
 export const lapStars = (progress:CampaignProgress, lap=1) => lap===1 ? progress.stars : progress.ascensions[lap-2] ?? {};
 export const lapCleared = (progress:CampaignProgress, lap=1) => BOSSES.every(boss=>!!lapStars(progress,lap)[boss.id]);
 export function highestUnlockedLap(progress:CampaignProgress) {
@@ -43,11 +50,27 @@ export function bossUnlocked(progress: CampaignProgress, id: BossId, lap=1) {
     return index >= 0 && (index === 0 || !!lapStars(progress,lap)[BOSSES[index-1].id]);
 }
 export function rewardUnlocked(progress: CampaignProgress, reward: string) {
+    if (reward==='standard'||reward==='walnut'||reward==='boxwood') return true;
+    if(reward==='iceglass'||reward==='neonglass')return rewardClearCount(progress)>=(reward==='iceglass'?95:99);
+    const frame=avatarFrame(reward);
+    if(frame) return rewardClearCount(progress)>=frame.requiredWins;
+    const legacyBoss={slate:'nox',copper:'ember',obsidian:'oracle',jade:'sovereign'} as const;
+    if (reward in legacyBoss) return !!progress.stars[legacyBoss[reward as keyof typeof legacyBoss]];
+    const music=circuitMusic(reward);
+    if (music) return music.boss ? !!progress.stars[music.boss] : music.requiredWins<=highestUnlockedLap(progress)-1;
     const championship=championshipReward(reward);
-    return reward === 'standard' || (championship ? championship.requiredWins<highestUnlockedLap(progress) : BOSSES.some(boss => boss.reward === reward && !!progress.stars[boss.id]));
+    if (reward === 'bronze') return highestUnlockedLap(progress)-1>=3;
+    if (reward === 'silver') return highestUnlockedLap(progress)-1>=5;
+    if (reward === 'gold') return highestUnlockedLap(progress)-1>=7;
+    if (reward === 'crystal') return highestUnlockedLap(progress)-1>=10;
+    return championship ? championship.requiredWins<=(CHAMPIONSHIP_REWARDS.some(item=>item.id===reward)?rewardClearCount(progress):highestUnlockedLap(progress)-1) : BOSSES.some(boss => boss.reward === reward && !!progress.stars[boss.id]);
 }
 export function outcomeStars(outcome: CampaignOutcome) {
-    return outcome.won ? 1 + Number(outcome.hintsUsed === 0) + Number(outcome.playerMoves <= 20) : 0;
+    return outcome.won && !outcome.draw ? 1 + Number(outcome.hintsUsed === 0) + Number(timeStarEarned(outcome)) : 0;
+}
+export function timeStarEarned({initialSeconds,remainingSeconds}: Pick<CampaignOutcome,'initialSeconds'|'remainingSeconds'>) {
+    return Number.isFinite(initialSeconds) && initialSeconds>0 && Number.isFinite(remainingSeconds)
+        && remainingSeconds<=initialSeconds && remainingSeconds>=initialSeconds/2;
 }
 export function finishBoss(progress: CampaignProgress, id: BossId, outcome: CampaignOutcome, lap=1): CampaignProgress {
     if (!outcome.won || outcome.draw || !bossUnlocked(progress,id,lap)) return progress;
@@ -84,13 +107,19 @@ export function mergeCampaignProgress(current:CampaignProgress,saved:CampaignPro
         const best=Math.max(a[boss.id]??0,b[boss.id]??0);
         return best ? [[boss.id,best]] : [];
     }));
-    return {...saved,stars:mergeStars(current.stars,saved.stars),ascensions:Array.from({length:Math.max(current.ascensions.length,saved.ascensions.length)},(_,index)=>mergeStars(current.ascensions[index]??{},saved.ascensions[index]??{}))};
+    return {...saved,stageStars:Array.from({length:Math.max(current.stageStars?.length??0,saved.stageStars?.length??0)},(_,index)=>Math.max(current.stageStars?.[index]??0,saved.stageStars?.[index]??0)),stars:mergeStars(current.stars,saved.stars),ascensions:Array.from({length:Math.max(current.ascensions.length,saved.ascensions.length)},(_,index)=>mergeStars(current.ascensions[index]??{},saved.ascensions[index]??{}))};
 }
-export function equipReward(progress: CampaignProgress, kind:'board'|'piece'|'effect', value: string): CampaignProgress {
+export function equipReward(progress: CampaignProgress, kind:'board'|'piece'|'effect'|'music'|'avatar', value: string): CampaignProgress {
+    if(kind==='avatar') return (value==='standard'||avatarFrame(value))&&rewardUnlocked(progress,value)?{...progress,avatar:value as CampaignProgress['avatar']}:progress;
     const championship=championshipReward(value);
-    if (championship) return championship.kind===kind && rewardUnlocked(progress,value) ? {...progress,[kind]:value} : progress;
+    if (championship) {
+        if(championship.kind!==kind||!rewardUnlocked(progress,value))return progress;
+        const paired=kind==='board'?referencePieceForBoard(value):undefined;
+        return {...progress,[kind]:value,...(paired?{piece:paired}:{})};
+    }
+    if (kind==='music') return (value==='standard'||circuitMusic(value)) && rewardUnlocked(progress,value) ? {...progress,music:value as MusicReward} : progress;
     if (kind==='effect') return value==='standard' ? {...progress,effect:'standard'} : progress;
-    const valid = kind === 'board' ? ['standard','slate','obsidian'] : ['standard','copper','jade'];
+    const valid = kind === 'board' ? ['standard','slate','obsidian','walnut','mahogany','marble'] : ['standard','iceglass','neonglass','copper','jade','boxwood','ebony','alabaster','bronze','silver','gold','crystal'];
     return valid.includes(value) && rewardUnlocked(progress,value) ? {...progress,[kind]:value} : progress;
 }
 /** Defensive parsing; old, corrupt, locked or unknown equipment never enters rendering. */
@@ -119,23 +148,44 @@ export function parseCampaign(raw: string | null): CampaignProgress {
                 if (Object.keys(stars).length<BOSSES.length) break;
             }
         }
+        progress.stageStars=Array.isArray(input.stageStars)?parseStageStars(input.stageStars):Array.from({length:Math.min(100,highestUnlockedLap(progress)-1)},()=>1);
+        progress = equipReward(progress,'avatar',input.avatar);
         progress = equipReward(progress,'board',input.board);
         progress = equipReward(progress,'piece',input.piece);
-        return equipReward(progress,'effect',input.effect);
+        progress = equipReward(progress,'effect',input.effect);
+        return equipReward(progress,'music',input.music);
     } catch { return emptyCampaign(); }
 }
 
 export const REWARD_BOARDS = {
-    slate:{light:'#b6cad1',dark:'#415769',frame:'#172b38',rim:'#a9cbd8',label:'#dfedf4'},
-    obsidian:{light:'#b7afc9',dark:'#373348',frame:'#201d2b',rim:'#b6a0d1',label:'#ece0ff'},
+    slate:{light:'#bec3ba',dark:'#566362',frameColor:'#25363b',rim:'#a1b7bc',label:'#dde8dd'},
+    obsidian:{light:'#c6c7c4',dark:'#373b40',frameColor:'#171d24',rim:'#a8adb6',label:'#e6e8e7'},
+    walnut:{light:'#d1b992',dark:'#574132',frameColor:'#30261f',rim:'#b69a64',label:'#eee0bf'},
+    mahogany:{light:'#c4a482',dark:'#6a2c20',frameColor:'#2b130e',rim:'#a67c52',label:'#e8d8c8'},
+    marble:{light:'#cbd0c8',dark:'#51625c',frameColor:'#303e39',rim:'#a7b7a7',label:'#e3e8d7'},
 } as const;
 export function rewardBoard(finish:BoardFinish) {
     const championship=championshipReward(finish);
     if (championship?.kind==='board') return championship;
-    return finish==='slate'||finish==='obsidian' ? REWARD_BOARDS[finish] : undefined;
+    return finish in REWARD_BOARDS ? REWARD_BOARDS[finish as keyof typeof REWARD_BOARDS] : undefined;
 }
 export const REWARD_PIECES = {
-    standard:{white:'#f4e9d5',black:'#26374b',metalness:.16,roughness:.30,clearcoat:.55},
-    copper:{white:'#f5dcc1',black:'#8c492f',metalness:.52,roughness:.28,clearcoat:.6},
-    jade:{white:'#d6f1df',black:'#195246',metalness:.12,roughness:.24,clearcoat:.8},
+    iceglass:{white:'#e2f6fa',black:'#9bbad7',metalness:0,roughness:.07,clearcoat:1},
+    neonglass:{white:'#b0e4ea',black:'#ddabd4',metalness:0,roughness:.07,clearcoat:1},
+    boxwood: { white: '#d3c4a1', black: '#323232', metalness: 0, roughness: 0.5, clearcoat: 0.1 },
+    ebony: { white: '#d9cdaa', black: '#232b30', metalness: 0, roughness: 0.34, clearcoat: 0.3 },
+    alabaster: { white: '#f0f0f0', black: '#2b302c', metalness: 0, roughness: 0.25, clearcoat: 1.0 },
+    bronze: { white: '#cd7f32', black: '#3d2b1f', metalness: 1.0, roughness: 0.2, clearcoat: 0.1 },
+    silver: { white: '#dbe0e3', black: '#394750', metalness: 1, roughness: 0.3, clearcoat: 0.1 },
+    gold: { white: '#dfbc76', black: '#443628', metalness: 1, roughness: 0.28, clearcoat: 0.12 },
+    crystal: { white: '#c3e0d9', black: '#214f49', metalness: 0, roughness: 0.24, clearcoat: 0.85 },
 } as const;
+export function rewardPiece(finish: PieceFinish) {
+    const championship = championshipReward(finish);
+    const motif = championship?.kind === 'piece' ? championship.motif : finish;
+    const alias=motif==='copper'?'bronze':motif==='jade'?'crystal':motif==='standard'?'boxwood':motif;
+    const base=REWARD_PIECES[alias as keyof typeof REWARD_PIECES] ?? REWARD_PIECES.boxwood;
+    // Grades refine a finish; they never make wood metallic or dark pieces pure black.
+    const grade=championship?.kind==='piece'?championship.tier:1;
+    return {...base,roughness:Math.max(motif==='iceglass'||motif==='neonglass'?.15:.23,base.roughness-(grade-1)*.008),clearcoat:Math.min(.9,base.clearcoat+(grade-1)*.018)};
+}

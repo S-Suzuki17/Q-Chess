@@ -1,0 +1,51 @@
+'use client';
+import { useEffect, useRef, useState } from 'react';
+import { AccountAvatar } from './AccountAvatar';
+import { Board3D } from './Board3D';
+import { VictoryCelebration } from './VictoryCelebration';
+import { rewardUnlocked, type BoardFinish, type PieceFinish, type VictoryFinish, type CampaignProgress } from '../config/campaign';
+import { rewardName, campaignText } from '../locales/campaignText';
+import { circuitText } from '../locales/circuitText';
+import type { Language } from '../locales/dict';
+import type { Token } from '../lib/GameEngine';
+import type { PieceType } from '../config/gameConfig';
+import { championshipReward, referencePieceForBoard } from '../config/championshipRewards';
+import { rewardCraftText } from '../locales/rewardCraftText';
+
+export type VisualReward={kind:'board'|'piece'|'effect'|'avatar';id:string};
+const types:PieceType[]=['Rook','Knight','Bishop','Queen','King','Pawn'];
+const pieces:Token[]=(['white','black'] as const).flatMap(player=>types.map((type,i)=>({
+    id:`preview-${player}-${type}`,player,row:player==='white'?6:1,col:i+1,
+    probabilities:Object.fromEntries(['King','Queen','Rook','Bishop','Knight','Pawn'].map(key=>[key,Number(key===type)])) as Record<PieceType,number>,
+})));
+const noop=()=>{};
+
+/** Preview is local component state, never a write to the progression/equipment store. */
+export function RewardPreview({lang,reward,progress,onClose,onEquip}:{
+    lang:Language;reward:VisualReward;progress:CampaignProgress;onClose:()=>void;onEquip:(kind:VisualReward['kind'],id:string)=>void;
+}) {
+    const dialog=useRef<HTMLDialogElement>(null);
+    const [run,setRun]=useState(0);
+    const unlocked=rewardUnlocked(progress,reward.id),equipped=progress[reward.kind]===reward.id;
+    const design=championshipReward(reward.id);
+    useEffect(()=>{const node=dialog.current;node?.showModal();return()=>node?.close();},[]);
+    return <dialog ref={dialog} className="reward-preview-dialog" data-reward-motif={design?.motif} aria-labelledby="reward-preview-title" onCancel={event=>{event.preventDefault();onClose();}}>
+        <header><div><small>{circuitText(lang,'preview')}</small><h2 id="reward-preview-title">{rewardName(lang,reward.id)}</h2></div>
+            <button autoFocus onClick={onClose}>{circuitText(lang,'close')}</button></header>
+        <p>{circuitText(lang,'previewOnly')}</p>
+        {design?.kind==='board' && <div className="reward-material-note"><span aria-hidden="true">{[design.frameColor,design.light,design.rim].map(color=><i key={color} style={{background:color}}/>)}</span>{rewardCraftText(lang,design.motif)}</div>}
+        <div className="reward-preview-board" data-testid="reward-preview-board">
+            {reward.kind==='avatar'?<div className="avatar-reward-preview"><AccountAvatar name="Q" frame={reward.id} size={180}/></div>:<Board3D lang={lang} quietLayout boardFinish={(reward.kind==='board'?reward.id:progress.board) as BoardFinish}
+                pieceFinish={(reward.kind==='piece'?reward.id:referencePieceForBoard(reward.id)??progress.piece) as PieceFinish}
+                tokens={pieces} selectedTokenId={null} validMoves={[]} moveHistory={[]} onSquareClick={noop}
+                showMoveHints={false} currentTurn="white" autoRotate={false}/>}
+            {reward.kind==='effect' && <VictoryCelebration key={run} effect={reward.id as VictoryFinish} preview/>}
+        </div>
+        <footer>
+            {reward.kind==='effect' && <button onClick={()=>setRun(value=>value+1)}>{circuitText(lang,'preview')} ▷</button>}
+            <button data-testid="preview-equip" disabled={!unlocked||equipped} onClick={()=>onEquip(reward.kind,reward.id)}>
+                {campaignText(lang,equipped?'equipped':unlocked?'equip':'locked')}
+            </button>
+        </footer>
+    </dialog>;
+}

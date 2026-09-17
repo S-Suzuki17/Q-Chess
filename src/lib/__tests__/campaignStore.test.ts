@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { createCampaignStore } from '../campaignStore';
 import { emptyCampaign, equipReward, finishBoss, parseCampaign } from '../../config/campaign';
 
-const victory = { won: true, draw: false, playerMoves: 12, hintsUsed: 0 };
+const victory = { won: true, draw: false, playerMoves: 12, hintsUsed:0,initialSeconds:600,remainingSeconds:420};
 function memoryStorage() {
     let raw: string | null = null;
     return { getItem: () => raw, setItem: (_key: string, value: string) => { raw = value; } };
