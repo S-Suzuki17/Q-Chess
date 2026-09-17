@@ -4,7 +4,7 @@ import React, { useMemo, useEffect } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { ResilientBoardCanvas } from './ResilientBoardCanvas';
 import { Board2D } from './Board2D';
-import { OrthographicCamera, useGLTF, Billboard, Html, Sparkles } from '@react-three/drei';
+import { OrthographicCamera, useGLTF, Billboard, Html, Sparkles, Edges } from '@react-three/drei';
 import * as THREE from 'three';
 import { Token } from '../lib/GameEngine';
 import { QuantumPieceUI } from './QuantumPieceUI';
@@ -241,8 +241,8 @@ function BoardSquares({ props, enemySelected }: { props: Board3DProps; enemySele
         return <group key={i} position={[col-3.5,0,row-3.5]} onClick={event=>{event.stopPropagation();props.onSquareClick(row,col);}}>
             <mesh position={[0,-.05,0]} receiveShadow>
                   <boxGeometry args={[.994,.1,.994]}/>
-                  <meshPhysicalMaterial color={design==='neon'?'#000000':((row+col)%2===0 ? theme.light : theme.dark)} roughness={design==='neon'?0.05:.76} metalness={design==='neon'?1:.03} clearcoat={design==='neon'?1:0}/>
-                  {design === 'neon' && <Edges threshold={15} color={(row+col)%2===0 ? '#00e5ff' : '#ff00ff'} />}
+                  <meshPhysicalMaterial color={props.boardDesign==='neon'?'#000000':((row+col)%2===0 ? theme.light : theme.dark)} roughness={props.boardDesign==='neon'?0.05:.76} metalness={props.boardDesign==='neon'?1:.03} clearcoat={props.boardDesign==='neon'?1:0}/>
+                  {props.boardDesign === 'neon' && <Edges threshold={15} color={(row+col)%2===0 ? '#00e5ff' : '#ff00ff'} />}
               </mesh>
             {lastSquare && <mesh position={[0,.012,0]} rotation={[-Math.PI/2,0,0]} raycast={ignoreRaycast}>
                 <planeGeometry args={[.98,.98]}/><meshBasicMaterial color="#efcd7a" transparent opacity={.26} depthWrite={false}/>
@@ -361,7 +361,7 @@ export const Board3D: React.FC<Board3DProps> = props => {
             <directionalLight position={[5,6,-5]} intensity={1.5} color="#d5e6ff"/>
             <group>
                 <mesh position={[0,-.3,0]} castShadow receiveShadow><boxGeometry args={[8.85,.38,8.85]}/><meshStandardMaterial color={theme.frame} roughness={'roughness' in theme?theme.roughness:.58} metalness={'metalness' in theme?theme.metalness:0}/></mesh>
-                <mesh position={[0,-.12,0]}><boxGeometry args={[8.78,.04,8.78]}/><meshStandardMaterial color={theme.rim} roughness={.45} metalness={.3} emissive={design==='neon'?theme.rim:'#000000'} emissiveIntensity={.35}/></mesh>
+                <mesh position={[0,-.12,0]}><boxGeometry args={[8.78,.04,8.78]}/><meshStandardMaterial color={theme.rim} roughness={.45} metalness={.3} emissive={props.boardDesign==='neon'?theme.rim:'#000000'} emissiveIntensity={.35}/></mesh>
                 <mesh position={[0,-.07,0]} receiveShadow><boxGeometry args={[8.7,.08,8.7]}/><meshStandardMaterial color={theme.frame} roughness={.72}/></mesh>
             </group>
             {frameReward?.kind==='board' && <BoardRewardFrame preset={frameReward}/>}
