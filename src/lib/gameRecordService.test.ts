@@ -26,6 +26,7 @@ it('creates only after a successful empty lookup', async () => {
     mocks.single.mockResolvedValue({ data: { id: 'id' }, error: null });
     expect(await ensureProfile('id', 'name')).toEqual({ id: 'id' });
     expect(mocks.insert).toHaveBeenCalledOnce();
+    expect(mocks.insert).toHaveBeenCalledWith({id:'id',name:'name',rating:1000,rating_10s:1000,rating_3m:1000,rating_10m:1000});
 });
 it('reads the profile created by a competing tab without overwriting it', async () => {
     mocks.read.mockResolvedValueOnce({ data: null, error: null })

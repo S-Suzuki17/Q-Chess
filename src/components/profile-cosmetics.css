@@ -1,0 +1,25 @@
+.profile-cosmetics{container-type:inline-size;border:1px solid #625746;background:#131718;color:#e6e1d8;padding:16px;min-width:0;text-align:left}
+.profile-cosmetics header{display:flex;align-items:center;justify-content:space-between;gap:12px;border-bottom:1px solid #3b3933;padding-bottom:12px}
+.profile-cosmetics header>span{font:10px monospace;letter-spacing:.14em;color:#c0ab7e}
+.profile-cosmetics h4{font-size:14px;margin:0}
+.profile-badge-control{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:16px 0 12px;font-size:12px;color:#c2baac}
+.profile-badge-control select{max-width:70%;min-height:44px;background:#202626;border:1px solid #625746;border-radius:3px;padding:6px;color:#ede4d5}
+.profile-cosmetics-current{display:grid;grid-template-columns:1fr auto;gap:3px 8px;align-items:center;font-size:12px}
+.profile-cosmetics-current>span{color:#b7ac98;font-size:10px}.profile-cosmetics-current strong{grid-column:1;overflow-wrap:anywhere}.profile-cosmetics-current b{grid-column:2;grid-row:1/3;font:20px monospace;color:#dbc599}
+.profile-insignia-stage{position:relative;height:220px;max-width:340px;margin:8px auto 0;background:radial-gradient(ellipse at 54% 80%,#91806119,transparent 63%)}
+.profile-insignia-avatar{position:absolute;left:14px;top:8px}
+.profile-badge-viewer{position:absolute;width:160px;height:170px;right:0;bottom:0;outline-offset:2px;touch-action:pan-y}
+.profile-badge-canvas,.profile-badge-fallback{position:absolute;inset:0}.profile-badge-fallback{padding:12px}.profile-badge-fallback[hidden]{display:none}.profile-badge-viewer>small{position:absolute;bottom:-10px;inset-inline:0;text-align:center;font-size:9px;color:#b7ac98}
+.rank-badge-art{width:100%;height:100%;display:block;filter:drop-shadow(0 3px 2px #0008)}
+.profile-badge-empty{position:absolute;right:24px;bottom:32px;border:1px dashed #625746;width:80px;height:80px;border-radius:50%;display:grid;place-items:center;color:#928774}
+.profile-insignia-caption{min-height:73px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;text-align:center}
+.profile-insignia-caption small{font-size:10px;color:#c5af7d}.profile-insignia-caption strong{font-size:13px}.profile-insignia-caption>span{font:11px monospace;color:#b9b3a7}
+.profile-badge-gallery{min-width:0;margin:12px 0 0;padding:0;border:0}.profile-badge-gallery legend{font-size:11px;color:#c2baac;margin-bottom:8px}.profile-badge-gallery>div{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.profile-badge-gallery button{display:flex;flex-direction:column;align-items:center;min-height:76px;border:1px solid #4a483f;border-radius:3px;padding:6px;background:#1d2323;cursor:pointer;color:#ccc4b4}.profile-badge-gallery button[aria-pressed=true]{background:#30332e;border-color:#d2b878;box-shadow:inset 0 0 0 1px #d2b878}.profile-badge-gallery svg{width:46px;height:46px}.profile-badge-gallery span{font:10px monospace}
+.profile-badge-reset{font-size:12px;min-height:44px;text-decoration:underline;color:#e1c992;margin-top:8px;cursor:pointer}.profile-badge-motion{display:flex;align-items:center;gap:8px;min-height:44px;font-size:11px;color:#d0c6b5;margin-top:8px;cursor:pointer}.profile-badge-motion input{accent-color:#c1a36a;flex-shrink:0}
+.profile-cosmetics>p{font-size:11px;line-height:1.7;color:#b1ac9f;margin:4px 0 0;overflow-wrap:anywhere}
+.profile-cosmetics :focus-visible{outline:2px solid #e3c687;outline-offset:3px}
+@media(min-width:440px){.profile-badge-gallery>div{grid-template-columns:repeat(6,minmax(0,1fr))}.profile-badge-gallery svg{width:37px;height:37px}}
+/* The portrait, its outer aura and the badge need the full 340px row. */
+@container(max-width:339px){.profile-insignia-stage{height:350px}.profile-badge-viewer{left:50%;transform:translateX(-50%);right:auto;bottom:4px}.profile-insignia-avatar{left:50%;transform:translateX(-50%);top:8px}.profile-badge-empty{left:50%;transform:translateX(-50%);right:auto;bottom:45px}.profile-cosmetics header{align-items:flex-start;flex-direction:column}.profile-badge-gallery>div{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(prefers-reduced-motion:reduce){.account-avatar-aura{animation:none!important}}

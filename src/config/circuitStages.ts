@@ -1,6 +1,7 @@
 import type { TimeControl } from '../types/game';
 import type { CPUSearchProfile } from './cpuDifficulty';
 import type { CampaignOutcome,CampaignProgress,CPUPersonality } from './campaign';
+import { outcomeStars } from './campaign';
 
 export const CIRCUIT_STAGE_COUNT=100;
 export const CIRCUIT_STAGES=Array.from({length:CIRCUIT_STAGE_COUNT},(_,index)=>{
@@ -14,8 +15,7 @@ export const stageUnlocked=(progress:CampaignProgress,id:number)=>Number.isInteg
 export function finishStage(progress:CampaignProgress,id:number,outcome:CampaignOutcome):CampaignProgress {
     if(!outcome.won||outcome.draw||!stageUnlocked(progress,id)) return progress;
     const stageStars=[...progress.stageStars??[]];
-    const validTime=Number.isFinite(outcome.initialSeconds)&&outcome.initialSeconds>0&&Number.isFinite(outcome.remainingSeconds)&&outcome.remainingSeconds>=outcome.initialSeconds/2&&outcome.remainingSeconds<=outcome.initialSeconds;
-    stageStars[id-1]=Math.max(stageStars[id-1]??0,1+Number(outcome.hintsUsed===0)+Number(validTime));
+    stageStars[id-1]=Math.max(stageStars[id-1]??0,outcomeStars(outcome,CIRCUIT_STAGES[id-1].timeControl));
     return {...progress,stageStars};
 }
 export function parseStageStars(value:unknown):number[] {

@@ -1,4 +1,5 @@
 import { attemptLegalMove, checkGameOver, isCheckmate } from './quantumChess';
+import { recordReplayChanges, replayPieceId } from './replayHistory';
 
 export type GameOverReason = 'checkmate' | 'king_capture' | 'timeout' | 'resignation' | 'abandonment';
 
@@ -293,11 +294,11 @@ export class GameEngine {
             const before=this.state.pieces.find(p=>p.id===pieceId)!;
             const moved=result.pieces.find(p=>p.id===pieceId)!;
             const types:Record<string,string>={P:'Pawn',N:'Knight',B:'Bishop',R:'Rook',Q:'Queen',K:'King'};
-            const replayId=(id:number)=>`token_${id<16?(id%2===0?25:17)+Math.floor(id/2):(id%2===0?9:1)+Math.floor((id-16)/2)}`;
-            this.replayHistory.push({turn:this.state.moveCount+1,player:before.team===0?'white':'black',tokenId:replayId(pieceId),
+            this.replayHistory.push({turn:this.state.moveCount+1,player:before.team===0?'white':'black',tokenId:replayPieceId(pieceId),
                 from:[7-before.y,before.x],to:[7-toY,toX],possibleTypes:moved.possibilities.map(t=>types[t]),
-                ...(result.capturedPiece?{capturedTokenId:replayId(result.capturedPiece.id)}:{}),
-                ...(moved.promoted?{promotedTo:types[moved.possibilities[0]]}:{})});
+                ...(result.capturedPiece?{capturedTokenId:replayPieceId(result.capturedPiece.id)}:{}),
+                ...(moved.promoted?{promotedTo:types[moved.possibilities[0]]}:{}),
+                replayVersion:2,changes:recordReplayChanges(this.state.pieces,result.pieces)});
             this.state.pieces = result.pieces;
             this.state.board = result.board;
             

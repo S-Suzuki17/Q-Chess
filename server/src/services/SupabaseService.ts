@@ -1,6 +1,9 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
 import {v5 as uuidv5} from 'uuid';
+import { parseLocalGameRecord, PRIVATE_RECORD_LIMIT } from './PrivateGameRecords';
+import type { LocalGameRecord, PrivateGameRecord, PrivateGameStats } from './PrivateGameRecords';
+import { createProfileAvatarStore } from './ProfileAvatars';
 
 dotenv.config();
 
@@ -24,6 +27,10 @@ export class SupabaseService {
         });
     }
 
+    public profileAvatarStore() {
+        return createProfileAvatarStore(this.supabase,token=>this.verifyUser(token));
+    }
+
     public async verifyLegacyPassword(userId:string,password:string):Promise<boolean> {
         try {
             const {data,error}=await this.supabase.rpc('login_user',{p_id:userId,p_password:password}).abortSignal(AbortSignal.timeout(4000));
@@ -36,6 +43,39 @@ export class SupabaseService {
             const {data,error}=await this.supabase.rpc('ranked_protocol_version').abortSignal(AbortSignal.timeout(3000));
             return !error && data===1;
         } catch { return false; }
+    }
+
+    public async getPrivateGameRecords(userId:string, limit=PRIVATE_RECORD_LIMIT):Promise<PrivateGameRecord[]> {
+        const safeLimit = Number.isInteger(limit) ? Math.max(1,Math.min(limit,PRIVATE_RECORD_LIMIT)) : PRIVATE_RECORD_LIMIT;
+        const {data,error}=await this.supabase.rpc('get_private_game_records',{p_user_id:userId,p_limit:safeLimit})
+            .abortSignal(AbortSignal.timeout(5000));
+        if(error||!Array.isArray(data))throw new Error('Private history unavailable');
+        return data.filter(row=>row && (row.white_id===userId||row.black_id===userId)).slice(0,safeLimit) as PrivateGameRecord[];
+    }
+
+    public async getPrivateGameStats(userId:string):Promise<PrivateGameStats> {
+        const {data,error}=await this.supabase.rpc('get_private_game_stats',{p_user_id:userId}).abortSignal(AbortSignal.timeout(5000));
+        const fields=['totalGames','wins','losses','draws','whiteGames','whiteWins','blackGames','blackWins'];
+        if(error||!data||typeof data!=='object'||fields.some(key=>!Number.isSafeInteger(data[key])||data[key]<0))throw new Error('Private statistics unavailable');
+        return Object.fromEntries(fields.map(key=>[key,data[key]])) as unknown as PrivateGameStats;
+    }
+
+    public async saveLocalGameRecord(userId:string, input:LocalGameRecord):Promise<string> {
+        const record=parseLocalGameRecord(input,userId);
+        if(!record)throw new Error('Invalid local record');
+        const {data:profile,error:profileError}=await this.supabase.from('profiles').select('name').eq('id',userId)
+            .abortSignal(AbortSignal.timeout(5000)).maybeSingle();
+        if(profileError||!profile)throw new Error('Profile unavailable');
+        const name=typeof profile.name==='string'&&profile.name.trim()?profile.name.slice(0,80):'Player';
+        // Namespace client IDs by authenticated owner. A client cannot overwrite
+        // another user's record or impersonate a server-owned match UUID.
+        const id=uuidv5(`q-gambit:local:${record.mode}:${userId}:${record.id}`,uuidv5.URL);
+        const opponentName=record.mode==='cpu'?'CPU':'Opponent';
+        const {error}=await this.supabase.from('game_records').upsert({...record,id,
+            white_player:record.white_id===userId?name:opponentName,black_player:record.black_id===userId?name:opponentName,
+        },{onConflict:'id',ignoreDuplicates:true}).abortSignal(AbortSignal.timeout(5000));
+        if(error)throw new Error('Local history save unavailable');
+        return id;
     }
 
     public async settleRankedMatch(match:import('../matchmaking/MatchmakingService').MatchSession):Promise<RankedSettlement|null> {
@@ -216,24 +256,4 @@ export class SupabaseService {
         }
     }
 
-    // Auto cleanup old game records to save DB storage space
-    public async cleanupOldRecords(days: number = 30): Promise<void> {
-        try {
-            const cutoffDate = new Date();
-            cutoffDate.setDate(cutoffDate.getDate() - days);
-
-            const { error, count } = await this.supabase
-                .from('game_records')
-                .delete({ count: 'exact' })
-                .lt('created_at', cutoffDate.toISOString());
-
-            if (error) {
-                console.error('[DB Cleanup] Error deleting old game records:', error);
-            } else {
-                console.log(`[DB Cleanup] Purged ${count ?? 0} game records older than ${days} days.`);
-            }
-        } catch (e) {
-            console.error('[DB Cleanup] Exception during cleanup:', e);
-        }
-    }
 }

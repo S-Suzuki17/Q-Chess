@@ -1,5 +1,5 @@
 'use client';
-import { SocketProvider, useSocket } from '../lib/SocketContext';
+import { SocketProvider } from '../lib/SocketContext';
 import { matchText } from '../locales/matchText';
 
 import React, { useState, useEffect } from 'react';
@@ -13,98 +13,26 @@ import { TitleScreen } from '../components/TitleScreen';
 import { LevelSelect } from '../components/LevelSelect';
 import { SettingsDialog } from '../components/SettingsDialog';
 import { CampaignMode } from '../components/CampaignMode';
+import { circuitAccess, isSameCircuitIdentity } from '../lib/circuitAccess';
+import type { Session } from '@supabase/supabase-js';
 import ReplayBoard from '../components/ReplayBoard';
 import { Language, LANGUAGES, dict } from '../locales/dict';
 import { User, GameState, TimeControl } from '../types/game';
 import { GameRecord } from '../lib/gameRecordService';
 
-import { useMatchmaking } from '../hooks/useMatchmaking';
+import { RankedMatchmakingManager } from '../components/RankedMatchmakingManager';
+import { clearRankedSession } from '../lib/rankedSession';
 
-function MatchmakingManager({ lang, user, onMatchFound, isSearchingGlobally, cancelSearchGlobally, timeControlTarget }: { lang: Language, user: any, onMatchFound: (room: any) => void, isSearchingGlobally: boolean, cancelSearchGlobally: () => void, timeControlTarget: number }) {
-    const t = dict[lang];
-    const { isSearching, matchedRoom, error, waitTime, startMatchmaking, cancelMatchmaking } = useMatchmaking(user);
-    const { queueStats, isConnected } = useSocket();
-    
-    React.useEffect(() => {
-        if (isSearchingGlobally && !isSearching) {
-            startMatchmaking(timeControlTarget);
-        } else if (!isSearchingGlobally && isSearching) {
-            cancelMatchmaking();
-        }
-    }, [isSearchingGlobally, startMatchmaking, cancelMatchmaking, timeControlTarget, isSearching]);
-
-    React.useEffect(() => {
-        if (matchedRoom) {
-            onMatchFound(matchedRoom);
-        }
-    }, [matchedRoom, onMatchFound]);
-
-    if (!isSearchingGlobally) return null;
-
-    const formattedMinutes = String(Math.floor(waitTime / 60000)).padStart(2, '0');
-    const formattedSeconds = String(Math.floor((waitTime % 60000) / 1000)).padStart(2, '0');
-    const waitingCount = queueStats?.[timeControlTarget] || 0;
-
-    return (
-        <div className="fixed inset-0 bg-[#11100E]/95 z-[100] flex flex-col items-center justify-center p-4 backdrop-blur-sm">
-            <div className="bg-[#161513] border border-[#B39A62]/30 p-8 w-full max-w-sm text-center shadow-[0_0_40px_rgba(179,154,98,0.1)] rounded-xl">
-                {matchedRoom ? (
-                    <>
-                        <h3 className="text-2xl tracking-[0.2em] text-[#B39A62] mb-4 animate-pulse font-serif uppercase">
-                            {matchText(lang,'対局が見つかりました','Match found')}
-                        </h3>
-                        <p className="text-[#A89C86] text-xs tracking-[0.3em] uppercase">
-                            {t.adCloudTitle}
-                        </p>
-                    </>
-                ) : (
-                    <>
-                        <h3 className="text-xl tracking-[0.2em] text-[#E8E2D7] mb-2 font-serif uppercase drop-shadow-[0_0_8px_rgba(232,226,215,0.4)]">
-                            {t.searchingOpponent}
-                        </h3>
-
-                        {/* Real-time Timer */}
-                        <div className="text-2xl font-mono text-[#B39A62] tracking-widest my-2">
-                            {formattedMinutes}:{formattedSeconds}
-                        </div>
-
-                        {/* Real-time Queue Stats & Connection Status */}
-                        <div className="text-xs text-[#A89C86] tracking-wider mb-6 flex flex-col items-center gap-1">
-                            {!isConnected ? (
-                                <span className="text-yellow-500/80 animate-pulse text-[11px]">{t.loading}</span>
-                            ) : (
-                                <div className="flex items-center gap-2">
-                                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                                    <span className="text-[11px] font-mono">{matchText(lang,'待機中のプレイヤー','Players waiting')}: {waitingCount}</span>
-                                </div>
-                            )}
-                            {error && <span className="text-red-400 text-[11px] mt-1">{error}</span>}
-                        </div>
-
-                        <div className="flex justify-center mb-8 gap-3">
-                            <div className="w-2 h-2 rounded-full bg-[#B39A62] animate-bounce" style={{ animationDelay: '0ms' }} />
-                            <div className="w-2 h-2 rounded-full bg-[#B39A62] animate-bounce" style={{ animationDelay: '150ms' }} />
-                            <div className="w-2 h-2 rounded-full bg-[#B39A62] animate-bounce" style={{ animationDelay: '300ms' }} />
-                        </div>
-                        <button
-                            onClick={cancelSearchGlobally}
-                            className="px-8 py-3 border border-[#A89C86]/30 hover:bg-[#2A2621] hover:border-[#A89C86] transition-colors rounded text-[#A89C86] hover:text-[#E8E2D7] text-xs font-serif tracking-widest w-full"
-                        >
-                            {t.cancel}
-                        </button>
-                    </>
-                )}
-            </div>
-        </div>
-    );
-}
 
 import { useCampaignProgress } from '../hooks/useCampaignProgress';
 import { battleMusicUrl } from '../config/circuitMusic';
 import { soundManager } from '../lib/SoundService';
+import { CosmeticsSettings } from '../components/CosmeticsSettings';
+import { cosmeticsLocked } from '../lib/cosmeticOptions';
 
 export default function Home() {
-    const {progress:campaignProgress}=useCampaignProgress();
+    const {progress:campaignProgress, update:updateCampaign, loaded:cosmeticsLoaded}=useCampaignProgress();
+    const playingMusic=React.useRef<string|null>(null);
     useEffect(()=>{
         const resume=()=>soundManager.resumeBGM();
         window.addEventListener('pointerdown',resume);
@@ -118,7 +46,11 @@ export default function Home() {
     },[]);
     const [lang, setLang] = useState<Language>('en');
     const [gameState, setGameState] = useState<GameState>('title');
+    const [circuitPlaying, setCircuitPlaying] = useState(false);
+    const matchDesignLocked = cosmeticsLocked(gameState, circuitPlaying);
     const [user, setUser] = useState<User | null>(null);
+    const [loginMode,setLoginMode]=useState<'select'|'login'>('select');
+    const circuitLoginRequested=React.useRef(false);
     const [cpuLevel, setCpuLevel] = useState<number>(5);
     const [practiceSide, setPracticeSide] = useState<'white' | 'black'>('white');
     const [timeControl, setTimeControl] = useState<TimeControl>('10m');
@@ -141,52 +73,50 @@ export default function Home() {
     }, []);
     const [isSearchingGlobally, setIsSearchingGlobally] = useState(false);
     const [timeControlTarget, setTimeControlTarget] = useState(600);
+    const [queueMode, setQueueMode] = useState<'ranked' | 'random'>('random');
 
     
     useEffect(() => {
-        const fetchProfileAndSetUser = async (session: any) => {
-            try {
-                const { data: profile } = await supabase.from('profiles').select('name, avatar_url').eq('id', session.user.id).single();
-                const u = {
-                    id: session.user.id,
-                    name: profile?.name || session.user.user_metadata?.full_name || session.user.user_metadata?.name || 'Player',
-                    avatar_url: profile?.avatar_url,
-                    type: 'registered' as const
-                };
-                setUser(u);
-                localStorage.setItem('qg_last_user', JSON.stringify(u));
-                setGameState('level_select');
-            } catch (e) {
-                console.error('Failed to fetch profile', e);
-                const u = {
-                    id: session.user.id,
-                    name: session.user.user_metadata?.full_name || session.user.user_metadata?.name || 'Player',
-                    type: 'registered' as const
-                };
-                setUser(u);
-                localStorage.setItem('qg_last_user', JSON.stringify(u));
-                setGameState('level_select');
-            }
+        let active=true;
+        const initialRevision=circuitAccess.getSnapshot().revision;
+        const restoreSession=(session:Session)=>{
+            // SIGNED_IN can repeat on tab focus; never restart an existing match.
+            if(circuitAccess.getSnapshot().userId===session.user.id)return;
+            const attempt=circuitAccess.beginAuthentication();
+            const restore=async()=>{
+                try {
+                    const {data,error}=await supabase.auth.getUser();
+                    const verified=data.user;
+                    if(error||!verified||verified.is_anonymous||verified.id!==session.user.id)return;
+                    let profile:{name?:string;avatar_url?:string}|null=null;
+                    try { const result=await supabase.from('profiles').select('name, avatar_url').eq('id',verified.id).single();profile=result.data; } catch { /* Auth is valid even if public appearance is unavailable. */ }
+                    const u:User={id:verified.id,name:profile?.name||verified.user_metadata?.full_name||verified.user_metadata?.name||'Player',avatar_url:profile?.avatar_url,type:'registered'};
+                    if(!active||!circuitAccess.grant(u,attempt))return;
+                    setUser(u);
+                    try { localStorage.setItem('qg_last_user',JSON.stringify(u)); } catch { /* Keep the verified session in memory. */ }
+                    setGameState(circuitLoginRequested.current?'campaign':'level_select');
+                    circuitLoginRequested.current=false;
+                } catch { /* Fail closed for Circuit; cached identity is not a login. */ }
+            };
+            // Do not await another Supabase call inside its auth lock callback.
+            setTimeout(()=>{if(active&&circuitAccess.getSnapshot().revision===attempt)void restore();},0);
         };
-
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-            if (session && event === 'SIGNED_IN') {
-                await fetchProfileAndSetUser(session);
-            } else if (event === 'SIGNED_OUT') {
-                setUser(null);
-                localStorage.removeItem('qg_last_user');
-                setGameState('title');
+        const {data:{subscription}}=supabase.auth.onAuthStateChange((event,session)=>{
+            if(event==='SIGNED_IN'&&session)restoreSession(session);
+            else if(event==='SIGNED_OUT'){
+                circuitAccess.revoke();setUser(null);setGameState('title');setLoginMode('select');
+                try { localStorage.removeItem('qg_last_user'); } catch { /* Access is already revoked. */ }
             }
         });
-        
-        // Check initial session
-        supabase.auth.getSession().then(({ data: { session } }) => {
-            if (session) {
-                fetchProfileAndSetUser(session);
-            }
-        });
-
-        return () => subscription.unsubscribe();
+        void supabase.auth.getSession().then(({data:{session}})=>{
+            if(active&&session&&circuitAccess.getSnapshot().revision===initialRevision)restoreSession(session);
+        }).catch(()=>{});
+        // A logout/account replacement in another tab must cancel a local run.
+        const identityChanged=(event:StorageEvent)=>{
+            if(event.key===null||(event.key==='qg_last_user'&&!isSameCircuitIdentity(event.oldValue,event.newValue)))circuitAccess.revoke();
+        };
+        window.addEventListener('storage',identityChanged);
+        return()=>{active=false;subscription.unsubscribe();window.removeEventListener('storage',identityChanged);circuitAccess.revoke();};
     }, []);
 
     useEffect(() => {
@@ -218,10 +148,12 @@ export default function Home() {
     }, []);
 
     useEffect(() => {
+        if (gameState !== 'playing') playingMusic.current=null;
         if (gameState === 'title') {
             soundManager.playBGM('/audio/bgm_title.mp3');
         } else if (gameState === 'playing') {
-            soundManager.playBGM(battleMusicUrl(campaignProgress.music));
+            playingMusic.current ??= battleMusicUrl(campaignProgress.music);
+            soundManager.playBGM(playingMusic.current);
         } else if (gameState === 'replay') {
             soundManager.playBGM('/audio/bgm_replay.mp3');
         } else if (gameState!=='campaign' && gameState!=='level_select') {
@@ -268,10 +200,21 @@ export default function Home() {
         }
     }, []);
 
-    const handleLogin = (u: User) => {
+    const handleLogin = (u: User,attempt?:number) => {
+        if(u.type==='registered'){
+            if(attempt===undefined||!circuitAccess.grant(u,attempt))return;
+        } else circuitAccess.revoke();
         setUser(u);
         localStorage.setItem('qg_last_user', JSON.stringify(u));
-        setGameState('level_select');
+        setGameState(u.type==='registered'&&circuitLoginRequested.current?'campaign':'level_select');
+        circuitLoginRequested.current=false;
+    };
+
+    const handleProfileUpdated = (profile:{id:string;avatar_url:string}) => {
+        if(!user||user.id!==profile.id)return;
+        const next={...user,avatar_url:profile.avatar_url};
+        setUser(current=>current?.id===profile.id?{...current,avatar_url:profile.avatar_url}:current);
+        try { localStorage.setItem('qg_last_user',JSON.stringify(next)); } catch { /* Keep the saved server profile in memory. */ }
     };
 
     const handleSelectLevel = (tc: TimeControl, level: number, side: 'white' | 'black') => {
@@ -303,24 +246,36 @@ export default function Home() {
     };
 
     const handleLogout = async () => {
-        await supabase.auth.signOut();
+        clearRankedSession();
+        circuitAccess.revoke();
         setUser(null);
-        localStorage.removeItem('qg_last_user');
+        setSettingsPanel(null);setShowSettings(false);setLoginMode('select');
+        circuitLoginRequested.current=false;
+        try { localStorage.removeItem('qg_last_user'); } catch { /* Access is already revoked. */ }
         setGameState('title');
+        await supabase.auth.signOut();
     };
+
+    const requestCircuitLogin=()=>{
+        circuitAccess.revoke();circuitLoginRequested.current=true;
+        setUser(null);setSettingsPanel(null);setShowSettings(false);setLoginMode('login');setGameState('title');
+        try { localStorage.removeItem('qg_last_user'); } catch { /* Do not delete campaign progress. */ }
+    };
+
 
     return (
         <SocketProvider userId={user?.id}>
             <SystemStatusBanner lang={lang} />
-            <MatchmakingManager lang={lang}
+            {isSearchingGlobally&&<RankedMatchmakingManager lang={lang}
                 user={user} 
-                isSearchingGlobally={isSearchingGlobally} 
+                mode={queueMode}
+                onRequestLogin={()=>{setIsSearchingGlobally(false);setLoginMode('login');setGameState('title');}}
                 cancelSearchGlobally={() => setIsSearchingGlobally(false)} 
                 timeControlTarget={timeControlTarget}
                 onMatchFound={(room) => {
-                    handleOnlineMatch(room.id, room.myColor, 'random', (room.timeControl === 10 ? '10s' : room.timeControl === 180 ? '3m' : '10m') as TimeControl, room.joinerId === user?.id ? room.hostId : room.joinerId);
+                    handleOnlineMatch(room.id, room.myColor, room.mode, (room.timeControl === 10 ? '10s' : room.timeControl === 180 ? '3m' : '10m') as TimeControl, room.myColor==='white'?room.joinerId:room.hostId);
                 }} 
-            />
+            />}
             <SpeedInsights />
         <main data-screen={gameState} className="fixed inset-0 flex flex-col items-center justify-between bg-[#11100E] text-[#E8E2D7] font-sans overflow-hidden">
             <div className="relative z-40 w-full max-w-5xl flex items-center justify-between text-sm mb-4">
@@ -410,6 +365,8 @@ export default function Home() {
                                 </div>
                             </div>
 
+                            <CosmeticsSettings lang={lang} progress={campaignProgress} update={updateCampaign} loaded={cosmeticsLoaded} locked={matchDesignLocked}/>
+
                             {user && gameState==='level_select' && (
                                 <div className="flex flex-col gap-3 mt-4 pt-6 border-t border-[#4A4238]">
                                     <button data-settings-panel="account" onClick={() => { setShowSettings(false);setSettingsPanel('account'); }} className="w-full py-3 bg-[#1E1C19] border border-[#4A4238] text-[#D4B872] rounded hover:bg-[#3B342C] transition-colors font-bold tracking-widest text-xs uppercase text-center">
@@ -442,7 +399,7 @@ export default function Home() {
 
             <div className="flex-grow w-full flex flex-col items-center justify-center relative z-10">
                 {gameState === 'title' && (
-                    <TitleScreen lang={lang} onLogin={handleLogin} />
+                    <TitleScreen lang={lang} onLogin={handleLogin} initialMode={loginMode}/>
                 )}
 
                 {gameState === 'level_select' && user && (
@@ -452,9 +409,10 @@ export default function Home() {
                         lang={lang} 
                         user={user} 
                         onSelect={handleSelectLevel} 
+                        onProfileUpdated={handleProfileUpdated}
                         onCampaign={()=>setGameState('campaign')}
                         onOnlineMatch={handleOnlineMatch}
-                        onStartGlobalMatch={(tcSeconds) => { setIsSearchingGlobally(true); setTimeControlTarget(tcSeconds); }}
+                        onStartGlobalMatch={(tcSeconds, mode) => { setQueueMode(mode); setTimeControlTarget(tcSeconds); setIsSearchingGlobally(true); }}
                         onReplay={(record) => {
                             setReplayRecord(record);
                             setGameState('replay');
@@ -463,7 +421,7 @@ export default function Home() {
                     />
                 )}
 
-                {gameState === 'campaign' && user && <CampaignMode lang={lang} user={user} onBack={()=>setGameState('level_select')}/>}
+                {gameState === 'campaign' && user && <CampaignMode lang={lang} user={user} onBack={()=>setGameState('level_select')} onLogin={requestCircuitLogin} onPlayingChange={setCircuitPlaying}/>}
                 {gameState === 'playing' && user && (
                     <GameBoard 
                         lang={lang} 

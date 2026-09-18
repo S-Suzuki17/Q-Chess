@@ -7,10 +7,16 @@ import { MatchmakingService } from './matchmaking/MatchmakingService';
 import { SupabaseService } from './services/SupabaseService';
 import { RankedAuth } from './services/RankedAuth';
 import { RankedRuntime } from './game/RankedRuntime';
+import { createPrivateGameRecordRouter } from './services/PrivateGameRecordRoutes';
+import { createProfileAvatarRouter } from './services/ProfileAvatarRoutes';
 import type { MatchSession, QueueMode } from './matchmaking/MatchmakingService';
 
 const app = express();
 app.use(cors());
+const supabaseService = new SupabaseService();
+const rankedAuth = new RankedAuth((id,password)=>supabaseService.verifyLegacyPassword(id,password));
+app.use(createPrivateGameRecordRouter(rankedAuth,supabaseService));
+app.use(createProfileAvatarRouter(rankedAuth,supabaseService.profileAvatarStore()));
 app.use(express.json({limit:'4kb'}));
 
 // Phase 4: Health Check & Uptime ping target
@@ -28,8 +34,6 @@ const io = new Server(server, {
 });
 
 const matchmaking = new MatchmakingService(io);
-const supabaseService = new SupabaseService();
-const rankedAuth = new RankedAuth((id,password)=>supabaseService.verifyLegacyPassword(id,password));
 const runtime = new RankedRuntime(io,matchmaking,match=>supabaseService.settleRankedMatch(match),undefined,match=>supabaseService.recordUnratedMatch(match));
 const loginAttempts=new Map<string,{count:number;until:number}>();
 app.post('/auth/ranked-session',async(req,res)=>{
@@ -73,11 +77,8 @@ const MAX_TOKENS = 15; // Max burst allowance of events
 const REFILL_RATE = 5; // Tokens added per second
 const SEVERE_VIOLATION_THRESHOLD = 50; // Dropped packet threshold before forced disconnect
 
-// Daily DB Cleanup for old game records (older than 30 days)
-supabaseService.cleanupOldRecords(30);
-setInterval(() => {
-    supabaseService.cleanupOldRecords(30);
-}, 24 * 60 * 60 * 1000);
+// Replay retention is handled transactionally in the database. Never delete
+// old match rows here: lifetime statistics and settlement receipts need them.
 
 io.use(async (socket, next) => {
   const token = socket.handshake.auth.token;

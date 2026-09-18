@@ -1,10 +1,33 @@
 import {describe,it,expect} from 'vitest';
 import {CIRCUIT_STAGES,finishStage,parseStageStars,stageUnlocked} from './circuitStages';
-import {emptyCampaign,equipReward,parseCampaign,rewardUnlocked,mergeCampaignProgress} from './campaign';
+import {emptyCampaign,equipReward,parseCampaign,rewardUnlocked,mergeCampaignProgress,outcomeStars} from './campaign';
 import {CHAMPIONSHIP_REWARDS,REFERENCE_BOARDS} from './championshipRewards';
 import {AVATAR_FRAMES} from './avatarFrames';
 const win={won:true,draw:false,playerMoves:8,hintsUsed:0,initialSeconds:600,remainingSeconds:300};
 describe('100-stage Crown Circuit',()=>{
+ it('awards the 10-second third star for at most 40 own moves, regardless of remaining time',()=>{
+  const progress={...emptyCampaign(),stageStars:[3,3]};
+  for(const moves of [0,1,39,40]) {
+   const outcome={...win,timeControl:'10s' as const,playerMoves:moves,remainingSeconds:0};
+   expect(outcomeStars(outcome)).toBe(3);
+   expect(finishStage(progress,3,outcome).stageStars).toEqual([3,3,3]);
+  }
+  for(const moves of [41,80,-1,1.5,NaN,Infinity]) {
+   const outcome={...win,timeControl:'10s' as const,playerMoves:moves};
+   expect(outcomeStars(outcome)).toBe(2);
+   expect(finishStage(progress,3,outcome).stageStars).toEqual([3,3,2]);
+  }
+  expect(outcomeStars({...win,timeControl:'10s',playerMoves:40,hintsUsed:1})).toBe(2);
+  expect(outcomeStars({...win,timeControl:'10s',playerMoves:40,won:false})).toBe(0);
+  expect(outcomeStars({...win,timeControl:'10s',playerMoves:40,draw:true})).toBe(0);
+  expect(finishStage({...progress,stageStars:[3,3,3]},3,{...win,playerMoves:41}).stageStars).toEqual([3,3,3]);
+ });
+ it('uses the real stage control and retains half-clock stars for timed games',()=>{
+  const progress={...emptyCampaign(),stageStars:[3,3]};
+  expect(finishStage(progress,3,{...win,playerMoves:41,timeControl:'10m'}).stageStars?.[2]).toBe(2);
+  expect(finishStage(emptyCampaign(),1,{...win,playerMoves:80,remainingSeconds:300,timeControl:'10s'}).stageStars?.[0]).toBe(3);
+  expect(finishStage(emptyCampaign(),1,{...win,playerMoves:1,remainingSeconds:299}).stageStars?.[0]).toBe(2);
+ });
  it('cycles 10m / 3m / 10s with identical search profiles in each trio',()=>{
   expect(CIRCUIT_STAGES).toHaveLength(100);
   CIRCUIT_STAGES.forEach((stage,i)=>{

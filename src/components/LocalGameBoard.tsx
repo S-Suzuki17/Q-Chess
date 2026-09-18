@@ -25,6 +25,10 @@ import { legacyToQuantumState, quantumToLegacyMove } from '../quantum-engine/ada
 import { getWinner } from '../quantum-engine/terminal';
 import { isCheckmateFinish } from '../lib/checkmatePresentation';
 import { createLocalPosition, applyLocalMove } from '../lib/localGame';
+import { recordReplayMove } from '../lib/replayHistory';
+import { replayText } from '../locales/replayText';
+import { ReplaySaveSession } from '../lib/replaySave';
+import { RankedLoginDialog } from './RankedLoginDialog';
 import { soundManager } from '../lib/SoundService';
 import type { CPUPersonality, CampaignOutcome } from '../config/campaign';
 import type { CPUSearchProfile } from '../config/cpuDifficulty';
@@ -60,7 +64,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
     const playerSide = onlineRole === 'black' ? 'black' : 'white';
     const cpuSide = playerSide === 'white' ? 'black' : 'white';
     const t = { ...dict['en'], ...(dict[lang] || {}) } as any;
-    const { is2DView, setIs2DView, boardDesign, boardFinish, pieceFinish, victoryEffect, avatarFrame, cycleBoard } = useBoardPreferences();
+    const { is2DView, setIs2DView, boardDesign, boardFinish, pieceFinish, victoryEffect, avatarFrame } = useBoardPreferences();
     const hintsUsed=useRef(0);
     const [introDone,setIntroDone]=useState(!!roomId);
     const finishIntro=useCallback(()=>setIntroDone(true),[]);
@@ -68,6 +72,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
     const turnClock=useRef({start:0,base:timeControl==='10s'?10:timeControl==='3m'?180:600});
     const resultReported=useRef(false);
     const [showHomeConfirm, setShowHomeConfirm] = useState(false);
+    const [showReplayLogin, setShowReplayLogin] = useState(false);
     const [viewResetKey, setViewResetKey] = useState(0);
     const [initialPosition] = useState(createLocalPosition);
     const [pool, setPool] = useState(initialPosition.pool);
@@ -203,7 +208,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
     } | null>(null);
 
     const [moveHistory, setMoveHistory] = useState<MoveRecord[]>([]);
-    const anyModalOpen = !introDone || showGameOver || showRules || promotionPending !== null || castlingPending !== null;
+    const anyModalOpen = !introDone || showGameOver || showRules || showReplayLogin || promotionPending !== null || castlingPending !== null;
     useEffect(() => {
         window.dispatchEvent(new CustomEvent('hide-settings', { detail: anyModalOpen }));
         return () => { window.dispatchEvent(new CustomEvent('hide-settings', { detail: false })); };
@@ -212,6 +217,9 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
     const moveHistoryRef = useRef<MoveRecord[]>([]);
     const [turnCount, setTurnCount] = useState(0);
     const [savedRecordId, setSavedRecordId] = useState<string | null>(null);
+    const [replaySave] = useState(() => new ReplaySaveSession());
+    const [saveState, setSaveState] = useState<'idle' | 'saving' | 'failed'>('idle');
+    const [saveAttempt, setSaveAttempt] = useState(0);
 
     useEffect(() => {
         moveHistoryRef.current = moveHistory;
@@ -441,56 +449,27 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
 
     // Save game record when game ends
     useEffect(() => {
-        if (winner && !savedRecordId && moveHistory.length > 0) {
-            const saveRecord = async () => {
-                const mode = matchMode || 'cpu';
-                
-                if (user?.id?.startsWith('GUEST-')) return; // Don't save records for guests
-                
-                // If it's an online match, we need to know the IDs. Since we don't have opponent ID easily here without changing more,
-                // we'll just save our own ID in the correct slot, and wait... no, both clients will trigger this useEffect.
-                // To avoid duplicate saving, maybe only White saves the record in online matches?
-                // Wait, if White disconnects before saving, Black's record won't be saved.
-                // Let's just save it once from the winner's side, or from White's side.
-                // To keep it simple, we'll let both save it, which might result in 2 records.
-                // But for the rating trigger, 2 records = double rating change!
-                // FIX: Only white saves the record for online matches!
-                if (roomId && onlineRole !== 'white') {
-                    // We still set a dummy savedRecordId so the UI knows we are done
-                    setSavedRecordId('saved-by-opponent');
-                    return;
-                }
-
-                // In online, we only know our own ID. Wait, we need both IDs for ratings!
-                // Where do we get opponent ID? We don't have it unless we passed it in onlineInfo.
-                // We should have passed opponentId when matchmaking.
-                // For now, let's just pass `user.id` for both, which is obviously wrong.
-                // We need to fetch it from the presence channel.
-                // Instead, let's modify the record saving. If it's ranked, we MUST have both IDs.
-                // Since this is getting complex, I will just put placeholders and fix it in GameBoard.
-                
-                // Let's pass `opponentId` as a prop later. For now, fallback to "unknown".
-                const whiteId = onlineRole === 'white' ? user?.id : (roomId ? opponentId : undefined);
-                const blackId = onlineRole === 'black' ? user?.id : (roomId ? opponentId : undefined);
-
-                const record: GameRecord = {
-                    white_player: !roomId ? (playerSide === 'white' ? user?.name || 'Guest' : 'CPU') : onlineRole === 'black' ? (fetchedOpponentName || 'Opponent') : (user?.name || 'Guest'),
-                    black_player: !roomId ? (playerSide === 'black' ? user?.name || 'Guest' : 'CPU') : onlineRole === 'white' ? (fetchedOpponentName || 'Opponent') : (user?.name || 'Guest'),
-                    white_id: whiteId,
-                    black_id: blackId,
-                    winner,
-                    mode,
-                    cpu_level: roomId ? undefined : cpuLevel,
-                    time_control: timeControl,
-                    moves: moveHistory,
-                    total_moves: turnCount
-                };
-                const id = await saveGameRecord(record);
-                if (id) setSavedRecordId(id);
-            };
-            saveRecord();
-        }
-    }, [winner, moveHistory, turnCount, user, roomId, cpuLevel, savedRecordId, matchMode, onlineRole, timeControl, opponentId, fetchedOpponentName]);
+        // Ranked/random history belongs to the server. Private peers save only their own copy.
+        if (!winner || savedRecordId || onlineRole === 'spectator' || (roomId && matchMode !== 'private') ||
+            matchMode === 'ranked' || matchMode === 'random' || !user?.id || /^(GUEST-|anon_)/i.test(user.id)) return;
+        let active = true;
+        setSaveState('saving');
+        const record: GameRecord = {
+            white_player: playerSide === 'white' ? user.name || 'Player' : roomId ? fetchedOpponentName || 'Opponent' : 'CPU',
+            black_player: playerSide === 'black' ? user.name || 'Player' : roomId ? fetchedOpponentName || 'Opponent' : 'CPU',
+            white_id: playerSide === 'white' ? user.id : undefined,
+            black_id: playerSide === 'black' ? user.id : undefined,
+            winner, mode: roomId ? 'private' : 'cpu', cpu_level: roomId ? undefined : cpuLevel, time_control: timeControl,
+            moves: moveHistory, total_moves: moveHistory.length
+        };
+        const request = replaySave.save(record, user.id, saveGameRecord);
+        void request.then(id => {
+            if (!active) return;
+            if (id) setSavedRecordId(id);
+            else setSaveState('failed');
+        });
+        return () => { active = false; };
+    }, [winner, moveHistory, user?.id, user?.name, roomId, cpuLevel, savedRecordId, playerSide, timeControl, saveAttempt, onlineRole, matchMode, fetchedOpponentName, replaySave]);
 
     // 選択中のトークンが移動可能なマス（候補）を算出
     const validMoves = useMemo(() => {
@@ -576,11 +555,11 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
                 payload: { userId: user?.id, tokenId: token.id, targetRow, targetCol,
                     possibleTypes: possibleTypesForMove, promotedTo } });
         }
-        const moveRecord: MoveRecord = {
+        const moveRecord = recordReplayMove({
             turn: turnCount + 1, player: currentTurn, tokenId: token.id,
             from: [token.row, token.col], to: [targetRow, targetCol],
             possibleTypes: possibleTypesForMove, capturedTokenId: result.capturedId, promotedTo
-        };
+        }, { tokens, pool }, result);
         setTurnCount(turnCount + 1);
         setMoveHistory(prev => [...prev, moveRecord]);
         const nextTurn = result.state.sideToMove;
@@ -732,7 +711,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
     useEffect(()=>{
         if (!winner || !onComplete || resultReported.current) return;
         resultReported.current=true;
-        onComplete({won:winner===`${playerSide}_wins`,draw:winner==='draw',
+        onComplete({won:winner===`${playerSide}_wins`,draw:winner==='draw',timeControl,
             playerMoves:moveHistory.filter(move=>move.player===playerSide).length,hintsUsed:hintsUsed.current,
             initialSeconds:timeControl==='10s'?perMoveTime.current.turns*10:initialTime,remainingSeconds:timeControl==='10s'?perMoveTime.current.remaining:playerSide==='white'?timeLeftWhite:timeLeftBlack});
     },[winner,onComplete,playerSide,moveHistory,initialTime,timeLeftWhite,timeLeftBlack,timeControl]);
@@ -750,7 +729,6 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
             onHint={!roomId ? requestHint : undefined} hintPending={hint.pending} hintMove={hintMove} hintFailed={hint.failed} onClearHint={hint.clear} feedback={tutorialHint}
             is2D={is2DView} onViewChange={setIs2DView}
             onResetView={() => setViewResetKey(key => key + 1)}
-            onThemeChange={cycleBoard}
             onHome={() => setShowHomeConfirm(true)} onRules={() => setShowRules(true)} onResign={() => setShowResignConfirm(true)}
             showMoveHints={showMoveHints} onHintsChange={setShowMoveHints}
             notice={disconnectTimeLeft !== null ? (matchText(lang, '再接続を待っています… ', 'Waiting for reconnection… ')) + disconnectTimeLeft + 's' : errorMsg || undefined}
@@ -810,8 +788,17 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
                                 <span className="font-mono text-[10px] select-all text-[#B39A62] bg-black/50 px-2 py-1 rounded">{savedRecordId}</span>
                             </div>
                         )}
+                        {!savedRecordId && saveState === 'saving' && <p role="status" className="mt-3 text-xs text-[#A89C86]">{t.loading}</p>}
+                        {!savedRecordId && saveState === 'failed' && <div role="status" className="mt-3 text-xs text-[#E8E2D7]">
+                            <p>{replayText(lang).saveFailed}</p>
+                            <button onClick={() => setSaveAttempt(attempt => attempt + 1)} className="mt-2 min-h-11 rounded border border-[#B39A62]/40 px-4">{replayText(lang).retry}</button>
+                            <button onClick={() => setShowReplayLogin(true)} className="ml-2 mt-2 min-h-11 rounded border border-[#B39A62]/40 px-4">{t.login}</button>
+                        </div>}
                 </MatchResultDialog>
             )}
+
+            {showReplayLogin && user && <RankedLoginDialog lang={lang} userId={user.id} title={t.login} onCancel={() => setShowReplayLogin(false)}
+                onVerified={() => { setShowReplayLogin(false); setSaveAttempt(attempt => attempt + 1); }} />}
 
             {cpuFailed && <button onClick={() => setCpuRetry(value => value + 1)} className="match-retry">
                 {matchText(lang, 'CPUの思考を再試行', 'Retry CPU turn')}

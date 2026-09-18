@@ -52,7 +52,7 @@ describe('ranked runtime', () => {
         resign(match); runtime.afterAction(match); await flush();
         expect(settle).toHaveBeenCalledTimes(1);
         expect(match.settlement).toBe('saved');
-        expect(match.engine!.getHistory()).toEqual([{turn:1,player:'white',tokenId:'token_17',from:[6,0],to:[5,0],possibleTypes:expect.any(Array)}]);
+        expect(match.engine!.getHistory()).toEqual([{turn:1,player:'white',tokenId:'token_17',from:[6,0],to:[5,0],possibleTypes:expect.any(Array),replayVersion:2,changes:[[17,40,57,1,0]]}]);
     });
 
     it('discards a stale successful worker result after the authoritative version changes', async () => {

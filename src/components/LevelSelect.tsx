@@ -3,17 +3,23 @@ import { useMatchmaking } from '../hooks/useMatchmaking';
 import { matchText } from '../locales/matchText';
 import { useSocket } from '../lib/SocketContext';
 import { AccountAvatar } from './AccountAvatar';
+import { AccountIconEditor } from './AccountIconEditor';
+import { rewardClearCount } from '../config/campaign';
+import { iconEditorText } from '../locales/iconEditorText';
 import { useCampaignProgress } from '../hooks/useCampaignProgress';
 import { AdBanner } from './AdBanner';
 
 import React from 'react';
+import dynamic from 'next/dynamic';
 import { dict, Language } from '../locales/dict';
 import { User, TimeControl } from '../types/game';
 import { supabase } from '../lib/supabaseClient';
 import { GameRecord, getGameRecords, Profile, getTopProfiles, UserStats, PUBLIC_PROFILE_COLUMNS } from '../lib/gameRecordService';
 import { useRealtimeRefresh } from '../hooks/useRealtimeRefresh';
+import { HistoryError } from '../lib/privateHistory';
+import { RankedLoginDialog } from './RankedLoginDialog';
+import { replayText } from '../locales/replayText';
 import { soundManager } from '../lib/SoundService';
-import { getTitleFromRating } from '../lib/rankSystem';
 import { FriendsMenu } from './FriendsMenu';
 import { SettingsDialog } from './SettingsDialog';
 import { formatFriendRating } from '../lib/friendDirectory';
@@ -23,6 +29,10 @@ import { InteractiveTutorial } from './InteractiveTutorial';
 import { ArrowUpRight } from 'lucide-react';
 import './lobby-studio.css';
 import { campaignText } from '../locales/campaignText';
+import { useCircuitAccess } from '../hooks/useCircuitAccess';
+import { circuitAccessText } from '../locales/circuitAccessText';
+
+const ProfileCosmetics=dynamic(()=>import('./ProfileCosmetics').then(module=>module.ProfileCosmetics),{ssr:false});
 
 interface LevelSelectProps {
     settingsPanel?:'friends'|'account'|null;
@@ -31,15 +41,18 @@ interface LevelSelectProps {
     user: User;
     onSelect: (tc: TimeControl, level: CPULevel, side: 'white' | 'black') => void;
     onOnlineMatch?: (roomId: string, role: 'white' | 'black' | 'spectator', matchMode: 'random' | 'private' | 'ranked', tc: TimeControl, opponentId?: string) => void;
-    onStartGlobalMatch?: (tcSeconds: number) => void;
+    onStartGlobalMatch?: (tcSeconds: number, mode: 'ranked' | 'random') => void;
     onReplay?: (record: GameRecord) => void;
     onBack: () => void;
     onCampaign?:()=>void;
+    onProfileUpdated?:(profile:{id:string;avatar_url:string})=>void;
 }
 
-export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobalMatch, onReplay, onBack, onCampaign,settingsPanel,onCloseSettingsPanel }: LevelSelectProps) {
+export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobalMatch, onReplay, onBack, onCampaign,settingsPanel,onCloseSettingsPanel,onProfileUpdated }: LevelSelectProps) {
     const t = { ...dict['en'], ...(dict[lang] || {}) } as any;
+    const historyCopy = replayText(lang);
     const {progress:cosmetics}=useCampaignProgress();
+    const {allowed:circuitAllowed}=useCircuitAccess(user);
     const [practiceLevel, setPracticeLevel] = React.useState<CPULevel>(3);
     const [practiceSide, setPracticeSide] = React.useState<'white' | 'black'>('white');
     const [showAdModal, setShowAdModal] = React.useState(false);
@@ -49,11 +62,15 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
     const [isSearching, setIsSearching] = React.useState(false);
     const [matchFound, setMatchFound] = React.useState(false);
     
-    const { queueStats } = useSocket();
+    const { queueStats, isAuthenticated } = useSocket();
     const [showReplays, setShowReplays] = React.useState(false);
     const [replays, setReplays] = React.useState<GameRecord[]>([]);
     const [loadingReplays, setLoadingReplays] = React.useState(false);
-    const [replayCategory, setReplayCategory] = React.useState<'global' | 'mine'>('global');
+    const [historyError, setHistoryError] = React.useState<'AUTH_REQUIRED' | 'UNAVAILABLE' | null>(null);
+    const [verifyHistory, setVerifyHistory] = React.useState(false);
+    const historyIdentity = React.useRef(user.id);
+    historyIdentity.current = user.id;
+    const historyRequest = React.useRef(0);
     const [showLeaderboard, setShowLeaderboard] = React.useState(false);
     const [leaderboard, setLeaderboard] = React.useState<Profile[]>([]);
     const [loadingLeaderboard, setLoadingLeaderboard] = React.useState(false);
@@ -69,43 +86,16 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
     const [isEditingName, setIsEditingName] = React.useState(false);
     const [newName, setNewName] = React.useState('');
     const [nameLoading, setNameLoading] = React.useState(false);
-    const [uploadingAvatar, setUploadingAvatar] = React.useState(false);
-
-    const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        try {
-            setUploadingAvatar(true);
-            if (!e.target.files || e.target.files.length === 0) return;
-            const file = e.target.files[0];
-            const fileExt = file.name.split('.').pop();
-            const filePath = `${user.id}/avatar.${fileExt}`;
-
-            // Upload to Supabase Storage
-            const { error: uploadError } = await supabase.storage
-                .from('avatars')
-                .upload(filePath, file, { upsert: true });
-
-            if (uploadError) throw uploadError;
-
-            // Get public URL
-            const { data: publicUrlData } = supabase.storage
-                .from('avatars')
-                .getPublicUrl(filePath);
-
-            // Update profiles table
-            const { error: updateError } = await supabase.from('profiles')
-                .update({ avatar_url: publicUrlData.publicUrl })
-                .eq('id', user.id);
-
-            if (updateError) throw updateError;
-            
-            // Reload to show new avatar
-            window.location.reload();
-        } catch (error) {
-            alert('Error uploading avatar!');
-            console.error(error);
-        } finally {
-            setUploadingAvatar(false);
-        }
+    const [showIconEditor,setShowIconEditor]=React.useState(false);
+    const [avatarOverride,setAvatarOverride]=React.useState<{userId:string;url:string}|null>(null);
+    const displayAvatarUrl=avatarOverride?.userId===user.id?avatarOverride.url:(userProfile?.id===user.id?userProfile.avatar_url:undefined)||user.avatar_url;
+    const canEditIcon=!!user.id&&!/^(?:guest(?:[-_]|$)|anon(?:ymous)?(?:[-_]|$)|cpu(?:[-_]|$)|ai(?::|$)|supabase-)/i.test(user.id);
+    React.useEffect(()=>{setShowIconEditor(false);},[user.id,showAccount]);
+    const acceptAvatar=(url:string)=>{
+        if(historyIdentity.current!==user.id)return;
+        setAvatarOverride({userId:user.id,url});
+        setUserProfile(profile=>profile?.id===user.id?{...profile,avatar_url:url}:profile);
+        onProfileUpdated?.({id:user.id,avatar_url:url});
     };
 
     const handleUpdateName = async () => {
@@ -150,8 +140,12 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
     const [showTutorial, setShowTutorial] = React.useState(false);
     const [showLiveMatches, setShowLiveMatches] = React.useState(false);
     const [showPlayMenu, setShowPlayMenu] = React.useState(false);
-    const [recentGames, setRecentGames] = React.useState<any[]>([]);
-    React.useEffect(() => { getGameRecords(3, user.id).then(setRecentGames); }, [user.id]);
+    const [recentGames, setRecentGames] = React.useState<GameRecord[]>([]);
+    React.useEffect(() => {
+        historyRequest.current++;
+        setRecentGames([]); setReplays([]); setUserStats(null); setHistoryError(null);
+        return () => { historyRequest.current++; };
+    }, [user.id]);
     const anyModalOpen = showPlayMenu || showReplays || showLeaderboard || showFriends || showAccount || showTutorial || showAdModal || !!pendingAction || showLiveMatches;
     
     
@@ -209,7 +203,8 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
         if (showAccount) {
             refreshUserProfile();
             import('../lib/gameRecordService').then(({ getUserStats }) => {
-                getUserStats(user.id).then(stats => setUserStats(stats));
+                getUserStats(user.id).then(stats => { if (historyIdentity.current === user.id) setUserStats(stats); })
+                    .catch(() => { if (historyIdentity.current === user.id) setUserStats(null); });
             });
         }
     }, [showAccount, user.id, refreshUserProfile]);
@@ -222,9 +217,9 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
 
     React.useEffect(() => {
         if (showReplays) {
-            loadReplays(replayCategory);
+            void loadReplays();
         }
-    }, [showReplays, replayCategory]);
+    }, [showReplays, user.id, isAuthenticated]);
 
     React.useEffect(() => {
         if (isSearching) {
@@ -246,16 +241,20 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
         loadLeaderboard(category);
     };
 
-    const loadReplays = async (category: 'global' | 'mine') => {
+    const loadReplays = async () => {
+        const request = ++historyRequest.current;
         setLoadingReplays(true);
-        const data = await getGameRecords(10, category === 'mine' ? user.id : undefined);
-        setReplays(data);
-        setLoadingReplays(false);
-    };
-
-    const handleReplayCategoryChange = (category: 'global' | 'mine') => {
-        setReplayCategory(category);
-        loadReplays(category);
+        try {
+            const data = await getGameRecords(10, user.id);
+            if (request !== historyRequest.current || historyIdentity.current !== user.id) return;
+            setReplays(data); setRecentGames(data.slice(0, 3)); setHistoryError(null);
+        } catch (error) {
+            if (request !== historyRequest.current || historyIdentity.current !== user.id) return;
+            setReplays([]); setRecentGames([]);
+            setHistoryError(error instanceof HistoryError ? error.code : 'UNAVAILABLE');
+        } finally {
+            if (request === historyRequest.current) setLoadingReplays(false);
+        }
     };
 
     useRealtimeRefresh(['profiles'], async () => {
@@ -264,13 +263,16 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
             showLeaderboard ? loadLeaderboard(leaderboardCategory) : Promise.resolve()
         ]);
     });
-    useRealtimeRefresh(['game_records'], async () => {
+    // Private history cannot subscribe to the former public table. Refresh the
+    // authenticated endpoint on focus/online/interval, without a WS subscription.
+    useRealtimeRefresh([], async () => {
         await Promise.all([
-            getGameRecords(3, user.id).then(setRecentGames),
-            showReplays ? loadReplays(replayCategory) : Promise.resolve(),
-            showAccount ? import('../lib/gameRecordService').then(({ getUserStats }) => getUserStats(user.id)).then(setUserStats) : Promise.resolve()
+            loadReplays(),
+            showAccount ? import('../lib/gameRecordService').then(({ getUserStats }) => getUserStats(user.id))
+                .then(stats => { if (historyIdentity.current === user.id) setUserStats(stats); })
+                .catch(() => { if (historyIdentity.current === user.id) setUserStats(null); }) : Promise.resolve()
         ]);
-    });
+    }, user.type === 'registered');
 
     const handleVsCpuClick = () => {
         setPendingAction({ type: 'cpu' });
@@ -289,7 +291,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
 
     const startRandomMatch = React.useCallback((mode: 'random' | 'ranked', tc: TimeControl) => {
         const tcSeconds = tc === '3m' ? 180 : tc === '10m' ? 600 : 10;
-        onStartGlobalMatch?.(tcSeconds);
+        onStartGlobalMatch?.(tcSeconds, mode);
     }, [onStartGlobalMatch]);
 
     const handleTimeControlConfirm = (tc: TimeControl) => {
@@ -439,6 +441,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
             
             
 
+            {showAccount&&showIconEditor&&canEditIcon&&<AccountIconEditor key={user.id} lang={lang} userId={user.id} currentUrl={displayAvatarUrl} clears={rewardClearCount(cosmetics)} onClose={()=>setShowIconEditor(false)} onSaved={acceptAvatar}/>}
             {showAccount && (
                 <SettingsDialog label={t.account} onClose={()=>onCloseSettingsPanel?.()}>
                     <div className="bg-[#161513] border border-[#A89C86]/40 p-6 md:p-8 w-full max-w-md shadow-2xl max-h-[90vh] overflow-y-auto custom-scrollbar">
@@ -449,17 +452,10 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
                         
                         <div className="flex flex-col gap-6 text-left">
                             <div className="flex items-center gap-6">
-                                <label className="cursor-pointer group relative">
-                                    <div className="relative w-20 h-20">
-                                        <AccountAvatar name={userProfile?.name||user.name} url={userProfile?.avatar_url||user.avatar_url} frame={cosmetics.avatar} size={80}/>
-                                        {uploadingAvatar && (
-                                            <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                                                <span className="text-[10px] tracking-widest text-white animate-pulse">{(t as any).uploading}</span>
-                                            </div>
-                                        )}
-                                    </div>
-                                    <input type="file" accept="image/*" onChange={handleAvatarUpload} className="hidden" disabled={uploadingAvatar} />
-                                </label>
+                                <div className="flex flex-col items-center gap-3">
+                                    <AccountAvatar name={userProfile?.name||user.name} url={displayAvatarUrl} frame={cosmetics.avatar} size={80}/>
+                                    <button type="button" className="account-icon-change" disabled={!canEditIcon} onClick={()=>setShowIconEditor(true)}>{iconEditorText(lang,'change')}</button>
+                                </div>
                                 <div className="flex flex-col">
                                     <div className="flex items-center gap-2">
                                         {isEditingName ? (
@@ -501,7 +497,9 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
                                 </div>
                             </div>
 
-                            <button onClick={async () => { await supabase.auth.signOut(); window.location.reload(); }} className="w-full mt-4 py-4 border border-[#A89C86]/40 hover:border-[#E8E2D7] text-[#A89C86] hover:text-[#E8E2D7] text-xs tracking-widest transition-colors">
+                            <ProfileCosmetics lang={lang} name={userProfile?.name||user.name} url={displayAvatarUrl} frame={cosmetics.avatar} ratings={user.type==='registered'&&userProfile?.id===user.id?userProfile:undefined}/>
+
+                            <button onClick={onBack} className="w-full mt-4 py-4 border border-[#A89C86]/40 hover:border-[#E8E2D7] text-[#A89C86] hover:text-[#E8E2D7] text-xs tracking-widest transition-colors">
                                 {t.logout}
                             </button>
                         </div>
@@ -513,16 +511,22 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
                 <div className="fixed inset-0 bg-[#161513]/95 z-50 flex flex-col p-4 md:p-8 backdrop-blur-md">
                     <div className="w-full max-w-2xl mx-auto h-full flex flex-col">
                         <div className="flex justify-between items-center mb-6 pb-4 border-b border-[#A89C86]/20 shrink-0">
-                            <h3 className="text-xl tracking-[0.2em] text-[#E8E2D7] font-serif">{t.watchReplays}</h3>
+                            <h3 className="text-xl tracking-[0.2em] text-[#E8E2D7] font-serif">{t.mine} · {t.watchReplays}</h3>
                             <button onClick={() => setShowReplays(false)} className="text-[#A89C86] hover:text-[#E8E2D7] text-2xl">✕</button>
                         </div>
                         
-                        <div className="flex gap-2 mb-6 shrink-0">
-                            <button onClick={() => handleReplayCategoryChange('global')} className={`flex-1 py-3 text-[10px] tracking-[0.2em] transition-colors border ${replayCategory === 'global' ? 'border-[#B39A62] bg-[#B39A62]/10 text-[#B39A62]' : 'border-[#A89C86]/40 text-[#A89C86] hover:border-[#E8E2D7]'}`}>{(t as any).global}</button>
-                            <button onClick={() => handleReplayCategoryChange('mine')} className={`flex-1 py-3 text-[10px] tracking-[0.2em] transition-colors border ${replayCategory === 'mine' ? 'border-[#B39A62] bg-[#B39A62]/10 text-[#B39A62]' : 'border-[#A89C86]/40 text-[#A89C86] hover:border-[#E8E2D7]'}`}>{(t as any).mine}</button>
-                        </div>
+                        <p className="mb-6 text-sm text-[#A89C86]">{historyCopy.historyOnly}</p>
 
-                        {loadingReplays ? (
+                        {historyError || user.type === 'guest' ? (
+                            <div role="status" className="flex-grow flex flex-col items-center justify-center gap-4 text-[#A89C86] text-sm">
+                                <p>{historyError === 'UNAVAILABLE' ? historyCopy.historyUnavailable : historyCopy.historyVerify}</p>
+                                <button className="min-h-11 border border-[#B39A62] px-6 py-3 text-[#E8E2D7]" onClick={() => {
+                                    if (historyError === 'UNAVAILABLE') void loadReplays();
+                                    else if (user.type === 'guest' || /^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(user.id)) onBack();
+                                    else setVerifyHistory(true);
+                                }}>{historyError === 'UNAVAILABLE' ? historyCopy.historyRetry : t.login}</button>
+                            </div>
+                        ) : loadingReplays ? (
                             <div className="flex-grow flex items-center justify-center text-[#A89C86] animate-pulse text-xs tracking-widest">{t.loading}</div>
                         ) : replays.length === 0 ? (
                             <div className="flex-grow flex items-center justify-center text-[#A89C86] text-xs tracking-widest">{t.noRecords}</div>
@@ -548,6 +552,9 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
                     </div>
                 </div>
             )}
+
+            {verifyHistory && <RankedLoginDialog lang={lang} userId={user.id} title={`${t.mine} · ${t.watchReplays}`}
+                onCancel={() => setVerifyHistory(false)} onVerified={() => { setVerifyHistory(false); void loadReplays(); }} />}
 
             {showLeaderboard && (
                 <div className="fixed inset-0 bg-[#161513]/95 z-50 flex flex-col p-4 md:p-8 backdrop-blur-md">
@@ -618,7 +625,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
             <div className="lobby-content flex-grow flex flex-col justify-center w-full max-w-lg mx-auto z-10 gap-12 mt-8">
                 
                 <div className="lobby-play-panel flex flex-col gap-6 w-full">
-                    {onCampaign && <button className="lobby-campaign-action" onClick={onCampaign}><span aria-hidden="true">♛</span><span>{campaignText(lang,'title')}</span><ArrowUpRight size={20}/></button>}
+                    {onCampaign && <button className="lobby-campaign-action" onClick={onCampaign}><span aria-hidden="true">{circuitAllowed?'♛':'♙'}</span><span>{campaignText(lang,'title')}{!circuitAllowed&&<small style={{display:'block',fontSize:11,letterSpacing:0}}>{circuitAccessText(lang,'action')}</small>}</span><ArrowUpRight size={20}/></button>}
                     <div className="flex flex-col items-center w-full">
                         <h2 className="text-[10px] tracking-[0.3em] text-[#A89C86] uppercase mb-4">{(t as any).yourNextGame}</h2>
                         <button onClick={() => setShowPlayMenu(true)} className="lobby-play-action w-full group relative">
@@ -667,7 +674,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
 
             <div className="lobby-navigation shrink-0 w-full max-w-lg mx-auto flex flex-wrap justify-center sm:justify-between items-center border-t border-[#A89C86]/20 pt-6 pb-2 text-[10px] tracking-[0.2em] text-[#A89C86] gap-y-4 z-10">
                 <div className="flex gap-6 justify-center w-full sm:w-auto">
-                    <button onClick={() => { setShowReplays(true); loadReplays(replayCategory); }} className="hover:text-[#E8E2D7] transition-colors uppercase">{t.gameReplays}</button>
+                    <button onClick={() => setShowReplays(true)} className="hover:text-[#E8E2D7] transition-colors uppercase">{t.gameReplays}</button>
                     <button onClick={() => { setShowLeaderboard(true); loadLeaderboard(); }} className="hover:text-[#E8E2D7] transition-colors uppercase">{t.globalRankings}</button>
                 </div>
             </div>

@@ -2,9 +2,11 @@
 import React, { useState } from 'react';
 import { matchText } from '../locales/matchText';
 import { User } from '../types/game';
+import { circuitAccess } from '../lib/circuitAccess';
 import { dict, Language } from '../locales/dict';
 import { AdBanner } from './AdBanner';
 import { supabase } from '../lib/supabaseClient';
+import { requestRankedSession } from '../lib/rankedSession';
 import Link from 'next/link';
 import './title-screen.css';
 import { ArrowUpRight, ChevronRight } from 'lucide-react';
@@ -15,12 +17,16 @@ import { Browser } from '@capacitor/browser';
 
 interface TitleScreenProps {
     lang: Language;
-    onLogin: (u: User) => void;
+    onLogin: (u: User, attempt?:number) => void;
+    initialMode?:'select'|'login';
 }
 
-export function TitleScreen({ lang, onLogin }: TitleScreenProps) {
+export function TitleScreen({ lang, onLogin, initialMode='select' }: TitleScreenProps) {
     const t = { ...dict['en'], ...(dict[lang] || {}) } as any;
-    const [mode, setMode] = useState<'select' | 'register' | 'login' | 'rules'>('select');
+    const [mode, setMode] = useState<'select' | 'register' | 'login' | 'rules'>(initialMode);
+    const mounted=React.useRef(false);
+    const loginRequest=React.useRef<AbortController|null>(null);
+    React.useEffect(()=>{mounted.current=true;return()=>{mounted.current=false;loginRequest.current?.abort();};},[]);
     const [inputId, setInputId] = useState('');
     const [inputPassword, setInputPassword] = useState('');
     const [error, setError] = useState('');
@@ -51,6 +57,8 @@ export function TitleScreen({ lang, onLogin }: TitleScreenProps) {
     }, []);
 
     const handleOAuthLogin = async (provider: 'google' | 'discord') => {
+        if (loading) return;
+        loginRequest.current?.abort();
         if (Capacitor.isNativePlatform()) {
             const { data, error } = await supabase.auth.signInWithOAuth({
                 provider,
@@ -77,6 +85,7 @@ export function TitleScreen({ lang, onLogin }: TitleScreenProps) {
 
     const handleRegisterSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (loading) return;
         setError('');
         if (!inputId.trim() || !inputPassword.trim()) {
             setError(matchText(lang, 'IDとパスワードを入力してください。', 'Please enter ID and Password.'));
@@ -88,6 +97,9 @@ export function TitleScreen({ lang, onLogin }: TitleScreenProps) {
         }
 
         setLoading(true);
+        const attempt=circuitAccess.beginAuthentication();
+        loginRequest.current?.abort();
+        const request=new AbortController();loginRequest.current=request;
         try {
             const { data, error: rpcError } = await supabase.rpc('register_user', {
                 p_id: inputId,
@@ -95,19 +107,24 @@ export function TitleScreen({ lang, onLogin }: TitleScreenProps) {
             });
             if (rpcError || !data) {
                 setError(matchText(lang, 'このアカウント名は既に使用されています。', 'ID already exists.'));
-                setLoading(false);
                 return;
             }
-            onLogin({ id: inputId, name: inputId, type: 'registered' });
+            // Registration succeeded even if the game server is temporarily cold.
+            // The history dialog can retry verification without recreating the account.
+            if (!mounted.current || request.signal.aborted) return;
+            await requestRankedSession(inputId, inputPassword, AbortSignal.any([request.signal,AbortSignal.timeout(15000)])).catch(() => {});
+            if(mounted.current && !request.signal.aborted)onLogin({ id: inputId, name: inputId, type: 'registered' },attempt);
         } catch (err) {
             console.error(err);
             setError(matchText(lang,'登録に失敗しました','Registration failed.'));
-            setLoading(false);
+        } finally {
+            if(mounted.current)setLoading(false);
         }
     };
 
     const handleLoginSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (loading) return;
         setError('');
         if (!inputId.trim() || !inputPassword.trim()) {
             setError(matchText(lang, 'IDとパスワードを入力してください。', 'Please enter ID and Password.'));
@@ -115,21 +132,17 @@ export function TitleScreen({ lang, onLogin }: TitleScreenProps) {
         }
 
         setLoading(true);
+        const attempt=circuitAccess.beginAuthentication();
+        loginRequest.current?.abort();
+        const request=new AbortController();loginRequest.current=request;
         try {
-            const { data, error: rpcError } = await supabase.rpc('login_user', {
-                p_id: inputId,
-                p_password: inputPassword
-            });
-            if (rpcError || !data) {
-                setError(matchText(lang, 'アカウント名またはパスワードが間違っています。', 'Invalid ID or Password.'));
-                setLoading(false);
-                return;
-            }
-            onLogin({ id: inputId, name: inputId, type: 'registered' });
+            await requestRankedSession(inputId, inputPassword, AbortSignal.any([request.signal,AbortSignal.timeout(30000)]));
+            if(mounted.current && !request.signal.aborted)onLogin({ id: inputId, name: inputId, type: 'registered' },attempt);
         } catch (err) {
             console.error(err);
             setError(matchText(lang,'ログインに失敗しました','Login failed.'));
-            setLoading(false);
+        } finally {
+            if(mounted.current)setLoading(false);
         }
     };
 

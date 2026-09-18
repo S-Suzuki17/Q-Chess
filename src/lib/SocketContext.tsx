@@ -1,64 +1,87 @@
 'use client';
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { io, Socket } from 'socket.io-client';
+import { io, type Socket } from 'socket.io-client';
+import { supabase } from './supabaseClient';
+import { gameServerUrl, readRankedSession, RANKED_SESSION_EVENT } from './rankedSession';
 
 interface SocketContextProps {
     socket: Socket | null;
     isConnected: boolean;
+    isAuthenticated: boolean;
+    authPending: boolean;
+    connectionError: string | null;
     queueStats: Record<number, number>;
 }
+const SocketContext = createContext<SocketContextProps>({ socket:null, isConnected:false, isAuthenticated:false, authPending:false, connectionError:null, queueStats:{} });
+export function useSocket() { return useContext(SocketContext); }
 
-const SocketContext = createContext<SocketContextProps>({ socket: null, isConnected: false, queueStats: {} });
+/** The server verifies the token. Cached profile IDs alone never authenticate a socket. */
+export function SocketProvider({ children, userId }: { children:React.ReactNode; userId:string|undefined }) {
+    const [socket,setSocket]=useState<Socket|null>(null);
+    const [isConnected,setIsConnected]=useState(false);
+    const [isAuthenticated,setIsAuthenticated]=useState(false);
+    const [authPending,setAuthPending]=useState(false);
+    const [connectionError,setConnectionError]=useState<string|null>(null);
+    const [queueStats,setQueueStats]=useState<Record<number,number>>({});
 
-export function useSocket() {
-    return useContext(SocketContext);
-}
+    useEffect(()=>{
+        let disposed=false,revision=0,current:Socket|null=null,lastToken:string|undefined;
+        let expiryTimer:ReturnType<typeof setTimeout>|undefined;
+        let refreshTimer:ReturnType<typeof setTimeout>|undefined;
+        setSocket(null);setIsConnected(false);setIsAuthenticated(false);setConnectionError(null);setQueueStats({});
+        if(!userId){setAuthPending(false);return;}
 
-export function SocketProvider({ children, userId }: { children: React.ReactNode, userId: string | undefined }) {
-    const [socket, setSocket] = useState<Socket | null>(null);
-    const [isConnected, setIsConnected] = useState(false);
-    const [queueStats, setQueueStats] = useState<Record<number, number>>({});
-
-    useEffect(() => {
-        if (!userId) return;
-
-        // Use GUEST- prefix so the backend accepts our mock token
-        const token = userId.startsWith('GUEST-') ? userId : `SUPABASE-${userId}`;
-        const SERVER_URL = process.env.NEXT_PUBLIC_SERVER_URL || 'https://q-chess.onrender.com';
-        
-        const newSocket = io(SERVER_URL, {
-            auth: { token },
-            transports: ['websocket', 'polling'],
-            reconnection: true,
-            reconnectionAttempts: Infinity,
-            reconnectionDelay: 1000,
-            reconnectionDelayMax: 5000,
-        });
-
-        newSocket.on('connect', () => {
-            console.log('Connected to Game Server:', newSocket.id);
-            setIsConnected(true);
-        });
-
-        newSocket.on('disconnect', (reason) => {
-            console.log('Disconnected from Game Server:', reason);
-            setIsConnected(false);
-        });
-
-        setSocket(newSocket);
-
-        newSocket.on('queue_stats', (stats) => {
-            setQueueStats(stats);
-        });
-
-        return () => {
-            newSocket.disconnect();
+        const refresh=async()=>{
+            const request=++revision;
+            setAuthPending(true);
+            try {
+                const proof=readRankedSession(userId);
+                let token=proof?.token,expiresAt=proof?.expiresAt;
+                const guest=userId.startsWith('GUEST-');
+                if(guest)token=userId;
+                else if(!token){
+                    const {data,error}=await supabase.auth.getSession();
+                    const session=data.session;
+                    if(!error&&session?.user.id===userId&&!session.user.is_anonymous){
+                        token=session.access_token;expiresAt=session.expires_at?session.expires_at*1000:undefined;
+                    }
+                }
+                if(disposed||request!==revision)return;
+                clearTimeout(expiryTimer);
+                if(!token || (!guest&&expiresAt!==undefined&&expiresAt<=Date.now())){
+                    current?.disconnect();current=null;setSocket(null);setIsConnected(false);setIsAuthenticated(false);setConnectionError('AUTH_REQUIRED');return;
+                }
+                const authenticated=!guest;
+                if(current){
+                    current.auth={token,userId};
+                    // The server validates the handshake token on each rated queue.
+                    if(lastToken!==token){current.disconnect();current.connect();}
+                    else if(current.connected){setIsAuthenticated(authenticated);setConnectionError(null);}
+                    else current.connect();
+                }else{
+                    const next=io(gameServerUrl(),{
+                        auth:{token,userId},autoConnect:false,transports:['websocket','polling'],
+                        reconnection:true,reconnectionAttempts:Infinity,reconnectionDelay:1000,reconnectionDelayMax:5000,
+                    });
+                    current=next;setSocket(next);
+                    next.on('connect',()=>{if(!disposed){setIsConnected(true);setIsAuthenticated(authenticated);setConnectionError(null);}});
+                    next.on('disconnect',()=>{if(!disposed){setIsConnected(false);setIsAuthenticated(false);}});
+                    next.on('connect_error',(error:Error)=>{if(!disposed){setIsConnected(false);setIsAuthenticated(false);setConnectionError(/auth|token|session/i.test(error.message)?'AUTH_REQUIRED':'CONNECTION_FAILED');}});
+                    next.on('queue_stats',(stats:Record<number,number>)=>{if(!disposed)setQueueStats(stats);});
+                    next.connect();
+                }
+                lastToken=token;
+                // Expiry prevents new rated queues. Do not interrupt an existing match.
+                if(authenticated&&expiresAt)expiryTimer=setTimeout(()=>{if(!disposed)setIsAuthenticated(false);},Math.min(2147483647,Math.max(0,expiresAt-Date.now())));
+            }catch{
+                if(!disposed&&request===revision){setConnectionError('AUTH_REQUIRED');setIsAuthenticated(false);}
+            }finally{if(!disposed&&request===revision)setAuthPending(false);}
         };
-    }, [userId]);
-
-    return (
-        <SocketContext.Provider value={{ socket, isConnected, queueStats }}>
-            {children}
-        </SocketContext.Provider>
-    );
+        const requestRefresh=()=>{clearTimeout(refreshTimer);refreshTimer=setTimeout(()=>void refresh(),0);};
+        window.addEventListener(RANKED_SESSION_EVENT,requestRefresh);
+        const {data:{subscription}}=supabase.auth.onAuthStateChange(requestRefresh);
+        void refresh();
+        return()=>{disposed=true;revision++;clearTimeout(expiryTimer);clearTimeout(refreshTimer);window.removeEventListener(RANKED_SESSION_EVENT,requestRefresh);subscription.unsubscribe();current?.disconnect();};
+    },[userId]);
+    return <SocketContext.Provider value={{socket,isConnected,isAuthenticated,authPending,connectionError,queueStats}}>{children}</SocketContext.Provider>;
 }

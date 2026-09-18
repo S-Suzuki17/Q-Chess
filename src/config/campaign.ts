@@ -4,6 +4,7 @@ import { championshipReward, CHAMPIONSHIP_REWARDS, referencePieceForBoard, type 
 import { circuitMusic, type MusicReward } from './circuitMusic';
 import { avatarFrame,type AvatarFrameId } from './avatarFrames';
 import { parseStageStars } from './circuitStages';
+import type { TimeControl } from '../types/game';
 
 export type BossId = 'nox' | 'ember' | 'oracle' | 'sovereign';
 export type CPUPersonality = 'balanced' | 'attacker' | 'guardian';
@@ -34,7 +35,7 @@ export interface CampaignProgress {
     stageStars?:number[];
     avatar?:'standard'|AvatarFrameId;
 }
-export interface CampaignOutcome { won:boolean; draw:boolean; playerMoves:number; hintsUsed:number; initialSeconds:number; remainingSeconds:number }
+export interface CampaignOutcome { won:boolean; draw:boolean; playerMoves:number; hintsUsed:number; initialSeconds:number; remainingSeconds:number; timeControl?:TimeControl }
 export const emptyCampaign = (): CampaignProgress => ({version:2,stars:{},ascensions:[],board:'standard',piece:'standard',effect:'standard',music:'standard',stageStars:[],avatar:'standard'});
 export const rewardClearCount=(progress:CampaignProgress)=>Math.max(progress.stageStars?.length??0,highestUnlockedLap(progress)-1);
 export const lapStars = (progress:CampaignProgress, lap=1) => lap===1 ? progress.stars : progress.ascensions[lap-2] ?? {};
@@ -65,8 +66,11 @@ export function rewardUnlocked(progress: CampaignProgress, reward: string) {
     if (reward === 'crystal') return highestUnlockedLap(progress)-1>=10;
     return championship ? championship.requiredWins<=(CHAMPIONSHIP_REWARDS.some(item=>item.id===reward)?rewardClearCount(progress):highestUnlockedLap(progress)-1) : BOSSES.some(boss => boss.reward === reward && !!progress.stars[boss.id]);
 }
-export function outcomeStars(outcome: CampaignOutcome) {
-    return outcome.won && !outcome.draw ? 1 + Number(outcome.hintsUsed === 0) + Number(timeStarEarned(outcome)) : 0;
+export function outcomeStars(outcome: CampaignOutcome, timeControl=outcome.timeControl) {
+    const thirdStar=timeControl==='10s'
+        ? Number.isSafeInteger(outcome.playerMoves)&&outcome.playerMoves>=0&&outcome.playerMoves<=40
+        : timeStarEarned(outcome);
+    return outcome.won && !outcome.draw ? 1 + Number(outcome.hintsUsed === 0) + Number(thirdStar) : 0;
 }
 export function timeStarEarned({initialSeconds,remainingSeconds}: Pick<CampaignOutcome,'initialSeconds'|'remainingSeconds'>) {
     return Number.isFinite(initialSeconds) && initialSeconds>0 && Number.isFinite(remainingSeconds)

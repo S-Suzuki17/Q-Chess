@@ -12,12 +12,19 @@ const noop = () => {};
 const base: ComponentProps<typeof MatchLayout> = {
     lang:'ja', mode:'CPU', white:{name:'Guest',clock:'10:00'}, black:{name:'CPU',clock:'10:00'},
     bottomSide:'white',currentTurn:'white',finished:false,tokens:[piece],selectedTokenId:null,history:[],
-    validMoveCount:16,onClearSelection:noop,is2D:true,onViewChange:noop,onThemeChange:noop,onResetView:noop,
+    validMoveCount:16,onClearSelection:noop,is2D:true,onViewChange:noop,onResetView:noop,
     onHome:noop,onRules:noop,onResign:noop,showMoveHints:true,onHintsChange:noop,board:null,onHint:noop,
 };
 const render = (overrides: Partial<typeof base> = {}) => renderToStaticMarkup(createElement(MatchLayout, {...base,...overrides}));
 
 describe('Match decision feedback', () => {
+    it('keeps view controls but never offers cosmetic changes during a match',()=>{
+        const html=render();
+        expect(html).not.toContain('match-theme');
+        expect(html).not.toContain('盤面のデザインを変更');
+        expect(html).toContain('>3D</button>');
+        expect(html).toContain('>2D</button>');
+    });
     it('shows a check once on the board and hides it after the finish',()=>{
         expect(render({checkNotice:'チェック！'}).match(/data-testid="check-warning"/g)).toHaveLength(1);
         expect(render({checkNotice:'チェック！',finished:true})).not.toContain('data-testid="check-warning"');

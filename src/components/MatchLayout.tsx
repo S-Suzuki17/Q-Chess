@@ -2,7 +2,7 @@
 
 import { useState, type ReactNode } from 'react';
 import { AccountAvatar } from './AccountAvatar';
-import { Palette, Settings2, HelpCircle, Flag, Lightbulb, X } from 'lucide-react';
+import { Settings2, HelpCircle, Flag, Lightbulb, X } from 'lucide-react';
 import type { Token } from '../lib/GameEngine';
 import type { PieceType } from '../config/gameConfig';
 import type { MoveRecord } from '../lib/gameRecordService';
@@ -30,7 +30,7 @@ interface Props {
     onHint?: () => void; hintPending?: boolean; feedback?: string | null;
     hintMove?: HintMove | null; hintFailed?: boolean; onClearHint?: () => void;
     is2D: boolean; onViewChange: (flat: boolean) => void;
-    onThemeChange: () => void; onResetView: () => void;
+    onResetView: () => void;
     onHome: () => void; onRules: () => void; onResign: () => void;
     showMoveHints: boolean; onHintsChange: (show: boolean) => void;
     board: ReactNode; notice?: ReactNode; children?: ReactNode;
@@ -67,7 +67,7 @@ export function MatchLayout(props: Props) {
         const urgent = !props.finished && minutes * 60 + seconds <= 30;
         const captured = props.tokens.filter(token => token.isCaptured && token.player !== side);
         return <section className={`match-player ${active ? 'is-active' : ''}`} aria-label={label(side === 'white' ? '白の対局者' : '黒の対局者', `${side} player`)}>
-            <AccountAvatar name={player.name} url={player.avatar} frame={player.frame} size={36}/>
+            <AccountAvatar name={player.name} url={player.avatar} frame={player.frame} size={36} rating={player.rating} lang={props.lang}/>
             <div className="match-player-name"><strong title={player.name}>{player.name}</strong>
                 <span>{label(side === 'white' ? '白' : '黒', side === 'white' ? 'White' : 'Black')}{player.rating != null && ` · ${player.rating}`}
                     {active && <b>{label(side === props.bottomSide && !props.spectator ? 'あなたの手番' : '思考中', side === props.bottomSide && !props.spectator ? 'YOUR TURN' : 'THINKING')}</b>}
@@ -101,7 +101,6 @@ export function MatchLayout(props: Props) {
                     <button className={`match-tool ${!props.is2D ? 'selected' : ''}`} onClick={() => props.onViewChange(false)} aria-pressed={!props.is2D}>3D</button>
                     <button className={`match-tool ${props.is2D ? 'selected' : ''}`} onClick={() => props.onViewChange(true)} aria-pressed={props.is2D}>2D</button>
                 </div>
-                <button className="match-tool match-theme" onClick={props.onThemeChange} aria-label={label('盤面のデザインを変更', 'Change board theme')}><Palette size={18}/></button>
             </nav>
             <button className="match-button header-help" onClick={props.onRules}><HelpCircle size={16}/>{label('ルール', 'Rules')}</button>
             <button className="match-button" onClick={() => window.dispatchEvent(new CustomEvent('qg-open-settings'))} aria-label={label('設定', 'Settings')}><Settings2 size={17}/><span className="desktop-label">{label('設定', 'Settings')}</span></button>

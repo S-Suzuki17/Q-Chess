@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Playfair_Display, Cinzel } from "next/font/google";
-import Script from "next/script";
+import { AdSenseLoader } from "../components/AdSenseLoader";
 import { Analytics } from "@vercel/analytics/react";
 import "./globals.css";
 
@@ -63,27 +63,9 @@ export default function RootLayout({
       lang="ja"
       className={`${geistSans.variable} ${geistMono.variable} ${playfair.variable} ${cinzel.variable} h-full antialiased overflow-x-hidden`}
     >
-      <head>
-        {adClient && (
-            <Script
-                async
-                src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${adClient}`}
-                crossOrigin="anonymous"
-                strategy="afterInteractive"
-            />
-        )}
-        {adClient && <Script id="adsense-init" strategy="afterInteractive">
-            {`
-              (adsbygoogle = window.adsbygoogle || []).push({
-                google_ad_client: "${adClient}",
-                enable_page_level_ads: true,
-                overlays: {bottom: true}
-              });
-            `}
-        </Script>}
-      </head>
       <body className="h-full bg-[#11100E] text-[#E8E2D7] selection:bg-[#B39A62]/30 font-sans overflow-x-hidden">
         <main className="h-full">{children}</main>
+        {adClient && <AdSenseLoader client={adClient} />}
         <Analytics />
       </body>
     </html>

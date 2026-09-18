@@ -1,7 +1,7 @@
 'use client';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowLeft, ArrowUpRight, Check, LockKeyhole, Trophy } from 'lucide-react';
-import { equipReward, outcomeStars, rewardUnlocked, rewardPiece, rewardBoard, type CampaignOutcome, type VictoryFinish, type BoardFinish, type PieceFinish } from '../config/campaign';
+import { outcomeStars, rewardUnlocked, rewardPiece, rewardBoard, type CampaignOutcome, type VictoryFinish, type BoardFinish, type PieceFinish } from '../config/campaign';
 import { CHAMPIONSHIP_REWARDS, championshipReward } from '../config/championshipRewards';
 import { championshipText } from '../locales/championshipText';
 import { campaignText, rewardName } from '../locales/campaignText';
@@ -19,6 +19,10 @@ import { RewardPreview, type VisualReward } from './RewardPreview';
 import { CIRCUIT_STAGES, finishStage, stageUnlocked } from '../config/circuitStages';
 import { stageText } from '../locales/stageText';
 import { requestCircuitInterstitial } from '../lib/adPolicy';
+import { circuitAccess } from '../lib/circuitAccess';
+import { useCircuitAccess } from '../hooks/useCircuitAccess';
+import { CircuitLoginGate } from './CircuitLoginGate';
+import { cosmeticsSettingsText } from '../locales/cosmeticsSettingsText';
 import './campaign.css';
 
 const duration=(seconds:number)=>`${Math.floor(seconds/60)}:${String(Math.floor(seconds%60)).padStart(2,'0')}`;
@@ -28,10 +32,9 @@ function Result({lang,stageId,firstClear,effect,outcome,onNext,onRetry,onBack,sa
     const dialog=useRef<HTMLDialogElement>(null);
     useEffect(()=>{const node=dialog.current;node?.showModal();return()=>node?.close();},[]);
     const t=(key:Parameters<typeof campaignText>[1])=>campaignText(lang,key);
-    const stage=CIRCUIT_STAGES[stageId-1],reward=CHAMPIONSHIP_REWARDS[stageId-1],stars=outcomeStars(outcome);
+    const stage=CIRCUIT_STAGES[stageId-1],reward=CHAMPIONSHIP_REWARDS[stageId-1],stars=outcomeStars(outcome,stage.timeControl);
     const victoryDesign=championshipReward(effect);
     const perMove=stage.timeControl==='10s';
-    const average=outcome.initialSeconds>0?outcome.remainingSeconds/outcome.initialSeconds*10:0;
     return <dialog ref={dialog} className="campaign-result" aria-labelledby="campaign-result-title" onCancel={event=>event.preventDefault()}>
         {outcome.won&&<VictoryCelebration effect={effect}/>}
         <div className="campaign-result-card">
@@ -40,8 +43,8 @@ function Result({lang,stageId,firstClear,effect,outcome,onNext,onRetry,onBack,sa
             <h2 id="campaign-result-title">{outcome.won?(stageId===100?t('champion'):t('win')):outcome.draw?t('draw'):t('loss')}</h2>
             {outcome.won&&<><div className="campaign-stars" aria-label={`${stars}/3`}>{'★'.repeat(stars)}{'☆'.repeat(3-stars)}</div>
                 <p className="campaign-reward-earned"><Trophy size={18}/>{stageText(lang,firstClear?'newReward':'clearedReward')} · {rewardName(lang,reward.id)}</p></>}
-            <p>{t('noHints')} · {t('quick')}</p>
-            <p>{perMove?stageText(lang,'timeAverage'):circuitText(lang,'timeLeft')} · {duration(perMove?average:outcome.remainingSeconds)} / {duration(perMove?10:outcome.initialSeconds)}</p>
+            <p>{t('noHints')} · {perMove?stageText(lang,'quickMoves'):t('quick')}</p>
+            <p>{perMove?`${stageText(lang,'ownMoves')} · ${outcome.playerMoves} / 40`:`${circuitText(lang,'timeLeft')} · ${duration(outcome.remainingSeconds)} / ${duration(outcome.initialSeconds)}`}</p>
             {saveError&&<p role="alert">{t('saveError')}</p>}
             <div className="campaign-result-actions">
                 {onNext&&<button className="campaign-primary" onClick={onNext}>{t('next')}<ArrowUpRight size={18}/></button>}
@@ -51,7 +54,14 @@ function Result({lang,stageId,firstClear,effect,outcome,onNext,onRetry,onBack,sa
     </dialog>;
 }
 
-export function CampaignMode({lang,user,onBack}:{lang:Language;user:User;onBack:()=>void}) {
+type CampaignProps={lang:Language;user:User;onBack:()=>void;onLogin:()=>void;onPlayingChange?:(playing:boolean)=>void};
+export function CampaignMode(props:CampaignProps) {
+    const {allowed,revision}=useCircuitAccess(props.user);
+    if(!allowed)return <CircuitLoginGate lang={props.lang} onBack={props.onBack} onLogin={props.onLogin}/>;
+    return <MemberCircuit key={`${props.user.id}:${revision}`} {...props}/>;
+}
+
+function MemberCircuit({lang,user,onBack,onPlayingChange}:CampaignProps) {
     const {progress,loaded,storageError,update}=useCampaignProgress();
     const [selection,setSelected]=useState<number|null>(null);
     const [activeId,setActiveId]=useState<number|null>(null);
@@ -61,11 +71,14 @@ export function CampaignMode({lang,user,onBack}:{lang:Language;user:User;onBack:
     const [side,setSide]=useState<'white'|'black'>('white');
     const [preview,setPreview]=useState<VisualReward|null>(null);
     const [outcome,setOutcome]=useState<CampaignOutcome|null>(null);
+    const [runDesign,setRunDesign]=useState(()=>({music:progress.music,effect:progress.effect}));
     const adBreakHandled=useRef('');
+    const runPermit=useRef<(()=>boolean)|null>(null);
+    useEffect(()=>()=>{runPermit.current=null;onPlayingChange?.(false);},[onPlayingChange]);
     useEffect(()=>{
-        soundManager.playBGM(activeId?battleMusicUrl(progress.music):'/audio/bgm_title.mp3');
+        soundManager.playBGM(activeId?battleMusicUrl(runDesign.music):'/audio/bgm_title.mp3');
         return()=>soundManager.stopBGM();
-    },[activeId,progress.music]);
+    },[activeId,runDesign.music]);
     const t=(key:Parameters<typeof campaignText>[1])=>campaignText(lang,key);
     const loop=(key:Parameters<typeof championshipText>[1])=>championshipText(lang,key);
     const cleared=progress.stageStars?.length??0;
@@ -73,27 +86,32 @@ export function CampaignMode({lang,user,onBack}:{lang:Language;user:User;onBack:
     const stage=CIRCUIT_STAGES[selected-1],reward=CHAMPIONSHIP_REWARDS[selected-1];
     const page=chosenPage??Math.floor((selected-1)/10);
     const complete=useCallback((result:CampaignOutcome)=>{
-        if(!activeId)return;
+        if(!activeId||!runPermit.current?.()||!circuitAccess.canPlay(user))return;
         update(value=>finishStage(value,activeId,result));
         setOutcome(result);
-    },[activeId,update]);
+    },[activeId,update,user]);
     const start=(id:number)=>{
-        if(!loaded||!stageUnlocked(progress,id))return;
+        if(!circuitAccess.canPlay(user)||!loaded||!stageUnlocked(progress,id))return;
+        runPermit.current=circuitAccess.permit(user);
+        setRunDesign({music:progress.music,effect:progress.effect});onPlayingChange?.(true);
         setFirstClear(!progress.stageStars?.[id-1]);setSelected(id);setOutcome(null);setRun(value=>value+1);setActiveId(id);
     };
+    const leaveStage=()=>{runPermit.current=null;setActiveId(null);onPlayingChange?.(false);};
     const afterResult=async(action:()=>void)=>{
+        const permit=runPermit.current;
+        if(!permit?.())return;
         const key=`${activeId}-${run}`;
         if(adBreakHandled.current===key)return;
         adBreakHandled.current=key;
-        try { await requestCircuitInterstitial(key); } finally { action(); }
+        try { await requestCircuitInterstitial(key); } finally { if(permit()&&runPermit.current===permit)action(); }
     };
     if(activeId) {
         const active=CIRCUIT_STAGES[activeId-1];
         return <LocalGameBoard key={`${activeId}-${run}`} lang={lang} user={user} cpuLevel={active.strength<12?1:active.strength<23?3:5}
             cpuPersonality={active.personality} cpuSearchProfile={active.search} campaignLabel={`${stageText(lang,'stage')} ${activeId} / 100 · ${loop('strength')} ${active.strength}`} opponentLabel={active.opponent}
-            onlineRole={side} timeControl={active.timeControl} onComplete={complete} onHome={()=>setActiveId(null)}
-            resultPanel={outcome&&<Result lang={lang} stageId={activeId} firstClear={firstClear} effect={progress.effect} outcome={outcome} saveError={storageError}
-                onRetry={()=>void afterResult(()=>start(activeId))} onBack={()=>void afterResult(()=>setActiveId(null))}
+            onlineRole={side} timeControl={active.timeControl} onComplete={complete} onHome={leaveStage}
+            resultPanel={outcome&&<Result lang={lang} stageId={activeId} firstClear={firstClear} effect={runDesign.effect} outcome={outcome} saveError={storageError}
+                onRetry={()=>void afterResult(()=>start(activeId))} onBack={()=>void afterResult(leaveStage)}
                 onNext={outcome.won&&activeId<100?()=>void afterResult(()=>start(activeId+1)):undefined}/>}/>;
     }
     return <section className="campaign-screen" data-circuit-stage={selected} aria-label={t('title')}>
@@ -121,38 +139,33 @@ export function CampaignMode({lang,user,onBack}:{lang:Language;user:User;onBack:
                 {reward.kind!=='music'&&<button data-preview-reward={reward.id} onClick={()=>setPreview({kind:reward.kind,id:reward.id})}>{circuitText(lang,'preview')}</button>}
                 <fieldset className="campaign-side"><legend>{t('challenge')}</legend>{(['white','black'] as const).map(value=><button key={value} type="button" aria-pressed={side===value} onClick={()=>setSide(value)}>{t(value)}</button>)}</fieldset>
                 <button className="campaign-primary" disabled={!loaded||!stageUnlocked(progress,selected)} onClick={()=>start(selected)}>{!loaded?dict[lang].loading:stageUnlocked(progress,selected)?t('challenge'):t('locked')}<ArrowUpRight size={20}/></button>
-                <p className="campaign-medal-help">★ {t('win')} · ★ {t('noHints')} · ★ {t('quick')}</p>
-                {stage.timeControl==='10s'&&<p className="campaign-medal-help">{stageText(lang,'timeAverage')} ≥ 0:05</p>}
+                <p className="campaign-medal-help">★ {t('win')} · ★ {t('noHints')} · ★ {stage.timeControl==='10s'?stageText(lang,'quickMoves'):t('quick')}</p>
             </article>
         </div>
         <section className="campaign-collection" aria-label={t('rewards')}><h2>{t('rewards')}</h2>
             {(['board','piece'] as const).map(kind=><div className="campaign-equipment-group" key={kind}><h3>{t(kind)}</h3><div className="campaign-equipment">
                 {(kind==='board' ? ['standard','walnut','mahogany','marble','slate','obsidian'] : ['standard','boxwood','ebony','alabaster','bronze','silver','gold','crystal','copper','jade']).filter(value=>rewardUnlocked(progress,value)).map(value=>{
-                    const unlocked=rewardUnlocked(progress,value), equipped=progress[kind]===value;
-                    return <div key={value} className="campaign-equipment-item"><button disabled={!loaded||!unlocked} aria-pressed={equipped} onClick={()=>update(current=>equipReward(current,kind,value))} data-equipment={`${kind}-${value}`}>
+                    return <div key={value} className="campaign-equipment-item"><div className="flex items-center gap-3 p-2" data-acquired-reward={`${kind}-${value}`}>
                         <div className="campaign-equipment-swatch">
                             {kind === 'board' ? <span className="campaign-board-swatch" aria-hidden="true" style={{background:rewardBoard(value as BoardFinish)?.dark,borderColor:rewardBoard(value as BoardFinish)?.light}}/>
                             : kind === 'piece' ? <span className="campaign-piece-swatch" aria-hidden="true" style={{color:rewardPiece(value as PieceFinish).white,background:rewardPiece(value as PieceFinish).black}}>♞</span>
                             : kind === 'music' ? <span className="campaign-music-swatch" aria-hidden="true">♪</span>
                             : <span className="campaign-effect-swatch" aria-hidden="true">✨</span>}
                         </div>
-                        <span><strong>{rewardName(lang,value)}</strong><small>{equipped ? t('equipped') : unlocked ? t('equip') : t('locked')}</small></span>
-                        {equipped ? <Check size={16}/> : !unlocked ? <LockKeyhole size={16}/> : null}
-                    </button><button data-preview-reward={value} onClick={()=>setPreview({kind,id:value})}>{circuitText(lang,'preview')}</button></div>;
+                        <span><strong>{rewardName(lang,value)}</strong><small>{cosmeticsSettingsText(lang,'acquired')}</small></span><Check size={16}/>
+                    </div><button data-preview-reward={value} onClick={()=>setPreview({kind,id:value})}>{circuitText(lang,'preview')}</button></div>;
                 })}
             </div></div>)}
         </section>
-        <section className="campaign-collection" aria-label={circuitText(lang,'music')}><h2>{circuitText(lang,'music')}</h2><p>{circuitText(lang,'musicHelp')}</p>
+        <section className="campaign-collection" aria-label={circuitText(lang,'music')}><h2>{circuitText(lang,'music')}</h2><p>{cosmeticsSettingsText(lang,'settingsOnly')}</p>
             <div className="campaign-equipment campaign-music">{(['standard',...CIRCUIT_MUSIC.filter(track=>rewardUnlocked(progress,track.id)).map(track=>track.id)] as const).map(id=>{
-                const unlocked=rewardUnlocked(progress,id),track=CIRCUIT_MUSIC.find(value=>value.id===id);
-                return <button key={id} data-music={id} disabled={!loaded||!unlocked} aria-pressed={progress.music===id} onClick={()=>update(value=>equipReward(value,'music',id))}>
+                return <div key={id} className="flex items-center gap-3 rounded-xl border border-[#3b4537] p-3" data-acquired-music={id}>
                     <span aria-hidden="true">♫</span><span><strong>{id==='standard'?t('standard'):circuitText(lang,id)}</strong>
-                    <small>{progress.music===id?t('equipped'):unlocked?t('equip'):track?.boss?'NOX · '+t('cleared'):loop('wins')+' · '+track?.requiredWins}</small></span>
-                    {!unlocked?<LockKeyhole size={16}/>:progress.music===id?<Check size={16}/>:null}
-                </button>;
+                    <small>{cosmeticsSettingsText(lang,'acquired')}</small></span><Check size={16}/>
+                </div>;
             })}</div>
         </section>
-        {preview && <RewardPreview lang={lang} reward={preview} progress={progress} onClose={()=>setPreview(null)} onEquip={(kind,id)=>update(value=>equipReward(value,kind,id))}/>}
-        <ChampionshipCollection lang={lang} progress={progress} onEquip={(kind,id)=>update(value=>equipReward(value,kind,id))}/>
+        {preview && <RewardPreview lang={lang} reward={preview} progress={progress} onClose={()=>setPreview(null)}/>}
+        <ChampionshipCollection lang={lang} progress={progress}/>
     </section>;
 }
