@@ -149,13 +149,9 @@ export default function Home() {
 
     useEffect(() => {
         if (gameState !== 'playing') playingMusic.current=null;
-        if (gameState === 'title') {
-            soundManager.playBGM('/audio/bgm_title.mp3');
-        } else if (gameState === 'playing') {
+        if (gameState === 'playing') {
             playingMusic.current ??= battleMusicUrl(campaignProgress.music);
             soundManager.playBGM(playingMusic.current);
-        } else if (gameState === 'replay') {
-            soundManager.playBGM('/audio/bgm_replay.mp3');
         } else if (gameState!=='campaign' && gameState!=='level_select') {
             soundManager.stopBGM();
         }

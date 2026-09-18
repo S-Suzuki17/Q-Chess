@@ -77,7 +77,8 @@ function MemberCircuit({lang,user,onBack,onPlayingChange}:CampaignProps) {
     const runPermit=useRef<(()=>boolean)|null>(null);
     useEffect(()=>()=>{runPermit.current=null;onPlayingChange?.(false);},[onPlayingChange]);
     useEffect(()=>{
-        soundManager.playBGM(activeId?battleMusicUrl(runDesign.music):'/audio/bgm_title.mp3');
+        if(activeId) soundManager.playBGM(battleMusicUrl(runDesign.music));
+        else soundManager.stopBGM();
         return()=>soundManager.stopBGM();
     },[activeId,runDesign.music]);
     const t=(key:Parameters<typeof campaignText>[1])=>campaignText(lang,key);

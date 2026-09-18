@@ -226,7 +226,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
         if (isSearching) {
             soundManager.playBGM(MATCHMAKING_MUSIC_URL);
         } else {
-            soundManager.playBGM('/audio/bgm_title.mp3');
+            soundManager.stopBGM();
         }
     }, [isSearching]);
 
