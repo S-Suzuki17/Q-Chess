@@ -1,6 +1,6 @@
 import { attemptLegalMove, checkGameOver, isCheckmate } from './quantumChess';
 
-export type GameOverReason = 'checkmate' | 'king_capture' | 'timeout' | 'resignation';
+export type GameOverReason = 'checkmate' | 'king_capture' | 'timeout' | 'resignation' | 'abandonment';
 
 export interface Piece {
     id: number;
@@ -32,6 +32,7 @@ export interface InternalGameState {
     startsAt?: number;
     serverNow?: number;
     playerFrames?: {host?:string;joiner?:string};
+    playerRatings?: {host?:number|null;joiner?:number|null};
     board: (number | null)[];
     pieces: Piece[];
     turn: number; // 0 for white (host), 1 for black (joiner)
@@ -48,6 +49,8 @@ export interface InternalGameState {
 }
 
 export interface PublicGameState {
+    mode?: 'ranked'|'random';
+    cpu?: {side:'host'|'joiner';rating:number;level:number};
     version: number;
     matchId: string;
     players?: {
@@ -66,6 +69,7 @@ export interface PublicGameState {
     startsAt?: number;
     serverNow?: number;
     playerFrames?: {host?:string;joiner?:string};
+    playerRatings?: {host?:number|null;joiner?:number|null};
     board: (number | null)[];
     pieces: Piece[];
     turn: number;
@@ -103,6 +107,18 @@ export class GameEngine {
     // Map of actionId -> ActionResult for idempotent recovery
     private processedActions = new Map<string, ActionResult>();
     private introReady=new Set<string>();
+    private replayHistory:Record<string,unknown>[]=[];
+    private metadata: {mode?: 'ranked'|'random'; cpu?: {side:'host'|'joiner';rating:number;level:number}} = {};
+
+    public setMatchMetadata(metadata: typeof this.metadata) { this.metadata = metadata; }
+    public getHistory() { return this.replayHistory.slice(); }
+    public forfeit(playerId: string) {
+        if (this.state.gameOver || ![this.state.players.host,this.state.players.joiner].includes(playerId)) return false;
+        this.state.gameOver = playerId === this.state.players.host ? 'BLACK' : 'WHITE';
+        this.state.gameOverReason = 'abandonment';
+        this.state.version += 1;
+        return true;
+    }
 
     constructor(
         matchId: string, 
@@ -140,6 +156,13 @@ export class GameEngine {
     public setPlayerName(role: 'host' | 'joiner', name: string) {
         if (!this.state.playerNames) this.state.playerNames = {};
         this.state.playerNames[role] = name;
+    }
+
+    public setPlayerRating(role:'host'|'joiner',rating:unknown) {
+        const ratings=this.state.playerRatings??={};
+        // A match keeps its opening rating, including across reconnections.
+        if(ratings[role]!==undefined)return;
+        ratings[role]=typeof rating==='number'&&Number.isFinite(rating)&&rating>=0?rating:null;
     }
 
     public setPlayerAppearance(role:'host'|'joiner',avatar:unknown,frame:unknown) {
@@ -192,9 +215,11 @@ export class GameEngine {
             return { success: false, message: 'Not a participant' };
         }
         if(action.action.type==='MOVE'&&(this.state.introPending||Date.now()<(this.state.startsAt??0))) return {success:false,message:'Match is preparing'};
-        // Return cached result if idempotent
-        if (this.processedActions.has(action.actionId)) {
-            return this.processedActions.get(action.actionId)!;
+        // A human must never poison another participant's (especially CPU's) action cache.
+        const actionKey=JSON.stringify([action.playerId,action.actionId]);
+        if(this.processedActions.size>=4096)this.processedActions.delete(this.processedActions.keys().next().value!);
+        if (this.processedActions.has(actionKey)) {
+            return this.processedActions.get(actionKey)!;
         }
 
         // Before processing move, check if time ran out
@@ -204,7 +229,7 @@ export class GameEngine {
                 message: 'Time out',
                 newState: this.state
             };
-            this.processedActions.set(action.actionId, result);
+            this.processedActions.set(actionKey, result);
             return result;
         }
 
@@ -245,11 +270,14 @@ export class GameEngine {
         }
 
         // Memoize and return
-        this.processedActions.set(action.actionId, finalResult);
+        this.processedActions.set(actionKey, finalResult);
         return finalResult;
     }
 
     private handleMove(playerId: string, payload: { pieceId: number; toX: number; toY: number; intention?: 'castle' | 'normal'; promotedTo?: string }): boolean {
+        if(!payload||!Number.isInteger(payload.pieceId)||![payload.toX,payload.toY].every(n=>Number.isInteger(n)&&n>=0&&n<8))return false;
+        if(payload.intention!==undefined&&!['castle','normal'].includes(payload.intention))return false;
+        if(payload.promotedTo!==undefined&&!['Q','R','B','N'].includes(payload.promotedTo))return false;
         const expectedTeam = this.state.turn;
         const isHost = playerId === this.state.players.host;
         const playerTeam = isHost ? 0 : 1;
@@ -261,6 +289,15 @@ export class GameEngine {
         const result = attemptLegalMove(this.state.pieces, this.state.board, pieceId, toX, toY, intention, promotedTo);
         
         if (result.success) {
+            // Persist the Web replay format, not socket action envelopes.
+            const before=this.state.pieces.find(p=>p.id===pieceId)!;
+            const moved=result.pieces.find(p=>p.id===pieceId)!;
+            const types:Record<string,string>={P:'Pawn',N:'Knight',B:'Bishop',R:'Rook',Q:'Queen',K:'King'};
+            const replayId=(id:number)=>`token_${id<16?(id%2===0?25:17)+Math.floor(id/2):(id%2===0?9:1)+Math.floor((id-16)/2)}`;
+            this.replayHistory.push({turn:this.state.moveCount+1,player:before.team===0?'white':'black',tokenId:replayId(pieceId),
+                from:[7-before.y,before.x],to:[7-toY,toX],possibleTypes:moved.possibilities.map(t=>types[t]),
+                ...(result.capturedPiece?{capturedTokenId:replayId(result.capturedPiece.id)}:{}),
+                ...(moved.promoted?{promotedTo:types[moved.possibilities[0]]}:{})});
             this.state.pieces = result.pieces;
             this.state.board = result.board;
             
@@ -299,11 +336,13 @@ export class GameEngine {
         }));
 
         return {
+            ...this.metadata,
             version: this.state.version,
             matchId: this.state.matchId,
             players: this.state.players,
             playerNames: this.state.playerNames,
             playerAvatars: this.state.playerAvatars,
+            playerRatings: this.state.playerRatings,
             board: this.state.board,
             pieces: filteredPieces,
             turn: this.state.turn,

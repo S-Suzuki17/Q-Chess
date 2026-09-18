@@ -5,10 +5,13 @@ import cors from 'cors';
 import { GameEngine, Action, ActionPayload } from './game/GameEngine';
 import { MatchmakingService } from './matchmaking/MatchmakingService';
 import { SupabaseService } from './services/SupabaseService';
-import { FirebaseAuthService } from './services/FirebaseAuthService';
+import { RankedAuth } from './services/RankedAuth';
+import { RankedRuntime } from './game/RankedRuntime';
+import type { MatchSession, QueueMode } from './matchmaking/MatchmakingService';
 
 const app = express();
 app.use(cors());
+app.use(express.json({limit:'4kb'}));
 
 // Phase 4: Health Check & Uptime ping target
 app.get('/health', (req, res) => {
@@ -26,6 +29,44 @@ const io = new Server(server, {
 
 const matchmaking = new MatchmakingService(io);
 const supabaseService = new SupabaseService();
+const rankedAuth = new RankedAuth((id,password)=>supabaseService.verifyLegacyPassword(id,password));
+const runtime = new RankedRuntime(io,matchmaking,match=>supabaseService.settleRankedMatch(match),undefined,match=>supabaseService.recordUnratedMatch(match));
+const loginAttempts=new Map<string,{count:number;until:number}>();
+app.post('/auth/ranked-session',async(req,res)=>{
+    res.setHeader('Cache-Control','no-store');
+    const now=Date.now();
+    for(const [key,value] of loginAttempts)if(value.until<=now)loginAttempts.delete(key);
+    // Do not trust arbitrary X-Forwarded-For headers. Shared proxies have a global ceiling as well.
+    const ip=req.socket.remoteAddress??'unknown';
+    const username=typeof req.body?.username==='string'?req.body.username:'';
+    const key=`${ip}:${username.slice(0,256)}`;
+    const count=loginAttempts.get(key)??{count:0,until:now+60000};
+    const total=loginAttempts.get(ip)??{count:0,until:now+60000};
+    if(loginAttempts.size>=10000||count.count>=5||total.count>=100)return res.status(429).json({code:'TRY_LATER'});
+    count.count++;total.count++;loginAttempts.set(key,count);loginAttempts.set(ip,total);
+    const session=await rankedAuth.issueLegacySession(username,req.body?.password);
+    if(!session)return res.status(401).json({code:'AUTH_FAILED'});
+    return res.json(session);
+});
+app.post('/auth/ranked-session/revoke',(req,res)=>{
+    const token=req.headers.authorization?.replace(/^Bearer /,'');
+    rankedAuth.revokeSession(token);
+    for(const socket of io.sockets.sockets.values())if(token&&socket.handshake.auth.token===token)socket.disconnect(true);
+    res.setHeader('Cache-Control','no-store');res.status(204).end();
+});
+
+function announceMatch(match:MatchSession) {
+    for(const id of Object.values(match.players)) {
+        const session=matchmaking.getPlayerSession(id);
+        if(session)io.sockets.sockets.get(session.socketId)?.join(match.matchId);
+    }
+    io.to(match.matchId).emit('match_found',{matchId:match.matchId,hostId:match.players.host,joinerId:match.players.joiner,
+        timeControl:match.timeControl,mode:match.mode??'random',cpu:match.cpu?{side:match.cpu.side,rating:match.cpu.profile.rating,level:match.cpu.profile.level}:undefined});
+}
+setInterval(()=>{
+    for(const match of matchmaking.takeCpuFallbacks())announceMatch(match);
+    runtime.tick();
+},250).unref();
 
 // Token Bucket Rate Limiting Constants
 const MAX_TOKENS = 15; // Max burst allowance of events
@@ -45,13 +86,16 @@ io.use(async (socket, next) => {
       return next(new Error('Authentication Error: No token provided'));
   }
 
-  // Verify JWT via Firebase Admin
-  const userId = await FirebaseAuthService.verifyToken(token);
+  if(typeof token!=='string'||token.length>8192)return next(new Error('Authentication Error'));
+  const proof=rankedAuth.verifySession(token);
+  const guest=/^GUEST-[A-Za-z0-9_-]{1,120}$/.test(token);
+  const userId=proof?.userId??(guest?token:await supabaseService.verifyUser(token));
   if (!userId) {
       return next(new Error('Authentication Error: Invalid token'));
   }
 
   socket.data.userId = userId;
+  socket.data.verified=!guest;
   next();
 });
 
@@ -69,6 +113,8 @@ io.on('connection', (socket: Socket) => {
   // Socket middleware for incoming event rate-limiting
   socket.use((packet, next) => {
     const eventName = packet[0];
+    if(['join_queue','connect_match','intro_ready','emote','piece_selection','player_action','request_sync','ping'].includes(eventName)
+        &&(!packet[1]||typeof packet[1]!=='object'||Array.isArray(packet[1])))return;
     const now = Date.now();
     const rl = socket.data.rateLimit;
 
@@ -113,37 +159,47 @@ io.on('connection', (socket: Socket) => {
       }
   }
 
-  socket.on('join_queue', (data: { timeControl: number, userName?: string }) => {
-    const timeControl = data?.timeControl || 600;
-    const result = matchmaking.joinQueue(userId, timeControl, data?.userName);
-    
-    if (result.success && result.match) {
-      const { match } = result;
-      
-      const hostSession = matchmaking.getPlayerSession(match.players.host);
-      const joinerSession = matchmaking.getPlayerSession(match.players.joiner);
-
-      const s1 = hostSession ? io.sockets.sockets.get(hostSession.socketId) : null;
-      const s2 = joinerSession ? io.sockets.sockets.get(joinerSession.socketId) : null;
-      
-      if (s1) s1.join(match.matchId);
-      if (s2) s2.join(match.matchId);
-
-      io.to(match.matchId).emit('match_found', {
-        matchId: match.matchId,
-        hostId: match.players.host,
-        joinerId: match.players.joiner,
-        timeControl: match.timeControl
-      });
+  let queueAttempt=0;
+  socket.on('join_queue', async (data: { timeControl: number, userName?: string, mode?:QueueMode }) => {
+    const attempt=++queueAttempt;
+    const timeControl=data?.timeControl,mode=data?.mode??'random';
+    const fail=(code:string)=>{if(attempt===queueAttempt&&socket.connected&&matchmaking.getPlayerSession(userId)?.socketId===socket.id)socket.emit('queue_error',{code,message:code});};
+    if(![10,180,600].includes(timeControl)||!['random','ranked'].includes(mode))return fail('INVALID_QUEUE');
+    let rating:number|null=null;
+    if(mode==='ranked') {
+        const token=socket.handshake.auth.token;
+        const identity=rankedAuth.verifySession(token)?.userId??(socket.data.verified?await supabaseService.verifyUser(token):null);
+        if(identity!==userId)return fail('AUTH_REQUIRED');
+        if(!await supabaseService.rankedReady())return fail('RANKED_UNAVAILABLE');
+        rating=await supabaseService.getMatchRating(userId,timeControl);
+        if(rating===null)return fail('RATING_UNAVAILABLE');
     }
+    if(attempt!==queueAttempt||!socket.connected||matchmaking.getPlayerSession(userId)?.socketId!==socket.id)return;
+    const name=typeof data?.userName==='string'?data.userName.slice(0,80):undefined;
+    const result=matchmaking.joinQueue(userId,timeControl,name,mode,rating??undefined);
+    if(!result.success)return fail('QUEUE_BUSY');
+    socket.emit('queue_joined',{mode,timeControl,cpuFallbackAt:mode==='ranked'?Date.now()+60000:null});
+    if(result.match)announceMatch(result.match);
   });
 
   socket.on('cancel_queue', () => {
+    if(matchmaking.getPlayerSession(userId)?.socketId!==socket.id)return;
+    queueAttempt++;
     matchmaking.leaveQueue(userId);
   });
 
-  socket.on('connect_match', (data: { matchId: string, userName?: string, avatarUrl?: string, avatarFrame?:string,introVersion?:number }) => {
-    const result = matchmaking.connectMatch(userId, data.matchId, data.userName, data.avatarUrl, data.avatarFrame,data.introVersion);
+  socket.on('connect_match', async (data: { matchId: string, userName?: string, avatarUrl?: string, avatarFrame?:string,introVersion?:number }) => {
+    if(matchmaking.getPlayerSession(userId)?.socketId!==socket.id)return;
+    if(typeof data?.matchId!=='string'||!data.matchId||data.matchId.length>128)return;
+    if(data.userName!==undefined&&typeof data.userName!=='string')return;
+    if(data.userName)data.userName=data.userName.slice(0,80);
+    const reserved=matchmaking.reserveMatch(userId,data.matchId,data.userName);
+    if(!reserved)return;
+    const role=reserved.players.host===userId?'host':'joiner';
+    const openingRating=reserved.engine?.getPublicState(userId).playerRatings?.[role];
+    const rating=openingRating!==undefined?openingRating:await supabaseService.getMatchRating(userId,reserved.timeControl);
+    if(!socket.connected||matchmaking.getPlayerSession(userId)?.socketId!==socket.id)return;
+    const result = matchmaking.connectMatch(userId, data.matchId, data.userName, data.avatarUrl, data.avatarFrame,data.introVersion,rating);
     
     if(!result.success)return;
     socket.join(data.matchId);
@@ -172,27 +228,34 @@ io.on('connection', (socket: Socket) => {
   });
 
   socket.on('intro_ready',(data:{matchId:string})=>{
+    if(typeof data?.matchId!=='string')return;
     const match=matchmaking.getMatch(data.matchId);
     if(match?.engine?.acknowledgeIntro(userId))io.to(data.matchId).emit('sync_state',match.engine.getPublicState(userId));
   });
 
   socket.on('emote', (data: { roomId?: string, matchId?: string, emote: string, player?: string }) => {
+    if(!data)return;
     const targetRoom = data.roomId || data.matchId;
-    if (!targetRoom) return;
+    if (!targetRoom || !socket.rooms.has(targetRoom)||!['hello','well_played','wow','thinking','resign'].includes(data.emote)) return;
+    const match=matchmaking.getMatch(targetRoom);
+    if(!match||![match.players.host,match.players.joiner].includes(userId))return;
     
     // Broadcast emote to other players in the room
     socket.to(targetRoom).emit('emote', {
-      player: data.player,
+      player: match.players.host===userId?'white':'black',
       emote: data.emote
     });
   });
 
   socket.on('piece_selection', (data: { matchId: string, pieceId: string | null }) => {
-    if (!data.matchId) return;
+    if (!data?.matchId||!socket.rooms.has(data.matchId)) return;
+    if(data.pieceId!==null&&(typeof data.pieceId!=='string'||data.pieceId.length>128))return;
     socket.to(data.matchId).emit('opponent_selection', { pieceId: data.pieceId });
   });
 
   socket.on('player_action', async (data: { actionId: string, version: number, playerId?: string, action: ActionPayload }) => {
+      if(matchmaking.getPlayerSession(userId)?.socketId!==socket.id)return;
+      if(typeof data?.actionId!=='string'||data.actionId.length>128||!Number.isInteger(data.version)||!['MOVE','RESIGN'].includes(data.action?.type)||!data.action?.payload)return;
       if (data.playerId && data.playerId !== userId) {
           return socket.emit('action_error', { message: 'Unauthorized: playerId spoofing detected' });
       }
@@ -200,21 +263,7 @@ io.on('connection', (socket: Socket) => {
       let session = matchmaking.getPlayerSession(userId);
       let match = session?.currentMatchId ? matchmaking.getMatch(session.currentMatchId) : null;
 
-      // Fallback search by matchId if session state dropped
-      if (!match) {
-          for (const m of (matchmaking as any).matches.values()) {
-              if ((m.players.host === userId || m.players.joiner === userId) && m.state === 'IN_GAME') {
-                  match = m;
-                  if (session) {
-                      session.currentMatchId = m.matchId;
-                      session.state = 'IN_GAME';
-                  }
-                  break;
-              }
-          }
-      }
-
-      if (!match || !match.engine) return socket.emit('action_error', { message: 'No active match found' });
+      if (!match || !match.engine || match.state!=='IN_GAME') return socket.emit('action_error', { message: 'No active match found' });
 
       const action: Action = {
           actionId: data.actionId,
@@ -224,50 +273,22 @@ io.on('connection', (socket: Socket) => {
       };
 
     const result = match.engine.processAction(action);
-    if (result.success) {
-      const room = io.sockets.adapter.rooms.get(match.matchId);
-      if (room) {
-        for (const sid of room) {
-          const clientSocket = io.sockets.sockets.get(sid);
-          if (clientSocket) {
-             const uid = clientSocket.data.userId;
-             clientSocket.emit('sync_state', match.engine.getPublicState(uid));
-          }
-        }
-      }
-
-      // Check if Game Finished
-      const publicState = match.engine.getPublicState(userId);
-      if (publicState.gameOver && match.state !== 'FINISHED') {
-          match.state = 'FINISHED';
-          const { host, joiner } = match.players;
-          
-          const hSession = matchmaking.getPlayerSession(host);
-          const jSession = matchmaking.getPlayerSession(joiner);
-          if (hSession) { hSession.state = 'IDLE'; hSession.currentMatchId = undefined; }
-          if (jSession) { jSession.state = 'IDLE'; jSession.currentMatchId = undefined; }
-
-          await supabaseService.recordMatchResult(
-              match.matchId, 
-              host, 
-              joiner, 
-              publicState.gameOver, 
-              (match.engine as any).state?.history || []
-          );
-      }
-    } else {
-      socket.emit('action_error', { message: result.message });
-    }
+    if (!result.success)socket.emit('action_error', { message: result.message });
+    // A failed move can still have triggered timeout: terminal handling must run either way.
+    runtime.afterAction(match);
   });
 
   socket.on('request_sync', (data: { matchId: string }) => {
+    if(typeof data?.matchId!=='string')return;
+    if(matchmaking.getPlayerSession(userId)?.socketId!==socket.id)return;
     const match = matchmaking.getMatch(data.matchId);
     if (!match || (match.players.host !== userId && match.players.joiner !== userId)) {
         return socket.emit('error', { message: 'Unauthorized match sync request' });
     }
 
     let session = matchmaking.getPlayerSession(userId);
-    if (session) {
+    if (session && match.state==='IN_GAME') {
+        if(session.currentMatchId&&session.currentMatchId!==data.matchId)return;
         session.currentMatchId = data.matchId;
         session.state = 'IN_GAME';
     }
@@ -277,14 +298,17 @@ io.on('connection', (socket: Socket) => {
     if (match.engine) {
       socket.join(data.matchId);
       socket.emit('sync_state', match.engine.getPublicState(userId));
+      runtime.replaySettlement(match,userId,(event,payload)=>socket.emit(event,payload));
     }
   });
 
   socket.on('ping', (data: { clientTime: number }) => {
+      if(!Number.isFinite(data?.clientTime))return;
       socket.emit('pong', { clientTime: data.clientTime, serverTime: Date.now() });
   });
 
   socket.on('disconnect', () => {
+    queueAttempt++;
     console.log(`[-] User disconnected: ${userId}`);
     matchmaking.removeSocket(socket.id);
   });

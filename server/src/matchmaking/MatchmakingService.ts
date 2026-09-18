@@ -2,6 +2,10 @@ import { Server } from 'socket.io';
 import { v4 as uuidv4 } from 'uuid';
 import { GameEngine } from '../game/GameEngine';
 import { createInitialBoard } from '../game/quantumChess';
+import { cpuProfileForRating, CpuProfile } from '../game/RankCpuSearch';
+
+export const CPU_FALLBACK_MS = 60_000;
+export type QueueMode = 'ranked' | 'random';
 
 export type PlayerState = 'IDLE' | 'WAITING' | 'CONNECTING' | 'IN_GAME';
 export type MatchState = 'MATCHED' | 'CONNECTING' | 'IN_GAME' | 'FINISHED' | 'CANCELLED' | 'WAITING_FOR_JOINER';
@@ -13,11 +17,17 @@ export interface PlayerSession {
     userName?: string;
     currentMatchId?: string;
     timeControl?: number;
+    mode?: QueueMode;
+    queuedAt?: number;
+    rating?: number;
 }
 
 export interface MatchSession {
+    mode?: QueueMode;
+    cpu?: {id:string;side:'host'|'joiner';profile:CpuProfile};
+    settlement?: 'pending'|'saved';
     justStartedFlag?: boolean;
-    appearances?:{host?:{avatar?:string;frame?:string;intro?:boolean};joiner?:{avatar?:string;frame?:string;intro?:boolean}};
+    appearances?:{host?:{avatar?:string;frame?:string;intro?:boolean;rating?:number|null};joiner?:{avatar?:string;frame?:string;intro?:boolean;rating?:number|null}};
     matchId: string;
     state: MatchState;
     timeControl: number;
@@ -38,6 +48,7 @@ export interface MatchSession {
 }
 
 export class MatchmakingService {
+    public onForfeit?: (match:MatchSession)=>void;
     private players = new Map<string, PlayerSession>(); // userId -> PlayerSession
     private matches = new Map<string, MatchSession>(); // matchId -> MatchSession
     private waitingQueue = new Set<string>(); // userIds
@@ -52,7 +63,7 @@ export class MatchmakingService {
             const now = Date.now();
             // Cleanup matches
             for (const [matchId, match] of this.matches.entries()) {
-                if (match.state === 'FINISHED' || match.state === 'CANCELLED') {
+                if ((match.state === 'FINISHED' || match.state === 'CANCELLED') && match.settlement!=='pending') {
                     if (now - match.createdAt > 60 * 60 * 1000) { // 1 hour old
                         this.matches.delete(matchId);
                     }
@@ -106,7 +117,7 @@ export class MatchmakingService {
         if (oppSession) {
             const oppSock = this.io.sockets.sockets.get(oppSession.socketId);
             if (oppSock) {
-                oppSock.emit('opponent_disconnected');
+                oppSock.emit('opponent_disconnected',{gracePeriodSeconds:30});
             }
         }
 
@@ -114,27 +125,21 @@ export class MatchmakingService {
         const timer = setTimeout(() => {
             const currentMatch = this.matches.get(matchId);
             if (currentMatch && currentMatch.state === 'IN_GAME') {
-                currentMatch.state = 'FINISHED';
-                if (currentMatch.engine) {
-                    (currentMatch.engine as any).state.gameOver = isHost ? 'BLACK' : 'WHITE';
-                }
+                currentMatch.engine?.forfeit(userId);
                 this.io.to(matchId).emit('match_forfeited', { winner: isHost ? 'joiner' : 'host', reason: 'abandonment' });
-                
-                // Cleanup sessions
-                const hSession = this.players.get(currentMatch.players.host);
-                const jSession = this.players.get(currentMatch.players.joiner);
-                if (hSession) { hSession.state = 'IDLE'; hSession.currentMatchId = undefined; }
-                if (jSession) { jSession.state = 'IDLE'; jSession.currentMatchId = undefined; }
+                this.onForfeit?.(currentMatch);
             }
             this.disconnectTimers.delete(userId);
         }, 30000);
 
+        this.clearDisconnectTimer(userId);
         this.disconnectTimers.set(userId, timer);
     }
 
-    public joinQueue(userId: string, timeControl: number, userName?: string): { success: boolean, match?: MatchSession } {
+    public joinQueue(userId: string, timeControl: number, userName?: string, mode:QueueMode='random', rating?:number): { success: boolean, match?: MatchSession } {
         const session = this.players.get(userId);
-        if (!session) return { success: false };
+        if (!session || ![10,180,600].includes(timeControl) || !['ranked','random'].includes(mode)) return { success: false };
+        if (mode==='ranked' && (!Number.isFinite(rating) || rating! < 0)) return {success:false};
 
         if (session.state === 'WAITING' || session.state === 'IN_GAME' || session.state === 'CONNECTING') {
             return { success: false };
@@ -142,12 +147,16 @@ export class MatchmakingService {
 
         session.state = 'WAITING';
         session.timeControl = timeControl;
+        session.mode=mode;
+        session.queuedAt=Date.now();
+        session.rating=rating;
         if (userName) session.userName = userName;
         this.waitingQueue.add(userId);
         
         this.broadcastQueueStats();
 
-        return this.tryMatch(timeControl);
+        const result=this.tryMatch(timeControl,mode);
+        return {success:true,match:result.match};
     }
 
     public leaveQueue(userId: string) {
@@ -163,8 +172,8 @@ export class MatchmakingService {
         this.io.emit('queue_stats', this.getQueueStats());
     }
 
-    private tryMatch(timeControl: number): { success: boolean, match?: MatchSession } {
-        const candidates = Array.from(this.waitingQueue).filter(uid => this.players.get(uid)?.timeControl === timeControl);
+    private tryMatch(timeControl: number, mode:QueueMode='random'): { success: boolean, match?: MatchSession } {
+        const candidates = Array.from(this.waitingQueue).filter(uid => this.players.get(uid)?.timeControl === timeControl && (this.players.get(uid)?.mode??'random')===mode);
         
         if (candidates.length >= 2) {
             const hostId = candidates[0];
@@ -179,6 +188,7 @@ export class MatchmakingService {
             const matchId = uuidv4();
             const match: MatchSession = {
                 matchId,
+                mode,
                 state: 'CONNECTING',
                 timeControl,
                 players: { host: hostId, joiner: joinerId },
@@ -189,6 +199,7 @@ export class MatchmakingService {
                 connected: { host: false, joiner: false },
                 createdAt: Date.now()
             };
+            if(mode==='ranked')match.appearances={host:{rating:hostSession.rating},joiner:{rating:joinerSession.rating}};
 
             this.matches.set(matchId, match);
 
@@ -207,7 +218,7 @@ export class MatchmakingService {
                     const jSession = this.players.get(m.players.joiner);
                     if (hSession && hSession.currentMatchId === matchId) { hSession.state = 'IDLE'; hSession.currentMatchId = undefined; }
                     if (jSession && jSession.currentMatchId === matchId) { jSession.state = 'IDLE'; jSession.currentMatchId = undefined; }
-                    this.io.to(matchId).emit('match_cancelled', { reason: 'connection_timeout' });
+                    this.io.to(matchId).emit('match_cancelled', { matchId,reason: 'connection_timeout' });
                 }
             }, 15000);
 
@@ -216,8 +227,10 @@ export class MatchmakingService {
         return { success: false };
     }
 
-        public connectMatch(userId: string, matchId: string, userName?: string, avatarUrl?: string, avatarFrame?:string,introVersion?:number): { success: boolean, match?: MatchSession, engine?: GameEngine, justStarted?: boolean } {
-        let session = this.players.get(userId);
+    /** Reserve private-room roles synchronously, before an async profile lookup. */
+    public reserveMatch(userId: string, matchId: string, userName?: string): MatchSession | undefined {
+        const session=this.players.get(userId);
+        if(session?.state==='WAITING'||(session?.currentMatchId&&session.currentMatchId!==matchId))return undefined;
         let match = this.matches.get(matchId);
 
         if (!match) {
@@ -238,6 +251,15 @@ export class MatchmakingService {
             match.playerNames.joiner = userName;
             match.state = 'CONNECTING';
         }
+
+        if(match.state==='CANCELLED'||match.state==='FINISHED')return undefined;
+        return match.players.host===userId||match.players.joiner===userId?match:undefined;
+    }
+
+    public connectMatch(userId: string, matchId: string, userName?: string, avatarUrl?: string, avatarFrame?:string,introVersion?:number,rating?:number|null): { success: boolean, match?: MatchSession, engine?: GameEngine, justStarted?: boolean } {
+        let session = this.players.get(userId);
+        const match = this.reserveMatch(userId,matchId,userName);
+        if(!match)return {success:false};
 
         const isHost = match.players.host === userId;
         const isJoiner = match.players.joiner === userId;
@@ -272,7 +294,8 @@ export class MatchmakingService {
         }
 
         const role=isHost?'host':'joiner';
-        (match.appearances??={})[role]={avatar:avatarUrl,frame:avatarFrame,intro:introVersion===1};
+        const previous=match.appearances?.[role];
+        (match.appearances??={})[role]={avatar:avatarUrl??previous?.avatar,frame:avatarFrame??previous?.frame,intro:introVersion===1||previous?.intro,rating:previous?.rating??rating};
         this.clearDisconnectTimer(userId);
 
         // Mark as connected
@@ -284,6 +307,8 @@ export class MatchmakingService {
             match.state = 'IN_GAME';
             const initialBoard = createInitialBoard();
             match.engine = new GameEngine(matchId, match.players.host, match.players.joiner, initialBoard, match.timeControl, match.playerNames,4000,!!match.appearances?.host?.intro&&!!match.appearances?.joiner?.intro);
+            match.engine.setMatchMetadata({mode:match.mode??'random',cpu:match.cpu?{side:match.cpu.side,rating:match.cpu.profile.rating,level:match.cpu.profile.level}:undefined});
+            if(match.cpu)match.engine.acknowledgeIntro(match.cpu.id);
             // A lost readiness message must never leave a room paused forever.
             setTimeout(()=>{if(match?.state==='IN_GAME'&&match.engine?.completeIntro())this.io.to(matchId).emit('sync_state',match.engine.getPublicState(userId));},15000);
             match.justStartedFlag = true;
@@ -291,7 +316,10 @@ export class MatchmakingService {
 
         for(const role of ['host','joiner'] as const) {
             const appearance=match.appearances?.[role];
-            if(appearance) match.engine?.setPlayerAppearance(role,appearance.avatar,appearance.frame);
+            if(appearance) {
+                match.engine?.setPlayerAppearance(role,appearance.avatar,appearance.frame);
+                match.engine?.setPlayerRating(role,appearance.rating);
+            }
         }
         // If reconnected to an ongoing match, broadcast to opponent
         const updatedMatch = this.matches.get(matchId);
@@ -335,6 +363,46 @@ export class MatchmakingService {
 
     public getMatch(matchId: string) {
         return this.matches.get(matchId);
+    }
+
+    /** Synchronous reservation makes human matching, cancellation and fallback mutually exclusive. */
+    public takeCpuFallbacks(now=Date.now()): MatchSession[] {
+        const created:MatchSession[]=[];
+        let cpuActive=[...this.matches.values()].filter(m=>m.cpu&&['CONNECTING','IN_GAME'].includes(m.state)).length;
+        for(const id of [...this.waitingQueue]) {
+            const session=this.players.get(id);
+            if(!session||session.state!=='WAITING'||session.mode!=='ranked'||!Number.isFinite(session.rating)||now-(session.queuedAt??now)<CPU_FALLBACK_MS)continue;
+            // Always prefer another queued human at the same time control.
+            const human=this.tryMatch(session.timeControl!,'ranked').match;
+            if(human){created.push(human);continue;}
+            if(cpuActive>=4)continue;
+            const matchId=uuidv4(),cpuId=`ai:${matchId}`;
+            const side: 'host'|'joiner'=Math.random()<0.5?'host':'joiner';
+            const humanSide=side==='host'?'joiner':'host';
+            const profile=cpuProfileForRating(session.rating!,session.timeControl!);
+            const match:MatchSession={matchId,mode:'ranked',state:'CONNECTING',timeControl:session.timeControl!,
+                players:{host:side==='host'?cpuId:id,joiner:side==='joiner'?cpuId:id},
+                playerNames:{[humanSide]:session.userName,[side]:`CPU · ${profile.rating}`},
+                connected:{host:side==='host',joiner:side==='joiner'},createdAt:now,
+                appearances:{[humanSide]:{rating:session.rating},[side]:{rating:profile.rating,intro:true}},
+                cpu:{id:cpuId,side,profile}};
+            this.waitingQueue.delete(id);session.state='CONNECTING';session.currentMatchId=matchId;
+            this.matches.set(matchId,match);created.push(match);cpuActive++;
+            setTimeout(()=>{if(match.state==='CONNECTING'){this.finishMatch(match,'CANCELLED');this.io.to(matchId).emit('match_cancelled',{matchId,reason:'connection_timeout'});}},15000);
+        }
+        if(created.length)this.broadcastQueueStats();
+        return created;
+    }
+
+    public getMatches() { return [...this.matches.values()]; }
+
+    public finishMatch(match:MatchSession,state:'FINISHED'|'CANCELLED'='FINISHED') {
+        match.state=state;
+        for(const id of Object.values(match.players)) {
+            this.clearDisconnectTimer(id);
+            const session=this.players.get(id);
+            if(session?.currentMatchId===match.matchId){session.state='IDLE';session.currentMatchId=undefined;}
+        }
     }
     
     public getPlayerSession(userId: string) {

@@ -264,7 +264,7 @@ export function countConfirmedPieces(pieces, team) {
     pieces.forEach(piece => {
         // Count all confirmed pieces (both active and captured)
         if (piece.team === team && piece.possibilities.length === 1) {
-            counts[piece.possibilities[0]]++;
+            counts[piece.promoted ? 'P' : piece.possibilities[0]]++;
         }
     });
 
@@ -283,7 +283,7 @@ export function countCapturedPieces(pieces, team) {
 
     pieces.filter(p => p.team === team && p.captured).forEach(piece => {
         if (piece.possibilities.length === 1) {
-            counts[piece.possibilities[0]]++;
+            counts[piece.promoted ? 'P' : piece.possibilities[0]]++;
         }
     });
 
@@ -397,6 +397,15 @@ export function attemptMove(pieces: any[], board: any[], pieceId: number, toX: n
 
     if (newPossibilities.length === 0) {
         return { success: false, pieces, board, capturedPiece: null, message: 'Invalid move for this piece' };
+    }
+
+    const canPromote = !piece.promoted && newPossibilities.includes('P') && toY === (piece.team === 0 ? 7 : 0);
+    if (promotedTo !== undefined && (!canPromote || !['Q', 'R', 'B', 'N'].includes(promotedTo))) {
+        return { success: false, pieces, board, capturedPiece: null, message: 'Invalid promotion' };
+    }
+    if (canPromote) {
+        newPossibilities = [promotedTo ?? 'Q'];
+        piece.promoted = true;
     }
 
     // Update piece
