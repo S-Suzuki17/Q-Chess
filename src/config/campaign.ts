@@ -38,6 +38,8 @@ export interface CampaignProgress {
 export interface CampaignOutcome { won:boolean; draw:boolean; playerMoves:number; hintsUsed:number; initialSeconds:number; remainingSeconds:number; timeControl?:TimeControl }
 export const emptyCampaign = (): CampaignProgress => ({version:2,stars:{},ascensions:[],board:'standard',piece:'standard',effect:'standard',music:'standard',stageStars:[],avatar:'standard'});
 export const rewardClearCount=(progress:CampaignProgress)=>Math.max(progress.stageStars?.length??0,highestUnlockedLap(progress)-1);
+/** Best score per stage, never a sum of attempts or the old four-boss records. */
+export const totalCircuitStars=(progress:CampaignProgress)=>parseStageStars(progress.stageStars??[]).reduce((sum,stars)=>sum+stars,0);
 export const lapStars = (progress:CampaignProgress, lap=1) => lap===1 ? progress.stars : progress.ascensions[lap-2] ?? {};
 export const lapCleared = (progress:CampaignProgress, lap=1) => BOSSES.every(boss=>!!lapStars(progress,lap)[boss.id]);
 export function highestUnlockedLap(progress:CampaignProgress) {
@@ -58,7 +60,7 @@ export function rewardUnlocked(progress: CampaignProgress, reward: string) {
     const legacyBoss={slate:'nox',copper:'ember',obsidian:'oracle',jade:'sovereign'} as const;
     if (reward in legacyBoss) return !!progress.stars[legacyBoss[reward as keyof typeof legacyBoss]];
     const music=circuitMusic(reward);
-    if (music) return music.boss ? !!progress.stars[music.boss] : music.requiredWins<=highestUnlockedLap(progress)-1;
+    if (music) return totalCircuitStars(progress)>=music.requiredStars || (music.boss ? !!progress.stars[music.boss] : music.requiredWins<=highestUnlockedLap(progress)-1);
     const championship=championshipReward(reward);
     if (reward === 'bronze') return highestUnlockedLap(progress)-1>=3;
     if (reward === 'silver') return highestUnlockedLap(progress)-1>=5;

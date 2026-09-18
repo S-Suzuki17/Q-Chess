@@ -7,6 +7,10 @@ export type ChampionMusicId = `champion-music-${string}`;
 export type BoardMotif = 'walnut' | 'marble' | 'brass' | 'crystal' | 'obsidian' | 'gold';
 export type PieceMotif = 'boxwood' | 'ebony' | 'alabaster' | 'bronze' | 'silver' | 'gold' | 'crystal';
 export type EffectMotif = 'rings' | 'shards' | 'starfall' | 'corona';
+export const EFFECT_PALETTES:Record<EffectMotif,readonly [string,string,string]>={
+    rings:['#49d9ed','#e3faff','#187286'],shards:['#b5a2ff','#fff1ed','#5c4aab'],
+    starfall:['#719bff','#f7e1b1','#344f9a'],corona:['#efbd65','#fff1c9','#986231'],
+};
 export type PieceForm='staunton'|'crowned'|'spire'|'citadel'|'fluted'|'faceted';
 export type BoardProfile='inlaid'|'stepped'|'floating'|'armored'|'gallery';
 export type CraftFinish = {metalness:number;roughness:number;clearcoat:number};
@@ -43,7 +47,7 @@ const effects:EffectMotif[]=['rings','shards','starfall','corona'];
 const effect=(index:number,familyIndex:number):ChampionEffect=>{
     const tier=Math.floor(index/10)+1;
     return {id:`champion-effect-${String(index+1).padStart(3,'0')}`,kind:'effect',motif:effects[familyIndex],requiredWins:index+1,tier,familyIndex,
-        color:['#bca770','#a2c6bc','#aebbd4','#d7b66c'][familyIndex],accent:'#eee3c9',count:12+tier*4,layers:1+Math.floor((tier-1)/3),duration:2+tier*.12};
+        color:EFFECT_PALETTES[effects[familyIndex]][0],accent:EFFECT_PALETTES[effects[familyIndex]][1],count:12+tier*4,layers:1+Math.floor((tier-1)/3),duration:2+tier*.12};
 };
 // Keep every previously-issued ID resolvable, even if its slot now grants another kind.
 const previousLayout=['board','board','effect','board','effect','board','effect','board','effect','board'] as const;

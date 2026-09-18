@@ -4,17 +4,28 @@ import { PIECE_HEIGHTS, PIECE_MAX_WIDTH } from './boardPresentation';
 import { rewardPiece, type PieceFinish } from '../config/campaign';
 import { championshipReward } from '../config/championshipRewards';
 import { createCraftTextures } from './craftTextures';
-import { sculptPieceGeometry } from './pieceForms';
+import { pieceTrimGeometry } from './pieceForms';
+import { rewardPieceSculpture } from './rewardPieceSculpture';
 
 /** One library per Canvas: GLTF geometry is borrowed, materials are owned here. */
 export function createPieceModelLibrary(finish: PieceFinish = 'boxwood') {
-    const prototypes = new WeakMap<THREE.Object3D, Map<PieceType, THREE.Group>>();
+    const prototypes = new WeakMap<THREE.Object3D, Map<string, THREE.Group>>();
     const ownedGeometry=new Set<THREE.BufferGeometry>();
     const materials = new Map<string, THREE.MeshPhysicalMaterial>();
     const reward=championshipReward(finish),motif=reward?.kind==='piece'?reward.motif:finish;
     const glass=['iceglass','neonglass','crystal','jade'].includes(motif);
     const textureMotif=motif==='alabaster'?'marble':motif==='crystal'||motif==='jade'?'crystal':motif==='gold'?'gold':['bronze','silver','copper'].includes(motif)?'brass':'walnut';
     let textures:ReturnType<typeof createCraftTextures>|undefined;
+    let trimGeometry:THREE.BufferGeometry|undefined;
+    function trimMaterial(isWhite:boolean) {
+        const key=`trim:${isWhite}`;let material=materials.get(key);
+        if(!material){
+            const cool=motif==='silver'||motif==='alabaster'||motif==='crystal';
+            material=new THREE.MeshPhysicalMaterial({color:cool?(isWhite?'#657c8a':'#c5d2da'):(isWhite?'#876035':'#d9b578'),metalness:1,roughness:.3,clearcoat:.2});
+            materials.set(key,material);
+        }
+        return material;
+    }
 
     function materialFor(isWhite: boolean,candidate:boolean) {
         const key=String(isWhite)+(glass&&candidate?':candidate':'');
@@ -43,7 +54,8 @@ export function createPieceModelLibrary(finish: PieceFinish = 'boxwood') {
         instantiate(scene: THREE.Object3D, type: PieceType, isWhite: boolean,candidate=false) {
             let byType = prototypes.get(scene);
             if (!byType) { byType = new Map(); prototypes.set(scene, byType); }
-            let prototype = byType.get(type);
+            const prototypeKey=reward?.kind==='piece'?`${type}:${candidate}`:type;
+            let prototype = byType.get(prototypeKey);
             if (!prototype) {
                 const model = scene.clone(true);
                 model.updateMatrixWorld(true);
@@ -61,11 +73,11 @@ export function createPieceModelLibrary(finish: PieceFinish = 'boxwood') {
                 prototype = new THREE.Group();
                 const form=reward?.kind==='piece'?reward.form:undefined;
                 if(form&&form!=='staunton'){
-                    const geometry=sculptPieceGeometry(model,form);
+                    const geometry=rewardPieceSculpture(type,form,candidate);
                     ownedGeometry.add(geometry);
                     prototype.add(new THREE.Mesh(geometry,materialFor(isWhite,candidate)));
                 }else prototype.add(model);
-                byType.set(type, prototype);
+                byType.set(prototypeKey, prototype);
             }
             const instance = prototype.clone(true);
             const material = materialFor(isWhite,candidate);
@@ -76,6 +88,11 @@ export function createPieceModelLibrary(finish: PieceFinish = 'boxwood') {
                     child.receiveShadow = true;
                 }
             });
+            // No extra draw calls for the 192 small quantum candidates.
+            if(!candidate&&reward?.kind==='piece'&&reward.form){
+                if(!trimGeometry){trimGeometry=pieceTrimGeometry(reward.form,reward.tier);ownedGeometry.add(trimGeometry);}
+                const trim=new THREE.Mesh(trimGeometry,trimMaterial(isWhite));trim.receiveShadow=true;instance.add(trim);
+            }
             return instance;
         },
         dispose() {

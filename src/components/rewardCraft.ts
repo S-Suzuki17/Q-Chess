@@ -55,6 +55,22 @@ export function rewardFrameParts(preset:ChampionBoard):CraftPart[] {
         add(position,axis*4.29,.07,.04);add(axis*4.29,position,.04,.07);
     }
     if(preset.tier===10) rail(4.065,.008,'accent');
+    // Recessed side-wall craft gives the plinth depth at the fixed play camera.
+    // All carving stays inside the frame envelope and below the coordinate plane.
+    const rhythm=3; // Three strong panels, not a dense row of sub-pixel details.
+    for(const side of [-1,1]) for(let i=0;i<rhythm;i++) {
+        const along=(i-(rhythm-1)/2)*(6.8/rhythm);
+        const width=preset.motif==='brass'?.33:preset.motif==='walnut'?.65:.5;
+        const height=preset.profile==='gallery'?.12:.07;
+        const y=preset.profile==='floating'?-.43:-.29;
+        const mount=preset.profile==='gallery'?4.305:preset.profile==='stepped'?4.335:4.435;
+        parts.push({size:[width,height,.024],position:[along,y,side*mount],rotation:0,finish:'rim'});
+        parts.push({size:[.024,height,width],position:[side*mount,y,along],rotation:0,finish:'rim'});
+        if(preset.tier>=5) {
+            parts.push({size:[width*.5,.018,.03],position:[along,y+.035,side*mount],rotation:0,finish:'accent'});
+            parts.push({size:[.03,.018,width*.5],position:[side*mount,y+.035,along],rotation:0,finish:'accent'});
+        }
+    }
     return parts;
 }
 

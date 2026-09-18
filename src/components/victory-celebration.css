@@ -1,70 +1,45 @@
-.victory-fx { position:fixed; inset:0; z-index:80; overflow:hidden; pointer-events:none; container-type:size; color:var(--fx-color); }
-.reward-preview-board {position:relative;overflow:hidden;isolation:isolate;}
-.reward-preview-board .victory-fx {position:absolute;}
-.effect-preview-arena {position:absolute;inset:0;background:radial-gradient(ellipse at 50% 65%,#27383c,#0b1119 62%,#06090e);}
-.effect-preview-arena::after {content:'';position:absolute;inset:70% -20% -20%;background:repeating-linear-gradient(0deg,transparent 0 28px,#bcaa7020 29px 30px),repeating-linear-gradient(90deg,transparent 0 28px,#bcaa7020 29px 30px);transform:perspective(240px) rotateX(55deg);}
-.music-reward-preview {max-width:440px;margin:auto;}
-.music-reward-preview svg {width:100%;max-height:230px;}
-.music-reward-preview audio {width:100%;min-height:54px;}
-.reward-preview-dialog footer {flex-wrap:wrap;}
-.campaign-music button {min-height:44px;padding:8px 16px;border:1px solid #8f7b55;border-radius:8px;}
-.victory-fx-stage {position:absolute;inset:0;perspective:750px;animation:fx-stage var(--fx-duration) ease both;}
-.victory-fx-halo {position:absolute;inset:12%;background:radial-gradient(ellipse,transparent 22%,color-mix(in srgb,var(--fx-color) 22%,transparent) 42%,transparent 67%);}
-.victory-fx-heart {position:absolute;left:50%;top:48%;width:min(20cqw,18cqh);height:min(38cqw,34cqh);clip-path:polygon(50% 0,100% 33%,75% 85%,50% 100%,25% 85%,0 33%);background:conic-gradient(from 25deg at 50% 33%,#f1fff5,var(--fx-color) 65deg,#244546 125deg,var(--fx-accent) 185deg,#497378 245deg,#effff4);transform:translate(-50%,-50%);}
-.victory-fx-orbit {position:absolute;left:50%;top:50%;width:min(70cqw,66cqh);aspect-ratio:1;border:2px solid var(--fx-color);border-radius:50%;box-shadow:inset 0 0 18px #bda77328,0 0 12px #bda77328;animation:fx-orbit var(--fx-duration) cubic-bezier(.16,1,.3,1) both;}
-.victory-fx-orbit b {position:absolute;left:15%;top:12%;width:14px;height:14px;border-radius:50%;background:var(--fx-accent);box-shadow:0 0 16px var(--fx-color);}
-.victory-fx-crystal {position:absolute;left:50%;top:50%;width:calc(26px + var(--fx-tier)*2px);height:min(27cqw,24cqh);transform-origin:50% 100%;clip-path:polygon(50% 0,100% 29%,76% 88%,50% 100%,24% 88%,0 29%);background:conic-gradient(from 30deg at 50% 30%,var(--fx-accent),#29494b,var(--fx-color),#edf5ed,var(--fx-color));animation:fx-crystal var(--fx-duration) cubic-bezier(.2,.8,.2,1) both;}
-.victory-fx-constellation {position:absolute;left:50%;top:48%;width:min(85cqw,78cqh);aspect-ratio:1;animation:fx-constellation var(--fx-duration) ease both;}
-.victory-fx-constellation svg {width:100%;height:100%;filter:drop-shadow(0 0 5px var(--fx-color));}
-.victory-fx-crown {position:absolute;left:50%;top:44%;width:min(50cqw,45cqh);filter:drop-shadow(0 16px 15px #0008);animation:fx-crown var(--fx-duration) cubic-bezier(.18,.9,.3,1) both;}
-.victory-fx-crown svg {width:100%;}
-.victory-fx-laurel {position:absolute;left:50%;top:50%;width:min(67cqw,62cqh);aspect-ratio:1;border:9px double var(--fx-color);border-top-color:transparent;border-radius:50%;transform:translate(-50%,-50%);}
-.victory-fx-dais {position:absolute;left:50%;top:72%;width:min(75cqw,68cqh);height:20cqh;border:3px double var(--fx-accent);border-radius:50%;background:radial-gradient(ellipse,transparent 35%,#b9a27122);transform:translate(-50%,-50%) rotateX(55deg);}
-.victory-fx-rays {position:absolute;inset:6%;background:repeating-conic-gradient(from 12deg,transparent 0deg 23deg,color-mix(in srgb,var(--fx-color) 16%,transparent) 24deg 25deg,transparent 26deg 30deg);mask-image:radial-gradient(transparent 30%,#000 65%,transparent 75%);animation:fx-rays var(--fx-duration) ease-out both;}
-.victory-fx-corona .victory-fx-seal,.victory-fx-shards .victory-fx-seal {width:min(26cqw,23cqh,170px);top:78%;}
-.campaign-result .victory-fx-stage {opacity:.45;}
-@keyframes fx-stage {0%,100% {opacity:0;} 14%,76% {opacity:1;}}
-@keyframes fx-orbit {0% {transform:translate(-50%,-50%) rotateZ(calc(var(--n)*38deg - 100deg)) rotateX(68deg) scale(.25);opacity:0;} 24%,75% {opacity:1;} 100% {transform:translate(-50%,-50%) rotateZ(calc(var(--n)*38deg + 45deg)) rotateX(62deg) scale(1.1);opacity:1;}}
-@keyframes fx-crystal {0% {opacity:0;transform:translate(-50%,-100%) rotate(var(--angle)) translateY(0) scale(.2);} 25%,65% {opacity:1;transform:translate(-50%,-100%) rotate(var(--angle)) translateY(-9cqh) scale(1);} 100% {opacity:1;transform:translate(-50%,-100%) rotate(var(--angle)) translateY(-12cqh) scale(.95);}}
-@keyframes fx-constellation {0% {opacity:0;transform:translate(-50%,-50%) rotate(-25deg) scale(.5);} 30%,70% {opacity:1;} 100% {opacity:1;transform:translate(-50%,-50%) rotate(8deg) scale(1.08);}}
-@keyframes fx-crown {0% {opacity:0;transform:translate(-50%,-90%) rotateY(-50deg) scale(.6);} 28%,75% {opacity:1;transform:translate(-50%,-50%) rotateY(0) scale(1);} 100% {opacity:1;transform:translate(-50%,-55%) scale(1.08);}}
-@keyframes fx-rays {from {transform:rotate(-16deg) scale(.7);} to {transform:rotate(20deg) scale(1.2);}}
-@media(max-width:600px) {.victory-fx i:nth-of-type(n+29) {display:none;} .victory-fx-orbit {box-shadow:none;}}
-/* Three beats: a soft light arrival, the identifying seal, then outward debris.
-   The SVG wrapper is animated, not its individual paths. No flashing bloom. */
-.victory-fx-light { position:absolute; inset:0; background:radial-gradient(ellipse at 50% 50%,#0c171ae6 0%,#0c171a60 30%,transparent 66%); animation:champion-light var(--fx-duration) ease-out both; }
-.victory-fx-seal { position:absolute; left:50%; top:50%; width:min(48cqw,42cqh,340px); aspect-ratio:1; opacity:0; animation:champion-seal var(--fx-duration) cubic-bezier(.22,1,.36,1) both; filter:drop-shadow(0 1px 5px #000); }
-.victory-fx .reward-sigil { display:block; width:100%; height:100%; }
-.victory-fx i { position:absolute; left:50%; top:50%; width:var(--size); height:var(--size); background:var(--fx-color); opacity:0; animation:champion-burst var(--fx-duration) cubic-bezier(.18,.7,.3,1) var(--delay) both; }
-.victory-fx-rings i { border-radius:50%; width:2px; height:2px; background:var(--fx-accent); }
-.victory-fx-shards i { height:calc(var(--size)*2.8); clip-path:polygon(50% 0,100% 35%,65% 100%,0 60%); background:linear-gradient(135deg,var(--fx-accent) 50%,var(--fx-color) 50%); }
-.victory-fx-starfall i { left:var(--origin); top:-5%; width:1px; height:calc(var(--size)*9); background:linear-gradient(transparent,var(--fx-accent)); animation-name:champion-fall; }
-.victory-fx-corona i { width:1px; height:calc(var(--size)*5); background:linear-gradient(var(--fx-accent),transparent); }
-.victory-fx-ring { position:absolute; left:50%; top:50%; width:calc(28cqw + var(--ring)*5cqw); aspect-ratio:1; border:1px solid var(--fx-color); border-radius:50%; opacity:0; animation:champion-ring var(--fx-duration) ease-out calc(var(--ring)*.09s) both; }
-.victory-fx-shards .victory-fx-ring { border-radius:0; clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%); border-width:2px; }
-.victory-fx-starfall .victory-fx-ring { border-style:dashed; border-width:1px; }
-.victory-fx-corona .victory-fx-ring { border:2px double var(--fx-accent); }
-@keyframes champion-light { 0%,100% {opacity:0;} 18%,65% {opacity:1;} }
-@keyframes champion-seal { 0% {opacity:0;transform:translate(-50%,-46%) scale(.78);} 22%,68% {opacity:1;transform:translate(-50%,-50%) scale(1);} 100% {opacity:0;transform:translate(-50%,-52%) scale(1.06);} }
-@keyframes champion-burst { 0%,8% {opacity:0;transform:rotate(var(--angle)) translateY(19cqw) scale(.3);} 24% {opacity:.75;} 70% {opacity:.5;} 100% {opacity:0;transform:rotate(var(--angle)) translateY(var(--distance)) scale(.35);} }
-@keyframes champion-fall { 0% {opacity:0;transform:translateY(0) rotate(32deg);} 22% {opacity:.65;} 100% {opacity:0;transform:translate(var(--drift),105cqh) rotate(32deg);} }
-@keyframes champion-ring { 0% {opacity:0;transform:translate(-50%,-50%) scale(.65);} 25% {opacity:.3;} 100% {opacity:0;transform:translate(-50%,-50%) scale(2.4);} }
-/* Keep the art visible after the one-shot preview. Replaying is explicit. */
-.victory-fx[data-effect-preview=true] .victory-fx-seal { animation-name:champion-preview-seal; }
-.victory-fx[data-effect-preview=true] .victory-fx-light { animation-name:champion-preview-light; }
-.victory-fx[data-effect-preview=true] .victory-fx-stage {animation-name:champion-preview-light;}
-/* The result owns a static emblem above its heading. Particles sit behind the
-   result content; never put a second central emblem over the win/loss text. */
-.campaign-result .victory-fx { z-index:0; }
-.campaign-result .victory-fx-seal { display:none; }
-.campaign-result .campaign-result-card { position:relative; z-index:1; }
-.campaign-result-emblem .reward-sigil { width:90px; height:90px; margin:0 auto; }
-@keyframes champion-preview-seal { 0% {opacity:0;transform:translate(-50%,-46%) scale(.78);} 22%,100% {opacity:1;transform:translate(-50%,-50%) scale(1);} }
-@keyframes champion-preview-light { 0% {opacity:0;} 18%,100% {opacity:1;} }
-@media(prefers-reduced-motion:reduce) {
-    .victory-fx { display:none; }.victory-fx * { animation:none !important; }
-    .victory-fx[data-effect-preview=true] { display:block; }
-    .victory-fx[data-effect-preview=true] .victory-fx-seal { opacity:1; transform:translate(-50%,-50%); }
-    .victory-fx[data-effect-preview=true] .victory-fx-light { opacity:1; }
-    .victory-fx[data-effect-preview=true] .victory-fx-stage {display:none;}
-}
+.victory-fx{position:fixed;inset:0;z-index:80;overflow:hidden;pointer-events:none;color:var(--fx-color);contain:layout paint}
+.victory-fx[data-contained=true],.reward-preview-board .victory-fx{position:absolute}
+.victory-fx canvas{display:block;width:100%;height:100%}
+.victory-fx-fallback{position:absolute;inset:20%;display:grid;place-items:center}
+.victory-fx-fallback svg{height:100%;max-width:100%}
+.victory-fx[data-rendered=true] .victory-fx-fallback{display:none}
+.victory-fx:not([data-effect-preview=true]) .victory-fx-fallback{animation:fx-fallback-out 3s forwards}
+@keyframes fx-fallback-out{0%,80%{opacity:1}100%{opacity:0}}
+.reward-preview-board{position:relative;overflow:hidden;isolation:isolate}
+.reward-preview-dialog[data-reward-kind]{background:linear-gradient(150deg,#172132,#080e19 65%);border:1px solid #64799666;border-radius:20px;box-shadow:0 28px 90px #000b}
+.reward-preview-dialog[data-reward-kind] header button{white-space:nowrap;flex-shrink:0;min-height:44px;border-radius:10px}
+.reward-preview-dialog[data-reward-kind] small{color:#b8c9dd}
+.reward-preview-dialog[data-reward-kind=board] .reward-preview-board,.reward-preview-dialog[data-reward-kind=piece] .reward-preview-board{height:min(460px,calc(100vw - 32px));margin:20px -16px;background:radial-gradient(ellipse,#172334,#080e19 78%);border:0}
+.campaign-result[data-result]::backdrop{background:#060a12dc;backdrop-filter:blur(5px)}
+.effect-preview-arena{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 58%,#172336 0,#080e1a 55%,#060a12 90%)}
+.effect-preview-arena:after{content:'';position:absolute;left:8%;right:8%;bottom:16%;height:1px;background:linear-gradient(90deg,transparent,#92aac833,transparent)}
+.music-reward-preview{max-width:440px;margin:auto}.music-reward-preview svg{width:100%;max-height:230px}.music-reward-preview audio{width:100%;min-height:54px}
+.reward-preview-dialog footer{flex-wrap:wrap}.campaign-music button{min-height:44px;padding:8px 16px;border:1px solid #8f7b55;border-radius:8px}
+.reward-preview-dialog[data-reward-kind=effect]{width:min(820px,calc(100vw - 24px));padding:24px;background:linear-gradient(150deg,#172132,#080e19 65%);border:1px solid #64799666;border-radius:20px;box-shadow:0 28px 90px #000b}
+.reward-preview-dialog[data-reward-kind=effect] .reward-preview-board{height:clamp(240px,48dvh,460px);margin:20px -24px 0;border:0;border-radius:0;border-top:1px solid #7791b72b;border-bottom:1px solid #7791b72b}
+.reward-preview-dialog[data-reward-kind=effect] small{color:#b8c9dd}
+.reward-preview-dialog[data-reward-kind=effect] h2{font-size:clamp(22px,4vw,30px);font-weight:500;letter-spacing:.02em}
+.reward-preview-dialog[data-reward-kind=effect] button{min-height:44px;border-radius:10px;border-color:#526885;color:#e1ecfa}
+.reward-preview-dialog[data-reward-kind=effect] footer{border:0;margin-top:16px;padding-top:0;align-items:center;justify-content:space-between}
+.reward-preview-dialog[data-reward-kind=effect] footer p{flex-basis:100%;font-size:12px}
+.reward-preview-dialog[data-reward-kind=effect] footer button{background:#c7dbec;color:#0c1827;font-weight:600}
+.effect-preview-caption{display:flex;align-items:center;justify-content:space-between;gap:12px;color:#a9bed5;font-size:12px;padding-top:12px}
+.music-star-summary{display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px;border:1px solid #bba57544;border-radius:12px;padding:16px;margin:16px 0;background:linear-gradient(120deg,#c9b7880a,transparent)}
+.music-star-summary p{flex-basis:100%;margin:0;font-size:12px;color:#b2bca6}
+.music-star-progress{display:block;width:100%;max-width:240px;height:5px;margin-top:10px;accent-color:#e0c486}
+.effect-preview-caption span:last-child{font-variant-numeric:tabular-nums;white-space:nowrap}
+.campaign-result .campaign-result-cinema{height:200px;position:relative;overflow:hidden;border-bottom:1px solid #9cbaee26;background:radial-gradient(ellipse,#182438,#080e19 70%)}
+.campaign-result-cinema>.reward-sigil{height:100%;width:100%;color:#b9cce0;opacity:.65}
+.campaign-result-cinema .victory-fx{z-index:0}
+.campaign-result[data-result=loss] .campaign-result-cinema,.campaign-result[data-result=draw] .campaign-result-cinema{height:84px}
+.campaign-result[data-result]{background:linear-gradient(155deg,#172132,#0b111d 70%);border-color:#64799666;border-radius:20px;box-shadow:0 30px 90px #000b}
+.campaign-result[data-result] .campaign-result-card{padding:22px 28px 28px}
+.campaign-result[data-result] h2{font-size:32px;letter-spacing:.05em;color:#f0f5ff;margin:4px 0 10px}
+.campaign-result[data-result] p{color:#b3c4d9;margin:10px 0}
+.campaign-result[data-result] .campaign-reward-earned{padding:14px;background:#b1c7e00a;border:1px solid #b1c7e029;border-radius:10px;color:#e8d2a3;text-align:left}
+.campaign-result[data-result] button{background:#1a283c;border-color:#52647d;color:#dfebf8}
+.campaign-result[data-result] .campaign-primary{background:#d6e4ef;color:#101e2b;border-color:#d6e4ef}
+.campaign-result[data-result] .campaign-stars{font-size:28px;color:#f0cf86;letter-spacing:.2em}
+@media(max-width:480px){.reward-preview-dialog[data-reward-kind=effect]{padding:18px}.reward-preview-dialog[data-reward-kind=effect] .reward-preview-board{margin-inline:-18px;height:280px}.campaign-result .campaign-result-cinema{height:170px}}
+@media(prefers-reduced-motion:reduce){.victory-fx-fallback{animation:none!important}.victory-fx:not([data-effect-preview=true]){display:none}}

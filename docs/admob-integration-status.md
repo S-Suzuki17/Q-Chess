@@ -2,6 +2,20 @@
 
 ## Latest continuation (supersedes earlier implementation checklist below)
 
+### Final AAB artifact
+
+- Corrected signed AAB created: `outputs/release-1.10-code15/q-gambit-1.10-versionCode15.aab`
+  (workspace-root-relative), 141,316,135 bytes; SHA256
+  `AF58DE5128AF4DCA225CF1A93A37B7BAA43665D94F287F86C768DCC5863675FF`.
+- Android source: local commit `d6df49909e428279c2fe6df00fb24da6a5d7c829`; not pushed.
+  Web remains production commit 85c4606. Ads/quotas remain OFF, no server/DB deployment.
+- Verified all 179 bundled Web files match corrected out/, code15/name1.10, package,
+  non-debug release, portrait+resizeable+game category, absence of advertising-ID permissions,
+  and matching prior code14 signing certificate. Google bundletool validate passed.
+- jarsigner returned 0 with self-signed/timestamp/ZIP-attribute/JarInputStream manifest-order warnings.
+  Full details, hashes and known limitations are in the artifact folder's README.md.
+- No Play upload or actual device/audio playback QA. Audio-preview browser crash remains untriaged.
+
 ### Web published; Android release preparation
 
 - Production Web: https://q-gambit.com/; Vercel READY, deployment

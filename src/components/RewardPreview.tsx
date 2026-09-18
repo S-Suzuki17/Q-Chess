@@ -15,6 +15,7 @@ import { cosmeticsSettingsText } from '../locales/cosmeticsSettingsText';
 import { circuitIconForFrame } from '../config/circuitIcons';
 import { MusicPreview } from './MusicPreview';
 import { battleMusicTitle } from '../config/circuitMusic';
+import { victoryText } from '../locales/victoryText';
 
 export type VisualReward={kind:'board'|'piece'|'effect'|'avatar'|'music';id:string};
 const types:PieceType[]=['Rook','Knight','Bishop','Queen','King','Pawn'];
@@ -33,20 +34,21 @@ export function RewardPreview({lang,reward,progress,onClose}:{
     const unlocked=rewardUnlocked(progress,reward.id);
     const design=championshipReward(reward.id);
     useEffect(()=>{const node=dialog.current;node?.showModal();return()=>node?.close();},[]);
-    return <dialog ref={dialog} className="reward-preview-dialog" data-reward-motif={design?.motif} aria-labelledby="reward-preview-title" onCancel={event=>{event.preventDefault();onClose();}}>
+    return <dialog ref={dialog} className="reward-preview-dialog" data-reward-kind={reward.kind} data-reward-motif={design?.motif} aria-labelledby="reward-preview-title" onCancel={event=>{event.preventDefault();onClose();}}>
         <header><div><small>{circuitText(lang,'preview')}</small><h2 id="reward-preview-title">{reward.kind==='music'?battleMusicTitle(reward.id)??rewardName(lang,reward.id):rewardName(lang,reward.id)}</h2></div>
             <button autoFocus onClick={onClose}>{circuitText(lang,'close')}</button></header>
         <p>{cosmeticsSettingsText(lang,'previewOnly')}</p>
         {design?.kind==='board' && <div className="reward-material-note"><span aria-hidden="true">{[design.frameColor,design.light,design.rim].map(color=><i key={color} style={{background:color}}/>)}</span>{rewardCraftText(lang,design.motif)}</div>}
         {reward.kind==='music'?<MusicPreview key={reward.id} id={reward.id} lang={lang}/>:<div className="reward-preview-board" data-testid="reward-preview-board">
-            {reward.kind==='effect'?<div className="effect-preview-arena"/>:reward.kind==='avatar'?<div className="avatar-reward-preview"><AccountAvatar name="Q" url={circuitIconForFrame(reward.id)?.url} frame={reward.id} size={180}/></div>:<Board3D lang={lang} quietLayout boardFinish={(reward.kind==='board'?reward.id:progress.board) as BoardFinish}
+            {reward.kind==='effect'?<div className="effect-preview-arena"/>:reward.kind==='avatar'?<div className="avatar-reward-preview"><AccountAvatar name="Q" url={circuitIconForFrame(reward.id)?.url} frame={reward.id} size={180}/></div>:<Board3D lang={lang} quietLayout presentation="collection" boardFinish={(reward.kind==='board'?reward.id:progress.board) as BoardFinish}
                 pieceFinish={(reward.kind==='piece'?reward.id:referencePieceForBoard(reward.id)??progress.piece) as PieceFinish}
                 tokens={pieces} selectedTokenId={null} validMoves={[]} moveHistory={[]} onSquareClick={noop}
                 showMoveHints={false} currentTurn="white" autoRotate={false}/>}
             {reward.kind==='effect' && <VictoryCelebration key={run} effect={reward.id as VictoryFinish} preview/>}
         </div>}
+        {design?.kind==='effect'&&<div className="effect-preview-caption"><span>{victoryText(lang,'collection')} · {String(design.requiredWins).padStart(3,'0')}</span><span>{design.duration.toFixed(1)} s</span></div>}
         <footer>
-            {reward.kind==='effect' && <button onClick={()=>setRun(value=>value+1)}>{circuitText(lang,'preview')} ▷</button>}
+            {reward.kind==='effect' && <button onClick={()=>setRun(value=>value+1)}>{victoryText(lang,'replay')} ↻</button>}
             <span data-testid="preview-acquisition">{cosmeticsSettingsText(lang,unlocked?'acquired':'notAcquired')}</span>
             <p className="text-xs">{cosmeticsSettingsText(lang,'settingsOnly')}</p>
         </footer>

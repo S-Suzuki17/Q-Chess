@@ -1,4 +1,4 @@
-import {BufferGeometry,Box3,CylinderGeometry,Mesh,Object3D,Vector3} from 'three';
+import {BufferGeometry,Box3,CylinderGeometry,Mesh,Object3D,TorusGeometry,Vector3} from 'three';
 import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
 import type {PieceForm} from '../config/championshipRewards';
 import {PIECE_MAX_WIDTH} from './boardPresentation';
@@ -44,6 +44,25 @@ export function sculptPieceGeometry(model:Object3D,form:Exclude<PieceForm,'staun
     final.computeBoundingBox();
     const size=final.boundingBox!.getSize(new Vector3()),scale=Math.min(1,PIECE_MAX_WIDTH/Math.max(size.x,size.z));
     final.scale(scale,1,scale);
-    if(form==='faceted'||form==='citadel')final.computeVertexNormals();
+    final.computeVertexNormals();
     return final;
+}
+
+/** Secondary material at the base only; heads and candidate silhouettes stay clear. */
+export function pieceTrimGeometry(form:PieceForm,tier:number):BufferGeometry {
+    const parts:BufferGeometry[]=[];
+    const ring=(radius:number,y:number,segments=48)=>{
+        const geometry=new TorusGeometry(radius,.011,4,segments).toNonIndexed();
+        geometry.rotateX(Math.PI/2);geometry.translate(0,y,0);parts.push(geometry);
+    };
+    const segments=form==='faceted'?6:form==='citadel'?8:48;
+    ring(PIECE_MAX_WIDTH*.448,.045,segments);
+    if(tier>=4)ring(PIECE_MAX_WIDTH*.414,.07,segments);
+    if(tier>=7)for(let i=0;i<(form==='fluted'?12:8);i++){
+        const a=i*Math.PI*2/(form==='fluted'?12:8);
+        const pin=new CylinderGeometry(.012,.012,.026,6).toNonIndexed();
+        pin.translate(Math.cos(a)*PIECE_MAX_WIDTH*.446,.061,Math.sin(a)*PIECE_MAX_WIDTH*.446);parts.push(pin);
+    }
+    const result=mergeGeometries(parts);parts.forEach(p=>p.dispose());
+    if(!result)throw new Error('Unable to finish piece inlay');return result;
 }

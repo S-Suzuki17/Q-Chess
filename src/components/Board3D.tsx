@@ -288,9 +288,9 @@ function Hint3D({ move }: { move: HintMove }) {
     </group>;
 }
 
-function SceneCamera({ flipped, flat, checkmate = false, reducedMotion }: { flipped: boolean; flat: boolean; checkmate?: boolean; reducedMotion: boolean }) {
+function SceneCamera({ flipped, flat, collection = false, checkmate = false, reducedMotion }: { flipped: boolean; flat: boolean; collection?: boolean; checkmate?: boolean; reducedMotion: boolean }) {
     const {size}=useThree();
-    const view=boardCamera(size.width,size.height,flipped,flat);
+    const view=boardCamera(size.width,size.height,flipped,flat,collection);
     const cameraRef = React.useRef<THREE.OrthographicCamera>(null);
     useFrame((_, delta) => {
         const camera = cameraRef.current;
@@ -306,6 +306,7 @@ function SceneCamera({ flipped, flat, checkmate = false, reducedMotion }: { flip
 }
 
 export interface Board3DProps {
+    presentation?:'play'|'collection';
     boardFinish?:BoardFinish;
     pieceFinish?:PieceFinish;
     lang?: Language;
@@ -358,7 +359,7 @@ export const Board3D: React.FC<Board3DProps> = props => {
         <ResilientBoardCanvas lang={lang} reducedMotion={reducedMotion} fallback={<Board2D {...props} isFlipped={flipped}/>} onRetry={() => Object.values(MODEL_PATHS).forEach(path => useGLTF.clear(path))}>
             <PieceModels key={props.pieceFinish ?? 'boxwood'} finish={props.pieceFinish ?? 'boxwood'}>
             <StudioReflections/>
-            <SceneCamera key={`${flipped}`} flipped={flipped} flat={!!props.is2DView} checkmate={props.checkmate} reducedMotion={reducedMotion}/>
+            <SceneCamera key={`${flipped}`} flipped={flipped} flat={!!props.is2DView} collection={props.presentation==='collection'} checkmate={props.checkmate} reducedMotion={reducedMotion}/>
             {props.checkmate && motion && <Sparkles count={80} scale={[9,3,9]} position={[0,1.5,0]} speed={.6} size={5} color="#ffe5a0"/>}
             <ambientLight intensity={.35}/>
             <hemisphereLight args={['#f7edda','#45546c',.45]}/>

@@ -14,7 +14,8 @@ export function MatchResultDialog({lang,winner,side,children}:{
 }) {
     const dialog=useRef<HTMLDialogElement>(null);
     useEffect(()=>{const node=dialog.current;node?.showModal();return()=>node?.close();},[]);
-    return <dialog ref={dialog} className="match-result-dialog" aria-labelledby="match-result-title" onCancel={event=>event.preventDefault()}>
+    return <dialog ref={dialog} className="match-result-dialog" data-result={winner==='draw'?'draw':side==='spectator'||winner===`${side}_wins`?'win':'loss'} aria-labelledby="match-result-title" onCancel={event=>event.preventDefault()}>
+        <div className="match-result-rule" aria-hidden="true"><span/></div>
         <h2 id="match-result-title">{matchResultTitle(lang,winner,side)}</h2>
         {children}
     </dialog>;

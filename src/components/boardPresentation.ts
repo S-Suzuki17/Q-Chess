@@ -22,9 +22,9 @@ export const BOARD_THEMES = {
     neon: { light: '#217f92', dark: '#322052', frame: '#11162c', rim: '#53e3eb', stage: '#0c0b1e', label: '#a0f5f7' },
 } satisfies Record<BoardTheme, Record<string, string>>;
 
-export function boardCamera(width: number, height: number, flipped = false, flat = false) {
+export function boardCamera(width: number, height: number, flipped = false, flat = false, collection = false) {
     return {
-        position: [0, flat ? 15 : 14, (flipped ? -1 : 1) * (flat ? 0.01 : 5)] as [number, number, number],
+        position: [0, flat ? 15 : collection ? 11 : 14, (flipped ? -1 : 1) * (flat ? 0.01 : collection ? 9 : 5)] as [number, number, number],
         zoom: Math.min(width / 8.9, height / 8.9),
     };
 }

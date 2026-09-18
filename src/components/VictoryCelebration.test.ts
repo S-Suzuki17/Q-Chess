@@ -10,11 +10,10 @@ it('gives every earned effect a bounded, non-interactive cinematic composition',
     for(const effect of effects) {
         const html=renderToStaticMarkup(React.createElement(VictoryCelebration,{effect:effect.id,preview:true}));
         expect(html).toContain('aria-hidden="true"');
-        expect(html).toContain('victory-fx-stage');
-        expect(html).toContain({rings:'victory-fx-orbit',shards:'victory-fx-crystal',starfall:'victory-fx-constellation',corona:'victory-fx-crown'}[effect.motif]);
-        expect(html.includes('victory-fx-rays')).toBe(effect.tier>=8);
-        expect(html.includes('victory-fx-dais')).toBe(effect.tier>=5);
-        expect((html.match(/<i /g)??[]).length).toBeLessThanOrEqual(52);
+        expect(html).toContain(`data-effect-motif="${effect.motif}"`);
+        expect(html).toContain('victory-fx-fallback');
+        expect((html.match(/<canvas/g)??[]).length).toBe(1);
+        expect(html).not.toContain('<h2');
         expect(html).not.toContain('<button');
     }
 });

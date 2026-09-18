@@ -3,6 +3,7 @@ import type { ChampionBoard, ChampionEffect, EffectMotif } from '../config/champ
 import { rewardFrameParts } from './rewardCraft';
 import { championshipReward } from '../config/championshipRewards';
 import { rewardPiece, type PieceFinish } from '../config/campaign';
+import { VictoryStill } from './VictoryStill';
 
 /** Purpose-drawn vector insignia, shared by the catalogue and the actual effect.
  * No font glyphs: the silhouette is identical across languages and devices. */
@@ -66,14 +67,14 @@ export function BoardRewardArtwork({preset}:{preset:ChampionBoard}) {
             <rect x="-4.425" y="-4.425" width="8.85" height="8.85" rx=".04" fill={preset.frameColor} stroke={preset.rim} strokeWidth=".025"/>
             {Array.from({length:64},(_,index)=><rect key={index} x={index%8-4} y={Math.floor(index/8)-4} width="1" height="1" fill={(Math.floor(index/8)+index)%2?preset.dark:preset.light}/>)}
             <rect x="-4.4" y="-4.4" width="8.8" height="8.8" fill={`url(#${id}-grain)`}/>
-            {rewardFrameParts(preset).map((part,i)=><rect key={i} x={part.position[0]-part.size[0]/2} y={part.position[2]-part.size[2]/2} width={part.size[0]} height={part.size[2]} fill={preset[part.finish]} transform={`rotate(${part.rotation*180/Math.PI} ${part.position[0]} ${part.position[2]})`}/>)}
+            {rewardFrameParts(preset).filter(part=>part.position[1]>-.1).map((part,i)=><rect key={i} x={part.position[0]-part.size[0]/2} y={part.position[2]-part.size[2]/2} width={part.size[0]} height={part.size[2]} fill={preset[part.finish]} transform={`rotate(${part.rotation*180/Math.PI} ${part.position[0]} ${part.position[2]})`}/>)}
             <rect x="-4.4" y="-4.4" width="8.8" height="8.8" fill={`url(#${id}-light)`}/>
         </g>
     </svg>;
 }
 
 export function EffectRewardArtwork({preset}:{preset:ChampionEffect}) {
-    return <div className={`reward-effect-art reward-effect-art-${preset.motif}`} style={{color:preset.color}}><RewardSigil motif={preset.motif} tier={preset.tier}/></div>;
+    return <div className={`reward-effect-art reward-effect-art-${preset.motif}`} style={{color:preset.color}}><VictoryStill preset={preset}/></div>;
 }
 
 /** Turned profiles, drawn rather than font-dependent chess glyphs. */

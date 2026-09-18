@@ -1,8 +1,8 @@
 'use client';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowLeft, ArrowUpRight, Check, LockKeyhole, Trophy } from 'lucide-react';
-import { outcomeStars, rewardUnlocked, rewardPiece, rewardBoard, type CampaignOutcome, type VictoryFinish, type BoardFinish, type PieceFinish } from '../config/campaign';
-import { CHAMPIONSHIP_REWARDS, championshipReward } from '../config/championshipRewards';
+import { rewardUnlocked, rewardPiece, rewardBoard, totalCircuitStars, type CampaignOutcome, type BoardFinish, type PieceFinish } from '../config/campaign';
+import { CHAMPIONSHIP_REWARDS } from '../config/championshipRewards';
 import { championshipText } from '../locales/championshipText';
 import { campaignText, rewardName } from '../locales/campaignText';
 import { dict, type Language } from '../locales/dict';
@@ -10,9 +10,10 @@ import type { User } from '../types/game';
 import { useCampaignProgress } from '../hooks/useCampaignProgress';
 import LocalGameBoard from './LocalGameBoard';
 import { ChampionshipCollection } from './ChampionshipCollection';
-import { VictoryCelebration } from './VictoryCelebration';
+import { CampaignResult } from './CampaignResult';
 import { RewardSigil } from './RewardArtwork';
-import { battleMusicTitle, battleMusicUrl, CIRCUIT_MUSIC } from '../config/circuitMusic';
+import { battleMusicTitle, battleMusicUrl, circuitMusic, CIRCUIT_MUSIC } from '../config/circuitMusic';
+import { musicMilestoneText } from '../locales/musicMilestoneText';
 import { circuitText } from '../locales/circuitText';
 import { soundManager } from '../lib/SoundService';
 import { RewardPreview, type VisualReward } from './RewardPreview';
@@ -25,34 +26,6 @@ import { CircuitLoginGate } from './CircuitLoginGate';
 import { cosmeticsSettingsText } from '../locales/cosmeticsSettingsText';
 import './campaign.css';
 
-const duration=(seconds:number)=>`${Math.floor(seconds/60)}:${String(Math.floor(seconds%60)).padStart(2,'0')}`;
-function Result({lang,stageId,firstClear,effect,outcome,onNext,onRetry,onBack,saveError}: {
-    lang:Language;stageId:number;firstClear:boolean;effect:VictoryFinish;outcome:CampaignOutcome;onNext?:()=>void;onRetry:()=>void;onBack:()=>void;saveError:boolean;
-}) {
-    const dialog=useRef<HTMLDialogElement>(null);
-    useEffect(()=>{const node=dialog.current;node?.showModal();return()=>node?.close();},[]);
-    const t=(key:Parameters<typeof campaignText>[1])=>campaignText(lang,key);
-    const stage=CIRCUIT_STAGES[stageId-1],reward=CHAMPIONSHIP_REWARDS[stageId-1],stars=outcomeStars(outcome,stage.timeControl);
-    const victoryDesign=championshipReward(effect);
-    const perMove=stage.timeControl==='10s';
-    return <dialog ref={dialog} className="campaign-result" aria-labelledby="campaign-result-title" onCancel={event=>event.preventDefault()}>
-        {outcome.won&&<VictoryCelebration effect={effect}/>}
-        <div className="campaign-result-card">
-            <span className="campaign-result-emblem" aria-hidden="true"><RewardSigil motif={victoryDesign?.kind==='effect'?victoryDesign.motif:'corona'} tier={victoryDesign?.tier??1}/></span>
-            <p>{stageText(lang,'stage')} {stageId} / 100 · {stage.opponent}</p>
-            <h2 id="campaign-result-title">{outcome.won?(stageId===100?t('champion'):t('win')):outcome.draw?t('draw'):t('loss')}</h2>
-            {outcome.won&&<><div className="campaign-stars" aria-label={`${stars}/3`}>{'★'.repeat(stars)}{'☆'.repeat(3-stars)}</div>
-                <p className="campaign-reward-earned"><Trophy size={18}/>{stageText(lang,firstClear?'newReward':'clearedReward')} · {rewardName(lang,reward.id)}</p></>}
-            <p>{t('noHints')} · {perMove?stageText(lang,'quickMoves'):t('quick')}</p>
-            <p>{perMove?`${stageText(lang,'ownMoves')} · ${outcome.playerMoves} / 40`:`${circuitText(lang,'timeLeft')} · ${duration(outcome.remainingSeconds)} / ${duration(outcome.initialSeconds)}`}</p>
-            {saveError&&<p role="alert">{t('saveError')}</p>}
-            <div className="campaign-result-actions">
-                {onNext&&<button className="campaign-primary" onClick={onNext}>{t('next')}<ArrowUpRight size={18}/></button>}
-                <button onClick={onRetry}>{t('retry')}</button><button onClick={onBack}>{t('back')}</button>
-            </div>
-        </div>
-    </dialog>;
-}
 
 type CampaignProps={lang:Language;user:User;onBack:()=>void;onLogin:()=>void;onPlayingChange?:(playing:boolean)=>void};
 export function CampaignMode(props:CampaignProps) {
@@ -71,6 +44,7 @@ function MemberCircuit({lang,user,onBack,onPlayingChange}:CampaignProps) {
     const [side,setSide]=useState<'white'|'black'>('white');
     const [preview,setPreview]=useState<VisualReward|null>(null);
     const [outcome,setOutcome]=useState<CampaignOutcome|null>(null);
+    const [runMusic,setRunMusic]=useState<readonly string[]>([]);
     const [runDesign,setRunDesign]=useState(()=>({music:progress.music,effect:progress.effect}));
     const adBreakHandled=useRef('');
     const runPermit=useRef<(()=>boolean)|null>(null);
@@ -94,7 +68,7 @@ function MemberCircuit({lang,user,onBack,onPlayingChange}:CampaignProps) {
     const start=(id:number)=>{
         if(!circuitAccess.canPlay(user)||!loaded||!stageUnlocked(progress,id))return;
         runPermit.current=circuitAccess.permit(user);
-        setRunDesign({music:progress.music,effect:progress.effect});onPlayingChange?.(true);
+        setRunDesign({music:progress.music,effect:progress.effect});setRunMusic(CIRCUIT_MUSIC.filter(track=>rewardUnlocked(progress,track.id)).map(track=>track.id));onPlayingChange?.(true);
         setFirstClear(!progress.stageStars?.[id-1]);setSelected(id);setOutcome(null);setRun(value=>value+1);setActiveId(id);
     };
     const leaveStage=()=>{runPermit.current=null;setActiveId(null);onPlayingChange?.(false);};
@@ -111,7 +85,8 @@ function MemberCircuit({lang,user,onBack,onPlayingChange}:CampaignProps) {
         return <LocalGameBoard key={`${activeId}-${run}`} lang={lang} user={user} cpuLevel={active.strength<12?1:active.strength<23?3:5}
             cpuPersonality={active.personality} cpuSearchProfile={active.search} campaignLabel={`${stageText(lang,'stage')} ${activeId} / 100 · ${loop('strength')} ${active.strength}`} opponentLabel={active.opponent}
             onlineRole={side} timeControl={active.timeControl} onComplete={complete} onHome={leaveStage}
-            resultPanel={outcome&&<Result lang={lang} stageId={activeId} firstClear={firstClear} effect={runDesign.effect} outcome={outcome} saveError={storageError}
+            resultPanel={outcome&&<CampaignResult lang={lang} stageId={activeId} firstClear={firstClear} effect={runDesign.effect} outcome={outcome} saveError={storageError}
+                newMusic={CIRCUIT_MUSIC.filter(track=>!runMusic.includes(track.id)&&rewardUnlocked(progress,track.id)).map(track=>track.id)}
                 onRetry={()=>void afterResult(()=>start(activeId))} onBack={()=>void afterResult(leaveStage)}
                 onNext={outcome.won&&activeId<100?()=>void afterResult(()=>start(activeId+1)):undefined}/>}/>;
     }
@@ -137,7 +112,7 @@ function MemberCircuit({lang,user,onBack,onPlayingChange}:CampaignProps) {
                 <p>{stageText(lang,'rules')}</p>
                 <span className="campaign-difficulty">{loop('strength')} {stage.strength} / 34 · {stage.timeControl==='10m'?dict[lang].tc10m:stage.timeControl==='3m'?dict[lang].tc3m:dict[lang].tc10s}</span>
                 <div className="campaign-boss-reward"><Trophy size={20}/><span><small>{t('rewards')}</small><strong>{rewardName(lang,reward.id)}</strong></span>{rewardUnlocked(progress,reward.id)&&<Check size={18}/>}</div>
-                {reward.kind!=='music'&&<button data-preview-reward={reward.id} onClick={()=>setPreview({kind:reward.kind,id:reward.id})}>{circuitText(lang,'preview')}</button>}
+                <button data-preview-reward={reward.id} onClick={()=>setPreview({kind:reward.kind,id:reward.id})}>{circuitText(lang,'preview')}</button>
                 <fieldset className="campaign-side"><legend>{t('challenge')}</legend>{(['white','black'] as const).map(value=><button key={value} type="button" aria-pressed={side===value} onClick={()=>setSide(value)}>{t(value)}</button>)}</fieldset>
                 <button className="campaign-primary" disabled={!loaded||!stageUnlocked(progress,selected)} onClick={()=>start(selected)}>{!loaded?dict[lang].loading:stageUnlocked(progress,selected)?t('challenge'):t('locked')}<ArrowUpRight size={20}/></button>
                 <p className="campaign-medal-help">★ {t('win')} · ★ {t('noHints')} · ★ {stage.timeControl==='10s'?stageText(lang,'quickMoves'):t('quick')}</p>
@@ -159,11 +134,15 @@ function MemberCircuit({lang,user,onBack,onPlayingChange}:CampaignProps) {
             </div></div>)}
         </section>
         <section className="campaign-collection" aria-label={circuitText(lang,'music')}><h2>{circuitText(lang,'music')}</h2><p>{cosmeticsSettingsText(lang,'settingsOnly')}</p>
+            <div className="music-star-summary"><strong>{musicMilestoneText(lang,'title')}</strong><span>{musicMilestoneText(lang,'total')} ★ {totalCircuitStars(progress)} / 300</span><p>{musicMilestoneText(lang,'help')}</p></div>
             <div className="campaign-equipment campaign-music">{['standard',...CIRCUIT_MUSIC.map(track=>track.id),...CHAMPIONSHIP_REWARDS.filter(reward=>reward.kind==='music').map(reward=>reward.id)].map(id=>{
                 const acquired=rewardUnlocked(progress,id);
+                const milestone=circuitMusic(id);
                 return <div key={id} className="flex flex-wrap items-center gap-3 rounded-xl border border-[#3b4537] p-3" data-acquired-music={acquired?id:undefined}>
                     <span aria-hidden="true">♫</span><span><strong>{id==='standard'?t('standard'):battleMusicTitle(id)}</strong>
-                    <small>{cosmeticsSettingsText(lang,acquired?'acquired':'notAcquired')}</small></span>{acquired&&<Check size={16}/>}
+                    <small>{cosmeticsSettingsText(lang,acquired?'acquired':'notAcquired')}{milestone&&` · ★ ${milestone.requiredStars}`}</small>
+                    {milestone&&!acquired&&<small>{musicMilestoneText(lang,'remaining')} ★ {Math.max(0,milestone.requiredStars-totalCircuitStars(progress))}</small>}
+                    {milestone&&<progress className="music-star-progress" max={milestone.requiredStars} value={acquired?milestone.requiredStars:Math.min(milestone.requiredStars,totalCircuitStars(progress))} aria-label={`${battleMusicTitle(id)} · ${musicMilestoneText(lang,'total')}`}/>}</span>{acquired&&<Check size={16}/>}
                     <button data-preview-music={id} onClick={()=>setPreview({kind:'music',id})}>{circuitText(lang,'preview')}</button>
                 </div>;
             })}</div>

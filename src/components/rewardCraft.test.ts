@@ -12,8 +12,9 @@ describe('authored reward craft',()=>{
         for(const board of boards) for(const part of rewardFrameParts(board)) {
             const c=Math.abs(Math.cos(part.rotation)),s=Math.abs(Math.sin(part.rotation));
             const halfX=(part.size[0]*c+part.size[2]*s)/2,halfZ=(part.size[0]*s+part.size[2]*c)/2;
-            expect(Math.abs(part.position[0])+halfX).toBeLessThanOrEqual(4.351);
-            expect(Math.abs(part.position[2])+halfZ).toBeLessThanOrEqual(4.351);
+            const limit=part.position[1]<-.1?4.451:4.351;
+            expect(Math.abs(part.position[0])+halfX).toBeLessThanOrEqual(limit);
+            expect(Math.abs(part.position[2])+halfZ).toBeLessThanOrEqual(limit);
             expect(Math.abs(part.position[0])-halfX>4 || Math.abs(part.position[2])-halfZ>4).toBe(true);
             expect(part.position[1]+part.size[1]/2).toBeLessThan(0);
         }
