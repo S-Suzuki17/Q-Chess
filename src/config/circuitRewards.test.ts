@@ -43,17 +43,24 @@ describe('Crown Circuit clock stars and music',()=>{
   expect(campaignText(lang,'quick')).not.toMatch(/20/);
   for(const key of ['preview','previewOnly','music','timeLeft','midnight','coronation','astral'] as const) expect(circuitText(lang,key)).toBeTruthy();
  });
- it('resolves every current and legacy music reward to the three supplied MP3 tracks',()=>{
+ it('ships fifteen different reward recordings, including six supplied MP3s',()=>{
   const tracks=[...CIRCUIT_MUSIC,...CHAMPIONSHIP_REWARDS.filter(reward=>reward.kind==='music')];
   expect(new Set(tracks.map(track=>track.url))).toEqual(new Set(REWARD_TRACKS.map(track=>track.url)));
+  expect(tracks).toHaveLength(15);
+  expect(new Set(tracks.map(track=>track.url)).size).toBe(15);
+  expect(tracks.filter(track=>track.url.endsWith('.mp3'))).toHaveLength(6);
   const headers=REWARD_TRACKS.map(track=>{
    const data=readFileSync('public'+track.url);
-   expect(track.url.endsWith('.mp3')).toBe(true);
-   expect(data.subarray(0,3).toString()==='ID3'||(data[0]===0xff&&(data[1]&0xe0)===0xe0)).toBe(true);
+   if(track.url.endsWith('.mp3')) {
+    expect(data.subarray(0,3).toString()==='ID3'||(data[0]===0xff&&(data[1]&0xe0)===0xe0)).toBe(true);
+   } else {
+    expect(data.subarray(0,4).toString()).toBe('RIFF');
+    expect(data.readUInt32LE(40)).toBeGreaterThan(0);
+   }
    expect(data.length).toBeGreaterThan(2_000_000);
    return createHash('sha256').update(data).digest('hex');
   });
-  expect(new Set(headers).size).toBe(3);
+  expect(new Set(headers).size).toBe(15);
   expect(readFileSync('public'+MATCHMAKING_MUSIC_URL).length).toBeGreaterThan(1_000_000);
   expect(battleMusicUrl('standard')).toBe('/audio/bgm_playing.mp3');
  });

@@ -30,13 +30,13 @@ describe('Settings-only acquired cosmetics', () => {
         }
         expect(acquiredCosmetics(progress, 'piece')).toEqual(expect.arrayContaining(['iceglass', 'neonglass']));
     });
-    it('lists each recording once while retaining the selected legacy reward',()=>{
-        const progress={...emptyCampaign(),stageStars:Array(100).fill(1),music:'champion-music-037' as MusicReward};
+    it('lists all fifteen different recordings and retains the selected reward',()=>{
+        const legacyStars={nox:3,ember:3,oracle:3,sovereign:3};
+        const progress={...emptyCampaign(),stageStars:Array(100).fill(1),stars:legacyStars,ascensions:Array(20).fill(legacyStars),music:'champion-music-037' as MusicReward};
         const options=acquiredCosmetics(progress,'music');
-        expect(options).toHaveLength(4);
+        expect(options).toHaveLength(16);
         expect(options).toContain(progress.music);
-        expect(new Set(options.map(id=>battleMusicUrl(id as MusicReward))).size).toBe(4);
-        expect(parseInt(progress.music.slice(-3),10)).toBeLessThanOrEqual(progress.stageStars.length);
+        expect(new Set(options.map(id=>battleMusicUrl(id as MusicReward))).size).toBe(16);
         expect(chooseCosmetic(progress,'music',progress.music,false).music).toBe(progress.music);
     });
     it('rejects every selection while a match is locked and rejects spoofed/locked IDs', () => {
