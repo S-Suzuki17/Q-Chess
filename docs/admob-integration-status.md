@@ -2,6 +2,16 @@
 
 ## Latest continuation (supersedes earlier implementation checklist below)
 
+### Final reward recording replacements
+
+- Three additional supplied recordings replace the remaining generated tracks:
+  astral -> 盤上の幾何学 (`Banjou_no_Kikagaku.mp3`), zenith -> Twelve Moves Ahead,
+  valkyrie -> The Eighth Rank. All 15 reward recordings now use distinct supplied MP3s.
+- Original source files and old WAV assets are preserved; reward IDs and unlock conditions stay unchanged.
+- Copies verified against source SHA256; both music test files pass (17 tests).
+- Commit 4167a1d was pushed only to `release/admob-prep-music-20260919` and its Vercel preview is READY.
+  These three newer recordings are not included in that first preview. Main/Render/DB remain untouched.
+
 ### Owner follow-up — no age screen, additional music, dependency patches
 
 - Owner explicitly cancelled the age-screen request. Newly drafted screen/store files were removed,

@@ -12,9 +12,9 @@ export const REWARD_TRACKS = [
     { title: 'The Architect’s Gambit', url: '/audio/rewards/The_Architect_s_Gambit.mp3' },
     { title: 'Ivory and Stream', url: '/audio/rewards/Ivory_and_Stream.mp3' },
     { title: 'Rain on the Board', url: '/audio/rewards/Rain_on_the_Board.mp3' },
-    { title: 'Astral Crown', url: '/audio/rewards/astral.wav' },
-    { title: 'Zenith', url: '/audio/rewards/zenith.wav' },
-    { title: 'Valkyrie', url: '/audio/rewards/valkyrie.wav' },
+    { title: '盤上の幾何学', url: '/audio/rewards/Banjou_no_Kikagaku.mp3' },
+    { title: 'Twelve Moves Ahead', url: '/audio/rewards/Twelve_Moves_Ahead.mp3' },
+    { title: 'The Eighth Rank', url: '/audio/rewards/The_Eighth_Rank.mp3' },
 ] as const;
 
 export const MATCHMAKING_MUSIC_URL = '/audio/chess.mp3';

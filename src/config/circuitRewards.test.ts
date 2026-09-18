@@ -43,12 +43,12 @@ describe('Crown Circuit clock stars and music',()=>{
   expect(campaignText(lang,'quick')).not.toMatch(/20/);
   for(const key of ['preview','previewOnly','music','timeLeft','midnight','coronation','astral'] as const) expect(circuitText(lang,key)).toBeTruthy();
  });
- it('ships fifteen different reward recordings, including twelve supplied MP3s',()=>{
+ it('ships fifteen different supplied MP3 reward recordings',()=>{
   const tracks=[...CIRCUIT_MUSIC,...CHAMPIONSHIP_REWARDS.filter(reward=>reward.kind==='music')];
   expect(new Set(tracks.map(track=>track.url))).toEqual(new Set(REWARD_TRACKS.map(track=>track.url)));
   expect(tracks).toHaveLength(15);
   expect(new Set(tracks.map(track=>track.url)).size).toBe(15);
-  expect(tracks.filter(track=>track.url.endsWith('.mp3'))).toHaveLength(12);
+  expect(tracks.filter(track=>track.url.endsWith('.mp3'))).toHaveLength(15);
   const headers=REWARD_TRACKS.map(track=>{
    const data=readFileSync('public'+track.url);
    if(track.url.endsWith('.mp3')) {
