@@ -29,5 +29,9 @@ export function applyVerifiedReward(state:AllowanceLedger,kind:AllowanceKind,rec
     if(!receiptId||state.receipts.includes(receiptId))return state;
     return {...state,bonus:{...state.bonus,[kind]:state.bonus[kind]+REWARDED_EXTRA_USES},receipts:[...state.receipts,receiptId]};
 }
-/** Natural break integration seam. Currently a no-op, never a fake ad/countdown. */
-export async function requestCircuitInterstitial(_matchKey:string):Promise<'unavailable'> {return 'unavailable';}
+/** Called once per completed circuit match by CampaignMode. Web remains disabled. */
+export async function requestCircuitInterstitial(matchKey:string):Promise<import('./nativeAds').AdResult> {
+ if(!matchKey||process.env.NEXT_PUBLIC_NATIVE_INTERSTITIAL_ENABLED!=='true')return 'unavailable';
+ const {nativeAds,isAndroidApp}=await import('./nativeAds');
+ return isAndroidApp()?nativeAds.interstitial():'unavailable';
+}

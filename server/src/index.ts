@@ -9,6 +9,7 @@ import { RankedAuth } from './services/RankedAuth';
 import { RankedRuntime } from './game/RankedRuntime';
 import { createPrivateGameRecordRouter } from './services/PrivateGameRecordRoutes';
 import { createProfileAvatarRouter } from './services/ProfileAvatarRoutes';
+import { createAdRewardRouter } from './services/AdRewardRoutes';
 import type { MatchSession, QueueMode } from './matchmaking/MatchmakingService';
 
 const app = express();
@@ -17,6 +18,7 @@ const supabaseService = new SupabaseService();
 const rankedAuth = new RankedAuth((id,password)=>supabaseService.verifyLegacyPassword(id,password));
 app.use(createPrivateGameRecordRouter(rankedAuth,supabaseService));
 app.use(createProfileAvatarRouter(rankedAuth,supabaseService.profileAvatarStore()));
+app.use(createAdRewardRouter(rankedAuth,supabaseService.adRewardStore()));
 app.use(express.json({limit:'4kb'}));
 
 // Phase 4: Health Check & Uptime ping target

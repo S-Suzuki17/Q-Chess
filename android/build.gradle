@@ -32,6 +32,10 @@ subprojects {
                     sourceCompatibility JavaVersion.VERSION_17
                     targetCompatibility JavaVersion.VERSION_17
                 }
+                // Keep the AdMob Kotlin plugin aligned with this project's Java target.
+                if (project.plugins.hasPlugin('kotlin-android')) {
+                    kotlinOptions { jvmTarget = '17' }
+                }
             }
         }
     }

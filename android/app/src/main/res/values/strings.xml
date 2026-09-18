@@ -1,5 +1,6 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
+    <string name="admob_app_id">ca-app-pub-1116866075179199~4430714849</string>
     <string name="app_name">Q-Gambit</string>
     <string name="title_activity_main">Q-Gambit</string>
     <string name="package_name">com.qgambit.app</string>

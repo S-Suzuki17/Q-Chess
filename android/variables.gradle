@@ -2,6 +2,9 @@ ext {
     minSdkVersion = 24
     compileSdkVersion = 36
     targetSdkVersion = 36
+    // Avoid silently changing ad/privacy SDKs between reviewed builds.
+    playServicesAdsVersion = '25.4.0'
+    userMessagingPlatformVersion = '4.0.0'
     androidxActivityVersion = '1.11.0'
     androidxAppCompatVersion = '1.7.1'
     androidxCoordinatorLayoutVersion = '1.3.0'

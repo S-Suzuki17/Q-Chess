@@ -6,6 +6,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import GameBoard from '../components/GameBoard';
 import AdBanner from '../components/AdBanner';
+import {NativeRewardSettings} from '../components/NativeRewardSettings';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import { SystemStatusBanner } from '../components/SystemStatusBanner';
 import { supabase } from '../lib/supabaseClient';
@@ -362,6 +363,7 @@ export default function Home() {
                             </div>
 
                             <CosmeticsSettings lang={lang} progress={campaignProgress} update={updateCampaign} loaded={cosmeticsLoaded} locked={matchDesignLocked}/>
+                            {user&&<NativeRewardSettings key={user.id} userId={user.id} lang={lang} locked={matchDesignLocked}/>}
 
                             {user && gameState==='level_select' && (
                                 <div className="flex flex-col gap-3 mt-4 pt-6 border-t border-[#4A4238]">

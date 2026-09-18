@@ -9,6 +9,14 @@ export class SoundService {
     private currentTrack: string | null = null;
     private listeners: Set<(config: SoundConfig) => void> = new Set();
     private playPromise: Promise<void> | undefined;
+    private adPauses=0;
+
+    /** Temporary ad focus; never overwrites the user's saved mute preference. */
+    public pauseForAd() {
+        this.adPauses++;this.bgmAudio?.pause();
+        let released=false;
+        return()=>{if(released)return;released=true;this.adPauses=Math.max(0,this.adPauses-1);this.resumeBGM();};
+    }
     
     private config: SoundConfig = {
         bgmVolume: 0.5,
@@ -40,11 +48,11 @@ export class SoundService {
         
         if (this.bgmAudio) {
             this.bgmAudio.volume = this.config.bgmVolume;
-            if (this.config.masterMute || this.config.bgmVolume === 0) {
+            if (this.adPauses || this.config.masterMute || this.config.bgmVolume === 0) {
                 if (this.playPromise !== undefined) {
                     const audio=this.bgmAudio;
                     this.playPromise.then(() => {
-                        if (audio!==this.bgmAudio || this.config.masterMute || this.config.bgmVolume===0) audio.pause();
+                        if (this.adPauses || audio!==this.bgmAudio || this.config.masterMute || this.config.bgmVolume===0) audio.pause();
                     }).catch(() => {});
                 } else {
                     this.bgmAudio.pause();
@@ -72,7 +80,7 @@ export class SoundService {
         if (typeof window === 'undefined') return;
 
         if (this.currentTrack === trackUrl && this.bgmAudio) {
-            if (!this.config.masterMute && this.config.bgmVolume > 0 && this.bgmAudio.paused) {
+            if (!this.adPauses && !this.config.masterMute && this.config.bgmVolume > 0 && this.bgmAudio.paused) {
                 this.playPromise = this.bgmAudio.play();
                 this.playPromise.catch(e => console.log(e));
             }
@@ -86,7 +94,7 @@ export class SoundService {
         this.bgmAudio.loop = true;
         this.bgmAudio.volume = this.config.bgmVolume;
         
-        if (!this.config.masterMute && this.config.bgmVolume > 0) {
+        if (!this.adPauses && !this.config.masterMute && this.config.bgmVolume > 0) {
             this.playPromise = this.bgmAudio.play();
             this.playPromise.catch(e => console.log('Audio play failed:', e));
         }
@@ -114,7 +122,7 @@ export class SoundService {
     /** Retry after user activation and pause while the app is hidden. */
     public resumeBGM() {
         if (!this.bgmAudio) return;
-        if (document.hidden || this.config.masterMute || this.config.bgmVolume===0) {
+        if (this.adPauses || document.hidden || this.config.masterMute || this.config.bgmVolume===0) {
             this.bgmAudio.pause();
             return;
         }
@@ -122,12 +130,12 @@ export class SoundService {
         if (!audio.paused) return;
         this.playPromise=audio.play();
         this.playPromise.then(()=>{
-            if (audio!==this.bgmAudio || document.hidden || this.config.masterMute || this.config.bgmVolume===0) audio.pause();
+            if (this.adPauses || audio!==this.bgmAudio || document.hidden || this.config.masterMute || this.config.bgmVolume===0) audio.pause();
         }).catch(()=>{ /* A later user gesture can retry autoplay. */ });
     }
 
     public playSE(trackUrl: string) {
-        if (this.config.masterMute || this.config.seVolume === 0 || typeof window === 'undefined') return;
+        if (this.adPauses || this.config.masterMute || this.config.seVolume === 0 || typeof window === 'undefined') return;
         const se = new Audio(trackUrl);
         se.volume = this.config.seVolume;
         se.play().catch(e => console.log('SE play failed:', e));

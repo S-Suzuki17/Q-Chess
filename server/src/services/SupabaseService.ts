@@ -4,6 +4,7 @@ import {v5 as uuidv5} from 'uuid';
 import { parseLocalGameRecord, PRIVATE_RECORD_LIMIT } from './PrivateGameRecords';
 import type { LocalGameRecord, PrivateGameRecord, PrivateGameStats } from './PrivateGameRecords';
 import { createProfileAvatarStore } from './ProfileAvatars';
+import { createAdRewardStore } from './AdRewardStore';
 
 dotenv.config();
 
@@ -29,6 +30,10 @@ export class SupabaseService {
 
     public profileAvatarStore() {
         return createProfileAvatarStore(this.supabase,token=>this.verifyUser(token));
+    }
+
+    public adRewardStore() {
+        return createAdRewardStore(this.supabase,token=>this.verifyUser(token));
     }
 
     public async verifyLegacyPassword(userId:string,password:string):Promise<boolean> {

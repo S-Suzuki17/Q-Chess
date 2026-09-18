@@ -2,8 +2,8 @@ import { championshipReward, type ChampionMusicId } from './championshipRewards'
 import { rewardTrackTitle } from './musicTracks';
 
 export const CIRCUIT_MUSIC = [
-    {id:'midnight', url:'/audio/rewards/midnight.wav', boss:'nox', requiredWins:0},
-    {id:'coronation', url:'/audio/rewards/coronation.wav', boss:undefined, requiredWins:1},
+    {id:'midnight', url:'/audio/rewards/Ivory_and_Stream.mp3', boss:'nox', requiredWins:0},
+    {id:'coronation', url:'/audio/rewards/Rain_on_the_Board.mp3', boss:undefined, requiredWins:1},
     {id:'astral', url:'/audio/rewards/astral.wav', boss:undefined, requiredWins:5},
     {id:'zenith', url:'/audio/rewards/zenith.wav', boss:undefined, requiredWins:10},
     {id:'valkyrie', url:'/audio/rewards/valkyrie.wav', boss:undefined, requiredWins:20},
