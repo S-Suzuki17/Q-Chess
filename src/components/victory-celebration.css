@@ -1,4 +1,35 @@
 .victory-fx { position:fixed; inset:0; z-index:80; overflow:hidden; pointer-events:none; container-type:size; color:var(--fx-color); }
+.reward-preview-board {position:relative;overflow:hidden;isolation:isolate;}
+.reward-preview-board .victory-fx {position:absolute;}
+.effect-preview-arena {position:absolute;inset:0;background:radial-gradient(ellipse at 50% 65%,#27383c,#0b1119 62%,#06090e);}
+.effect-preview-arena::after {content:'';position:absolute;inset:70% -20% -20%;background:repeating-linear-gradient(0deg,transparent 0 28px,#bcaa7020 29px 30px),repeating-linear-gradient(90deg,transparent 0 28px,#bcaa7020 29px 30px);transform:perspective(240px) rotateX(55deg);}
+.music-reward-preview {max-width:440px;margin:auto;}
+.music-reward-preview svg {width:100%;max-height:230px;}
+.music-reward-preview audio {width:100%;min-height:54px;}
+.reward-preview-dialog footer {flex-wrap:wrap;}
+.campaign-music button {min-height:44px;padding:8px 16px;border:1px solid #8f7b55;border-radius:8px;}
+.victory-fx-stage {position:absolute;inset:0;perspective:750px;animation:fx-stage var(--fx-duration) ease both;}
+.victory-fx-halo {position:absolute;inset:12%;background:radial-gradient(ellipse,transparent 22%,color-mix(in srgb,var(--fx-color) 22%,transparent) 42%,transparent 67%);}
+.victory-fx-heart {position:absolute;left:50%;top:48%;width:min(20cqw,18cqh);height:min(38cqw,34cqh);clip-path:polygon(50% 0,100% 33%,75% 85%,50% 100%,25% 85%,0 33%);background:conic-gradient(from 25deg at 50% 33%,#f1fff5,var(--fx-color) 65deg,#244546 125deg,var(--fx-accent) 185deg,#497378 245deg,#effff4);transform:translate(-50%,-50%);}
+.victory-fx-orbit {position:absolute;left:50%;top:50%;width:min(70cqw,66cqh);aspect-ratio:1;border:2px solid var(--fx-color);border-radius:50%;box-shadow:inset 0 0 18px #bda77328,0 0 12px #bda77328;animation:fx-orbit var(--fx-duration) cubic-bezier(.16,1,.3,1) both;}
+.victory-fx-orbit b {position:absolute;left:15%;top:12%;width:14px;height:14px;border-radius:50%;background:var(--fx-accent);box-shadow:0 0 16px var(--fx-color);}
+.victory-fx-crystal {position:absolute;left:50%;top:50%;width:calc(26px + var(--fx-tier)*2px);height:min(27cqw,24cqh);transform-origin:50% 100%;clip-path:polygon(50% 0,100% 29%,76% 88%,50% 100%,24% 88%,0 29%);background:conic-gradient(from 30deg at 50% 30%,var(--fx-accent),#29494b,var(--fx-color),#edf5ed,var(--fx-color));animation:fx-crystal var(--fx-duration) cubic-bezier(.2,.8,.2,1) both;}
+.victory-fx-constellation {position:absolute;left:50%;top:48%;width:min(85cqw,78cqh);aspect-ratio:1;animation:fx-constellation var(--fx-duration) ease both;}
+.victory-fx-constellation svg {width:100%;height:100%;filter:drop-shadow(0 0 5px var(--fx-color));}
+.victory-fx-crown {position:absolute;left:50%;top:44%;width:min(50cqw,45cqh);filter:drop-shadow(0 16px 15px #0008);animation:fx-crown var(--fx-duration) cubic-bezier(.18,.9,.3,1) both;}
+.victory-fx-crown svg {width:100%;}
+.victory-fx-laurel {position:absolute;left:50%;top:50%;width:min(67cqw,62cqh);aspect-ratio:1;border:9px double var(--fx-color);border-top-color:transparent;border-radius:50%;transform:translate(-50%,-50%);}
+.victory-fx-dais {position:absolute;left:50%;top:72%;width:min(75cqw,68cqh);height:20cqh;border:3px double var(--fx-accent);border-radius:50%;background:radial-gradient(ellipse,transparent 35%,#b9a27122);transform:translate(-50%,-50%) rotateX(55deg);}
+.victory-fx-rays {position:absolute;inset:6%;background:repeating-conic-gradient(from 12deg,transparent 0deg 23deg,color-mix(in srgb,var(--fx-color) 16%,transparent) 24deg 25deg,transparent 26deg 30deg);mask-image:radial-gradient(transparent 30%,#000 65%,transparent 75%);animation:fx-rays var(--fx-duration) ease-out both;}
+.victory-fx-corona .victory-fx-seal,.victory-fx-shards .victory-fx-seal {width:min(26cqw,23cqh,170px);top:78%;}
+.campaign-result .victory-fx-stage {opacity:.45;}
+@keyframes fx-stage {0%,100% {opacity:0;} 14%,76% {opacity:1;}}
+@keyframes fx-orbit {0% {transform:translate(-50%,-50%) rotateZ(calc(var(--n)*38deg - 100deg)) rotateX(68deg) scale(.25);opacity:0;} 24%,75% {opacity:1;} 100% {transform:translate(-50%,-50%) rotateZ(calc(var(--n)*38deg + 45deg)) rotateX(62deg) scale(1.1);opacity:1;}}
+@keyframes fx-crystal {0% {opacity:0;transform:translate(-50%,-100%) rotate(var(--angle)) translateY(0) scale(.2);} 25%,65% {opacity:1;transform:translate(-50%,-100%) rotate(var(--angle)) translateY(-9cqh) scale(1);} 100% {opacity:1;transform:translate(-50%,-100%) rotate(var(--angle)) translateY(-12cqh) scale(.95);}}
+@keyframes fx-constellation {0% {opacity:0;transform:translate(-50%,-50%) rotate(-25deg) scale(.5);} 30%,70% {opacity:1;} 100% {opacity:1;transform:translate(-50%,-50%) rotate(8deg) scale(1.08);}}
+@keyframes fx-crown {0% {opacity:0;transform:translate(-50%,-90%) rotateY(-50deg) scale(.6);} 28%,75% {opacity:1;transform:translate(-50%,-50%) rotateY(0) scale(1);} 100% {opacity:1;transform:translate(-50%,-55%) scale(1.08);}}
+@keyframes fx-rays {from {transform:rotate(-16deg) scale(.7);} to {transform:rotate(20deg) scale(1.2);}}
+@media(max-width:600px) {.victory-fx i:nth-of-type(n+29) {display:none;} .victory-fx-orbit {box-shadow:none;}}
 /* Three beats: a soft light arrival, the identifying seal, then outward debris.
    The SVG wrapper is animated, not its individual paths. No flashing bloom. */
 .victory-fx-light { position:absolute; inset:0; background:radial-gradient(ellipse at 50% 50%,#0c171ae6 0%,#0c171a60 30%,transparent 66%); animation:champion-light var(--fx-duration) ease-out both; }
@@ -21,6 +52,7 @@
 /* Keep the art visible after the one-shot preview. Replaying is explicit. */
 .victory-fx[data-effect-preview=true] .victory-fx-seal { animation-name:champion-preview-seal; }
 .victory-fx[data-effect-preview=true] .victory-fx-light { animation-name:champion-preview-light; }
+.victory-fx[data-effect-preview=true] .victory-fx-stage {animation-name:champion-preview-light;}
 /* The result owns a static emblem above its heading. Particles sit behind the
    result content; never put a second central emblem over the win/loss text. */
 .campaign-result .victory-fx { z-index:0; }
@@ -34,4 +66,5 @@
     .victory-fx[data-effect-preview=true] { display:block; }
     .victory-fx[data-effect-preview=true] .victory-fx-seal { opacity:1; transform:translate(-50%,-50%); }
     .victory-fx[data-effect-preview=true] .victory-fx-light { opacity:1; }
+    .victory-fx[data-effect-preview=true] .victory-fx-stage {display:none;}
 }

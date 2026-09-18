@@ -53,3 +53,24 @@ it('Circuit collection offers no cosmetic mutation and explains the 40-own-move 
     expect(html).not.toContain('data-equip-reward'); expect(html).not.toContain('data-music=');
     expect(mocks.update).not.toHaveBeenCalled();
 });
+
+it('offers unearned music previews without unlocking or selecting music', () => {
+    const progress=emptyCampaign();
+    const before=JSON.stringify(progress);
+    const html=renderToStaticMarkup(React.createElement(ChampionshipCollection,{lang:'ja',progress}));
+    expect(html).toContain('data-preview-reward="champion-music-007"');
+    const player=renderToStaticMarkup(React.createElement(RewardPreview,{lang:'ja',progress,reward:{kind:'music',id:'champion-music-007'},onClose:vi.fn()}));
+    expect(player).toContain('Ivory and Wood');
+    expect(player).toContain('未獲得');
+    expect(player).toContain('preload="none"');
+    expect(player).toContain('/audio/rewards/Ivory_and_Wood.mp3');
+    expect(player).not.toContain('autoPlay');
+    expect(player).not.toContain('data-board-preview');
+    expect(JSON.stringify(progress)).toBe(before);
+});
+
+it('exposes standard and all 15 distinct reward music previews in the Circuit',()=>{
+    const html=renderToStaticMarkup(React.createElement(CampaignMode,{lang:'ja',user:{id:'member',name:'Player',type:'registered'},onBack:vi.fn(),onLogin:vi.fn()}));
+    expect((html.match(/data-preview-music=/g)??[])).toHaveLength(16);
+    expect(html).toContain('data-preview-music="valkyrie"');
+});

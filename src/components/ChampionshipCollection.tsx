@@ -33,16 +33,16 @@ export function ChampionshipCollection({lang,progress}:{lang:Language;progress:C
             const unlocked=rewardUnlocked(progress,reward.id);
             return <article key={reward.id} className="championship-reward" data-championship-reward={reward.id} data-piece-form={reward.kind==='piece'?reward.form:undefined} data-board-profile={reward.kind==='board'?reward.profile:undefined} data-reward-grade={reward.tier} data-acquired={unlocked}>
                 <span className="championship-number"><span>{String(reward.requiredWins).padStart(3,'0')} <span className="championship-edition">/ 100</span></span>{unlocked ? <Check size={15}/> : <LockKeyhole size={13}/>}</span>
-                {reward.kind==='music'?<div className="reward-art-stage"><MusicRewardArtwork tier={reward.tier}/></div>:<button className="reward-art-stage" aria-label={`${circuitText(lang,'preview')} · ${rewardName(lang,reward.id)}`} onClick={()=>setPreview({kind:reward.kind,id:reward.id})}>
-                    {reward.kind==='board'?<BoardRewardArtwork preset={reward}/>:reward.kind==='effect'?<EffectRewardArtwork preset={reward}/>:reward.kind==='avatar'?<AccountAvatar name="Q" url={circuitIconForFrame(reward.id)?.url} frame={reward.id} size={100}/>:<PieceRewardArtwork finish={reward.id} tier={reward.tier}/>}
-                </button>}
+                <button className="reward-art-stage" aria-label={`${circuitText(lang,'preview')} · ${rewardName(lang,reward.id)}`} onClick={()=>setPreview({kind:reward.kind,id:reward.id})}>
+                    {reward.kind==='music'?<MusicRewardArtwork tier={reward.tier}/>:reward.kind==='board'?<BoardRewardArtwork preset={reward}/>:reward.kind==='effect'?<EffectRewardArtwork preset={reward}/>:reward.kind==='avatar'?<AccountAvatar name="Q" url={circuitIconForFrame(reward.id)?.url} frame={reward.id} size={100}/>:<PieceRewardArtwork finish={reward.id} tier={reward.tier}/>}
+                </button>
                 <div className="reward-grade-line" aria-hidden="true">{Array.from({length:10},(_,i)=><i key={i} data-active={i<reward.tier}/>)}</div>
                 <strong>{rewardName(lang,reward.id)}</strong>
                 <small className="reward-craft-caption">{reward.kind==='board'?rewardCraftText(lang,reward.motif):reward.kind==='piece'?rewardName(lang,reward.motif):reward.kind==='music'?circuitText(lang,'music'):reward.kind==='avatar'?stageText(lang,'frame'):t('effect')}</small>
                 {reward.kind==='board'&&referencePieceForBoard(reward.id)&&<small>{campaignText(lang,'board')} + {campaignText(lang,'piece')}</small>}
                 {reward.kind==='avatar'&&<small>{iconEditorText(lang,'portrait',circuitIconForFrame(reward.id)?.number)}</small>}
                 <span className="championship-unlock">{cosmeticsSettingsText(lang,unlocked?'acquired':'notAcquired')}{!unlocked&&` · ${stageText(lang,'stage')} ${reward.requiredWins}`}</span>
-                <div className="championship-reward-actions">{reward.kind!=='music'&&<button data-preview-reward={reward.id} onClick={()=>setPreview({kind:reward.kind,id:reward.id})}>{circuitText(lang,'preview')}</button>}
+                <div className="championship-reward-actions"><button data-preview-reward={reward.id} onClick={()=>setPreview({kind:reward.kind,id:reward.id})}>{circuitText(lang,'preview')}</button>
                 </div>
             </article>;
         })}</div>
