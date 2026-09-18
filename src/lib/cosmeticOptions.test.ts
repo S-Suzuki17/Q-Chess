@@ -5,6 +5,7 @@ import { CHAMPIONSHIP_REWARDS, ARCHIVED_REWARDS } from '../config/championshipRe
 import { cosmeticsSettingsKeys, cosmeticsSettingsText } from '../locales/cosmeticsSettingsText';
 import { stageText } from '../locales/stageText';
 import { LANGUAGES } from '../locales/dict';
+import { battleMusicUrl, type MusicReward } from '../config/circuitMusic';
 
 describe('Settings-only acquired cosmetics', () => {
     const kinds: CosmeticKind[] = ['board', 'piece', 'effect', 'avatar', 'music'];
@@ -22,8 +23,21 @@ describe('Settings-only acquired cosmetics', () => {
     it('retains old collections and paired glass rewards after acquisition', () => {
         const legacyStars = { nox: 1, ember: 1, oracle: 1, sovereign: 1 };
         const progress = { ...emptyCampaign(), stageStars: Array(100).fill(1), stars: legacyStars, ascensions: Array(100).fill(legacyStars) };
-        for (const reward of [...CHAMPIONSHIP_REWARDS, ...ARCHIVED_REWARDS]) expect(acquiredCosmetics(progress, reward.kind)).toContain(reward.id);
+        for (const reward of [...CHAMPIONSHIP_REWARDS, ...ARCHIVED_REWARDS]) {
+            const options=acquiredCosmetics(progress,reward.kind);
+            if (reward.kind==='music') expect(options.map(id=>battleMusicUrl(id as MusicReward))).toContain(reward.url);
+            else expect(options).toContain(reward.id);
+        }
         expect(acquiredCosmetics(progress, 'piece')).toEqual(expect.arrayContaining(['iceglass', 'neonglass']));
+    });
+    it('lists each recording once while retaining the selected legacy reward',()=>{
+        const progress={...emptyCampaign(),stageStars:Array(100).fill(1),music:'champion-music-037' as MusicReward};
+        const options=acquiredCosmetics(progress,'music');
+        expect(options).toHaveLength(4);
+        expect(options).toContain(progress.music);
+        expect(new Set(options.map(id=>battleMusicUrl(id as MusicReward))).size).toBe(4);
+        expect(parseInt(progress.music.slice(-3),10)).toBeLessThanOrEqual(progress.stageStars.length);
+        expect(chooseCosmetic(progress,'music',progress.music,false).music).toBe(progress.music);
     });
     it('rejects every selection while a match is locked and rejects spoofed/locked IDs', () => {
         const progress = emptyCampaign();

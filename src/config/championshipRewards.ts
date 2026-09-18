@@ -1,4 +1,5 @@
 import { AVATAR_FRAMES,type AvatarFrameId } from './avatarFrames';
+import { rewardTrackForTier } from './musicTracks';
 export type ChampionBoardId = `champion-board-${string}`;
 export type ChampionEffectId = `champion-effect-${string}`;
 export type ChampionPieceId = `champion-piece-${string}`;
@@ -60,7 +61,7 @@ const previousMixedRewards:readonly ChampionshipReward[]=Array.from({length:100}
     if(kind==='board') return craftedBoard(index,[0,1,4,5][slot]);
     if(kind==='effect') return effect(index,slot===0?(tier%2===1?0:1):(tier%2===1?3:2));
     if(kind==='piece') return {...base,id:`champion-piece-${String(index+1).padStart(3,'0')}` as ChampionPieceId,kind,motif:pieceFamilies[Math.floor((tier-1)/2)][slot]};
-    return {...base,id:`champion-music-${String(index+1).padStart(3,'0')}` as ChampionMusicId,kind,motif:'score',url:`/audio/rewards/circuit-${tier}.wav`};
+    return {...base,id:`champion-music-${String(index+1).padStart(3,'0')}` as ChampionMusicId,kind,motif:'score',url:rewardTrackForTier(tier).url};
 });
 const visualLayout=['board','piece','effect','board','piece','effect','board','piece','effect','board','piece','board','piece','effect','board'] as const;
 let visualIndex=0,boardIndex=0,pieceIndex=0,effectIndex=0;
@@ -69,7 +70,7 @@ const generatedRewards:readonly ChampionshipReward[]=Array.from({length:100},(_,
     const tier=Math.floor(index/10)+1,base={requiredWins:index+1,tier,familyIndex:0};
     const frame=AVATAR_FRAMES.find(value=>value.requiredWins===index+1);
     if(frame) return {...base,id:frame.id,kind:'avatar',motif:'frame'};
-    if(index%10===6) return {...base,id:`champion-music-${String(index+1).padStart(3,'0')}` as ChampionMusicId,kind:'music',motif:'score',url:`/audio/rewards/circuit-${tier}.wav`};
+    if(index%10===6) return {...base,id:`champion-music-${String(index+1).padStart(3,'0')}` as ChampionMusicId,kind:'music',motif:'score',url:rewardTrackForTier(tier).url};
     const kind=visualLayout[visualIndex++%15];
     if(kind==='board') {const slot=boardIndex++;return {...craftedBoard(index,slot%6),profile:(['inlaid','stepped','floating','armored','gallery'] as const)[Math.floor(slot/6)]};}
     if(kind==='effect') return effect(index,effectIndex++%4);

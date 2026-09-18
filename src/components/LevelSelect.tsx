@@ -20,6 +20,7 @@ import { HistoryError } from '../lib/privateHistory';
 import { RankedLoginDialog } from './RankedLoginDialog';
 import { replayText } from '../locales/replayText';
 import { soundManager } from '../lib/SoundService';
+import { MATCHMAKING_MUSIC_URL } from '../config/musicTracks';
 import { FriendsMenu } from './FriendsMenu';
 import { SettingsDialog } from './SettingsDialog';
 import { formatFriendRating } from '../lib/friendDirectory';
@@ -223,7 +224,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
 
     React.useEffect(() => {
         if (isSearching) {
-            soundManager.playBGM('/audio/bgm_waiting.mp3');
+            soundManager.playBGM(MATCHMAKING_MUSIC_URL);
         } else {
             soundManager.playBGM('/audio/bgm_title.mp3');
         }

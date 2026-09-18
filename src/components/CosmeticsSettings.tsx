@@ -7,7 +7,7 @@ import { championshipText } from '../locales/championshipText';
 import { circuitText } from '../locales/circuitText';
 import { stageText } from '../locales/stageText';
 import { cosmeticsSettingsText } from '../locales/cosmeticsSettingsText';
-import { CIRCUIT_MUSIC } from '../config/circuitMusic';
+import { battleMusicTitle } from '../config/circuitMusic';
 import type { Language } from '../locales/dict';
 import { acquiredCosmetics, boardTheme, BOARD_THEME_KEY, chooseCosmetic, type BoardTheme, type CosmeticKind } from '../lib/cosmeticOptions';
 
@@ -22,7 +22,7 @@ export function CosmeticsSettings({ lang, progress, update, loaded, locked }: {
     useEffect(() => { try { setTheme(boardTheme(localStorage.getItem(BOARD_THEME_KEY))); } catch { /* Defaults remain usable. */ } }, []);
     const labels = { board: campaignText(lang, 'board'), piece: campaignText(lang, 'piece'), effect: championshipText(lang, 'effect'), avatar: stageText(lang, 'frame'), music: circuitText(lang, 'music') };
     const name = (value: string) => value.startsWith('theme:') ? `${campaignText(lang, 'standard')} · ${text(boardTheme(value.slice(6)))}`
-        : CIRCUIT_MUSIC.some(track => track.id === value) ? circuitText(lang, value as typeof CIRCUIT_MUSIC[number]['id']) : rewardName(lang, value);
+        : battleMusicTitle(value) ?? rewardName(lang, value);
     return <section data-testid="cosmetics-settings" className="mt-5 border-t border-[#B39A62]/25 pt-5" aria-labelledby={`${id}-title`}>
         <header className="mb-4"><h3 id={`${id}-title`} className="text-sm font-semibold tracking-wide text-[#E8E2D7]">{text('title')}</h3><p className="mt-1 text-xs leading-relaxed text-[#A89C86]">{text('help')}</p></header>
         {locked ? <p role="status" data-testid="cosmetics-match-locked" className="flex gap-3 rounded-lg border border-[#B39A62]/20 bg-[#11100E]/50 p-3 text-xs leading-relaxed text-[#C4B8A4]"><LockKeyhole size={18} className="shrink-0" aria-hidden="true"/>{text('locked')}</p> :

@@ -12,7 +12,8 @@ import LocalGameBoard from './LocalGameBoard';
 import { ChampionshipCollection } from './ChampionshipCollection';
 import { VictoryCelebration } from './VictoryCelebration';
 import { RewardSigil } from './RewardArtwork';
-import { CIRCUIT_MUSIC, battleMusicUrl } from '../config/circuitMusic';
+import { battleMusicTitle, battleMusicUrl } from '../config/circuitMusic';
+import { acquiredCosmetics } from '../lib/cosmeticOptions';
 import { circuitText } from '../locales/circuitText';
 import { soundManager } from '../lib/SoundService';
 import { RewardPreview, type VisualReward } from './RewardPreview';
@@ -158,9 +159,9 @@ function MemberCircuit({lang,user,onBack,onPlayingChange}:CampaignProps) {
             </div></div>)}
         </section>
         <section className="campaign-collection" aria-label={circuitText(lang,'music')}><h2>{circuitText(lang,'music')}</h2><p>{cosmeticsSettingsText(lang,'settingsOnly')}</p>
-            <div className="campaign-equipment campaign-music">{(['standard',...CIRCUIT_MUSIC.filter(track=>rewardUnlocked(progress,track.id)).map(track=>track.id)] as const).map(id=>{
+            <div className="campaign-equipment campaign-music">{acquiredCosmetics(progress,'music').map(id=>{
                 return <div key={id} className="flex items-center gap-3 rounded-xl border border-[#3b4537] p-3" data-acquired-music={id}>
-                    <span aria-hidden="true">♫</span><span><strong>{id==='standard'?t('standard'):circuitText(lang,id)}</strong>
+                    <span aria-hidden="true">♫</span><span><strong>{id==='standard'?t('standard'):battleMusicTitle(id)}</strong>
                     <small>{cosmeticsSettingsText(lang,'acquired')}</small></span><Check size={16}/>
                 </div>;
             })}</div>
