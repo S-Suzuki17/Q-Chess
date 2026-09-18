@@ -31,11 +31,19 @@ class VerifyBundle {
         require(args.length == 5, "Usage: VerifyBundle <aab> <web-out> <previous-aab> <versionCode> <versionName>");
         try (JarFile bundle = new JarFile(args[0], true)) {
             var root = Resources.XmlNode.parseFrom(bundle.getInputStream(bundle.getJarEntry("base/manifest/AndroidManifest.xml"))).getElement();
+            require("com.qgambit.app".equals(attribute(root, "package")), "Unexpected application package");
             String code = attribute(root, "versionCode"), name = attribute(root, "versionName");
             require(args[3].equals(code) && args[4].equals(name), "Unexpected bundle version: " + code + " / " + name);
             boolean checkedActivity = false, checkedCategory = false;
             for (var child : root.getChildList()) {
+                if (child.hasElement() && child.getElement().getName().equals("uses-permission")) {
+                    String permission = attribute(child.getElement(), "name");
+                    require(!"com.google.android.gms.permission.AD_ID".equals(permission)
+                        && (permission == null || !permission.startsWith("android.permission.ACCESS_ADSERVICES_")),
+                        "Unexpected advertising permission: " + permission);
+                }
                 if (!child.hasElement() || !child.getElement().getName().equals("application")) continue;
+                require(!"true".equals(attribute(child.getElement(), "debuggable")), "Release must not be debuggable");
                 String category = attribute(child.getElement(), "appCategory");
                 checkedCategory = "game".equals(category) || "0".equals(category);
                 for (var node : child.getElement().getChildList()) {
@@ -66,12 +74,15 @@ class VerifyBundle {
             require(index.getCertificates() != null && index.getCertificates().length > 0, "Unsigned Web entry");
             var certificate = index.getCertificates()[0];
             try (JarFile previous = new JarFile(args[2], true)) {
+                var previousRoot = Resources.XmlNode.parseFrom(previous.getInputStream(previous.getJarEntry("base/manifest/AndroidManifest.xml"))).getElement();
+                require(Integer.parseInt(code) > Integer.parseInt(attribute(previousRoot, "versionCode")), "versionCode must increase");
                 var oldIndex = previous.getJarEntry("base/assets/public/index.html");
                 previous.getInputStream(oldIndex).readAllBytes();
                 require(oldIndex.getCertificates() != null && certificate.equals(oldIndex.getCertificates()[0]), "Signing certificate differs from previous release");
             }
             System.out.println("Verified versionCode=" + code + ", versionName=" + name);
             System.out.println("Verified MainActivity portrait=true, resizeable=true, appCategory=game");
+            System.out.println("Verified release-only package and absence of advertising identifier permissions");
             System.out.println("Matched latest Web assets: " + assets);
             System.out.println("Signing certificate matches previous release: " + HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(certificate.getEncoded())));
         }

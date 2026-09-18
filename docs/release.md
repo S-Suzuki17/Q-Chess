@@ -15,6 +15,9 @@ npm run build で静的出力 out/ を生成する。
 
 ## Android
 capacitor.config.json の webDir は out。
+作業用コピーに本番設定がない場合、`node scripts/release/build-android-web.cjs <本番設定済みプロジェクトのパス>` でWebを作成する。
+この処理は必要な公開用接続設定のみをプロセスへ読み込み、秘密キーを拒否し、広告・制限をOFFに固定する。環境ファイルを複写・ログ出力しない。
+通常の設定なし `npm run build` の out/ を配布用アプリに使用しない。
 対象の設定でWebをビルドし、ローカルに導入済みのCapacitor CLIでAndroidへ同期する。
 versionName / versionCodeを配布履歴と照合し、AndroidのGradle wrapperで依頼された成果物を生成。
 署名・同梱Web・バージョンを検証し、成果物のSHA256と対象コミットを記録する。

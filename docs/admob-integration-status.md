@@ -1,6 +1,25 @@
-# Android AdMob integration — 2026-09-19, NOT RELEASED
+# Android AdMob integration — 2026-09-19, ADS REMAIN OFF
 
 ## Latest continuation (supersedes earlier implementation checklist below)
+
+### Web published; Android release preparation
+
+- Production Web: https://q-gambit.com/; Vercel READY, deployment
+  `CNax71o4KkpBzuiBPnUkdpmXtB5T`, commit `85c46068b8e6627c502170dc58190a3fc9b60dad`.
+  Built in Production environment in 56 seconds; custom domain assignment confirmed.
+- All 15 public reward MP3s return audio content and SHA256-match local source copies.
+  Public Crown Circuit shows all updated titles; the new preview dialog opens without changing rewards.
+  Clicking its audio play control crashed the verification in-app-browser tab; actual playback remains
+  UNVERIFIED. Fresh public page loads and its captured console error list is empty. No runtime-log/drain audit.
+- No production test accounts, matches or progression writes performed. Render/main/DB remain unchanged.
+  Ads/quotas remain OFF. Age-screen cancellation retained.
+- Owner requested an AAB after Web publication. Preparing 1.10 / code15 (local predecessor code14);
+  confirmation of any externally uploaded code15+ was requested, not yet answered.
+- First local Android build exposed missing public backend config and was NOT distributed. Rebuilt Web
+  using only approved public settings from the existing configured worktree. Intended auth settings endpoint
+  accepted its publishable key (read-only check, no credentials printed). No private key copied into Web.
+- Added `build-android-web.cjs` plus release config validation to reject missing/private settings and force
+  ads/limits OFF. Verify final AAB against this corrected out/, not the earlier intermediate bundle.
 
 ### Final reward recording replacements
 
