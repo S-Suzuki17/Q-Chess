@@ -5,6 +5,7 @@ import { parseLocalGameRecord, PRIVATE_RECORD_LIMIT } from './PrivateGameRecords
 import type { LocalGameRecord, PrivateGameRecord, PrivateGameStats } from './PrivateGameRecords';
 import { createProfileAvatarStore } from './ProfileAvatars';
 import { createAdRewardStore } from './AdRewardStore';
+import {createFoundersStore} from './FoundersRewards';
 
 dotenv.config();
 
@@ -35,6 +36,7 @@ export class SupabaseService {
     public adRewardStore() {
         return createAdRewardStore(this.supabase,token=>this.verifyUser(token));
     }
+    public foundersStore() {return createFoundersStore(this.supabase,token=>this.verifyUser(token));}
 
     public async verifyLegacyPassword(userId:string,password:string):Promise<boolean> {
         try {

@@ -1,5 +1,6 @@
 import { AVATAR_FRAMES,type AvatarFrameId } from './avatarFrames';
 import { rewardTrackForTier } from './musicTracks';
+import { FOUNDERS_BOARD,FOUNDERS_PIECE } from './founders';
 export type ChampionBoardId = `champion-board-${string}`;
 export type ChampionEffectId = `champion-effect-${string}`;
 export type ChampionPieceId = `champion-piece-${string}`;
@@ -89,4 +90,4 @@ export const CHAMPIONSHIP_REWARDS:readonly ChampionshipReward[]=generatedRewards
 export const ARCHIVED_REWARDS=[...new Map([...LEGACY_CHAMPIONSHIP_REWARDS,...previousMixedRewards,...generatedRewards].map(reward=>[reward.id,reward])).values()].filter(reward=>!CHAMPIONSHIP_REWARDS.some(current=>current.id===reward.id));
 export const referencePieceForBoard=(id:string)=>id==='champion-board-reference-wood'?'iceglass':id==='champion-board-reference-neon'?'neonglass':undefined;
 const byId=new Map<string,ChampionshipReward>([...LEGACY_CHAMPIONSHIP_REWARDS,...previousMixedRewards,...generatedRewards,...CHAMPIONSHIP_REWARDS,...REFERENCE_BOARDS].map(reward=>[reward.id,reward]));
-export const championshipReward=(id:string)=>byId.get(id);
+export const championshipReward=(id:string)=>id===FOUNDERS_BOARD.id?FOUNDERS_BOARD:id===FOUNDERS_PIECE.id?FOUNDERS_PIECE:byId.get(id);

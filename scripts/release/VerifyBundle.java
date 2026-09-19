@@ -34,10 +34,11 @@ class VerifyBundle {
             require("com.qgambit.app".equals(attribute(root, "package")), "Unexpected application package");
             String code = attribute(root, "versionCode"), name = attribute(root, "versionName");
             require(args[3].equals(code) && args[4].equals(name), "Unexpected bundle version: " + code + " / " + name);
-            boolean checkedActivity = false, checkedCategory = false;
+            boolean checkedActivity = false, checkedCategory = false, billingPermission = false;
             for (var child : root.getChildList()) {
                 if (child.hasElement() && child.getElement().getName().equals("uses-permission")) {
                     String permission = attribute(child.getElement(), "name");
+                    if ("com.android.vending.BILLING".equals(permission)) billingPermission = true;
                     require(!"com.google.android.gms.permission.AD_ID".equals(permission)
                         && (permission == null || !permission.startsWith("android.permission.ACCESS_ADSERVICES_")),
                         "Unexpected advertising permission: " + permission);
@@ -58,6 +59,17 @@ class VerifyBundle {
                 }
             }
             require(checkedActivity && checkedCategory, "Expected main activity/game category missing");
+            if (Integer.parseInt(code) >= 17) {
+                require(billingPermission, "Pre-registration requires the Billing permission");
+                boolean nativeReward = false;
+                for (var entry : java.util.Collections.list(bundle.entries())) {
+                    if (!entry.getName().startsWith("base/dex/") || !entry.getName().endsWith(".dex")) continue;
+                    String dex = new String(bundle.getInputStream(entry).readAllBytes(), java.nio.charset.StandardCharsets.ISO_8859_1);
+                    if (dex.contains("qg_founders_preregister") && dex.contains("PlayRewards")) nativeReward = true;
+                }
+                require(nativeReward, "Native pre-registration reward bridge missing from DEX");
+                System.out.println("Verified native Play reward bridge and Billing permission");
+            }
             int assets = 0;
             Path web = Path.of(args[1]);
             try (var paths = Files.walk(web)) {

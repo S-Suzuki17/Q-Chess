@@ -6,6 +6,7 @@ import { championshipReward } from '../config/championshipRewards';
 import { createCraftTextures } from './craftTextures';
 import { pieceTrimGeometry } from './pieceForms';
 import { rewardPieceSculpture } from './rewardPieceSculpture';
+import {FOUNDERS_PIECE_ID} from '../config/founders';
 
 /** One library per Canvas: GLTF geometry is borrowed, materials are owned here. */
 export function createPieceModelLibrary(finish: PieceFinish = 'boxwood') {
@@ -20,7 +21,7 @@ export function createPieceModelLibrary(finish: PieceFinish = 'boxwood') {
     function trimMaterial(isWhite:boolean) {
         const key=`trim:${isWhite}`;let material=materials.get(key);
         if(!material){
-            const cool=motif==='silver'||motif==='alabaster'||motif==='crystal';
+            const cool=finish!==FOUNDERS_PIECE_ID&&(motif==='silver'||motif==='alabaster'||motif==='crystal');
             material=new THREE.MeshPhysicalMaterial({color:cool?(isWhite?'#657c8a':'#c5d2da'):(isWhite?'#876035':'#d9b578'),metalness:1,roughness:.3,clearcoat:.2});
             materials.set(key,material);
         }

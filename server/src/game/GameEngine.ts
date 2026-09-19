@@ -170,7 +170,7 @@ export class GameEngine {
         if(typeof avatar==='string'&&avatar.length<=2048) {
             try { if(new URL(avatar).protocol==='https:') (this.state.playerAvatars??={})[role]=avatar; } catch { /* Invalid URL is ignored. */ }
         }
-        if(typeof frame==='string'&&/^(standard|avatar-frame-(0[1-9]|1[0-5]))$/.test(frame)) (this.state.playerFrames??={})[role]=frame;
+        if(typeof frame==='string'&&/^(standard|avatar-frame-(0[1-9]|1[0-5]|founders))$/.test(frame)) (this.state.playerFrames??={})[role]=frame;
     }
 
     public acknowledgeIntro(playerId:string):boolean {

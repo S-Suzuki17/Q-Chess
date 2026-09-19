@@ -10,6 +10,8 @@ import { RankedRuntime } from './game/RankedRuntime';
 import { createPrivateGameRecordRouter } from './services/PrivateGameRecordRoutes';
 import { createProfileAvatarRouter } from './services/ProfileAvatarRoutes';
 import { createAdRewardRouter } from './services/AdRewardRoutes';
+import {createFoundersRewardRouter} from './services/FoundersRewardRoutes';
+import {createPlayRewardVerifier} from './services/PlayRewardVerifier';
 import type { MatchSession, QueueMode } from './matchmaking/MatchmakingService';
 
 const app = express();
@@ -19,6 +21,7 @@ const rankedAuth = new RankedAuth((id,password)=>supabaseService.verifyLegacyPas
 app.use(createPrivateGameRecordRouter(rankedAuth,supabaseService));
 app.use(createProfileAvatarRouter(rankedAuth,supabaseService.profileAvatarStore()));
 app.use(createAdRewardRouter(rankedAuth,supabaseService.adRewardStore()));
+app.use(createFoundersRewardRouter(rankedAuth,supabaseService.foundersStore(),createPlayRewardVerifier(),process.env.PLAY_REWARDS_ALLOW_TEST==='true'));
 app.use(express.json({limit:'4kb'}));
 
 // Phase 4: Health Check & Uptime ping target
@@ -201,6 +204,10 @@ io.on('connection', (socket: Socket) => {
     const role=reserved.players.host===userId?'host':'joiner';
     const openingRating=reserved.engine?.getPublicState(userId).playerRatings?.[role];
     const rating=openingRating!==undefined?openingRating:await supabaseService.getMatchRating(userId,reserved.timeControl);
+    if(data.avatarFrame==='avatar-frame-founders'){
+      try{if(!await supabaseService.foundersStore().owned(userId))data.avatarFrame='standard';}
+      catch{data.avatarFrame='standard';}
+    }
     if(!socket.connected||matchmaking.getPlayerSession(userId)?.socketId!==socket.id)return;
     const result = matchmaking.connectMatch(userId, data.matchId, data.userName, data.avatarUrl, data.avatarFrame,data.introVersion,rating);
     

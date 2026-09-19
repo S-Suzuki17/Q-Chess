@@ -1,5 +1,6 @@
 import {useId} from 'react';
 import type {AVATAR_FRAMES} from '../config/avatarFrames';
+import {FOUNDERS_FRAME_ID} from '../config/founders';
 
 /** Cast metal, cut enamel and bevelled fittings. The portrait is the clear centre. */
 export function AvatarFrameArtwork({decoration}:{decoration:typeof AVATAR_FRAMES[number]}) {
@@ -49,7 +50,8 @@ export function AvatarFrameArtwork({decoration}:{decoration:typeof AVATAR_FRAMES
             {grade>=2&&<path d="M24 20Q4 57 23 88M96 20q20 37 1 68" stroke={metal} strokeWidth="3"/>}
             {grade===3&&[-1,1].map(side=><g key={side} transform={side<0?'translate(120 0) scale(-1 1)':undefined}>{[0,1,2,3].map(i=><path key={i} d="m0 0-9-14 2 24 7 6 4-11Z" fill={metal} stroke={edge} strokeWidth=".6" transform={`translate(${13+i} ${36+i*13})`}/>)}</g>)}
         </>}
-        <path d="m60 109 8 6-8 6-8-6Z" fill={enamel} stroke={edge} strokeWidth=".7"/>
+        {decoration.id===FOUNDERS_FRAME_ID&&<g data-founders-seal="true"><path d="M27 105Q60 119 93 105L89 119Q60 130 31 119Z" fill="#101823" stroke={metal} strokeWidth="1.5"/><path d="M53 115h14m-7-4v8" stroke={edge} strokeWidth="1.5"/><circle cx="44" cy="115" r="1.8" fill={metal}/><circle cx="76" cy="115" r="1.8" fill={metal}/></g>}
+        {decoration.id!==FOUNDERS_FRAME_ID&&<path d="m60 109 8 6-8 6-8-6Z" fill={enamel} stroke={edge} strokeWidth=".7"/>}
         {grade>=2&&<path d="M29 17A52 52 0 0 1 45 10M91 17a52 52 0 0 0-16-7" stroke="#fff8e6" strokeWidth="1.2"/>}
     </svg>;
 }

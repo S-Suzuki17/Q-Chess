@@ -2,6 +2,7 @@ import { ARCHIVED_REWARDS, CHAMPIONSHIP_REWARDS } from '../config/championshipRe
 import { AVATAR_FRAMES } from '../config/avatarFrames';
 import { CIRCUIT_MUSIC, battleMusicUrl, type MusicReward } from '../config/circuitMusic';
 import { equipReward, rewardUnlocked, type CampaignProgress } from '../config/campaign';
+import {FOUNDERS_ITEMS} from '../config/founders';
 
 export type CosmeticKind = 'board' | 'piece' | 'effect' | 'avatar' | 'music';
 export type BoardTheme = 'classic' | 'marble' | 'neon';
@@ -16,7 +17,7 @@ const originals: Record<CosmeticKind, readonly string[]> = {
 
 /** Current, legacy and paired rewards stay selectable, but locked IDs never enter Settings. */
 export function acquiredCosmetics(progress: CampaignProgress, kind: CosmeticKind): string[] {
-    const unlocked = [...new Set([...originals[kind], ...CHAMPIONSHIP_REWARDS.filter(reward => reward.kind === kind).map(reward => reward.id),
+    const unlocked = [...new Set([...originals[kind], ...FOUNDERS_ITEMS.filter(reward=>reward.kind===kind).map(reward=>reward.id), ...CHAMPIONSHIP_REWARDS.filter(reward => reward.kind === kind).map(reward => reward.id),
         ...ARCHIVED_REWARDS.filter(reward => reward.kind === kind).map(reward => reward.id)])].filter(id => rewardUnlocked(progress, id));
     if (kind !== 'music') return unlocked;
     const byTrack = new Map<string, string>();

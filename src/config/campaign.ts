@@ -5,6 +5,7 @@ import { circuitMusic, type MusicReward } from './circuitMusic';
 import { avatarFrame,type AvatarFrameId } from './avatarFrames';
 import { parseStageStars } from './circuitStages';
 import type { TimeControl } from '../types/game';
+import {isFoundersItem,FOUNDERS_PIECE_ID} from './founders';
 
 export type BossId = 'nox' | 'ember' | 'oracle' | 'sovereign';
 export type CPUPersonality = 'balanced' | 'attacker' | 'guardian';
@@ -25,6 +26,8 @@ export const BOSSES: readonly {id:BossId; name:string; symbol:string; level:CPUL
 ];
 
 export interface CampaignProgress {
+    /** Runtime-only entitlement, never trusted from local saves. */
+    foundersOwned?:boolean;
     version:2;
     stars:Partial<Record<BossId,number>>;
     ascensions:Partial<Record<BossId,number>>[];
@@ -53,6 +56,7 @@ export function bossUnlocked(progress: CampaignProgress, id: BossId, lap=1) {
     return index >= 0 && (index === 0 || !!lapStars(progress,lap)[BOSSES[index-1].id]);
 }
 export function rewardUnlocked(progress: CampaignProgress, reward: string) {
+    if(isFoundersItem(reward))return progress.foundersOwned===true;
     if (reward==='standard'||reward==='walnut'||reward==='boxwood') return true;
     if(reward==='iceglass'||reward==='neonglass')return rewardClearCount(progress)>=(reward==='iceglass'?95:99);
     const frame=avatarFrame(reward);
@@ -129,12 +133,13 @@ export function equipReward(progress: CampaignProgress, kind:'board'|'piece'|'ef
     return valid.includes(value) && rewardUnlocked(progress,value) ? {...progress,[kind]:value} : progress;
 }
 /** Defensive parsing; old, corrupt, locked or unknown equipment never enters rendering. */
-export function parseCampaign(raw: string | null): CampaignProgress {
-    if (!raw) return emptyCampaign();
+export function parseCampaign(raw: string | null, foundersOwned=false): CampaignProgress {
+    const fresh=()=>({...emptyCampaign(),...(foundersOwned?{foundersOwned:true}:{})});
+    if (!raw) return fresh();
     try {
         const input = JSON.parse(raw);
-        if (!input || ![1,2].includes(input.version)) return emptyCampaign();
-        let progress = emptyCampaign();
+        if (!input || ![1,2].includes(input.version)) return fresh();
+        let progress = fresh();
         const parseStars=(value:unknown)=>{
             const result:CampaignProgress['stars']={};
             if (!value || typeof value!=='object') return result;
@@ -160,7 +165,7 @@ export function parseCampaign(raw: string | null): CampaignProgress {
         progress = equipReward(progress,'piece',input.piece);
         progress = equipReward(progress,'effect',input.effect);
         return equipReward(progress,'music',input.music);
-    } catch { return emptyCampaign(); }
+    } catch { return fresh(); }
 }
 
 export const REWARD_BOARDS = {
@@ -187,6 +192,7 @@ export const REWARD_PIECES = {
     crystal: { white: '#c3e0d9', black: '#214f49', metalness: 0, roughness: 0.24, clearcoat: 0.85 },
 } as const;
 export function rewardPiece(finish: PieceFinish) {
+    if(finish===FOUNDERS_PIECE_ID)return {white:'#e9dec2',black:'#172536',metalness:.12,roughness:.28,clearcoat:.8};
     const championship = championshipReward(finish);
     const motif = championship?.kind === 'piece' ? championship.motif : finish;
     const alias=motif==='copper'?'bronze':motif==='jade'?'crystal':motif==='standard'?'boxwood':motif;

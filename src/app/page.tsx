@@ -7,6 +7,9 @@ import Link from 'next/link';
 import GameBoard from '../components/GameBoard';
 import AdBanner from '../components/AdBanner';
 import {NativeRewardSettings} from '../components/NativeRewardSettings';
+import {FoundersSettings} from '../components/FoundersSettings';
+import {useFoundersRewards} from '../hooks/useFoundersRewards';
+import {foundersText} from '../locales/foundersText';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import { SystemStatusBanner } from '../components/SystemStatusBanner';
 import { supabase } from '../lib/supabaseClient';
@@ -50,6 +53,7 @@ export default function Home() {
     const [circuitPlaying, setCircuitPlaying] = useState(false);
     const matchDesignLocked = cosmeticsLocked(gameState, circuitPlaying);
     const [user, setUser] = useState<User | null>(null);
+    const foundersRewards=useFoundersRewards(user,matchDesignLocked);
     const [loginMode,setLoginMode]=useState<'select'|'login'>('select');
     const circuitLoginRequested=React.useRef(false);
     const [cpuLevel, setCpuLevel] = useState<number>(5);
@@ -263,6 +267,8 @@ export default function Home() {
     return (
         <SocketProvider userId={user?.id}>
             <SystemStatusBanner lang={lang} />
+            {foundersRewards.available&&!matchDesignLocked&&!showSettings&&!isSearchingGlobally&&
+                <aside className="founders-notice" role="status"><strong>{foundersText(lang,'title')}</strong><button type="button" onClick={()=>setShowSettings(true)}>{foundersText(lang,'claim')}</button></aside>}
             {isSearchingGlobally&&<RankedMatchmakingManager lang={lang}
                 user={user} 
                 mode={queueMode}
@@ -363,6 +369,7 @@ export default function Home() {
                             </div>
 
                             <CosmeticsSettings lang={lang} progress={campaignProgress} update={updateCampaign} loaded={cosmeticsLoaded} locked={matchDesignLocked}/>
+                            <FoundersSettings lang={lang} accountName={user?.name} progress={campaignProgress} rewards={foundersRewards} locked={matchDesignLocked}/>
                             {user&&<NativeRewardSettings key={user.id} userId={user.id} lang={lang} locked={matchDesignLocked}/>}
 
                             {user && gameState==='level_select' && (
