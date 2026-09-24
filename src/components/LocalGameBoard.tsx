@@ -12,7 +12,6 @@ import { MatchResultDialog } from './MatchResultDialog';
 import { MatchIntro } from './MatchIntro';
 import { MatchLayout } from './MatchLayout';
 import { Board2D } from './Board2D';
-import { AdBanner } from './AdBanner';
 import { Language, dict } from '../locales/dict';
 import { User, TimeControl } from '../types/game';
 import { PieceType } from '../config/gameConfig';
@@ -1003,10 +1002,6 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
                             {t.promotionCancel}
                         </button>
                     </div>
-                        <div className="w-full max-w-sm mt-12 bg-black/50 p-4 rounded-lg">
-                            <p className="text-[#A89C86] text-[10px] tracking-widest text-center mb-2">{matchText(lang, "広告", "Advertisement")}</p>
-                            <AdBanner adClient="ca-pub-1116866075179199" adSlot="8798363654" />
-                        </div>
                     </div>
                 )}
         

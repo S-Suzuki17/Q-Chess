@@ -3,8 +3,9 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { rulesDict, Language } from '@/locales/rulesDict';
 import { LANGUAGES, dict } from '@/locales/dict';
-import { AdBanner } from '../../components/AdBanner';
 import { InteractiveTutorial } from '../../components/InteractiveTutorial';
+import { siteCopy } from '../../locales/siteContent';
+import { PUBLIC_SUPPORT_EMAIL } from '../../config/publicContact';
 
 export default function RulesPage() {
   const [lang, setLang] = useState<Language>('en');
@@ -18,7 +19,7 @@ export default function RulesPage() {
     }
   }, []);
 
-    const c = rulesDict[lang as keyof typeof rulesDict] || rulesDict['en'];
+    const c = {...rulesDict[lang], sec1p2: siteCopy(lang).paragraphs[1]};
 
   return (
     <div className="h-[100dvh] w-full bg-[#050505] text-gray-300 font-mono p-6 md:p-12 overflow-y-auto">
@@ -52,10 +53,6 @@ export default function RulesPage() {
         <p className="text-gray-400 text-lg mb-12 leading-relaxed">
           {c.intro}
         </p>
-
-        <div className="mb-12">
-           <AdBanner adClient="ca-pub-1116866075179199" adSlot="8798363654" />
-        </div>
 
         <section className="mb-16">
           <h2 className="text-2xl font-bold text-white mb-4 border-b border-gray-800 pb-2">{c.sec1Title}</h2>
@@ -113,9 +110,9 @@ export default function RulesPage() {
         </section>
 
         <div className="mt-16 pt-8 border-t border-[#3A3224] text-center text-sm text-gray-500">
-          <p className="mb-4">{c.footer}</p>
-          <a href="https://github.com/S-Suzuki17/Q-Chess" target="_blank" rel="noopener noreferrer" className="text-[#D4B872] hover:text-white transition-colors">
-            github.com/S-Suzuki17/Q-Chess
+          <p className="mb-4">{siteCopy(lang).labels[5]}</p>
+          <a href={`mailto:${PUBLIC_SUPPORT_EMAIL}`} className="text-[#D4B872] hover:text-white transition-colors">
+            {PUBLIC_SUPPORT_EMAIL}
           </a>
         </div>
 

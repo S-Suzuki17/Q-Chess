@@ -1,5 +1,4 @@
 import React from 'react';
-import AdBanner from './AdBanner';
 import { devDiaryTweets } from '../data/devDiary';
 
 export function DevDiaryTimeline() {
@@ -26,13 +25,6 @@ export function DevDiaryTimeline() {
                                 {tweet.tags.map(tag => (
                                     <span key={tag} className="text-[#D4B872] text-sm">#{tag}</span>
                                 ))}
-                            </div>
-                        )}
-
-                        {tweet.hasAd && (
-                            <div className="my-6 flex flex-col items-center justify-center bg-black/40 p-4 rounded">
-                                <span className="text-[10px] tracking-widest text-[#8C7A5E] mb-2 uppercase">Advertisement</span>
-                                <AdBanner adClient="ca-pub-1116866075179199" adSlot="8798363654" adFormat="horizontal" />
                             </div>
                         )}
                     </article>

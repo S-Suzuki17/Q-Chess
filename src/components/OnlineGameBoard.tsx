@@ -12,7 +12,6 @@ import { MatchResultDialog } from './MatchResultDialog';
 import { MatchIntro } from './MatchIntro';
 import { MatchLayout } from './MatchLayout';
 import { Board2D } from './Board2D';
-import { AdBanner } from './AdBanner';
 import { PieceType } from '../config/gameConfig';
 import { v4 as uuidv4 } from 'uuid';
 import { Token } from '../lib/GameEngine';
@@ -767,10 +766,6 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
                             {matchText(lang, 'キャンセル', 'Cancel')}
                         </button>
                     </div>
-                        <div className="w-full max-w-sm mt-12 bg-black/50 p-4 rounded-lg">
-                            <p className="text-[#A89C86] text-[10px] tracking-widest text-center mb-2">{matchText(lang, "広告", "Advertisement")}</p>
-                            <AdBanner adClient="ca-pub-1116866075179199" adSlot="8798363654" />
-                        </div>
                     </div>
                 )}
             

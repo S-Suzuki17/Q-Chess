@@ -2,6 +2,9 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { LANGUAGES, dict, type Language } from '@/locales/dict';
+import { PUBLIC_SUPPORT_EMAIL } from '../../config/publicContact';
+import { privacyReview } from '../../locales/privacyReview';
+import { siteCopy } from '../../locales/siteContent';
 import { privacyTranslations } from '@/locales/privacyTranslations';
 
 export default function PrivacyPolicy() {
@@ -71,7 +74,7 @@ export default function PrivacyPolicy() {
     }
   };
 
-  const c = lang === 'en' || lang === 'ja' ? content[lang] : privacyTranslations[lang];
+  const c: Record<string, string> = {...(lang === 'en' || lang === 'ja' ? content[lang] : privacyTranslations[lang]), ...privacyReview(lang), sec8p:siteCopy(lang).labels[1]};
 
   return (
     <div className="h-[100dvh] w-full bg-[#050505] text-gray-300 font-mono p-6 md:p-12 overflow-y-auto">
@@ -135,7 +138,7 @@ export default function PrivacyPolicy() {
           <section>
             <h2 className="text-xl font-bold text-white border-b border-[#3A3224] pb-1 mb-2">{c.sec8Title}</h2>
             <p>
-              {c.sec8p} <a href="https://github.com/S-Suzuki17/Q-Chess" target="_blank" rel="noopener noreferrer" className="text-[#D4B872] hover:text-white transition-colors">github.com/S-Suzuki17/Q-Chess</a>
+              {c.sec8p} <a href={`mailto:${PUBLIC_SUPPORT_EMAIL}`} className="text-[#D4B872] hover:text-white transition-colors">{PUBLIC_SUPPORT_EMAIL}</a>
             </p>
           </section>
         </div>

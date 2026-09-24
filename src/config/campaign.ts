@@ -18,10 +18,10 @@ export const PERSONALITY_WEIGHTS: Record<CPUPersonality, Partial<QoppeliaWeights
     guardian: {pieceValue:1, originValue:.015, mobility:.025, safety:1.25, candidateAllocation:1.15, kingCandidate:1.6},
 };
 export const BOSSES: readonly {id:BossId; name:string; symbol:string; level:CPULevel; personality:CPUPersonality; reward:BoardFinish | PieceFinish; rewardKind:'board'|'piece'}[] = [
-    {id:'nox', name:'NOX', symbol:'♞', level:1, personality:'balanced', reward:'mahogany', rewardKind:'board'},
-    {id:'ember', name:'EMBER', symbol:'♜', level:3, personality:'attacker', reward:'ebony', rewardKind:'piece'},
-    {id:'oracle', name:'ORACLE', symbol:'♝', level:3, personality:'guardian', reward:'marble', rewardKind:'board'},
-    {id:'sovereign', name:'SOVEREIGN', symbol:'♛', level:5, personality:'balanced', reward:'alabaster', rewardKind:'piece'},
+    {id:'nox', name:'CPU 01', symbol:'♞', level:1, personality:'balanced', reward:'mahogany', rewardKind:'board'},
+    {id:'ember', name:'CPU 02', symbol:'♜', level:3, personality:'attacker', reward:'ebony', rewardKind:'piece'},
+    {id:'oracle', name:'CPU 03', symbol:'♝', level:3, personality:'guardian', reward:'marble', rewardKind:'board'},
+    {id:'sovereign', name:'CPU 04', symbol:'♛', level:5, personality:'balanced', reward:'alabaster', rewardKind:'piece'},
 ];
 
 export interface CampaignProgress {

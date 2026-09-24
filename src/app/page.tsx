@@ -5,7 +5,7 @@ import { matchText } from '../locales/matchText';
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import GameBoard from '../components/GameBoard';
-import AdBanner from '../components/AdBanner';
+import { SiteIntroduction, SiteLinks } from '../components/SiteInformation';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import { SystemStatusBanner } from '../components/SystemStatusBanner';
 import { supabase } from '../lib/supabaseClient';
@@ -453,46 +453,14 @@ export default function Home() {
 
             {gameState === 'title' && (
                 <>
-                    <div className="w-full max-w-4xl mx-auto mt-16 mb-8 p-8 bg-black/60 border border-[#3B342C] rounded-lg text-[#A89C86] font-sans leading-relaxed relative z-40 text-left">
-                        <h2 className="text-2xl text-[#D4B872] font-serif mb-4">About Q-Gambit</h2>
-                        <p className="mb-4">Q-Gambit is a revolutionary variant of chess that introduces quantum mechanics principles such as superposition, entanglement, and collapse into the classic game of strategy. Instead of a single piece occupying a single square, pieces can exist in multiple states and positions simultaneously until they are observed.</p>
-                        
-                        <div className="my-8 flex flex-col items-center justify-center min-h-[100px]">
-                            <span className="text-[10px] tracking-widest text-[#8C7A5E] mb-2 uppercase">Advertisement</span>
-                            <AdBanner adClient="ca-pub-1116866075179199" adSlot="8798363654" adFormat="horizontal" />
-                        </div>
+                    <SiteIntroduction lang={lang}/>
 
-                        <h3 className="text-xl text-[#D4B872] font-serif mb-3 mt-6">How to Play Quantum Chess</h3>
-                        <p className="mb-4">Unlike traditional chess, your pieces in Q-Gambit have quantum probability waves. When you observe a piece (such as when an attack occurs or a capture is attempted), the wave function collapses, resolving its true position and state.</p>
-                        <p className="mb-4">Use quantum superposition to protect your king from unexpected threats and create multi-layered attacks that your opponent cannot simply block without measuring the board state. If you love traditional chess but want a completely new strategic challenge, Q-Gambit is the perfect mind-bending experience.</p>
-
-                        <div className="my-8 flex flex-col items-center justify-center min-h-[100px]">
-                            <span className="text-[10px] tracking-widest text-[#8C7A5E] mb-2 uppercase">Advertisement</span>
-                            <AdBanner adClient="ca-pub-1116866075179199" adSlot="8798363654" adFormat="auto" />
-                        </div>
-
-                        <h3 className="text-xl text-[#D4B872] font-serif mb-3 mt-6">Key Features</h3>
-                        <ul className="list-disc pl-6 mb-4 space-y-2">
-                            <li><strong>Online Multiplayer:</strong> Challenge players around the world in real-time quantum combat.</li>
-                            <li><strong>Ranked Matchmaking:</strong> Climb the competitive Elo ladder and prove your mastery over quantum probabilities.</li>
-                            <li><strong>Local AI Practice:</strong> Play against our advanced quantum chess engine with adjustable difficulty levels.</li>
-                            <li><strong>Campaign Mode:</strong> Play through historical chess scenarios adapted for quantum mechanics and unlock exclusive cosmetic rewards.</li>
-                        </ul>
-                    </div>
 
                     <DevDiaryTimeline />
 
                     {/* Footer */}
                     <footer className="w-full max-w-4xl mt-12 mb-8 text-center text-gray-500 text-xs font-sans relative z-40">
-                        <div className="flex flex-wrap justify-center gap-4 mb-4">
-                            <Link href="/about" className="hover:text-[#D4B872] transition-colors cursor-pointer pointer-events-auto">About Developer</Link>
-                            <span>|</span>
-                            <Link href="/updates" className="hover:text-[#D4B872] transition-colors cursor-pointer pointer-events-auto">Development Diary & Updates</Link>
-                            <span>|</span>
-                            <Link href="/privacy" className="hover:text-[#D4B872] transition-colors cursor-pointer pointer-events-auto">{dict[lang]?.privacyPolicy || 'Privacy Policy'}</Link>
-                            <span>|</span>
-                            <Link href="/contact" className="hover:text-[#D4B872] transition-colors cursor-pointer pointer-events-auto">Contact Us</Link>
-                        </div>
+                        <SiteLinks lang={lang}/>
                         <div>&copy; 2026 Q-GAMBIT - Quantum Superposition Chess. All rights reserved.</div>
                     </footer>
                 </>

@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Playfair_Display, Cinzel } from "next/font/google";
-import { AdSenseLoader } from "../components/AdSenseLoader";
 import { Analytics } from "@vercel/analytics/react";
 import "./globals.css";
 
@@ -35,7 +34,8 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   title: "Q-GAMBIT - Quantum Superposition Chess",
-  description: "Play Quantum Chess online! Pieces are in a state of superposition. Observe, collapse, and outsmart your opponent.",
+  description: "A chess variant with hidden piece identities. Read candidate pieces, narrow them through moves, and play CPU practice, online matches and Crown Circuit.",
+  metadataBase: new URL("https://q-gambit.com"),
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
@@ -53,11 +53,6 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // Keep development UI tests free of third-party ad overlays and impressions.
-  const adClient = process.env.NODE_ENV === 'production'
-    ? process.env.NEXT_PUBLIC_ADSENSE_CLIENT_ID || "ca-pub-1116866075179199"
-    : null;
-
   return (
     <html
       lang="ja"
@@ -65,7 +60,6 @@ export default function RootLayout({
     >
       <body className="h-full bg-[#11100E] text-[#E8E2D7] selection:bg-[#B39A62]/30 font-sans overflow-x-hidden">
         <main className="h-full">{children}</main>
-        {adClient && <AdSenseLoader client={adClient} />}
         <Analytics />
       </body>
     </html>
