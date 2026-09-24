@@ -1,6 +1,6 @@
 # アカウント保護・進行同期 — 2026-09-25
 
-状態: ローカル検証合格。DB追加適用・Web/対戦サーバー公開の最終結果は末尾に追記する。AAB19には本変更は含まれない。
+状態: ローカル検証合格、DB追加適用済み、Web/対戦サーバー公開済み。AAB19には本変更は含まれない。
 
 ## 今回の実装
 
@@ -24,7 +24,7 @@
 
 - 共通typecheck、server TypeScript build 合格。
 - Vitest 96ファイル833件合格（quantum-engine/RankCpuSearchの別対象を除く通常スイート）。オンライン実HTTP/Socket.IO 6シナリオ合格。後続の説明文/ログ/日記修正は別途対象テスト。
-- PGlite: bcrypt、最小権限、Authセッション、CAS競合、削除cascade、監査ログ保持を6シナリオで検証。pg_cronスケジューラー自体はPGlite対象外で、本番のジョブメタデータを別途確認する。
+- PGlite: bcrypt、最小権限、Authセッション、CAS競合、削除cascade、監査ログ保持、状態行の初期化を7シナリオで検証。pg_cronスケジューラー自体はPGlite対象外で、本番のジョブメタデータを別途確認した。
 - ブラウザー: 127.0.0.1のインメモリQAサーバーで登録・レート1000・設定変更・クラウド保存・全端末ログアウト・再ログイン・ウォールナット選択復元を確認。アカウント項目の重複なし。PCと390×844表示で確認。実アカウントや本番棋譜は作成していない。
 - QAのRealtimeはモック未実装のためフォールバック警告あり。開発フォント取得にネットワーク警告あり。重複キーエラーは修正前に発生、再読込後の同操作で再発なし。
 - 今回の新機能のAndroid実機操作と、Play署名付きOAuth往復は未実施。ブラウザーのスマホ幅を実機確認とは呼ばない。
@@ -87,3 +87,12 @@
 規約案は承認前なのでこの公開リポジトリには含めない。
 
 参考: [Supabaseセッション](https://supabase.com/docs/guides/auth/sessions)、[Cron](https://supabase.com/docs/guides/cron/quickstart)、[Expressプロキシ設定](https://expressjs.com/en/guide/behind-proxies/)。未検証の転送ヘッダーを本人のIPとして信用しない。
+
+## 公開確認
+
+- 機能コミット `cb15e1a311b26153e4be7ec20cee346f94721423`。GitHub main/releaseブランチ送信済み。公開用チェックアウトも同一コミットへfast-forward。
+- Vercel本番 `Egn37HQrouud7jpxZhx2c4Edd6NB` Ready。q-gambit.com/updates で新原稿、privacyで監査ログ30日・休眠自動削除なしの説明を実表示確認。
+- Render `dep-daqln46gekts73e5glmg` Live、同一機能コミット、ビルド1m01s。
+- 公開API: health/status/capabilities各200、maintenance false、最低build/protocol 0、session control enabled。未認証account/progressは401。新アカウント・試合は本番で作らず、実ユーザーのレートを動かす試験なし。
+- DB: 5つの追加migration適用済み。status行が以前空だったため、既存設定を上書きしない初期化を追加した。Cron2ジョブのactiveと対象・予定を確認。期限経過の実時間実行はまだ発生していないため、30日後の実稼働を確認済みとは記載しない。
+- Android端末は02:20頃のADB確認で0台。新機能の実機試験と次のAABは未作成。AAB19がPlayから取得可能かも未回答のため、旧DB権限は維持した。

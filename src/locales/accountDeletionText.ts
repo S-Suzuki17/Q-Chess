@@ -1,4 +1,5 @@
 import type { Language } from './dict';
+import {cloudStoragePrivacy} from './securityPrivacy';
 const cleanupWarning: Record<Language,string> = {
     ja:'サーバー上の削除は完了しましたが、この端末の保存領域の一部を消去できませんでした。ログアウト後、ブラウザのサイトデータ、またはAndroid設定のアプリデータを消去してください。',
     en:'Server deletion is complete, but some data on this device could not be cleared. After signing out, clear this site’s browser data or the app’s storage in Android settings.',
@@ -30,5 +31,5 @@ const copy: Record<Language, readonly string[]> = {
 };
 export const accountDeletionText = (lang: Language) => {
     const [title,scope,confirmation,action,cancel,busy,unavailable,reauthenticate,working,done] = copy[lang] ?? copy.en;
-    return {title,scope,confirmation,action,cancel,busy,unavailable,reauthenticate,working,done,cleanupWarning:cleanupWarning[lang]??cleanupWarning.en};
+    return {title,scope:`${scope} ${cloudStoragePrivacy[lang]??cloudStoragePrivacy.en}`,confirmation,action,cancel,busy,unavailable,reauthenticate,working,done,cleanupWarning:cleanupWarning[lang]??cleanupWarning.en};
 };

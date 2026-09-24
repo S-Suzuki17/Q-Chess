@@ -100,9 +100,7 @@ export default function PrivacyPolicy() {
           <section>
             <h2 className="text-xl font-bold text-white border-b border-[#3A3224] pb-1 mb-2">{c.sec2Title}</h2>
             <ul className="list-disc list-inside flex flex-col gap-2 ml-2">
-              <li><strong className="text-gray-200">{c.sec2li1.split(': ')[0]}:</strong> {c.sec2li1.split(': ')[1]}</li>
-              <li><strong className="text-gray-200">{c.sec2li2.split(': ')[0]}:</strong> {c.sec2li2.split(': ')[1]}</li>
-              <li><strong className="text-gray-200">{c.sec2li3.split(': ')[0]}:</strong> {c.sec2li3.split(': ')[1]}</li>
+              {['sec2li1','sec2li2','sec2li3'].map(key=><li key={key}>{c[key]}</li>)}
             </ul>
           </section>
 
@@ -110,9 +108,7 @@ export default function PrivacyPolicy() {
             <h2 className="text-xl font-bold text-white border-b border-[#3A3224] pb-1 mb-2">{c.sec3Title}</h2>
             <p className="mb-2">{c.sec3p}</p>
             <ul className="list-disc list-inside flex flex-col gap-2 ml-2">
-              <li><strong className="text-gray-200">{c.sec3li1.split(': ')[0]}:</strong> {c.sec3li1.split(': ')[1]}</li>
-              <li><strong className="text-gray-200">{c.sec3li2.split(': ')[0]}:</strong> {c.sec3li2.split(': ')[1]}</li>
-              <li><strong className="text-gray-200">{c.sec3li3.split(': ')[0]}:</strong> {c.sec3li3.split(': ')[1]}</li>
+              {['sec3li1','sec3li2','sec3li3'].map(key=><li key={key}>{c[key]}</li>)}
             </ul>
           </section>
 

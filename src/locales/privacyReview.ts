@@ -1,5 +1,5 @@
 import type {Language} from './dict';
-import {securityPrivacy} from './securityPrivacy';
+import {securityPrivacy,cloudStoragePrivacy} from './securityPrivacy';
 const revised:Record<Language,readonly string[]>={
   "en": [
     "Google ads: Advertising and ad-based daily limits are disabled in this release. H5 Games Ads is not activated. If ads are enabled later, required consent and child-audience protections must be in place first.",
@@ -100,4 +100,4 @@ const collection:Record<Language,string>={
     pt:'A análise web e o rastreamento de desempenho opcionais estão desativados. Provedores de hospedagem e autenticação podem processar registros essenciais de conexão e segurança. Não inclua senhas ou tokens em relatórios.',
     ta:'விருப்ப இணையப் பகுப்பாய்வும் செயல்திறன் கண்காணிப்பும் முடக்கப்பட்டுள்ளன. சேவையை இயக்கவும் பாதுகாக்கவும் வழங்குநர்கள் தேவையான இணைப்பு மற்றும் பாதுகாப்புப் பதிவுகளைச் செயலாக்கலாம். அறிக்கைகளில் கடவுச்சொல் அல்லது அணுகல் டோக்கனைச் சேர்க்க வேண்டாம்.',
 };
-export function privacyReview(lang:Language){const p=revised[lang];return {updated:'2026-09-25',sec3li1:p[0],sec4p:p[1],sec5p:p[2],sec6p:p[3],sec2li1:p[4],sec2li3:`${collection[lang]} ${securityPrivacy[lang]}`};}
+export function privacyReview(lang:Language){const p=revised[lang];return {updated:'2026-09-25',sec3li1:p[0],sec4p:`${p[1]} ${cloudStoragePrivacy[lang]}`,sec5p:p[2],sec6p:p[3],sec2li1:p[4],sec2li3:`${collection[lang]} ${securityPrivacy[lang]}`};}
