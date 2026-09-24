@@ -13,6 +13,7 @@ import { TitleScreen } from '../components/TitleScreen';
 import { LevelSelect } from '../components/LevelSelect';
 import { SettingsDialog } from '../components/SettingsDialog';
 import { CampaignMode } from '../components/CampaignMode';
+import { DevDiaryTimeline } from '../components/DevDiaryTimeline';
 import { circuitAccess, isSameCircuitIdentity } from '../lib/circuitAccess';
 import type { Session } from '@supabase/supabase-js';
 import ReplayBoard from '../components/ReplayBoard';
@@ -273,8 +274,8 @@ export default function Home() {
                 }} 
             />}
             <SpeedInsights />
-        <main data-screen={gameState} className="fixed inset-0 flex flex-col items-center justify-between bg-[#11100E] text-[#E8E2D7] font-sans overflow-hidden">
-            <div className="relative z-40 w-full max-w-5xl flex items-center justify-between text-sm mb-4">
+        <main data-screen={gameState} className={`fixed inset-0 flex flex-col items-center justify-between bg-[#11100E] text-[#E8E2D7] font-sans overflow-x-hidden ${gameState === 'title' ? 'overflow-y-auto' : 'overflow-hidden'}`}>
+            <div className="relative z-40 w-full max-w-5xl flex items-center justify-between text-sm mb-4 shrink-0">
                 {/* 右上のコントロール群 */}
                 <div className={`fixed right-4 top-4 z-40 flex gap-2 items-center ${showSettings || hideSettingsGlobal || gameState === 'playing' || gameState === 'campaign' ? 'hidden' : ''}`}>
                     <button 
@@ -393,7 +394,7 @@ export default function Home() {
                 </div>
             )}
 
-            <div className="flex-grow w-full flex flex-col items-center justify-center relative z-10">
+            <div className="flex-grow w-full flex flex-col items-center justify-center relative z-10 shrink-0 mt-8">
                 {gameState === 'title' && (
                     <TitleScreen lang={lang} onLogin={handleLogin} initialMode={loginMode}/>
                 )}
@@ -478,6 +479,8 @@ export default function Home() {
                             <li><strong>Campaign Mode:</strong> Play through historical chess scenarios adapted for quantum mechanics and unlock exclusive cosmetic rewards.</li>
                         </ul>
                     </div>
+
+                    <DevDiaryTimeline />
 
                     {/* Footer */}
                     <footer className="w-full max-w-4xl mt-12 mb-8 text-center text-gray-500 text-xs font-sans relative z-40">
