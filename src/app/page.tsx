@@ -32,6 +32,7 @@ import { clearRankedSession } from '../lib/rankedSession';
 
 
 import { useCampaignProgress } from '../hooks/useCampaignProgress';
+import {TermsGate} from '../components/TermsGate';
 import { battleMusicUrl } from '../config/circuitMusic';
 import { soundManager } from '../lib/SoundService';
 import { CosmeticsSettings } from '../components/CosmeticsSettings';
@@ -61,7 +62,10 @@ export default function Home() {
     const matchDesignLocked = cosmeticsLocked(gameState, circuitPlaying);
     const [user, setUser] = useState<User | null>(null);
     const foundersRewards=useFoundersRewards(user,matchDesignLocked);
-    const cloud=useCampaignCloud();
+    // A fresh login must recheck consent even when it is the same account.
+    const termsIdentity=`${user?.type??'none'}:${user?.id??''}:${circuitAccess.getSnapshot().revision}`;
+    const [termsReadyIdentity,setTermsReadyIdentity]=useState<string|null>(null);
+    const cloud=useCampaignCloud(!!user&&termsReadyIdentity===termsIdentity);
     const [loginMode,setLoginMode]=useState<'select'|'login'>('select');
     const circuitLoginRequested=React.useRef(false);
     const [cpuLevel, setCpuLevel] = useState<number>(5);
@@ -274,6 +278,7 @@ export default function Home() {
 
 
     return (
+        <TermsGate key={termsIdentity} user={user} lang={lang} playing={matchDesignLocked} onExit={()=>void handleLogout()} onReady={()=>setTermsReadyIdentity(termsIdentity)}>
         <SocketProvider userId={user?.id}>
             <SystemStatusBanner lang={lang} playing={gameState==='playing'||circuitPlaying} />
             {nativeAuth.failed && <div role="alert" className="fixed bottom-4 left-4 right-4 z-[100] rounded border border-[#D4B872] bg-[#1E1C19] p-4 text-[#E8E2D7]">
@@ -490,6 +495,6 @@ export default function Home() {
 
             {gameState === 'title' && android && <footer className="relative z-10 mt-6"><AppSupportLinks lang={lang}/></footer>}
 
-        </main></SocketProvider>
+        </main></SocketProvider></TermsGate>
     );
 }

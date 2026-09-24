@@ -26,7 +26,9 @@ public class AndroidSmokeTest {
         assertEquals("QA must be isolated from real saved data", "com.qgambit.app.qa",
             InstrumentationRegistry.getInstrumentation().getTargetContext().getPackageName());
         scenario = ActivityScenario.launch(MainActivity.class);
-        waitFor("document.querySelector('[data-screen]') !== null", 30000);
+        // A saved QA login may legitimately land on the consent gate before
+        // fixtures are installed. Both are hydrated application entry points.
+        waitFor("document.querySelector('[data-screen], [data-terms-gate]') !== null", 30000);
         // Only this disposable QA app's storage is reset, never com.qgambit.app.
         js("localStorage.clear();localStorage.setItem('qg_language','en');true");
         scenario.recreate();
@@ -78,6 +80,7 @@ public class AndroidSmokeTest {
                 if(url.origin===location.origin)return nativeFetch(input,options);
                 const reply=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:{'Content-Type':'application/json'}});
                 const body=typeof options.body==='string'?JSON.parse(options.body):{};
+                if(url.pathname==='/account/terms')return reply({userId:'QAOwner',currentVersion:'2026-09-25.1',consent:{version:'2026-09-25.1',acceptedAt:'2026-09-24T18:00:00Z'}});
                 if(url.pathname==='/auth/ranked-session')return reply({userId:'QAOwner',token:'qa-proof-not-valid-in-production',expiresAt:Date.now()+3600000});
                 if(url.pathname==='/account/profile/name'){
                   window.__qaAccountCalls.push({path:url.pathname,body});
@@ -126,6 +129,79 @@ public class AndroidSmokeTest {
         screenshot("08-friend-api-ratings");
         System.out.println("QG_QA_PASS authenticated API payloads; saved name; expiry draft preserved; friend ratings; no direct DB writes (all backend responses mocked locally)");
     }
+    @Test public void accountControlsAndCloudSaveUseIsolatedFixtures() throws Exception {
+        js("""
+            (()=>{
+              const nativeFetch=window.fetch.bind(window);
+              window.__qaControlCalls=[];window.__qaCloud={revision:0,progress:null};window.__qaCloudOffline=false;window.__qaConsent=null;
+              window.fetch=async(input,options={})=>{
+                const url=new URL(typeof input==='string'?input:input.url||String(input),location.href);
+                if(url.origin===location.origin)return nativeFetch(input,options);
+                const reply=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:{'Content-Type':'application/json'}});
+                const body=typeof options.body==='string'?JSON.parse(options.body):{};
+                // Record no password or token, even though these are fake fixtures.
+                window.__qaControlCalls.push({path:url.pathname,method:options.method||'GET',keys:Object.keys(body)});
+                if(url.pathname==='/account/terms'){
+                  if(options.method==='POST')window.__qaConsent={version:'2026-09-25.1',acceptedAt:'2026-09-24T18:00:00Z'};
+                  return reply({userId:'QACloud',currentVersion:'2026-09-25.1',consent:window.__qaConsent});
+                }
+                if(url.pathname==='/auth/register')return reply({registered:true});
+                if(url.pathname==='/auth/ranked-session')return reply({userId:'QACloud',token:'qa-only-invalid-in-production',expiresAt:Date.now()+3600000});
+                if(url.pathname==='/rest/v1/profiles')return reply({id:'QACloud',name:'QA Cloud',rating:1000});
+                if(url.pathname==='/service/status')return reply({maintenance:false,minimumAndroidBuild:0,minimumProtocol:0});
+                if(url.pathname==='/account/progress'){
+                  if(window.__qaCloudOffline)return reply({code:'UNAVAILABLE'},503);
+                  if(options.method==='POST')window.__qaCloud={revision:window.__qaCloud.revision+1,progress:body.progress};
+                  return reply({userId:'QACloud',...window.__qaCloud,saved:options.method==='POST'});
+                }
+                if(url.pathname==='/account/sessions/revoke-all')return reply({userId:'QACloud',revoked:true});
+                if(url.pathname==='/game-stats')return reply({stats:{totalGames:0,wins:0,losses:0,draws:0,whiteGames:0,whiteWins:0,blackGames:0,blackWins:0}});
+                if(url.pathname.endsWith('/capabilities'))return reply({available:false});
+                if(url.pathname==='/game-records')return reply({records:[]});
+                return reply({code:'QA_NETWORK_BLOCKED'},503);
+              };
+              window.WebSocket=class extends EventTarget {static CONNECTING=0;static OPEN=1;static CLOSING=2;static CLOSED=3;readyState=3;close(){}send(){} };
+              return true;
+            })()
+            """);
+        click(".title-auth-actions button:nth-child(2)");
+        input("form input[type=text]","QACloud");input("form input[type=password]","qa-fixture-only-918");
+        click("form button[type=submit]");
+        waitFor("!!document.querySelector('[data-terms-checkbox]')",15000);
+        assertEquals("true",js("!document.querySelector('[data-terms-checkbox]').checked&&document.querySelector('[data-terms-accept]').disabled&&!document.querySelector('[data-screen=level_select]')"));
+        js("document.querySelector('[data-terms-checkbox]').scrollIntoView({block:'center'});true");
+        screenshot("11-terms-explicit-consent");
+        assertEquals("true",js("!window.__qaControlCalls.some(c=>c.path==='/account/progress')"));
+        assertEquals("true",js("document.body.innerText.includes('Delete account')&&!!document.querySelector('a[href=\"mailto:qgambit970@gmail.com\"]')"));
+        click("[data-terms-checkbox]");click("[data-terms-accept]");
+        waitFor("!!document.querySelector('[data-screen=level_select]')",15000);
+        assertEquals("true",js("window.__qaControlCalls.some(c=>c.path==='/auth/register'&&c.keys.sort().join(',')==='password,username')&&!window.__qaControlCalls.some(c=>c.path.includes('/rpc/register_user'))"));
+        button("⚙️ Settings");
+        waitFor("document.body.innerText.includes('Saved to your account')",15000);
+        js("window.__qaCloudOffline=true;const e=document.querySelector('select[data-cosmetic-kind=board]');e.value='walnut';e.dispatchEvent(new Event('change',{bubbles:true}));true");
+        waitFor("document.body.innerText.includes('Could not sync. Local progress is preserved.')",15000);
+        assertEquals("true",js("JSON.parse(localStorage.getItem('qg_campaign_v2:QACloud')).board==='walnut'"));
+        js("[...document.querySelectorAll('[role=status]')].find(e=>e.textContent.includes('Could not sync'))?.scrollIntoView({block:'center'});true");
+        screenshot("09-cloud-offline-preserved");
+        js("window.__qaCloudOffline=false;true");button("Try again");
+        waitFor("document.body.innerText.includes('Saved to your account')&&window.__qaCloud.progress.board==='walnut'",10000);
+        click("[data-settings-panel=account]");
+        assertEquals("1",js("[...document.querySelectorAll('button')].filter(e=>e.textContent.trim()==='Sign out everywhere').length"));
+        button("Sign out everywhere");button("Sign out");
+        waitFor("!!document.querySelector('.title-play')",10000);
+        assertEquals("true",js("window.__qaControlCalls.filter(c=>c.path==='/account/sessions/revoke-all').length===1&&window.__qaControlCalls.find(c=>c.path==='/account/sessions/revoke-all').keys.length===0"));
+        // Remove only this QA fixture's local campaign save, to prove a cloud restore.
+        js("localStorage.removeItem('qg_campaign_v2:QACloud');localStorage.removeItem('qg_campaign_v2:QACloud:dirty');true");
+        click(".title-auth-actions button");input("form input[type=text]","QACloud");input("form input[type=password]","qa-fixture-only-918");click("form button[type=submit]");
+        waitFor("!!document.querySelector('[data-screen=level_select]')",10000);
+        button("⚙️ Settings");
+        waitFor("document.body.innerText.includes('Saved to your account')&&document.querySelector('select[data-cosmetic-kind=board]')?.value==='walnut'",15000);
+        js("[...document.querySelectorAll('[role=status]')].find(e=>e.textContent.includes('Saved to your account'))?.scrollIntoView({block:'center'});true");
+        screenshot("10-cloud-restored");
+        assertEquals("1",js("window.__qaControlCalls.filter(c=>c.path==='/account/terms'&&c.method==='POST').length"));
+        System.out.println("QG_QA_PASS secure registration route; offline progress preserved; retry saved; one global signout; account cloud restored (isolated fixtures, no production writes)");
+    }
+
     private void screenshot(String name) throws Exception {
         // DOM readiness precedes Android's composited frame; do not capture the
         // previous screen when a dialog has just opened.
@@ -167,6 +243,8 @@ public class AndroidSmokeTest {
         js("document.querySelector('dialog[open]').dispatchEvent(new Event('cancel',{cancelable:true}));true");
         waitFor("!document.querySelector('dialog[open]')", 5000);
         click(".title-play");
+        waitFor("!!document.querySelector('[data-terms-checkbox]')",10000);
+        click("[data-terms-checkbox]");click("[data-terms-accept]");
         waitFor("!!document.querySelector('[data-screen=level_select]')", 10000);
         click(".lobby-shortcuts button");
         waitFor("!!document.querySelector('[data-time-control]')", 10000);

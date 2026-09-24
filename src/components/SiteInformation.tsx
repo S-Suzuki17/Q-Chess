@@ -7,11 +7,12 @@ import {rulesDict} from '../locales/rulesDict';
 import {stageText} from '../locales/stageText';
 import {siteCopy} from '../locales/siteContent';
 import { AccountDataGuide } from './AccountDataGuide';
+import {termsText} from '../locales/termsText';
 
 export function SiteLinks({lang}:{lang:Language}) {
  const {labels:t}=siteCopy(lang);
  return <nav aria-label={t[5]} className="flex flex-wrap justify-center gap-5 py-5 text-sm">
-  {([['/rules',t[3]],['/about',t[0]],['/contact',t[1]],['/updates',t[2]],['/privacy',dict[lang].privacyPolicy]] as const).map(([href,title])=><Link className="text-[#D4B872] underline-offset-4 hover:underline" href={href} key={href}>{title}</Link>)}
+  {([['/rules',t[3]],['/about',t[0]],['/contact',t[1]],['/updates',t[2]],['/privacy',dict[lang].privacyPolicy],['/terms',termsText(lang)[0]]] as const).map(([href,title])=><Link className="text-[#D4B872] underline-offset-4 hover:underline" href={href} key={href}>{title}</Link>)}
  </nav>;
 }
 export function SiteIntroduction({lang}:{lang:Language}) {

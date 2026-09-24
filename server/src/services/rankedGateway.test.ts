@@ -34,6 +34,7 @@ vi.mock('./AccountRecoveryRoutes', () => ({ createAccountRecoveryRouter: vi.fn((
 vi.mock('./AccountProfileRoutes', () => ({ createAccountProfileRouter: vi.fn(() => () => {}) }));
 vi.mock('./AccountSecurityRoutes', () => ({ createAccountSecurityRouter: vi.fn(() => () => {}) }));
 vi.mock('./AccountProgressRoutes', () => ({ createAccountProgressRouter: vi.fn(() => () => {}) }));
+vi.mock('./AccountTermsRoutes', () => ({ createAccountTermsRouter: vi.fn(() => () => {}) }));
 
 function response() {
     const res: any = { code: 200, body: undefined, headers: {} };
@@ -78,6 +79,7 @@ beforeEach(async () => {
     (h.service as any).recordSecurityEvent = async()=>{};
     (h.service as any).restrictedAccounts = async()=>[];
     (h.service as any).accountProgressStore = () => ({});
+    (h.service as any).accountTermsStore = () => ({});
     (h.service as any).serviceStatusLoader = () => async()=>({maintenance:false,minimumAndroidBuild:0,minimumProtocol:0,announcement:{},revision:''});
     await import('../index');
     expect(h.listen).toHaveBeenCalledTimes(1); expect(h.service.cleanupOldRecords).not.toHaveBeenCalled();
