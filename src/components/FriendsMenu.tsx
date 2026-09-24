@@ -21,7 +21,7 @@ export function FriendsMenu({user,lang,onlineUsers,onClose}:FriendsMenuProps) {
     const [authError,setAuthError]=useState(false);
     const [searchId,setSearchId]=useState(''),[msg,setMsg]=useState(''),[busy,setBusy]=useState(false);
     const [removeId,setRemoveId]=useState<string|null>(null);
-    const request=useRef(0),acting=useRef(false);
+    const request=useRef(0),acting=useRef(false),lifetime=useRef(0);
     const registered=user.type==='registered';
     const loadFriends=useCallback(async()=>{
         if(!registered) {setLoading(false);return;}
@@ -35,17 +35,20 @@ export function FriendsMenu({user,lang,onlineUsers,onClose}:FriendsMenuProps) {
             if(serial===request.current) {setError(true);setAuthError(error instanceof AccountProfileError&&error.code==='AUTH_REQUIRED');}
         } finally {if(serial===request.current) setLoading(false);}
     },[user.id,registered]);
-    useEffect(()=>{void loadFriends();return()=>{request.current++;};},[loadFriends]);
+    useEffect(()=>{void loadFriends();return()=>{request.current++;lifetime.current++;};},[loadFriends]);
     // Private friendship rows now come only from the authenticated API.
     useRealtimeRefresh([],loadFriends,registered);
     const run=async(operation:()=>Promise<boolean>,success?:()=>void)=>{
         if(acting.current) return;
+        const revision=lifetime.current;
         acting.current=true;setBusy(true);setMsg('');
         try {
-            if(await operation()) {success?.();await loadFriends();}
+            const changed=await operation();
+            if(revision!==lifetime.current)return;
+            if(changed) {success?.();await loadFriends();}
             else setMsg(f('actionError'));
-        } catch (error) {setMsg(error instanceof AccountProfileError&&error.code==='AUTH_REQUIRED'?accountProfileText(lang,'auth'):f('actionError'));}
-        finally {acting.current=false;setBusy(false);}
+        } catch (error) {if(revision===lifetime.current)setMsg(error instanceof AccountProfileError&&error.code==='AUTH_REQUIRED'?accountProfileText(lang,'auth'):f('actionError'));}
+        finally {if(revision===lifetime.current){acting.current=false;setBusy(false);}}
     };
     const send=()=>{
         const id=searchId.trim();

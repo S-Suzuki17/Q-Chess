@@ -590,7 +590,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
             )}
 
             {showFriends && (
-                <FriendsMenu user={user} lang={lang} onlineUsers={onlineUsers} onClose={()=>onCloseSettingsPanel?.()}/>
+                <FriendsMenu key={user.id} user={user} lang={lang} onlineUsers={onlineUsers} onClose={()=>onCloseSettingsPanel?.()}/>
             )}
 
             {showLiveMatches && (

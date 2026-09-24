@@ -17,6 +17,7 @@ Owner approved: publish the authenticated replacement APIs, prepare the new Web 
 - Both participants hold operation leases until DB completion, including after an HTTP disconnect. Pending account deletion rejects new writes. No new operation can silently fall back to unauthenticated writes on timeout,401,429 or503.
 - Request bodies, rates and response sizes are bounded; failure messages are generic. Expired auth is explained in all12 languages. Friends use the authenticated refresh/focus/poll path, not direct friendship-table Realtime subscriptions.
 - Successful name changes update local display/cache without reloading the page. Failed saves retain the editable draft; duplicate submissions are disabled. Public profile/rating reads remain unchanged.
+- The friend panel remounts on account identity changes and ignores pending action results after unmount. Late success/failure cannot overwrite the next user's display or start another old-owner list request.
 
 ## Verification evidence
 
@@ -27,7 +28,7 @@ Owner approved: publish the authenticated replacement APIs, prepare the new Web 
 | Store to production configuration | Read-only catalog checks confirm service-role profile create/rename and friend CRUD privileges; profiles remain171 |
 | Shared client to API | Tests assert bearer headers, exact payloads, response owner checks, localized failure and no DB fallback |
 | UI to response | Pixel10/API37 instrumentation: local fake backend, actual WebView button/form operations; rename success,401 draft retention, friend ratings1210/1220/1230 and friend request payload pass |
-| Regression | 798 tests/89files;6 loopback HTTP/Socket.IO tests; shared typecheck and server build; production Android Web build pass |
+| Regression | 801 tests/90files including late friend-action success/failure;6 loopback HTTP/Socket.IO tests; shared typecheck and server build; production Android Web build pass |
 | Physical Android |4 tests pass: new authenticated-profile flow plus existing recovery entry, native boundaries/gameplay/lifecycle and all15 reward MP3 decoding |
 
 The physical profile test intercepts remote HTTP with local fixtures and blocks new WebSockets. It does not create real accounts, change a real name/friendship or prove a successful production authenticated write. Public verification is read-only/unauthenticated, per the owner's restriction. Existing Play app remains1.8/code13, separate QA app only was updated. Pixel screenshots contain an unrelated picture-in-picture video over part of the top area; the tested draft/error and three ratings were visible. Screenshots stay local and are not published.
