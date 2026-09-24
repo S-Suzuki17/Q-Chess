@@ -25,6 +25,7 @@ vi.mock('./SupabaseService', () => ({ SupabaseService: class {
     settleRankedMatch = h.settle;
     recordUnratedMatch = h.casual;
     profileAvatarStore = () => ({});
+    accountProfileStore = () => ({});
     adRewardStore = () => ({});
     foundersStore = () => ({});
     accountDeletionStore = () => ({ blocked: async () => false });

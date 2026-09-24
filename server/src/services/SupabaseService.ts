@@ -8,6 +8,7 @@ import { createAdRewardStore } from './AdRewardStore';
 import {createFoundersStore} from './FoundersRewards';
 import { createAccountDeletionStore } from './AccountDeletion';
 import { createRecoveryStore } from './AccountRecovery';
+import { createAccountProfileStore } from './AccountProfiles';
 
 dotenv.config();
 
@@ -45,6 +46,10 @@ export class SupabaseService {
             auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
             global: { fetch: (input, init) => fetch(input, { ...init, signal: AbortSignal.timeout(10000) }) },
         }), (id, password) => this.verifyLegacyPassword(id, password), id => this.accountDeletionStore().blocked(id));
+    }
+
+    public accountProfileStore() {
+        return createAccountProfileStore(this.supabase, token => this.verifyUser(token), id => this.accountDeletionStore().blocked(id));
     }
 
     public async verifyLegacyPassword(userId:string,password:string):Promise<boolean> {

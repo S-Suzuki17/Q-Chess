@@ -16,6 +16,7 @@ import type { MatchSession, QueueMode } from './matchmaking/MatchmakingService';
 import { AccountWriteGate } from './services/AccountDeletion';
 import { accountRequestGuard, createAccountDeletionRouter } from './services/AccountDeletionRoutes';
 import { createAccountRecoveryRouter } from './services/AccountRecoveryRoutes';
+import { createAccountProfileRouter } from './services/AccountProfileRoutes';
 
 const app = express();
 app.use(cors());
@@ -34,6 +35,7 @@ app.use(createAccountRecoveryRouter(rankedAuth,supabaseService.accountRecoverySt
     id=>{ for(const socket of io.sockets.sockets.values())if(socket.data.userId===id)socket.disconnect(true); },
     process.env.ACCOUNT_RECOVERY_ENABLED==='true'));
 app.use(accountRequestGuard(rankedAuth,deletionStore,accountGate));
+app.use(createAccountProfileRouter(rankedAuth,supabaseService.accountProfileStore(),accountGate));
 app.use(createPrivateGameRecordRouter(rankedAuth,supabaseService));
 app.use(createProfileAvatarRouter(rankedAuth,supabaseService.profileAvatarStore(),accountGate));
 app.use(createAdRewardRouter(rankedAuth,supabaseService.adRewardStore()));

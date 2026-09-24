@@ -31,6 +31,7 @@ vi.mock('./AdRewardRoutes', () => ({ createAdRewardRouter: vi.fn(() => () => {})
 vi.mock('./FoundersRewardRoutes', () => ({ createFoundersRewardRouter: vi.fn(() => () => {}) }));
 vi.mock('./AccountDeletionRoutes', () => ({ createAccountDeletionRouter: vi.fn(() => () => {}), accountRequestGuard: vi.fn(() => () => {}) }));
 vi.mock('./AccountRecoveryRoutes', () => ({ createAccountRecoveryRouter: vi.fn(() => () => {}) }));
+vi.mock('./AccountProfileRoutes', () => ({ createAccountProfileRouter: vi.fn(() => () => {}) }));
 
 function response() {
     const res: any = { code: 200, body: undefined, headers: {} };
@@ -70,6 +71,7 @@ beforeEach(async () => {
     h.blocked.mockReset().mockResolvedValue(false);
     (h.service as any).accountDeletionStore = () => ({ blocked: h.blocked });
     (h.service as any).accountRecoveryStore = () => ({});
+    (h.service as any).accountProfileStore = () => ({});
     await import('../index');
     expect(h.listen).toHaveBeenCalledTimes(1); expect(h.service.cleanupOldRecords).not.toHaveBeenCalled();
     expect(fetch).not.toHaveBeenCalled();
