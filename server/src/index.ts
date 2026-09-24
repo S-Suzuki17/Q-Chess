@@ -17,12 +17,24 @@ import { AccountWriteGate } from './services/AccountDeletion';
 import { accountRequestGuard, createAccountDeletionRouter } from './services/AccountDeletionRoutes';
 import { createAccountRecoveryRouter } from './services/AccountRecoveryRoutes';
 import { createAccountProfileRouter } from './services/AccountProfileRoutes';
+import { createAccountSecurityRouter } from './services/AccountSecurityRoutes';
+import {createServiceOperations} from './services/ServiceOperations';
+import {createAccountProgressRouter} from './services/AccountProgressRoutes';
+import {createSecurityAudit} from './services/SecurityAudit';
 
 const app = express();
 app.use(cors());
 const supabaseService = new SupabaseService();
+const audit=createSecurityAudit((event,outcome,id)=>supabaseService.recordSecurityEvent(event,outcome,id));
 const rankedAuth = new RankedAuth((id,password)=>supabaseService.verifyLegacyPassword(id,password));
 const accountGate = new AccountWriteGate();
+const operations=createServiceOperations(supabaseService.serviceStatusLoader());
+app.use(operations.loginGuard);
+app.get('/service/status',async(_req,res)=>{
+    res.setHeader('Cache-Control','no-store');
+    try{res.json({...await operations.read(),serverTime:Date.now()});}
+    catch{res.status(503).json({code:'SERVICE_UNAVAILABLE'});}
+});
 const deletionStore = supabaseService.accountDeletionStore();
 app.use(createAccountDeletionRouter(rankedAuth,deletionStore,accountGate,
     id=>matchmaking.accountBusy(id)||runtime.isSavingAccount(id),
@@ -34,7 +46,10 @@ app.use(createAccountRecoveryRouter(rankedAuth,supabaseService.accountRecoverySt
     id=>matchmaking.accountBusy(id)||runtime.isSavingAccount(id),
     id=>{ for(const socket of io.sockets.sockets.values())if(socket.data.userId===id)socket.disconnect(true); },
     process.env.ACCOUNT_RECOVERY_ENABLED==='true'));
+app.use(createAccountSecurityRouter(rankedAuth,supabaseService.accountSecurityStore(),accountGate,
+    id=>{for(const socket of io.sockets.sockets.values())if(socket.data.userId===id){socket.emit('session_replaced');socket.disconnect(true);}},audit));
 app.use(accountRequestGuard(rankedAuth,deletionStore,accountGate));
+app.use(createAccountProgressRouter(rankedAuth,supabaseService.accountProgressStore(),accountGate));
 app.use(createAccountProfileRouter(rankedAuth,supabaseService.accountProfileStore(),accountGate));
 app.use(createPrivateGameRecordRouter(rankedAuth,supabaseService));
 app.use(createProfileAvatarRouter(rankedAuth,supabaseService.profileAvatarStore(),accountGate));
@@ -88,11 +103,13 @@ app.post('/auth/ranked-session',async(req,res)=>{
         if(accountGate.blocked(username)||await deletionStore.blocked(username)){
             rankedAuth.revokeUserSessions(username);return res.status(409).json({code:'ACCOUNT_BUSY'});
         }
-        if(!session)return res.status(401).json({code:'AUTH_FAILED'});
+        if(!session){await audit('login','denied',username);return res.status(401).json({code:'AUTH_FAILED'});}
+        await audit('login','success',username);
         return res.json(session);
     } catch {
         // No upstream error, submitted password or token reaches logs/clients.
         rankedAuth.revokeUserSessions(username);
+        await audit('upstream_error','error');
         res.setHeader('Retry-After','5');return res.status(503).json({code:'UNAVAILABLE'});
     } finally {pendingLegacyLogins--;}
 });
@@ -112,9 +129,24 @@ function announceMatch(match:MatchSession) {
         timeControl:match.timeControl,mode:match.mode??'random',cpu:match.cpu?{side:match.cpu.side,rating:match.cpu.profile.rating,level:match.cpu.profile.level}:undefined});
 }
 setInterval(()=>{
-    for(const match of matchmaking.takeCpuFallbacks())announceMatch(match);
+    // Refresh is single-flight and cached. Existing matches continue even if DB status is unavailable.
+    void operations.read().catch(()=>{});
+    if(operations.acceptingNewMatches())for(const match of matchmaking.takeCpuFallbacks())announceMatch(match);
     runtime.tick();
 },250).unref();
+let checkingRestrictions=false;
+setInterval(()=>{
+    if(checkingRestrictions)return;checkingRestrictions=true;
+    void(async()=>{
+        const ids=[...new Set<string>([...io.sockets.sockets.values()].filter(s=>s.data.verified).map(s=>s.data.userId))];
+        for(let offset=0;offset<ids.length;offset+=200){
+            const blocked=new Set(await supabaseService.restrictedAccounts(ids.slice(offset,offset+200)));
+            for(const socket of io.sockets.sockets.values())if(blocked.has(socket.data.userId)){
+                rankedAuth.revokeUserSessions(socket.data.userId);socket.emit('session_replaced');socket.disconnect(true);
+            }
+        }
+    })().catch(()=>{/* A transient admin check failure must not forfeit existing games. */}).finally(()=>{checkingRestrictions=false;});
+},15000).unref();
 
 // Token Bucket Rate Limiting Constants
 const MAX_TOKENS = 15; // Max burst allowance of events
@@ -139,7 +171,7 @@ io.use(async (socket, next) => {
       return next(new Error('Authentication Error: Invalid token'));
   }
   try {
-      if(accountGate.blocked(userId)||(!guest&&await deletionStore.blocked(userId)))return next(new Error('Authentication Error: Account unavailable'));
+      if(accountGate.blocked(userId)||(!guest&&(await deletionStore.blocked(userId)||await supabaseService.accountSecurityStore().restricted(userId))))return next(new Error('Authentication Error: Account unavailable'));
   } catch { return next(new Error('Authentication Error: Account check unavailable')); }
 
   socket.data.userId = userId;
@@ -149,7 +181,7 @@ io.use(async (socket, next) => {
 
 io.on('connection', (socket: Socket) => {
   const userId = socket.data.userId;
-  console.log(`[+] User connected: ${userId} (Socket: ${socket.id})`);
+  console.log('[socket] connected');
 
   // Initialize Rate Limiter State for this socket
   socket.data.rateLimit = {
@@ -180,12 +212,12 @@ io.on('connection', (socket: Socket) => {
       next();
     } else {
       rl.violations += 1;
-      console.warn(`[RATE_LIMIT] Dropped '${eventName}' from user ${userId} (violations: ${rl.violations})`);
+      console.warn('[RATE_LIMIT] Packet dropped');
       
       socket.emit('action_error', { message: 'Too many requests. Please slow down.' });
 
       if (rl.violations > SEVERE_VIOLATION_THRESHOLD) {
-        console.error(`[RATE_LIMIT] Force disconnecting abusive socket ${socket.id} (user: ${userId})`);
+        console.error('[RATE_LIMIT] Socket disconnected');
         socket.disconnect(true);
       }
       return;
@@ -209,7 +241,7 @@ io.on('connection', (socket: Socket) => {
       const activeMatch = matchmaking.getMatch(existingSession.currentMatchId);
       if (activeMatch && activeMatch.engine && activeMatch.state === 'IN_GAME') {
           socket.join(existingSession.currentMatchId);
-          console.log(`[RECONNECT] User ${userId} auto-rejoined room ${existingSession.currentMatchId}`);
+          console.log('[RECONNECT] Active match restored');
           socket.emit('sync_state', activeMatch.engine.getPublicState(userId));
       }
   }
@@ -221,6 +253,8 @@ io.on('connection', (socket: Socket) => {
     const timeControl=data?.timeControl,mode=data?.mode??'random';
     const fail=(code:string)=>{if(attempt===queueAttempt&&socket.connected&&matchmaking.getPlayerSession(userId)?.socketId===socket.id)socket.emit('queue_error',{code,message:code});};
     if(![10,180,600].includes(timeControl)||!['random','ranked'].includes(mode))return fail('INVALID_QUEUE');
+    const unavailable=await operations.admission(socket.handshake.auth.client);
+    if(unavailable)return fail(unavailable);
     let rating:number|null=null;
     if(mode==='ranked') {
         const token=socket.handshake.auth.token;
@@ -249,6 +283,12 @@ io.on('connection', (socket: Socket) => {
     if(matchmaking.getPlayerSession(userId)?.socketId!==socket.id)return;
     if(typeof data?.matchId!=='string'||!data.matchId||data.matchId.length>128)return;
     if(data.userName!==undefined&&typeof data.userName!=='string')return;
+    // Reconnection to a started game remains possible during maintenance.
+    if(matchmaking.getMatch(data.matchId)?.state!=='IN_GAME'){
+        const unavailable=await operations.admission(socket.handshake.auth.client);
+        if(unavailable){socket.emit('queue_error',{code:unavailable,message:unavailable});return;}
+        if(!socket.connected||matchmaking.getPlayerSession(userId)?.socketId!==socket.id)return;
+    }
     if(data.userName)data.userName=data.userName.slice(0,80);
     const reserved=matchmaking.reserveMatch(userId,data.matchId,data.userName);
     if(!reserved)return;
@@ -370,7 +410,7 @@ io.on('connection', (socket: Socket) => {
 
   socket.on('disconnect', () => {
     queueAttempt++;
-    console.log(`[-] User disconnected: ${userId}`);
+    console.log('[socket] disconnected');
     matchmaking.removeSocket(socket.id);
   });
 });

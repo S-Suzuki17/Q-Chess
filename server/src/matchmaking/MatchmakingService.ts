@@ -265,7 +265,7 @@ export class MatchmakingService {
         const isJoiner = match.players.joiner === userId;
 
         if (!isHost && !isJoiner) {
-            console.log(`[connectMatch] User ${userId} is not part of match ${matchId}`);
+            console.log('[connectMatch] Participant check rejected');
             return { success: false };
         }
 
@@ -345,7 +345,7 @@ export class MatchmakingService {
         if (timer) {
             clearTimeout(timer);
             this.disconnectTimers.delete(userId);
-            console.log(`[RECONNECT] Cleared disconnect timer for ${userId}`);
+            console.log('[RECONNECT] Disconnect timer cleared');
         }
     }
 

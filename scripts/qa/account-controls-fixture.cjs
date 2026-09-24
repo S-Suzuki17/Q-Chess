@@ -1,0 +1,27 @@
+// Local UI fixture. In-memory data only; no Supabase, emails, production users or ads.
+const express=require('../../server/node_modules/express'),cors=require('../../server/node_modules/cors');
+const {Server}=require('../../server/node_modules/socket.io'),http=require('node:http');
+const {RankedAuth}=require('../../server/dist/services/RankedAuth');
+const {AccountWriteGate}=require('../../server/dist/services/AccountDeletion');
+const {createAccountSecurityRouter}=require('../../server/dist/services/AccountSecurityRoutes');
+const {createAccountProgressRouter}=require('../../server/dist/services/AccountProgressRoutes');
+const {createAccountProfileRouter}=require('../../server/dist/services/AccountProfileRoutes');
+const users=new Map(),saves=new Map();
+const profile=id=>users.has(id)?{id,name:users.get(id).name,rating:1000,rating_10s:1000,rating_3m:1000,rating_10m:1000}:null;
+const verifyUser=async()=>null,blocked=async()=>false;
+const auth=new RankedAuth(async(id,password)=>users.get(id)?.password===password),gate=new AccountWriteGate(),app=express();
+app.use(cors({origin:['http://127.0.0.1:4191','http://localhost:4191']}));
+app.get('/service/status',(_req,res)=>res.json({maintenance:false,minimumAndroidBuild:0,minimumProtocol:0,announcement:{},revision:'fixture',serverTime:Date.now()}));
+app.get('/rest/v1/profiles',(req,res)=>{const id=String(req.query.id??'').replace(/^eq\./,'');const p=profile(id);res.json(req.headers.accept?.includes('object')?p:p?[p]:[]);});
+app.get('/account/recovery/capabilities',(_req,res)=>res.json({available:false}));
+app.get('/account/deletion/capabilities',(_req,res)=>res.json({available:false}));
+app.use(createAccountSecurityRouter(auth,{ready:async()=>true,verifyUser,restricted:blocked,register:async(id,password)=>{if(users.has(id))return false;users.set(id,{password,name:id});return true;},signOutAll:async()=>{}},gate,id=>{for(const s of io.sockets.sockets.values())if(s.data.id===id){s.emit('session_replaced');s.disconnect(true);}}));
+app.use(createAccountProgressRouter(auth,{verifyUser,blocked,read:async id=>saves.get(id)??{revision:0,progress:null},save:async(id,revision,progress)=>{if((saves.get(id)?.revision??0)!==revision)return false;saves.set(id,{revision:revision+1,progress});return true;}},gate));
+app.use(createAccountProfileRouter(auth,{verifyUser,blocked,profile:async id=>profile(id),ensure:async id=>profile(id),rename:async(id,name)=>{users.get(id).name=name;return profile(id);},friends:async()=>[],changeFriend:async()=>false},gate));
+app.use(express.json({limit:'2kb'}));
+app.post('/auth/ranked-session',async(req,res)=>{const session=await auth.issueLegacySession(req.body.username,req.body.password);res.status(session?200:401).json(session??{code:'AUTH_FAILED'});});
+app.post('/auth/ranked-session/revoke',(req,res)=>{auth.revokeSession(req.headers.authorization?.replace(/^Bearer /,''));res.status(204).end();});
+const server=http.createServer(app),io=new Server(server,{cors:{origin:['http://127.0.0.1:4191','http://localhost:4191']}});
+io.use((socket,next)=>{const token=socket.handshake.auth.token,id=auth.verifySession(token)?.userId??(/^GUEST-/.test(token)?token:null);if(!id)return next(new Error('Authentication Error'));socket.data.id=id;next();});
+io.on('connection',socket=>socket.emit('queue_stats',{}));
+server.listen(4192,'127.0.0.1',()=>console.log('Account controls QA fixture on loopback:4192; ephemeral local data only.'));

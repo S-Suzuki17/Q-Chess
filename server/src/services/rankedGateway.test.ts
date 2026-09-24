@@ -32,6 +32,8 @@ vi.mock('./FoundersRewardRoutes', () => ({ createFoundersRewardRouter: vi.fn(() 
 vi.mock('./AccountDeletionRoutes', () => ({ createAccountDeletionRouter: vi.fn(() => () => {}), accountRequestGuard: vi.fn(() => () => {}) }));
 vi.mock('./AccountRecoveryRoutes', () => ({ createAccountRecoveryRouter: vi.fn(() => () => {}) }));
 vi.mock('./AccountProfileRoutes', () => ({ createAccountProfileRouter: vi.fn(() => () => {}) }));
+vi.mock('./AccountSecurityRoutes', () => ({ createAccountSecurityRouter: vi.fn(() => () => {}) }));
+vi.mock('./AccountProgressRoutes', () => ({ createAccountProgressRouter: vi.fn(() => () => {}) }));
 
 function response() {
     const res: any = { code: 200, body: undefined, headers: {} };
@@ -72,6 +74,11 @@ beforeEach(async () => {
     (h.service as any).accountDeletionStore = () => ({ blocked: h.blocked });
     (h.service as any).accountRecoveryStore = () => ({});
     (h.service as any).accountProfileStore = () => ({});
+    (h.service as any).accountSecurityStore = () => ({restricted:async()=>false});
+    (h.service as any).recordSecurityEvent = async()=>{};
+    (h.service as any).restrictedAccounts = async()=>[];
+    (h.service as any).accountProgressStore = () => ({});
+    (h.service as any).serviceStatusLoader = () => async()=>({maintenance:false,minimumAndroidBuild:0,minimumProtocol:0,announcement:{},revision:''});
     await import('../index');
     expect(h.listen).toHaveBeenCalledTimes(1); expect(h.service.cleanupOldRecords).not.toHaveBeenCalled();
     expect(fetch).not.toHaveBeenCalled();
@@ -159,6 +166,7 @@ describe('ranked gateway without network or database side effects', () => {
         let finish!: (ready: boolean) => void;
         h.service.rankedReady.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
         const pending = connected.dispatch('join_queue', { mode: 'ranked', timeControl: 600 });
+        await vi.waitFor(()=>expect(finish).toBeTypeOf('function'));
         connected.dispatch('cancel_queue'); finish(ready); await pending;
         expect(h.mm.leaveQueue).toHaveBeenCalledWith('Alice'); expect(h.mm.joinQueue).not.toHaveBeenCalled();
         expect(connected.s.emit.mock.calls.some(([event]) => ['queue_joined', 'queue_error'].includes(event))).toBe(false);

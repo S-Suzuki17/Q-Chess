@@ -14,12 +14,18 @@ function fixture(result:unknown) {
 describe('server opening and initial ratings',()=>{
     it('rejects anonymous Supabase users and self-declared identity tokens',async()=>{
         const getUser=vi.fn().mockResolvedValue({data:{user:{id:'anonymous-id',is_anonymous:true}},error:null});
-        const service=new SupabaseService({auth:{getUser}} as unknown as SupabaseClient);
+        const rpc=vi.fn().mockResolvedValue({data:true,error:null});
+        const service=new SupabaseService({auth:{getUser},rpc} as unknown as SupabaseClient);
         for(const token of ['SUPABASE-victim','ranked_revoked','GUEST-x','', 'x'.repeat(9000)])expect(await service.verifyUser(token)).toBeNull();
         expect(getUser).not.toHaveBeenCalled();
         expect(await service.verifyUser('a.b.c')).toBeNull();
         getUser.mockResolvedValue({data:{user:{id:'verified-id',is_anonymous:false}},error:null});
-        expect(await service.verifyUser('a.b.c')).toBe('verified-id');
+        expect(await service.verifyUser('a.b.c')).toBeNull();
+        const token=`a.${Buffer.from(JSON.stringify({sub:'verified-id',session_id:'00000000-0000-4000-8000-000000000001'})).toString('base64url')}.c`;
+        expect(await service.verifyUser(token)).toBe('verified-id');
+        expect(rpc).toHaveBeenCalledWith('account_session_active',{p_user_id:'verified-id',p_session_id:'00000000-0000-4000-8000-000000000001'});
+        rpc.mockResolvedValue({data:false,error:null});expect(await service.verifyUser(token)).toBeNull();
+        rpc.mockResolvedValue({data:true,error:{message:'denied'}});expect(await service.verifyUser(token)).toBeNull();
     });
     it('caps pending JWT verification and frees capacity after completion',async()=>{
         let release!:(value:unknown)=>void;

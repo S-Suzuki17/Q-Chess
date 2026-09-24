@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Playfair_Display, Cinzel } from "next/font/google";
-import { Analytics } from "@vercel/analytics/react";
 import { ANDROID_BUILD } from '../config/appPlatform';
 import "./globals.css";
 
@@ -61,7 +60,6 @@ export default function RootLayout({
     >
       <body className="h-full bg-[#11100E] text-[#E8E2D7] selection:bg-[#B39A62]/30 font-sans overflow-x-hidden">
         <main className="h-full">{children}</main>
-        {!ANDROID_BUILD && <Analytics />}
       </body>
     </html>
   );

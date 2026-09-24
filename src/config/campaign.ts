@@ -152,7 +152,7 @@ export function parseCampaign(raw: string | null, foundersOwned=false): Campaign
         };
         progress.stars=parseStars(input.stars);
         if (input.version===2 && lapCleared(progress) && Array.isArray(input.ascensions)) {
-            for (const entry of input.ascensions) {
+            for (const entry of input.ascensions.slice(0,100)) {
                 const stars=parseStars(entry);
                 if (!Object.keys(stars).length) break;
                 progress.ascensions.push(stars);

@@ -9,6 +9,10 @@ import {createFoundersStore} from './FoundersRewards';
 import { createAccountDeletionStore } from './AccountDeletion';
 import { createRecoveryStore } from './AccountRecovery';
 import { createAccountProfileStore } from './AccountProfiles';
+import { createAccountSecurityStore,verifiedTokenSessionId } from './AccountSecurity';
+import {createServiceStatusLoader} from './ServiceOperations';
+import {createAccountProgressStore} from './AccountProgress';
+import type {SecurityEvent,SecurityOutcome} from './SecurityAudit';
 
 dotenv.config();
 
@@ -51,6 +55,18 @@ export class SupabaseService {
     public accountProfileStore() {
         return createAccountProfileStore(this.supabase, token => this.verifyUser(token), id => this.accountDeletionStore().blocked(id));
     }
+    public accountSecurityStore() {return createAccountSecurityStore(this.supabase,token=>this.verifyUser(token));}
+    public async recordSecurityEvent(event:SecurityEvent,outcome:SecurityOutcome,userId?:string){
+        const {error}=await this.supabase.rpc('record_security_event',{p_event:event,p_outcome:outcome,p_user_id:userId??null}).abortSignal(AbortSignal.timeout(2000));
+        if(error)throw new Error('AUDIT_UNAVAILABLE');
+    }
+    public async restrictedAccounts(ids:string[]):Promise<string[]>{
+        if(!ids.length)return [];
+        const {data,error}=await this.supabase.from('account_restrictions').select('user_id').eq('blocked',true).in('user_id',ids.slice(0,200)).abortSignal(AbortSignal.timeout(5000));
+        if(error)throw new Error('UNAVAILABLE');return (data??[]).map(row=>row.user_id);
+    }
+    public serviceStatusLoader() {return createServiceStatusLoader(this.supabase);}
+    public accountProgressStore(){return createAccountProgressStore(this.supabase,token=>this.verifyUser(token),id=>this.accountDeletionStore().blocked(id));}
 
     public async verifyLegacyPassword(userId:string,password:string):Promise<boolean> {
         try {
@@ -161,6 +177,10 @@ export class SupabaseService {
         try {
             const { data: { user }, error } = await this.supabase.auth.getUser(token);
             if (error || !user || user.is_anonymous===true) return null;
+            const sessionId=verifiedTokenSessionId(token,user.id);
+            if(!sessionId)return null;
+            const {data:live,error:sessionError}=await this.supabase.rpc('account_session_active',{p_user_id:user.id,p_session_id:sessionId});
+            if(sessionError||live!==true)return null;
             if(process.env.ACCOUNT_RECOVERY_ENABLED==='true') {
                 const {data:recovery,error:lookupError}=await this.supabase.from('account_recovery_emails')
                     .select('user_id').eq('auth_user_id',user.id).maybeSingle();
@@ -199,7 +219,7 @@ export class SupabaseService {
                 return true;
             }
 
-            console.log(`[DB] Recording match ${matchId}: White=${realWhite}, Black=${realBlack}, Winner=${winner}`);
+            console.log('[DB] Recording match');
 
             // 1. Fetch current profiles for both players
             const [whiteRes, blackRes] = await Promise.all([
@@ -278,7 +298,7 @@ export class SupabaseService {
             console.log(`[DB] Match ${matchId} and Ratings recorded successfully.`);
             return true;
         } catch (error) {
-            console.error(`[DB] Error recording match ${matchId}:`, error);
+            console.error('[DB] Match recording unavailable');
             return false;
         }
     }

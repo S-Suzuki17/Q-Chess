@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { Language } from '../locales/dict';
 import { dict } from '../locales/dict';
 import { rankedText } from '../locales/rankedText';
+import {serviceText} from '../locales/serviceText';
 import { matchText } from '../locales/matchText';
 import type { User } from '../types/game';
 import type { MatchedRoom, QueueMode } from '../lib/rankedProtocol';
@@ -35,7 +36,7 @@ export function RankedMatchmakingManager({lang,user,onMatchFound,cancelSearchGlo
             {isSearching&&<p className="font-mono text-2xl mb-4">{String(Math.floor(waitTime/60000)).padStart(2,'0')}:{String(Math.floor(waitTime%60000/1000)).padStart(2,'0')}</p>}
             {mode==='ranked'&&cpuFallbackAt!==null&&!authError&&<p className="text-sm text-[#A89C86] mb-4">{rankedText(lang,'fallback')}</p>}
             {mode==='ranked'&&isSearching&&seconds!==null&&<p className="text-sm mb-4">{seconds>0?`${seconds}s`:rankedText(lang,'preparing')}</p>}
-            {(error||connectionError)&&!authError&&<p role="alert" className="text-red-300 text-sm mb-4">{errorMessage||rankedText(lang,'unavailable')}</p>}
+            {(error||connectionError)&&!authError&&<p role="alert" className="text-red-300 text-sm mb-4">{error==='MAINTENANCE'?serviceText(lang,'maintenance'):error==='UPDATE_REQUIRED'?serviceText(lang,'update'):errorMessage||rankedText(lang,'unavailable')}</p>}
             {!isConnected&&!authError&&!connectionError&&<p role="status" className="text-sm mb-4">{rankedText(lang,'connection')}</p>}
             {authError&&<><p className="text-sm text-[#A89C86] mb-4">{rankedText(lang,'help')}</p><button className="min-h-11 w-full bg-[#B39A62] p-3 text-[#11100E] mb-3" onClick={()=>user&&!user.id.startsWith('GUEST-')?setLoginOpen(true):onRequestLogin()}>{dict[lang].login}</button></>}
             {error&&!authError&&isConnected&&<button className="min-h-11 w-full border border-[#A89C86]/40 p-3 mb-3" onClick={retryQueue}>{matchText(lang,'再試行','Try again')}</button>}

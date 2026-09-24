@@ -117,7 +117,7 @@ describe('socket account handoff lifecycle', () => {
         h.proof.mockReturnValue(proof('new-proof'));
         window.dispatchEvent(new Event(RANKED_SESSION_EVENT)); await flush();
         expect(transport.connect).toHaveBeenCalledTimes(2);
-        expect(transport.auth).toEqual({ token: 'new-proof', userId: 'alice' });
+        expect(transport.auth).toEqual({ token: 'new-proof', userId: 'alice',client:{protocol:1,platform:'web',build:0} });
         expect(render()).toMatchObject({ isAuthenticated: true, connectionError: null });
     });
     it('ignores a late OAuth lookup after the server replaced this device', async () => {

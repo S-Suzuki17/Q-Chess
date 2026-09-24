@@ -26,6 +26,11 @@ vi.mock('./SupabaseService', () => ({ SupabaseService: class {
     recordUnratedMatch = h.casual;
     profileAvatarStore = () => ({});
     accountProfileStore = () => ({});
+    accountSecurityStore = () => ({restricted:async()=>false,ready:async()=>true});
+    recordSecurityEvent = async()=>{};
+    restrictedAccounts = async()=>[];
+    accountProgressStore = () => ({blocked:async()=>false,verifyUser:async()=>null,read:async()=>({progress:null,revision:0}),save:async()=>true});
+    serviceStatusLoader = () => async()=>({maintenance:false,minimumAndroidBuild:0,minimumProtocol:0,announcement:{},revision:''});
     adRewardStore = () => ({});
     foundersStore = () => ({});
     accountDeletionStore = () => ({ blocked: async () => false });

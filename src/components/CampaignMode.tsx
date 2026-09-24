@@ -24,6 +24,7 @@ import { circuitAccess } from '../lib/circuitAccess';
 import { useCircuitAccess } from '../hooks/useCircuitAccess';
 import { CircuitLoginGate } from './CircuitLoginGate';
 import { cosmeticsSettingsText } from '../locales/cosmeticsSettingsText';
+import {cloudText} from '../locales/cloudText';
 import './campaign.css';
 
 
@@ -92,7 +93,7 @@ function MemberCircuit({lang,user,onBack,onPlayingChange}:CampaignProps) {
     }
     return <section className="campaign-screen" data-circuit-stage={selected} aria-label={t('title')}>
         <header className="campaign-header"><button onClick={onBack}><ArrowLeft size={18}/>{t('back')}</button><span>Q-GAMBIT</span><span>{cleared}/100 <Trophy size={16}/></span></header>
-        <div className="campaign-intro"><p>{t('title')}</p><h1>{stageText(lang,'intro')}</h1><p>{stageText(lang,'rules')}</p><p>{t('local')}</p></div>
+        <div className="campaign-intro"><p>{t('title')}</p><h1>{stageText(lang,'intro')}</h1><p>{stageText(lang,'rules')}</p><p>{cloudText(lang,'help')}</p></div>
         {storageError&&<p className="campaign-save-error" role="alert">{t('saveError')}</p>}
         <section className="campaign-circuit" aria-label={loop('record')}>
             <div className="campaign-record"><span>{t('cleared')} <b>{cleared}/100</b></span><span>{loop('medals')} <b>{(progress.stageStars??[]).reduce((sum,value)=>sum+value,0)}/300</b></span><span>{loop('strength')} <b>{stage.strength}/34</b></span></div>

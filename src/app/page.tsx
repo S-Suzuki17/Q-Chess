@@ -13,7 +13,6 @@ import { SiteIntroduction, SiteLinks } from '../components/SiteInformation';
 import { AppSupportLinks } from '../components/AppSupportLinks';
 import { useAppPlatform } from '../hooks/useAppPlatform';
 import { useNativeAuthLinks } from '../hooks/useNativeAuthLinks';
-import { SpeedInsights } from '@vercel/speed-insights/next';
 import { SystemStatusBanner } from '../components/SystemStatusBanner';
 import { supabase } from '../lib/supabaseClient';
 import { TitleScreen } from '../components/TitleScreen';
@@ -36,6 +35,8 @@ import { useCampaignProgress } from '../hooks/useCampaignProgress';
 import { battleMusicUrl } from '../config/circuitMusic';
 import { soundManager } from '../lib/SoundService';
 import { CosmeticsSettings } from '../components/CosmeticsSettings';
+import {CampaignCloudPanel} from '../components/CampaignCloudPanel';
+import {useCampaignCloud} from '../hooks/useCampaignCloud';
 import { cosmeticsLocked } from '../lib/cosmeticOptions';
 
 export default function Home() {
@@ -60,6 +61,7 @@ export default function Home() {
     const matchDesignLocked = cosmeticsLocked(gameState, circuitPlaying);
     const [user, setUser] = useState<User | null>(null);
     const foundersRewards=useFoundersRewards(user,matchDesignLocked);
+    const cloud=useCampaignCloud();
     const [loginMode,setLoginMode]=useState<'select'|'login'>('select');
     const circuitLoginRequested=React.useRef(false);
     const [cpuLevel, setCpuLevel] = useState<number>(5);
@@ -261,7 +263,7 @@ export default function Home() {
         circuitLoginRequested.current=false;
         try { localStorage.removeItem('qg_last_user'); } catch { /* Access is already revoked. */ }
         setGameState('title');
-        await supabase.auth.signOut();
+        await supabase.auth.signOut({scope:'local'});
     };
 
     const requestCircuitLogin=()=>{
@@ -273,7 +275,7 @@ export default function Home() {
 
     return (
         <SocketProvider userId={user?.id}>
-            <SystemStatusBanner lang={lang} />
+            <SystemStatusBanner lang={lang} playing={gameState==='playing'||circuitPlaying} />
             {nativeAuth.failed && <div role="alert" className="fixed bottom-4 left-4 right-4 z-[100] rounded border border-[#D4B872] bg-[#1E1C19] p-4 text-[#E8E2D7]">
                 {matchText(lang,'ログインできませんでした。もう一度お試しください。','Sign-in failed. Please try again.')}
                 <button type="button" onClick={nativeAuth.dismiss} className="ml-4 p-2" aria-label={matchText(lang,'閉じる','Close')}>×</button>
@@ -290,7 +292,6 @@ export default function Home() {
                     handleOnlineMatch(room.id, room.myColor, room.mode, (room.timeControl === 10 ? '10s' : room.timeControl === 180 ? '3m' : '10m') as TimeControl, room.myColor==='white'?room.joinerId:room.hostId);
                 }} 
             />}
-            {webContent && <SpeedInsights />}
         <main data-screen={gameState} className={`fixed inset-0 flex flex-col items-center justify-between bg-[#11100E] text-[#E8E2D7] font-sans overflow-x-hidden ${gameState === 'title' ? 'overflow-y-auto' : 'overflow-hidden'}`}>
             <div className="relative z-40 w-full max-w-5xl flex items-center justify-between text-sm mb-4 shrink-0">
                 {/* 右上のコントロール群 */}
@@ -380,6 +381,7 @@ export default function Home() {
                             </div>
 
                             <CosmeticsSettings lang={lang} progress={campaignProgress} update={updateCampaign} loaded={cosmeticsLoaded} locked={matchDesignLocked}/>
+                            <CampaignCloudPanel key={cloud.userId??'guest'} lang={lang} cloud={cloud} locked={matchDesignLocked}/>
                             {android && <FoundersSettings lang={lang} accountName={user?.name} progress={campaignProgress} rewards={foundersRewards} locked={matchDesignLocked}/>}
                             {android && user && <NativeRewardSettings key={user.id} userId={user.id} lang={lang} locked={matchDesignLocked}/>}
                             {android && <AppSupportLinks lang={lang}/>}

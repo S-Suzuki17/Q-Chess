@@ -3,6 +3,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { io, type Socket } from 'socket.io-client';
 import { supabase } from './supabaseClient';
 import { gameServerUrl, readRankedSession, RANKED_SESSION_EVENT } from './rankedSession';
+import {clientRelease} from './clientRelease';
 
 interface SocketContextProps {
     socket: Socket | null;
@@ -56,14 +57,14 @@ export function SocketProvider({ children, userId }: { children:React.ReactNode;
                 }
                 const authenticated=!guest;
                 if(current){
-                    current.auth={token,userId};
+                    current.auth={token,userId,client:clientRelease};
                     // The server validates the handshake token on each rated queue.
                     if(lastToken!==token){current.disconnect();current.connect();}
                     else if(current.connected){setIsAuthenticated(authenticated);setConnectionError(null);}
                     else current.connect();
                 }else{
                     const next=io(gameServerUrl(),{
-                        auth:{token,userId},autoConnect:false,transports:['websocket','polling'],
+                        auth:{token,userId,client:clientRelease},autoConnect:false,transports:['websocket','polling'],
                         reconnection:true,reconnectionAttempts:Infinity,reconnectionDelay:1000,reconnectionDelayMax:5000,
                     });
                     current=next;setSocket(next);

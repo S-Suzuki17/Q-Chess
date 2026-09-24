@@ -66,13 +66,15 @@ export async function deleteOwnAccount(userId: string): Promise<void> {
 }
 
 /** App-owned keys only. Never clear the entire origin or another app's storage. */
-export function clearDeletedAccountDeviceData(): boolean {
+export function clearDeletedAccountDeviceData(userId?:string,includeShared=true): boolean {
     let cleared = true;
     for (const name of ['localStorage','sessionStorage'] as const) {
         try {
             const storage = globalThis[name];
             const keys = Array.from({ length: storage.length }, (_, index) => storage.key(index));
             for (const key of keys) {
+                if(!includeShared&&(!userId||![`qg_campaign_v2:${encodeURIComponent(userId)}`,`qg_campaign_v2:${encodeURIComponent(userId)}:dirty`].includes(key??'')))continue;
+                if(userId&&key?.startsWith('qg_campaign_v2:')&&![`qg_campaign_v2:${encodeURIComponent(userId)}`,`qg_campaign_v2:${encodeURIComponent(userId)}:dirty`].includes(key))continue;
                 if (key && /^(?:qg_|qchess_)/.test(key)) {
                     try { storage.removeItem(key); } catch { cleared = false; }
                 }

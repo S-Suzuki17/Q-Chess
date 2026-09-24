@@ -1,89 +1,39 @@
 'use client';
-
-import React, { useEffect, useState } from 'react';
-import { matchText } from '../locales/matchText';
-import { supabase } from '../lib/supabaseClient';
-import { Language, dict } from '../locales/dict';
-
-export interface SystemStatus {
-    maintenance_mode: boolean;
-    announcement_en: string | null;
-    announcement_ja: string | null;
-}
-
-interface Props {
-    lang: Language;
-}
-
-export function SystemStatusBanner({ lang }: Props) {
-    const t = { ...dict['en'], ...(dict[lang] || {}) } as any;
-    const [status, setStatus] = useState<SystemStatus | null>(null);
-
-    useEffect(() => {
-        // Initial fetch
-        const fetchStatus = async () => {
-            const { data, error } = await supabase
-                .from('system_status')
-                .select('*')
-                .eq('id', 1)
-                .single();
-            if (!error && data) {
-                setStatus(data as SystemStatus);
-            }
+import {useEffect,useState} from 'react';
+import {matchText} from '../locales/matchText';
+import type {Language} from '../locales/dict';
+import {serviceText} from '../locales/serviceText';
+import {gameServerUrl} from '../lib/rankedSession';
+import {clientRelease} from '../lib/clientRelease';
+type Status={maintenance:boolean;minimumProtocol:number;minimumAndroidBuild:number;announcement:Record<string,string>;revision:string};
+export function SystemStatusBanner({lang,playing=false}:{lang:Language;playing?:boolean}){
+    const [status,setStatus]=useState<Status|null>(null),[dismissed,setDismissed]=useState('');
+    useEffect(()=>{
+        let active=true,pending=false;const abort=new AbortController();
+        const refresh=async()=>{
+            if(pending||document.hidden)return;pending=true;
+            try{
+                const url=new URL('/service/status',gameServerUrl());
+                if(url.protocol!=='https:'&&!['localhost','127.0.0.1','[::1]'].includes(url.hostname))return;
+                const response=await fetch(url,{cache:'no-store',credentials:'omit',redirect:'error',signal:AbortSignal.any([abort.signal,AbortSignal.timeout(8000)])});
+                const value=response.ok?await response.json():null;
+                if(active&&value&&typeof value.maintenance==='boolean'&&Number.isSafeInteger(value.minimumProtocol)&&Number.isSafeInteger(value.minimumAndroidBuild)&&value.announcement&&typeof value.announcement==='object'&&typeof value.revision==='string')setStatus(value);
+            }catch{/* An offline status request must not lock offline play. */}finally{pending=false;}
         };
-
-        fetchStatus();
-
-        // Listen for realtime updates
-        const channel = supabase.channel('system_status_changes')
-            .on(
-                'postgres_changes',
-                { event: 'UPDATE', schema: 'public', table: 'system_status', filter: 'id=eq.1' },
-                (payload) => {
-                    setStatus(payload.new as SystemStatus);
-                }
-            )
-            .subscribe();
-
-        return () => {
-            supabase.removeChannel(channel);
-        };
-    }, []);
-
-    if (!status) return null;
-
-    const msg = lang === 'ja' ? status.announcement_ja : (status.announcement_en || status.announcement_ja);
-
-    return (
-        <>
-            {/* Announcement Banner */}
-            {msg && msg.trim() !== '' && !status.maintenance_mode && (
-                <div className="fixed top-0 left-0 w-full bg-amber-500/90 text-amber-950 font-bold text-center py-2 px-4 z-[100] shadow-md flex items-center justify-center gap-2">
-                    <span className="animate-pulse">⚠️</span>
-                    <span className="text-sm tracking-wide">{msg}</span>
-                    <span className="animate-pulse">⚠️</span>
-                </div>
-            )}
-
-            {/* Maintenance Mode Overlay */}
-            {status.maintenance_mode && (
-                <div className="fixed inset-0 bg-[#1E1C19]/95 z-[9999] flex flex-col items-center justify-center p-4">
-                    <div className="bg-[#2A2621] border-2 border-red-900/50 p-8 rounded-xl max-w-md w-full text-center shadow-2xl">
-                        <div className="text-6xl mb-6">🛠️</div>
-                        <h2 className="text-3xl font-serif text-[#D4B872] mb-4 font-bold tracking-widest">
-                            {matchText(lang, 'メンテナンス中', 'UNDER MAINTENANCE')}
-                        </h2>
-                        <p className="text-[#E8E5DF] mb-6 leading-relaxed">
-                            {msg && msg.trim() !== '' 
-                                ? msg 
-                                : (matchText(lang, '現在システムメンテナンスを行っております。終了までしばらくお待ちください。', 'The system is currently undergoing maintenance. Please check back later.'))}
-                        </p>
-                        <div className="text-xs text-[#8C7A5E] font-mono">
-                            Q-GAMBIT SYSTEM
-                        </div>
-                    </div>
-                </div>
-            )}
-        </>
-    );
+        try{setDismissed(sessionStorage.getItem('qg_notice_seen')??'');}catch{/* Optional read state. */}
+        void refresh();const timer=setInterval(()=>void refresh(),30000);
+        document.addEventListener('visibilitychange',refresh);
+        return()=>{active=false;abort.abort();clearInterval(timer);document.removeEventListener('visibilitychange',refresh);};
+    },[]);
+    if(!status||playing)return null;
+    const update=clientRelease.protocol<status.minimumProtocol||(clientRelease.platform==='android'&&clientRelease.build<status.minimumAndroidBuild);
+    const announcement=status.announcement[lang]??status.announcement.en??status.announcement.ja;
+    const message=status.maintenance?serviceText(lang,'maintenance'):update?serviceText(lang,'update'):dismissed!==status.revision&&typeof announcement==='string'?announcement:null;
+    if(!message)return null;
+    const dismiss=()=>{setDismissed(status.revision);try{sessionStorage.setItem('qg_notice_seen',status.revision);}catch{/* Keep memory state. */}};
+    return <aside role="status" className="fixed top-0 inset-x-0 z-[150] flex items-center justify-center gap-3 border-b border-[#B39A62]/50 bg-[#211E18] px-4 py-3 text-sm text-[#E8E2D7] shadow-xl">
+        <p className="max-w-2xl">{message}</p>
+        {update&&!status.maintenance&&(clientRelease.platform==='android'?<a className="min-h-11 p-3 underline" href="https://play.google.com/store/apps/details?id=com.qgambit.app" target="_blank" rel="noopener noreferrer">{serviceText(lang,'action')}</a>:<button type="button" className="min-h-11 p-3 underline" onClick={()=>window.location.reload()}>{serviceText(lang,'action')}</button>)}
+        {!status.maintenance&&!update&&<button type="button" aria-label={matchText(lang,'閉じる','Close')} className="min-h-11 min-w-11 p-3" onClick={dismiss}>×</button>}
+    </aside>;
 }

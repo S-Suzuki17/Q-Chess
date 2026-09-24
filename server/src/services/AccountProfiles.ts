@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { permittedAccountName } from './AccountNamePolicy';
 
 export const ACCOUNT_PROFILE_COLUMNS = 'id,name,rating,rating_10s,rating_3m,rating_10m,avatar_url';
 export const FRIEND_COLUMNS = 'id,user_id,friend_id,status,created_at';
@@ -11,7 +12,7 @@ export function parseDisplayName(value: unknown): string | null {
     if (typeof value !== 'string') return null;
     const name = value.normalize('NFC').trim();
     // Preserve international names; reject control/bidi characters and invisible-only names.
-    return name.length > 0 && name.length <= 15 && !/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u.test(name) && /[\p{L}\p{N}\p{S}]/u.test(name) ? name : null;
+    return name.length > 0 && name.length <= 15 && !/[\p{Cc}\p{Cf}\p{Zl}\p{Zp}]/u.test(name) && /[\p{L}\p{N}\p{S}]/u.test(name) && permittedAccountName(name) ? name : null;
 }
 export const validAccountFriendId = (id: unknown): id is string => typeof id === 'string' && /^[a-zA-Z0-9_-]{1,128}$/.test(id)
     && !/^(?:guest(?:[-_]|$)|anon(?:ymous)?(?:[-_]|$)|cpu(?:[-_]|$)|ai(?::|$)|supabase-)/i.test(id);

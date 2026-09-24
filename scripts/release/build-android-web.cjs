@@ -2,6 +2,11 @@
 const { loadEnvConfig } = require('@next/env');
 const { spawnSync } = require('node:child_process');
 const path = require('node:path');
+const {readFileSync}=require('node:fs');
+const target=process.argv[3]??'android';
+if(!['android','web'].includes(target))throw new Error('Invalid build target');
+const androidBuild=target==='android'?/\bversionCode\s+(\d+)/.exec(readFileSync('android/app/build.gradle','utf8'))?.[1]:'0';
+if(!androidBuild)throw new Error('Android versionCode is required');
 
 const sourceRoot = process.argv[2];
 if (!sourceRoot) throw new Error('Usage: node scripts/release/build-android-web.cjs <configured-project-directory>');
@@ -23,7 +28,8 @@ const result = spawnSync(process.execPath, [require.resolve('next/dist/bin/next'
     cwd: process.cwd(), stdio: 'inherit',
     env: {
         ...originalEnv, NODE_ENV: 'production', QG_RELEASE_BUILD: '1',
-        NEXT_PUBLIC_APP_TARGET: 'android',
+        NEXT_PUBLIC_APP_TARGET: target,
+        NEXT_PUBLIC_ANDROID_VERSION_CODE: androidBuild,
         NEXT_PUBLIC_FOUNDERS_REWARDS_ENABLED: 'false',
         NEXT_PUBLIC_SUPABASE_URL: url, NEXT_PUBLIC_SUPABASE_ANON_KEY: key,
         NEXT_PUBLIC_SERVER_URL: server,

@@ -1,4 +1,5 @@
 import type {Language} from './dict';
+import {securityPrivacy} from './securityPrivacy';
 const revised:Record<Language,readonly string[]>={
   "en": [
     "Google ads: Advertising and ad-based daily limits are disabled in this release. H5 Games Ads is not activated. If ads are enabled later, required consent and child-audience protections must be in place first.",
@@ -85,4 +86,18 @@ const revised:Record<Language,readonly string[]>={
     "கணக்கு: உள்நுழைவு விவரங்கள், பயனர் ID, பெயர் மற்றும் தேர்ந்தெடுத்த படம் கணக்கு மற்றும் பலர் ஆட்டத்திற்குப் பயன்படும். பொதுப் பெயர், படம் மற்றும் மதிப்பீடு பிறருக்குக் காட்டப்படலாம்."
   ]
 };
-export function privacyReview(lang:Language){const p=revised[lang];return {updated:'2026-09-24',sec3li1:p[0],sec4p:p[1],sec5p:p[2],sec6p:p[3],sec2li1:p[4]};}
+const collection:Record<Language,string>={
+    en:'Optional web analytics and performance tracking are disabled. Hosting and authentication providers may process essential connection and security logs to operate and protect the service. Passwords and access tokens must not be included in diagnostic reports.',
+    ja:'任意のアクセス解析・パフォーマンス追跡は停止しています。ホスティング・認証事業者はサービスの運用と保護のため、必要な接続・セキュリティログを処理する場合があります。診断の報告にパスワードやアクセストークンを含めないでください。',
+    zh:'可选网站分析和性能跟踪已停用。托管与认证服务商可能为运行及保护服务处理必要的连接和安全日志。诊断报告中请勿包含密码或访问令牌。',
+    ru:'Необязательная веб-аналитика и отслеживание производительности отключены. Хостинг и провайдеры входа могут обрабатывать необходимые журналы соединений и безопасности. Не включайте пароли и токены доступа в отчёты.',
+    fr:'Les analyses web et le suivi de performance facultatifs sont désactivés. Hébergeurs et fournisseurs d’authentification peuvent traiter les journaux de connexion et de sécurité nécessaires. N’incluez aucun mot de passe ni jeton dans les rapports.',
+    de:'Optionale Webanalyse und Leistungsüberwachung sind deaktiviert. Hosting- und Anmeldeanbieter können erforderliche Verbindungs- und Sicherheitsprotokolle verarbeiten. Keine Passwörter oder Zugriffstoken in Diagnoseberichte aufnehmen.',
+    es:'El análisis web y el seguimiento de rendimiento opcionales están desactivados. Los proveedores de alojamiento y autenticación pueden procesar registros esenciales de conexión y seguridad. No incluyas contraseñas ni tokens en informes.',
+    tr:'İsteğe bağlı web analizi ve performans takibi kapalıdır. Barındırma ve kimlik doğrulama sağlayıcıları gerekli bağlantı ve güvenlik kayıtlarını işleyebilir. Raporlara parola veya erişim belirteci eklemeyin.',
+    pl:'Opcjonalna analityka internetowa i śledzenie wydajności są wyłączone. Dostawcy hostingu i logowania mogą przetwarzać niezbędne dzienniki połączeń i bezpieczeństwa. Nie umieszczaj haseł ani tokenów w raportach.',
+    hi:'वैकल्पिक वेब विश्लेषण और प्रदर्शन ट्रैकिंग बंद हैं। होस्टिंग और लॉगिन प्रदाता आवश्यक कनेक्शन और सुरक्षा लॉग संसाधित कर सकते हैं। रिपोर्ट में पासवर्ड या एक्सेस टोकन शामिल न करें।',
+    pt:'A análise web e o rastreamento de desempenho opcionais estão desativados. Provedores de hospedagem e autenticação podem processar registros essenciais de conexão e segurança. Não inclua senhas ou tokens em relatórios.',
+    ta:'விருப்ப இணையப் பகுப்பாய்வும் செயல்திறன் கண்காணிப்பும் முடக்கப்பட்டுள்ளன. சேவையை இயக்கவும் பாதுகாக்கவும் வழங்குநர்கள் தேவையான இணைப்பு மற்றும் பாதுகாப்புப் பதிவுகளைச் செயலாக்கலாம். அறிக்கைகளில் கடவுச்சொல் அல்லது அணுகல் டோக்கனைச் சேர்க்க வேண்டாம்.',
+};
+export function privacyReview(lang:Language){const p=revised[lang];return {updated:'2026-09-25',sec3li1:p[0],sec4p:p[1],sec5p:p[2],sec6p:p[3],sec2li1:p[4],sec2li3:`${collection[lang]} ${securityPrivacy[lang]}`};}

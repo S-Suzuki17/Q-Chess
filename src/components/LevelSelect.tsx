@@ -35,6 +35,7 @@ import { campaignText } from '../locales/campaignText';
 import { useCircuitAccess } from '../hooks/useCircuitAccess';
 import { circuitAccessText } from '../locales/circuitAccessText';
 import { AccountDeletionPanel } from './AccountDeletionPanel';
+import { AccountSecurityPanel } from './AccountSecurityPanel';
 import { AccountRecoveryPanel } from './AccountRecoveryPanel';
 
 const ProfileCosmetics=dynamic(()=>import('./ProfileCosmetics').then(module=>module.ProfileCosmetics),{ssr:false});
@@ -491,12 +492,13 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
                             </div>
 
                             <ProfileCosmetics lang={lang} name={userProfile?.name||user.name} url={displayAvatarUrl} frame={cosmetics.avatar} ratings={user.type==='registered'&&userProfile?.id===user.id?userProfile:undefined}/>
-                            {user.type==='registered'&&!/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(user.id)&&<AccountRecoveryPanel key={user.id} userId={user.id} lang={lang}/>}
+                            {user.type==='registered'&&!/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(user.id)&&<AccountRecoveryPanel key={`recovery-${user.id}`} userId={user.id} lang={lang}/>}
 
                             <button onClick={onBack} className="w-full mt-4 py-4 border border-[#A89C86]/40 hover:border-[#E8E2D7] text-[#A89C86] hover:text-[#E8E2D7] text-xs tracking-widest transition-colors">
                                 {t.logout}
                             </button>
-                            {user.type==='registered'&&<AccountDeletionPanel key={user.id} userId={user.id} lang={lang} onDeleted={onBack}/>}
+                            {user.type==='registered'&&<AccountSecurityPanel key={`security-${user.id}`} userId={user.id} lang={lang} onSignedOut={onBack}/>}
+                            {user.type==='registered'&&<AccountDeletionPanel key={`deletion-${user.id}`} userId={user.id} lang={lang} onDeleted={onBack}/>}
                         </div>
                     </div>
                 </SettingsDialog>

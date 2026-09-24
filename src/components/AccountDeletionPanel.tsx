@@ -25,7 +25,10 @@ export function AccountDeletionPanel({userId,lang,onDeleted}:{userId:string;lang
         inFlight.current=true;setBusy(true);setError('');
         try {
             await deleteOwnAccount(userId);
-            const cleared=clearDeletedAccountDeviceData();campaignStore.resetAfterAccountDeletion();
+            const stillCurrent=mounted.current&&campaignStore.getOwner()===userId;
+            const cleared=clearDeletedAccountDeviceData(userId,stillCurrent);campaignStore.resetAfterAccountDeletion(userId);
+            // A response from an earlier account must not sign out or erase a new owner.
+            if(!stillCurrent)return;
             // Never report the already-completed server deletion as a failure.
             if(!cleared&&mounted.current)setCleanupFailed(true);
             else onDeleted();

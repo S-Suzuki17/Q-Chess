@@ -6,6 +6,9 @@ import { circuitAccess } from '../lib/circuitAccess';
 import { dict, Language } from '../locales/dict';
 import { supabase } from '../lib/supabaseClient';
 import { requestRankedSession } from '../lib/rankedSession';
+import { registerAccount } from '../lib/accountSecurity';
+import { AccountProfileError } from '../lib/accountProfile';
+import { accountSecurityText } from '../locales/accountSecurityText';
 import { AccountRecoveryPanel } from './AccountRecoveryPanel';
 import Link from 'next/link';
 import './title-screen.css';
@@ -55,7 +58,7 @@ export function TitleScreen({ lang, onLogin, initialMode='select' }: TitleScreen
     };
 
     const handleGuest = () => {
-        const guestId = `GUEST-${Math.floor(Math.random() * 10000)}`;
+        const guestId = `GUEST-${crypto.randomUUID()}`;
         onLogin({ id: guestId, name: 'Guest', type: 'guest' });
     };
 
@@ -67,8 +70,8 @@ export function TitleScreen({ lang, onLogin, initialMode='select' }: TitleScreen
             setError(matchText(lang, 'IDとパスワードを入力してください。', 'Please enter ID and Password.'));
             return;
         }
-        if (!/^[a-zA-Z0-9]+$/.test(inputId)) {
-            setError(matchText(lang, 'アカウント名は半角英数のみ使用できます。', 'ID must be alphanumeric.'));
+        if (!/^[a-zA-Z0-9]{3,15}$/.test(inputId)||[...inputPassword].length<12||new TextEncoder().encode(inputPassword).length>72) {
+            setError(accountSecurityText(lang,'rules'));
             return;
         }
 
@@ -77,22 +80,13 @@ export function TitleScreen({ lang, onLogin, initialMode='select' }: TitleScreen
         loginRequest.current?.abort();
         const request=new AbortController();loginRequest.current=request;
         try {
-            const { data, error: rpcError } = await supabase.rpc('register_user', {
-                p_id: inputId,
-                p_password: inputPassword
-            });
-            if (rpcError || !data) {
-                setError(matchText(lang, 'このアカウント名は既に使用されています。', 'ID already exists.'));
-                return;
-            }
-            // Registration succeeded even if the game server is temporarily cold.
-            // The history dialog can retry verification without recreating the account.
+            await registerAccount(inputId,inputPassword,request.signal);
             if (!mounted.current || request.signal.aborted) return;
-            await requestRankedSession(inputId, inputPassword, AbortSignal.any([request.signal,AbortSignal.timeout(15000)])).catch(() => {});
+            try{await requestRankedSession(inputId, inputPassword, AbortSignal.any([request.signal,AbortSignal.timeout(15000)]));}
+            catch{if(mounted.current&&!request.signal.aborted){setMode('login');setError(accountSecurityText(lang,'registered'));}return;}
             if(mounted.current && !request.signal.aborted)onLogin({ id: inputId, name: inputId, type: 'registered' },attempt);
         } catch (err) {
-            console.error(err);
-            setError(matchText(lang,'登録に失敗しました','Registration failed.'));
+            if(mounted.current&&!request.signal.aborted)setError(accountSecurityText(lang,err instanceof AccountProfileError&&err.code==='INVALID_REQUEST'?'rules':'failed'));
         } finally {
             if(mounted.current)setLoading(false);
         }
@@ -115,8 +109,7 @@ export function TitleScreen({ lang, onLogin, initialMode='select' }: TitleScreen
             await requestRankedSession(inputId, inputPassword, AbortSignal.any([request.signal,AbortSignal.timeout(30000)]));
             if(mounted.current && !request.signal.aborted)onLogin({ id: inputId, name: inputId, type: 'registered' },attempt);
         } catch (err) {
-            console.error(err);
-            setError(matchText(lang,'ログインに失敗しました','Login failed.'));
+            if(mounted.current&&!request.signal.aborted)setError(matchText(lang,'ログインに失敗しました','Login failed.'));
         } finally {
             if(mounted.current)setLoading(false);
         }
@@ -153,6 +146,9 @@ export function TitleScreen({ lang, onLogin, initialMode='select' }: TitleScreen
                                 type="text" 
                                 placeholder={(t as any).enterName || "USERNAME"}
                                 value={inputId}
+                                maxLength={mode==='register'?15:128}
+                                autoComplete="username"
+                                aria-label={t.enterName||'ID'}
                                 onChange={e => setInputId(e.target.value)}
                                 className="w-full bg-[#11100E] border border-[#A89C86]/30 p-3 text-[#E8E2D7] focus:outline-none focus:border-[#B39A62] text-sm tracking-widest placeholder:text-[#A89C86]/30"
                                 autoFocus
@@ -162,12 +158,15 @@ export function TitleScreen({ lang, onLogin, initialMode='select' }: TitleScreen
                                 type="password" 
                                 placeholder={(t as any).password || "PASSWORD"}
                                 value={inputPassword}
+                                autoComplete={mode==='register'?'new-password':'current-password'}
+                                aria-label={t.password||'Password'}
                                 onChange={e => setInputPassword(e.target.value)}
                                 className="w-full bg-[#11100E] border border-[#A89C86]/30 p-3 text-[#E8E2D7] focus:outline-none focus:border-[#B39A62] text-sm tracking-widest placeholder:text-[#A89C86]/30"
                                 disabled={loading}
                             />
                         </div>
-                        {error && <p className="text-red-400 text-sm text-center bg-red-950/50 p-2 border border-red-900/50">{error}</p>}
+                        {mode==='register'&&<p className="text-sm text-[#A89C86]">{accountSecurityText(lang,'rules')}</p>}
+                        {error && <p role="alert" className="text-red-400 text-sm text-center bg-red-950/50 p-2 border border-red-900/50">{error}</p>}
                         
                         <button type="submit" disabled={loading} className="w-full py-3 bg-[#B39A62] hover:bg-[#D0C8B6] text-[#11100E] font-bold tracking-widest transition-colors mt-2">
                             {loading ? "..." : (mode === "register" ? ((t as any)?.submit || "SUBMIT") : ((t as any)?.login || "SIGN IN"))}

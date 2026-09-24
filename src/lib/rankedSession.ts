@@ -1,3 +1,4 @@
+import {clientReleaseHeaders} from './clientRelease';
 export const RANKED_SESSION_EVENT = 'qg-ranked-session-change';
 const STORAGE_KEY = 'qg_ranked_session_v1';
 let generation = 0;
@@ -50,7 +51,7 @@ export async function requestRankedSession(username: string, password: string, s
         throw new Error('Ranked login requires a secure connection');
     }
     const response = await fetch(endpoint, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json',...clientReleaseHeaders() },
         body: JSON.stringify({ username, password }), signal,
         credentials: 'omit', cache: 'no-store', redirect: 'error',
     });

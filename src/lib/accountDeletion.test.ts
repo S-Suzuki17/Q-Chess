@@ -85,4 +85,10 @@ describe('account erasure client boundary', () => {
         sessionStorage.setItem('qg_account_deletion_v1', saved); fetcher.mockResolvedValue(response({ phase: 'completed' }));
         await expect(deleteOwnAccount('Alice')).resolves.toBeUndefined();
     });
+    it('limits late deletion cleanup to the deleted owner instead of a newly signed-in account',()=>{
+        localStorage.setItem('qg_campaign_v2:Alice','old');localStorage.setItem('qg_campaign_v2:Alice:dirty','1');
+        localStorage.setItem('qg_campaign_v2:Bob','new');localStorage.setItem('qg_last_user','Bob');
+        expect(clearDeletedAccountDeviceData('Alice',false)).toBe(true);
+        expect(localStorage.getItem('qg_campaign_v2:Alice')).toBeNull();expect(localStorage.getItem('qg_campaign_v2:Bob')).toBe('new');expect(localStorage.getItem('qg_last_user')).toBe('Bob');
+    });
 });

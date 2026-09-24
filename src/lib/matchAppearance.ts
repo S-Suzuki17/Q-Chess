@@ -1,4 +1,5 @@
 import { CAMPAIGN_STORAGE_KEY, emptyCampaign, parseCampaign, type CampaignProgress } from '../config/campaign';
+import {campaignStore} from './campaignStore';
 
 export type MatchAppearance = Readonly<Pick<CampaignProgress,'board'|'piece'|'effect'|'avatar'|'music'>>;
 
@@ -10,6 +11,6 @@ export function captureMatchAppearance(progress:CampaignProgress):MatchAppearanc
 
 export function initialMatchAppearance(snapshot:{loaded:boolean;progress:CampaignProgress},readStorage:()=>Pick<Storage,'getItem'>):MatchAppearance {
     if(snapshot.loaded)return captureMatchAppearance(snapshot.progress);
-    try { return captureMatchAppearance(parseCampaign(readStorage().getItem(CAMPAIGN_STORAGE_KEY))); }
+    try { return captureMatchAppearance(parseCampaign(readStorage().getItem(campaignStore.getStorageKey()))); }
     catch { return captureMatchAppearance(emptyCampaign()); }
 }
