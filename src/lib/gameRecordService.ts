@@ -2,7 +2,7 @@
 
 import { supabase } from './supabaseClient';
 import { PieceType } from '../config/gameConfig';
-import { INITIAL_RATING } from '../config/rating';
+import { ensureOwnProfile, readOwnFriends, changeOwnFriend } from './accountProfile';
 
 export const PUBLIC_PROFILE_COLUMNS = 'id,name,rating,created_at,rating_10s,rating_3m,rating_10m,avatar_url';
 
@@ -115,68 +115,29 @@ export async function ensureProfile(id: string, name: string): Promise<Profile |
     }
     if (existing) return existing;
     
-    const { data, error } = await supabase
-        .from('profiles')
-        .insert({ id, name, rating: INITIAL_RATING, rating_10s: INITIAL_RATING, rating_3m: INITIAL_RATING, rating_10m: INITIAL_RATING })
-        .select(PUBLIC_PROFILE_COLUMNS)
-        .single();
-        
-    if (error) {
-        // Another tab may have created it between the read and insert.
-        if (error.code === '23505') {
-            const { data: profile } = await supabase.from('profiles')
-                .select(PUBLIC_PROFILE_COLUMNS).eq('id', id).maybeSingle();
-            return profile;
-        }
-        console.error('Failed to create profile:', error);
-        return null;
-    }
-    return data;
+    try { return await ensureOwnProfile(id, name); }
+    catch { return null; }
 }
 
 // ─── Friend System ───
 
 export async function sendFriendRequest(userId: string, friendId: string): Promise<boolean> {
     if(!/^[a-zA-Z0-9_-]{1,128}$/.test(userId)||!/^[a-zA-Z0-9_-]{1,128}$/.test(friendId)||userId===friendId) return false;
-    const { error } = await supabase
-        .from('friends')
-        .insert({ user_id: userId, friend_id: friendId, status: 'pending' });
-    if (error) {
-        console.error('Error sending friend request:', error);
-        return false;
-    }
-    return true;
+    return changeOwnFriend(userId, friendId, 'request');
 }
 
 export async function acceptFriendRequest(userId: string, friendId: string): Promise<boolean> {
-    const { data,error } = await supabase
-        .from('friends')
-        .update({ status: 'accepted' })
-        .match({ user_id: friendId, friend_id: userId, status: 'pending' }).select('id');
-    // Both directions are already queried. Never create a second friendship.
-    return !error&&!!data?.length;
+    return changeOwnFriend(userId, friendId, 'accept');
 }
 
 export async function removeFriend(userId: string, friendId: string): Promise<boolean> {
     if(!/^[a-zA-Z0-9_-]{1,128}$/.test(userId)||!/^[a-zA-Z0-9_-]{1,128}$/.test(friendId)) return false;
-    const { data,error } = await supabase
-        .from('friends')
-        .delete()
-        .or(`and(user_id.eq.${userId},friend_id.eq.${friendId}),and(user_id.eq.${friendId},friend_id.eq.${userId})`).select('id');
-    return !error&&!!data?.length;
+    return changeOwnFriend(userId, friendId, 'remove');
 }
 
 export async function getFriends(userId: string): Promise<Friend[]> {
     if(!/^[a-zA-Z0-9_-]{1,128}$/.test(userId)) throw new Error('Invalid friend directory identity');
-    const { data, error } = await supabase
-        .from('friends')
-        .select('id,user_id,friend_id,status,created_at')
-        .or(`user_id.eq.${userId},friend_id.eq.${userId}`);
-    if (error) {
-        console.error('Error fetching friends:', error);
-        throw new Error('Friend directory unavailable');
-    }
-    return data || [];
+    return readOwnFriends(userId);
 }
 
 // ─── Active Matches (Spectator) ───

@@ -60,6 +60,72 @@ public class AndroidSmokeTest {
         waitFor("!!(" + match + ")", 10000);
         js("(" + match + ").click();true");
     }
+    private void input(String selector, String value) throws Exception {
+        waitFor("!!document.querySelector("+org.json.JSONObject.quote(selector)+")",10000);
+        js("(()=>{const e=document.querySelector("+org.json.JSONObject.quote(selector)+");Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(e,"+org.json.JSONObject.quote(value)+");e.dispatchEvent(new Event('input',{bubbles:true}));return true;})()");
+    }
+
+    @Test public void authenticatedProfileAndFriendsUseApiWithoutProductionWrites() throws Exception {
+        // Mocks exist only inside this isolated QA WebView. No real login, database
+        // mutation, account creation or friendship is sent to production.
+        js("""
+            (()=>{
+              const nativeFetch=window.fetch.bind(window);
+              window.__qaProfile={id:'QAOwner',name:'QAOwner',rating:1000,rating_10s:1010,rating_3m:1020,rating_10m:1030};
+              window.__qaAccountCalls=[];window.__qaRenameStatus=200;
+              window.fetch=async(input,options={})=>{
+                const url=new URL(typeof input==='string'?input:input.url||String(input),location.href);
+                if(url.origin===location.origin)return nativeFetch(input,options);
+                const reply=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:{'Content-Type':'application/json'}});
+                const body=typeof options.body==='string'?JSON.parse(options.body):{};
+                if(url.pathname==='/auth/ranked-session')return reply({userId:'QAOwner',token:'qa-proof-not-valid-in-production',expiresAt:Date.now()+3600000});
+                if(url.pathname==='/account/profile/name'){
+                  window.__qaAccountCalls.push({path:url.pathname,body});
+                  if(window.__qaRenameStatus!==200)return reply({code:'AUTH_REQUIRED'},window.__qaRenameStatus);
+                  window.__qaProfile={...window.__qaProfile,name:body.name};return reply({userId:'QAOwner',profile:window.__qaProfile});
+                }
+                if(url.pathname==='/account/friends'){
+                  window.__qaAccountCalls.push({path:url.pathname,body});
+                  return reply(options.method==='POST'?{userId:'QAOwner',changed:true}:{userId:'QAOwner',friends:[{id:'qa-row',user_id:'QAOwner',friend_id:'QAFriend',status:'accepted',created_at:'2026-01-01T00:00:00Z'}]});
+                }
+                if(url.pathname==='/rest/v1/profiles'){
+                  if(url.searchParams.get('id')?.startsWith('in.'))return reply([{id:'QAFriend',name:'QA Friend',rating:1200,rating_10s:1210,rating_3m:1220,rating_10m:1230}]);
+                  return reply(window.__qaProfile);
+                }
+                if(url.pathname==='/game-stats')return reply({stats:{totalGames:0,wins:0,losses:0,draws:0,whiteGames:0,whiteWins:0,blackGames:0,blackWins:0}});
+                if(url.pathname.endsWith('/capabilities'))return reply({available:false});
+                if(url.pathname==='/game-records')return reply({records:[]});
+                window.__qaAccountCalls.push({path:url.pathname,method:options.method||'GET'});
+                return reply({code:'QA_NETWORK_BLOCKED'},503);
+              };
+              // Prevent even fake presence identities reaching the real Realtime service.
+              window.WebSocket=class extends EventTarget {static CONNECTING=0;static OPEN=1;static CLOSING=2;static CLOSED=3;readyState=3;close(){}send(){} };
+              return true;
+            })()
+            """);
+        click(".title-auth-actions button");
+        input("form input[type=text]","QAOwner");input("form input[type=password]","qa-local-fixture");
+        click("form button[type=submit]");
+        waitFor("!!document.querySelector('[data-screen=level_select]')",10000);
+        button("⚙️ Settings");click("[data-settings-panel=account]");
+        button("EDIT");input("input[maxlength='15']","QA Renamed");button("SAVE");
+        waitFor("!document.querySelector('input[maxlength=\"15\"]')&&document.body.innerText.includes('QA Renamed')",10000);
+        assertEquals("true",js("window.__qaAccountCalls.some(c=>c.path==='/account/profile/name'&&JSON.stringify(c.body)===JSON.stringify({name:'QA Renamed'}))"));
+        // A failed save must leave the draft editable instead of closing/reloading.
+        js("window.__qaRenameStatus=401;true");button("EDIT");input("input[maxlength='15']","Keep Draft");button("SAVE");
+        waitFor("document.body.innerText.includes('Your session has expired')",10000);
+        assertEquals("true",js("document.querySelector('input[maxlength=\"15\"]')?.value==='Keep Draft'"));
+        screenshot("07-profile-save-and-expiry");
+        js("document.querySelector('dialog[open]').dispatchEvent(new Event('cancel',{cancelable:true}));true");
+        button("⚙️ Settings");click("[data-settings-panel=friends]");
+        waitFor("!!document.querySelector('[data-friend-id=QAFriend]')",10000);
+        assertEquals("true",js("[...document.querySelectorAll('.friend-ratings dd')].map(e=>e.textContent).join(',')==='1210,1220,1230'"));
+        input("#friend-id","QAOther");click(".friend-add button[type=submit]");
+        waitFor("window.__qaAccountCalls.some(c=>c.path==='/account/friends'&&c.body.friendId==='QAOther'&&c.body.action==='request')",10000);
+        assertEquals("true",js("window.__qaAccountCalls.every(c=>!c.path.startsWith('/rest/v1/friends')&&!(c.path==='/rest/v1/profiles'&&c.method==='PATCH'))"));
+        screenshot("08-friend-api-ratings");
+        System.out.println("QG_QA_PASS authenticated API payloads; saved name; expiry draft preserved; friend ratings; no direct DB writes (all backend responses mocked locally)");
+    }
     private void screenshot(String name) throws Exception {
         // DOM readiness precedes Android's composited frame; do not capture the
         // previous screen when a dialog has just opened.

@@ -22,6 +22,8 @@ import { replayText } from '../locales/replayText';
 import { soundManager } from '../lib/SoundService';
 import { MATCHMAKING_MUSIC_URL } from '../config/musicTracks';
 import { FriendsMenu } from './FriendsMenu';
+import { AccountProfileError, renameOwnProfile } from '../lib/accountProfile';
+import { accountProfileText } from '../locales/accountProfileText';
 import { SettingsDialog } from './SettingsDialog';
 import { formatFriendRating } from '../lib/friendDirectory';
 import { LiveMatchesMenu } from './LiveMatchesMenu';
@@ -48,7 +50,7 @@ interface LevelSelectProps {
     onReplay?: (record: GameRecord) => void;
     onBack: () => void;
     onCampaign?:()=>void;
-    onProfileUpdated?:(profile:{id:string;avatar_url:string})=>void;
+    onProfileUpdated?:(profile:{id:string;avatar_url?:string;name?:string})=>void;
 }
 
 export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobalMatch, onReplay, onBack, onCampaign,settingsPanel,onCloseSettingsPanel,onProfileUpdated }: LevelSelectProps) {
@@ -85,6 +87,9 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
     const [isEditingName, setIsEditingName] = React.useState(false);
     const [newName, setNewName] = React.useState('');
     const [nameLoading, setNameLoading] = React.useState(false);
+    const [nameError, setNameError] = React.useState<string|null>(null);
+    const nameRequest = React.useRef(false);
+    React.useEffect(()=>{setNameError(null);setIsEditingName(false);},[user.id]);
     const [showIconEditor,setShowIconEditor]=React.useState(false);
     const [avatarOverride,setAvatarOverride]=React.useState<{userId:string;url:string}|null>(null);
     const displayAvatarUrl=avatarOverride?.userId===user.id?avatarOverride.url:(userProfile?.id===user.id?userProfile.avatar_url:undefined)||user.avatar_url;
@@ -98,18 +103,24 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
     };
 
     const handleUpdateName = async () => {
+        if (nameRequest.current) return;
         if (!newName.trim() || newName.trim().length > 15) {
-            alert(matchText(lang, '名前は1〜15文字で入力してください。', 'Name must be between 1 and 15 characters.'));
+            setNameError(accountProfileText(lang,'name'));
             return;
         }
+        nameRequest.current = true;
+        setNameError(null);
         setNameLoading(true);
         try {
-            const { error } = await supabase.from('profiles').update({ name: newName.trim() }).eq('id', user.id);
-            if (error) throw error;
-            window.location.reload();
+            const profile = await renameOwnProfile(user.id, newName.trim());
+            if (historyIdentity.current !== user.id) return;
+            setUserProfile(profile);
+            onProfileUpdated?.({id:user.id,name:profile.name});
+            setIsEditingName(false);
         } catch (e) {
-            alert('Error updating name');
+            if (historyIdentity.current === user.id) setNameError(accountProfileText(lang,e instanceof AccountProfileError&&e.code==='AUTH_REQUIRED'?'auth':e instanceof AccountProfileError&&e.code==='INVALID_REQUEST'?'name':'failed'));
         } finally {
+            nameRequest.current = false;
             setNameLoading(false);
         }
     };
@@ -163,13 +174,13 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
 
     const refreshUserProfile = React.useCallback(async () => {
         const { data, error } = await supabase.from('profiles').select(PUBLIC_PROFILE_COLUMNS).eq('id', user.id).maybeSingle();
-        if (error) return;
+        if (error || historyIdentity.current !== user.id) return;
         if (data) {
             setUserProfile(data as Profile);
         } else {
             const { ensureProfile } = await import('../lib/gameRecordService');
             const p = await ensureProfile(user.id, user.name);
-            if (p) setUserProfile(p);
+            if (p && historyIdentity.current === user.id) setUserProfile(p);
         }
     }, [user.id, user.name]);
 
@@ -439,6 +450,9 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
                                         {isEditingName ? (
                                             <input 
                                                 type="text" 
+                                                maxLength={15}
+                                                aria-label={t.enterName}
+                                                disabled={nameLoading}
                                                 value={newName} 
                                                 onChange={e => setNewName(e.target.value)} 
                                                 className="bg-[#24211D] border border-[#A89C86]/50 p-1 text-sm text-[#E8E2D7] w-32 outline-none focus:border-[#B39A62]" 
@@ -446,14 +460,15 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
                                         ) : (
                                             <span className="text-xl font-serif tracking-wider">{userProfile?.name || user.name}</span>
                                         )}
-                                        <button onClick={() => {
-                                            if (isEditingName) { handleUpdateName(); setIsEditingName(false); } 
-                                            else { setIsEditingName(true); setNewName(userProfile?.name || user.name); }
+                                        <button disabled={nameLoading||user.type!=='registered'} onClick={() => {
+                                            if (isEditingName) { void handleUpdateName(); }
+                                            else { setNameError(null);setIsEditingName(true); setNewName(userProfile?.name || user.name); }
                                         }} className="text-[10px] text-[#A89C86] hover:text-[#B39A62] ml-2 tracking-widest">
                                             {isEditingName ? (t as any).save : (t as any).edit}
                                         </button>
                                     </div>
                                     <p className="text-[10px] text-[#A89C86] font-mono mt-1">ID: {user.id}</p>
+                                    {nameError&&<p role="alert" className="text-sm text-red-300 mt-2">{nameError}</p>}
                                 </div>
                             </div>
 

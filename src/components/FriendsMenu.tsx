@@ -6,6 +6,8 @@ import { sendFriendRequest,acceptFriendRequest,removeFriend,type Friend,type Pro
 import { getFriendDirectory,formatFriendRating,validFriendId } from '../lib/friendDirectory';
 import { dict,type Language } from '../locales/dict';
 import { friendsText } from '../locales/friendsText';
+import { AccountProfileError } from '../lib/accountProfile';
+import { accountProfileText } from '../locales/accountProfileText';
 import { useRealtimeRefresh } from '../hooks/useRealtimeRefresh';
 import { SettingsDialog } from './SettingsDialog';
 import './friends.css';
@@ -16,6 +18,7 @@ export function FriendsMenu({user,lang,onlineUsers,onClose}:FriendsMenuProps) {
     const [friends,setFriends]=useState<Friend[]>([]);
     const [profiles,setProfiles]=useState<Record<string,Profile>>({});
     const [loading,setLoading]=useState(true),[error,setError]=useState(false),[partial,setPartial]=useState(false);
+    const [authError,setAuthError]=useState(false);
     const [searchId,setSearchId]=useState(''),[msg,setMsg]=useState(''),[busy,setBusy]=useState(false);
     const [removeId,setRemoveId]=useState<string|null>(null);
     const request=useRef(0),acting=useRef(false);
@@ -27,20 +30,21 @@ export function FriendsMenu({user,lang,onlineUsers,onClose}:FriendsMenuProps) {
         try {
             const result=await getFriendDirectory(user.id);
             if(serial!==request.current) return;
-            setFriends(result.friends);setProfiles(result.profiles);setPartial(result.profilesUnavailable);setError(false);
-        } catch {
-            if(serial===request.current) setError(true);
+            setFriends(result.friends);setProfiles(result.profiles);setPartial(result.profilesUnavailable);setError(false);setAuthError(false);
+        } catch (error) {
+            if(serial===request.current) {setError(true);setAuthError(error instanceof AccountProfileError&&error.code==='AUTH_REQUIRED');}
         } finally {if(serial===request.current) setLoading(false);}
     },[user.id,registered]);
     useEffect(()=>{void loadFriends();return()=>{request.current++;};},[loadFriends]);
-    useRealtimeRefresh(['friends','profiles'],loadFriends,registered);
+    // Private friendship rows now come only from the authenticated API.
+    useRealtimeRefresh([],loadFriends,registered);
     const run=async(operation:()=>Promise<boolean>,success?:()=>void)=>{
         if(acting.current) return;
         acting.current=true;setBusy(true);setMsg('');
         try {
             if(await operation()) {success?.();await loadFriends();}
             else setMsg(f('actionError'));
-        } catch {setMsg(f('actionError'));}
+        } catch (error) {setMsg(error instanceof AccountProfileError&&error.code==='AUTH_REQUIRED'?accountProfileText(lang,'auth'):f('actionError'));}
         finally {acting.current=false;setBusy(false);}
     };
     const send=()=>{
@@ -64,7 +68,7 @@ export function FriendsMenu({user,lang,onlineUsers,onClose}:FriendsMenuProps) {
                     <button type="submit" disabled={busy||loading||error||!searchId.trim()}>{matchText(lang,'送信','Send')}</button></div>
                 </form>
                 {msg&&<p className="friend-notice" role="status">{msg}</p>}
-                {error&&<div className="friend-error" role="alert"><p>{f('loadError')}</p><button disabled={loading} onClick={()=>void loadFriends()}>{f('retry')}</button></div>}
+                {error&&<div className="friend-error" role="alert"><p>{authError?accountProfileText(lang,'auth'):f('loadError')}</p><button disabled={loading} onClick={()=>void loadFriends()}>{f('retry')}</button></div>}
                 {partial&&!error&&<p className="friend-notice" role="status">{f('profileError')}</p>}
                 {received.length>0&&<section className="friend-group"><h3>{matchText(lang,'友達申請','Friend Requests')} · {received.length}</h3>
                     {received.map(row=><article className="friend-request" key={row.id}><strong>{name(row.user_id)}</strong><div>

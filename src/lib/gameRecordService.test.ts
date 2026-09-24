@@ -1,5 +1,6 @@
 import { beforeEach, expect, it, vi } from 'vitest';
-const mocks = vi.hoisted(() => ({ read: vi.fn(), insert: vi.fn(), single: vi.fn() }));
+const mocks = vi.hoisted(() => ({ read: vi.fn(), insert: vi.fn(), single: vi.fn(), ensure:vi.fn() }));
+vi.mock('./accountProfile',()=>({ensureOwnProfile:mocks.ensure}));
 vi.mock('./supabaseClient', () => ({ supabase: { from: () => ({
     select: () => ({ eq: () => ({ maybeSingle: mocks.read }) }),
     insert: mocks.insert,
@@ -8,6 +9,7 @@ import { ensureProfile } from './gameRecordService';
 beforeEach(() => {
     vi.clearAllMocks();
     mocks.insert.mockReturnValue({ select: () => ({ single: mocks.single }) });
+    mocks.ensure.mockReset();
     vi.spyOn(console, 'error').mockImplementation(() => {});
 });
 it('does not create a profile when its lookup fails', async () => {
@@ -23,14 +25,14 @@ it('preserves an existing profile and rating', async () => {
 });
 it('creates only after a successful empty lookup', async () => {
     mocks.read.mockResolvedValue({ data: null, error: null });
-    mocks.single.mockResolvedValue({ data: { id: 'id' }, error: null });
+    mocks.ensure.mockResolvedValue({id:'id'});
     expect(await ensureProfile('id', 'name')).toEqual({ id: 'id' });
-    expect(mocks.insert).toHaveBeenCalledOnce();
-    expect(mocks.insert).toHaveBeenCalledWith({id:'id',name:'name',rating:1000,rating_10s:1000,rating_3m:1000,rating_10m:1000});
+    expect(mocks.insert).not.toHaveBeenCalled();
+    expect(mocks.ensure).toHaveBeenCalledExactlyOnceWith('id','name');
 });
-it('reads the profile created by a competing tab without overwriting it', async () => {
-    mocks.read.mockResolvedValueOnce({ data: null, error: null })
-        .mockResolvedValueOnce({ data: { id: 'id', rating: 2400 }, error: null });
-    mocks.single.mockResolvedValue({ data: null, error: { code: '23505' } });
-    expect(await ensureProfile('id', 'name')).toEqual({ id: 'id', rating: 2400 });
+it('does not fall back to a direct insert when authenticated creation fails', async () => {
+    mocks.read.mockResolvedValueOnce({ data: null, error: null });
+    mocks.ensure.mockRejectedValue(new Error('AUTH_REQUIRED'));
+    expect(await ensureProfile('id', 'name')).toBeNull();
+    expect(mocks.insert).not.toHaveBeenCalled();
 });

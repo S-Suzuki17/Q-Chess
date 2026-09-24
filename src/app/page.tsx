@@ -217,10 +217,11 @@ export default function Home() {
         circuitLoginRequested.current=false;
     };
 
-    const handleProfileUpdated = (profile:{id:string;avatar_url:string}) => {
+    const handleProfileUpdated = (profile:{id:string;avatar_url?:string;name?:string}) => {
         if(!user||user.id!==profile.id)return;
-        const next={...user,avatar_url:profile.avatar_url};
-        setUser(current=>current?.id===profile.id?{...current,avatar_url:profile.avatar_url}:current);
+        const changes={...(profile.avatar_url!==undefined?{avatar_url:profile.avatar_url}:{}),...(profile.name!==undefined?{name:profile.name}:{})};
+        const next={...user,...changes};
+        setUser(current=>current?.id===profile.id?{...current,...changes}:current);
         try { localStorage.setItem('qg_last_user',JSON.stringify(next)); } catch { /* Keep the saved server profile in memory. */ }
     };
 
