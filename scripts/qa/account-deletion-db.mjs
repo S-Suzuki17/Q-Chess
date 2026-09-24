@@ -30,6 +30,9 @@ try {
         create table public.ranked_match_settlements(match_id uuid primary key,request_hash bytea,result jsonb);
         create table public.founders_entitlements(user_id text);
         grant select,insert,update,delete on all tables in schema public to service_role;
+        -- Match production private-replay ACLs; a blanket test grant previously
+        -- hid the missing DELETE privilege in the erasure workflow.
+        revoke delete, truncate on public.game_records from service_role;
         insert into public.profiles values('Alice','Alice','a@example.test','hash-a',1080),('Bob','Bob','b@example.test','hash-b',920),('Carol','Carol',null,null,1000);
         insert into public.friends values('Alice','Bob'),('Bob','Alice'),('Bob','Carol');
         insert into public.active_matches values('old','Alice','Bob');
@@ -69,6 +72,13 @@ try {
         await db.exec("delete from storage.objects where owner_id is null");
     });
     await run('erasure removes self, anonymizes opponent result and preserves unrelated data', async () => {
+        await as('service_role', () => assert.rejects(call('erase_account_data', [hash]), /permission denied for table game_records/));
+        assert.equal(await scalar("select count(*) from profiles where id='Alice'"), 1);
+        await db.exec(await readFile('supabase/migrations/20260924145512_account_deletion_service_privileges.sql', 'utf8'));
+        for (const role of ['anon','authenticated']) {
+            assert.equal(await scalar(`select has_table_privilege('${role}','public.game_records','DELETE')`), false);
+        }
+        assert.equal(await scalar("select has_table_privilege('service_role','public.game_records','TRUNCATE')"), false);
         await as('service_role', () => call('erase_account_data', [hash]));
         assert.equal(await scalar("select count(*) from profiles where id='Alice'"), 0);
         assert.equal(await scalar("select rating from profiles where id='Bob'"), 920);

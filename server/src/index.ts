@@ -5,7 +5,7 @@ import cors from 'cors';
 import { GameEngine, Action, ActionPayload } from './game/GameEngine';
 import { MatchmakingService } from './matchmaking/MatchmakingService';
 import { SupabaseService } from './services/SupabaseService';
-import { RankedAuth } from './services/RankedAuth';
+import { RankedAuth, isRankedUserId } from './services/RankedAuth';
 import { RankedRuntime } from './game/RankedRuntime';
 import { createPrivateGameRecordRouter } from './services/PrivateGameRecordRoutes';
 import { createProfileAvatarRouter } from './services/ProfileAvatarRoutes';
@@ -57,6 +57,7 @@ const io = new Server(server, {
 const matchmaking = new MatchmakingService(io);
 const runtime = new RankedRuntime(io,matchmaking,match=>supabaseService.settleRankedMatch(match),undefined,match=>supabaseService.recordUnratedMatch(match));
 const loginAttempts=new Map<string,{count:number;until:number}>();
+let pendingLegacyLogins=0;
 app.post('/auth/ranked-session',async(req,res)=>{
     res.setHeader('Cache-Control','no-store');
     const now=Date.now();
@@ -67,13 +68,31 @@ app.post('/auth/ranked-session',async(req,res)=>{
     const key=`${ip}:${username.slice(0,256)}`;
     const count=loginAttempts.get(key)??{count:0,until:now+60000};
     const total=loginAttempts.get(ip)??{count:0,until:now+60000};
-    if(loginAttempts.size>=10000||count.count>=5||total.count>=100)return res.status(429).json({code:'TRY_LATER'});
+    if(loginAttempts.size>=10000||count.count>=5||total.count>=100){
+        res.setHeader('Retry-After','60');return res.status(429).json({code:'TRY_LATER'});
+    }
     count.count++;total.count++;loginAttempts.set(key,count);loginAttempts.set(ip,total);
-    if(accountGate.blocked(username))return res.status(409).json({code:'ACCOUNT_BUSY'});
-    const session=await rankedAuth.issueLegacySession(username,req.body?.password);
-    if(accountGate.blocked(username)){rankedAuth.revokeUserSessions(username);return res.status(409).json({code:'ACCOUNT_BUSY'});}
-    if(!session)return res.status(401).json({code:'AUTH_FAILED'});
-    return res.json(session);
+    if(!isRankedUserId(username)||typeof req.body?.password!=='string'||!req.body.password.length
+        ||Buffer.byteLength(req.body.password,'utf8')>1024)return res.status(401).json({code:'AUTH_FAILED'});
+    // Bound expensive DB/password work across distinct IDs and connections.
+    // Reject overload with retry guidance instead of an unbounded login queue.
+    if(pendingLegacyLogins>=16){res.setHeader('Retry-After','2');return res.status(503).json({code:'TRY_LATER'});}
+    pendingLegacyLogins++;
+    try {
+        // The durable check survives a server restart; the in-memory gate alone
+        // cannot remember a partially completed account deletion.
+        if(accountGate.blocked(username)||await deletionStore.blocked(username))return res.status(409).json({code:'ACCOUNT_BUSY'});
+        const session=await rankedAuth.issueLegacySession(username,req.body.password);
+        if(accountGate.blocked(username)||await deletionStore.blocked(username)){
+            rankedAuth.revokeUserSessions(username);return res.status(409).json({code:'ACCOUNT_BUSY'});
+        }
+        if(!session)return res.status(401).json({code:'AUTH_FAILED'});
+        return res.json(session);
+    } catch {
+        // No upstream error, submitted password or token reaches logs/clients.
+        rankedAuth.revokeUserSessions(username);
+        res.setHeader('Retry-After','5');return res.status(503).json({code:'UNAVAILABLE'});
+    } finally {pendingLegacyLogins--;}
 });
 app.post('/auth/ranked-session/revoke',(req,res)=>{
     const token=req.headers.authorization?.replace(/^Bearer /,'');

@@ -6,6 +6,7 @@ import { Server as NetServer } from 'node:net';
 const h = vi.hoisted(() => {
     const routes = new Map<string, Function>(), listeners = new Map<string, Function>();
     const sockets = new Map<string, any>(), sessions = new Map<string, any>();
+    const blocked=vi.fn(async()=>false);
     const service = { cleanupOldRecords: vi.fn(), verifyLegacyPassword: vi.fn(), verifyUser: vi.fn(),
         rankedReady: vi.fn(), getMatchRating: vi.fn(), settleRankedMatch: vi.fn(), recordUnratedMatch: vi.fn(), profileAvatarStore: vi.fn(()=>({})), adRewardStore: vi.fn(()=>({})), foundersStore: vi.fn(()=>({})) };
     const mm = { registerSocket: vi.fn((userId, socketId) => sessions.set(userId, { userId, socketId, state: 'IDLE' })),
@@ -14,7 +15,7 @@ const h = vi.hoisted(() => {
     const app = { use: vi.fn(), get: vi.fn(), post: vi.fn((path, handler) => routes.set(path, handler)) };
     const io = { use: vi.fn(), on: vi.fn((event, handler) => listeners.set(event, handler)),
         sockets: { sockets, adapter: { rooms: new Map() } }, to: vi.fn(() => ({ emit: vi.fn() })) };
-    return { routes, listeners, sockets, sessions, service, mm, app, io, json: vi.fn(), listen: vi.fn(), tick: vi.fn() };
+    return { routes, listeners, sockets, sessions, service, blocked, mm, app, io, json: vi.fn(), listen: vi.fn(), tick: vi.fn() };
 });
 vi.mock('express', () => ({ default: Object.assign(() => h.app, { json: h.json }) }));
 vi.mock('http', () => ({ default: { createServer: vi.fn(() => ({ listen: h.listen })) } }));
@@ -66,7 +67,8 @@ beforeEach(async () => {
     h.service.verifyLegacyPassword.mockImplementation(async (id, password) => id === 'Alice' && password === 'correct');
     h.service.verifyUser.mockResolvedValue(null); h.service.rankedReady.mockResolvedValue(true);
     h.service.getMatchRating.mockResolvedValue(1000); h.mm.joinQueue.mockReturnValue({ success: true });
-    (h.service as any).accountDeletionStore = () => ({ blocked: async () => false });
+    h.blocked.mockReset().mockResolvedValue(false);
+    (h.service as any).accountDeletionStore = () => ({ blocked: h.blocked });
     (h.service as any).accountRecoveryStore = () => ({});
     await import('../index');
     expect(h.listen).toHaveBeenCalledTimes(1); expect(h.service.cleanupOldRecords).not.toHaveBeenCalled();
@@ -89,7 +91,38 @@ describe('ranked gateway without network or database side effects', () => {
     });
     it('limits the sixth username attempt before contacting the password verifier', async () => {
         for (let i = 0; i < 5; i++) expect((await login('Alice', 'wrong')).code).toBe(401);
-        expect((await login()).code).toBe(429); expect(h.service.verifyLegacyPassword).toHaveBeenCalledTimes(5);
+        const limited=await login(); expect(limited.code).toBe(429);expect(limited.headers['Retry-After']).toBe('60');
+        expect(h.service.verifyLegacyPassword).toHaveBeenCalledTimes(5);
+    });
+    it('denies a durable pending deletion before password work after a server restart',async()=>{
+        h.blocked.mockResolvedValue(true);
+        expect((await login()).code).toBe(409);
+        expect(h.service.verifyLegacyPassword).not.toHaveBeenCalled();
+    });
+    it('revokes proof issued while a deletion starts during password verification',async()=>{
+        h.blocked.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+        expect((await login()).code).toBe(409);
+        expect(h.service.verifyLegacyPassword).toHaveBeenCalledTimes(1);
+    });
+    it('fails closed without leaking upstream details and releases the admission slot',async()=>{
+        h.blocked.mockRejectedValueOnce(new Error('private upstream detail'));
+        const unavailable=await login();
+        expect(unavailable.code).toBe(503);expect(unavailable.body).toEqual({code:'UNAVAILABLE'});
+        expect(unavailable.headers['Retry-After']).toBe('5');
+        expect((await login()).code).toBe(200);
+    });
+    it('bounds concurrent password checks across accounts and permits retry after completion',async()=>{
+        const finish:Array<(value:boolean)=>void>=[];
+        h.service.verifyLegacyPassword.mockImplementation(()=>new Promise<boolean>(resolve=>finish.push(resolve)));
+        const pending=Array.from({length:16},(_,i)=>login('Player'+i,'wrong','peer'+i));
+        // Each request first awaits the durable deletion lookup.
+        for(let i=0;i<4;i++)await Promise.resolve();
+        expect(finish).toHaveLength(16);
+        const full=await login('Another','wrong','another-peer');
+        expect(full.code).toBe(503);expect(full.headers['Retry-After']).toBe('2');
+        finish.forEach(resolve=>resolve(false));await Promise.all(pending);
+        h.service.verifyLegacyPassword.mockResolvedValue(true);
+        expect((await login('Another','correct','another-peer')).code).toBe(200);
     });
     it('revokes a proof and disconnects only sockets carrying that proof', async () => {
         const proof = (await login()).body.token;
