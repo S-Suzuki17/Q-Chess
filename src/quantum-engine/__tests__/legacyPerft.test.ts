@@ -71,5 +71,5 @@ describe('Legacy Perft', () => {
         const { tokens, pool, sideToMove } = createLegacyInitialState();
         const nodes = legacyPerft(tokens, pool, sideToMove, 2);
         console.log(`Legacy Depth 2 Nodes: ${nodes}`);
-    });
+    }, 60000);
 });

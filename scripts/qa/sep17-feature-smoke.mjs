@@ -9,6 +9,14 @@ await mkdir(output,{recursive:true});
 const browser=await chromium.launch({headless:true});
 const results=[];
 let page;
+async function enterCircuit(page){
+ await page.locator('.lobby-campaign-action').click();
+ await page.locator('.campaign-login-gate .campaign-primary').click();
+ await page.locator('form input[type="text"]').fill('qa-user');
+ await page.locator('form input[type="password"]').fill('fixture-password-not-real');
+ await page.locator('form button[type="submit"]').click();
+ await page.locator('.campaign-screen').waitFor();
+}
 try{
  for(const viewport of [{width:1440,height:1000},{width:360,height:800}]){
   const context=await browser.newContext({viewport,reducedMotion:'reduce'});
@@ -21,6 +29,7 @@ try{
   await context.route('**/*',async route=>{
    const request=route.request(),url=new URL(request.url());
    if(url.origin===new URL(base).origin)return route.continue();
+   if(url.pathname==='/rest/v1/rpc/login_user')return route.fulfill({json:request.postDataJSON()?.p_id==='qa-user'});
    if(url.pathname==='/rest/v1/friends'){
     if(offline)return route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({message:'Offline fixture'})});
     if(request.method()==='PATCH'){accepted=true;return route.fulfill({json:[{id:'incoming'}]});}
@@ -58,7 +67,7 @@ try{
   await page.locator('.friend-error button').click();
   await page.locator('[data-friend-id="friend-a"]').waitFor();
   await page.keyboard.press('Escape');await page.keyboard.press('Escape');
-  await page.locator('.lobby-campaign-action').click();
+  await enterCircuit(page);
   assert.equal(await page.locator('[data-stage]').count(),10);
   assert.match(await page.locator('[data-stage="1"]').innerText(),/10分/);
   assert.match(await page.locator('[data-stage="2"]').innerText(),/3分/);
@@ -102,7 +111,7 @@ try{
   await page.evaluate(()=>{
    localStorage.setItem('qg_campaign_v1',JSON.stringify({version:2,stars:{},ascensions:[],stageStars:Array(100).fill(3),board:'champion-board-reference-neon',piece:'neonglass',effect:'standard',music:'standard',avatar:'avatar-frame-15'}));
   });
-  await page.reload();await page.locator('.lobby-campaign-action').click();
+  await page.reload();await enterCircuit(page);
   await page.locator('.championship-collection select').selectOption('10');
   await page.locator('.championship-collection').scrollIntoViewIfNeeded();
   assert.equal(await page.locator('.championship-reward').count(),10);

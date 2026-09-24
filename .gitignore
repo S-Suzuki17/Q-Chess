@@ -48,3 +48,8 @@ next-env.d.ts
 # Android Keystore
 *.keystore
 *.jks
+
+# Supabase CLI cache (not migrations)
+supabase/.temp/
+
+*.zip

@@ -1,5 +1,5 @@
 const fs = require('fs');
-const content = \import { Token, deduceMoveTypes, isPlayerInCheck, isCheckmate } from './GameEngine';
+const content = `import { Token, deduceMoveTypes, isPlayerInCheck, isCheckmate } from './GameEngine';
 import { IdentityPool } from './IdentityPool';
 import { PieceType } from '../config/gameConfig';
 
@@ -228,5 +228,5 @@ export function calculateDeepMove(level: number, tokens: Token[], pool: Identity
     }
 
     return globalBestMove;
-}\;
+}`;
 fs.writeFileSync('src/lib/ServerAIEngine.ts', content);

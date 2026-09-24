@@ -12,6 +12,7 @@ if (process.env.VERCEL === '1') {
 
 const nextConfig: NextConfig = {
     output: 'export',
+    assetPrefix: './',
     trailingSlash: true,
     images: {
         unoptimized: true,
