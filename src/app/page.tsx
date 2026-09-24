@@ -480,10 +480,17 @@ export default function Home() {
                     </div>
 
                     {/* Footer */}
-                    <footer className="w-full max-w-4xl mt-4 mb-4 text-center text-gray-500 text-xs font-sans relative z-40">
-                        <Link href="/privacy" className="hover:text-[#D4B872] transition-colors relative z-40 cursor-pointer pointer-events-auto">{dict[lang]?.privacyPolicy || 'Privacy Policy'}</Link>
-                        <span className="mx-2">|</span>
-                        <span>&copy; 2026 Q-GAMBIT</span>
+                    <footer className="w-full max-w-4xl mt-12 mb-8 text-center text-gray-500 text-xs font-sans relative z-40">
+                        <div className="flex flex-wrap justify-center gap-4 mb-4">
+                            <Link href="/about" className="hover:text-[#D4B872] transition-colors cursor-pointer pointer-events-auto">About Developer</Link>
+                            <span>|</span>
+                            <Link href="/updates" className="hover:text-[#D4B872] transition-colors cursor-pointer pointer-events-auto">Development Diary & Updates</Link>
+                            <span>|</span>
+                            <Link href="/privacy" className="hover:text-[#D4B872] transition-colors cursor-pointer pointer-events-auto">{dict[lang]?.privacyPolicy || 'Privacy Policy'}</Link>
+                            <span>|</span>
+                            <Link href="/contact" className="hover:text-[#D4B872] transition-colors cursor-pointer pointer-events-auto">Contact Us</Link>
+                        </div>
+                        <div>&copy; 2026 Q-GAMBIT - Quantum Superposition Chess. All rights reserved.</div>
                     </footer>
                 </>
             )}
