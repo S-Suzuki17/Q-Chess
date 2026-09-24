@@ -39,7 +39,7 @@ Before the save report, Codex prepared (but did NOT submit) a new-key form: name
 4. Old-key removal and replacement-key persistence in Supabase are confirmed. Secret creation/entry/confirmation/submission was user-operated. The remaining key is send-only and domain-scoped; never expose it in chat, commands, files or screenshots. Do not acquire account-wide credentials.
 5. Official SMTP settings: host `smtp.resend.com`, port465, username `resend`, password = user-supplied Resend API key. Suggested From: `Q-Gambit <no-reply@auth.q-gambit.com>`; Gmail remains the support contact. Confirm supported Reply-To setting separately.
 6. SMTP is saved and ON. On 2026-09-24 a single `resetPasswordForEmail` delivery test was accepted for the owner's existing Auth account. The user then explicitly reported receiving the email. No production test account or game was created, and no password was changed. The pasted Resend sample/key was not used. Initial sandbox attempts failed before transport; the successful request was not retried. Node25 on Windows asserted during process exit after reporting acceptance; this is not a failed mail send.
-7. Legacy `profiles.email` is not verified, and legacy password accounts are not automatically Supabase Auth password accounts. Secure verification/recovery is now implemented locally; see `account-recovery-status-20260924.md`. It remains disabled and NOT deployed. Do not advertise in-game password reset as live yet.
+7. Legacy `profiles.email` is not verified, and legacy password accounts are not automatically Supabase Auth password accounts. The reviewed game recovery flow is now deployed and enabled; see `account-recovery-status-20260924.md`. Existing users must first verify a recovery email while signed in. No unverified addresses were imported.
 
 ## Existing records preserved
 
@@ -53,4 +53,4 @@ After explicit owner approval on 2026-09-24, the production **Confirm sign up** 
 
 Shared code audit: `commercial-release-audit-20260924.md`.
 Latest local tests:51 targeted unit/route/lifecycle tests;6 loopback online cases;7 SQL deletion cases; typecheck passed after the latest SocketContext fix. Server build passed earlier with no subsequent server-source change. The lifecycle test reproduced stale connection events overwriting SESSION_REPLACED; callbacks now ignore a superseded socket. Native/browser UI remains a separate QA gate.
-No public app deployment or final AAB18. Integration worktree merge remains uncommitted; preserve all existing files.
+Update: shared source `fe8b473` is now public on Web/Render and used for signed AAB18. The merge is committed. Latest release checks are recorded in `release-1.13-code18.md`; earlier counts above are historical, not the final release evidence.

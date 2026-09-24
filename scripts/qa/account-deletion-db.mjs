@@ -41,7 +41,7 @@ try {
         insert into public.founders_entitlements values('Alice'),('Bob');
         insert into storage.objects values('avatars','u/'||encode(sha256('Alice'::bytea),'hex')||'/old.webp',null,null),('avatars','unrelated.webp',null,'Bob');
     `);
-    await db.exec(await readFile('supabase/migrations/20260924114521_self_service_account_deletion.sql', 'utf8'));
+    await db.exec(await readFile('supabase/migrations/20260924140124_self_service_account_deletion.sql', 'utf8'));
     await run('anonymous clients cannot read jobs or invoke deletion', async () => {
         for (const role of ['anon','authenticated']) await as(role, async () => {
             await assert.rejects(db.exec('select * from public.account_deletion_jobs'), /permission denied/);

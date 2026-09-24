@@ -1,7 +1,6 @@
-# Self-service account deletion — implementation in progress
+# Self-service account deletion — released 2026-09-24
 
-2026-09-24 requested for shared Web/Android; local server/client/migration implementation exists, but is NOT deployed.
-Do not build the final versionCode18 AAB until this added scope is verified.
+2026-09-24: shared Web/server source `fe8b473` is deployed; AAB18 is built. Production migration `20260924140124` is applied and the public capability endpoint returns `available:true`. Contact/privacy pages explain the deletion entry point in all12 languages. No actual production account was deleted during verification. See `release-1.13-code18.md` for evidence and remaining wider-audit limitations.
 
 ## Verified baseline
 

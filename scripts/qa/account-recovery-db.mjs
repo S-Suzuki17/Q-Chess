@@ -32,7 +32,7 @@ try{
         insert into profiles values('Alice','Alice','unverified@example.test','old-hash',1200),('Bob','Bob',null,'bob-hash',900);
         insert into auth.users values('${authId}','alice@example.test',now(),null,false),('${otherId}','bob@example.test',null,null,false);
         insert into auth.identities values('${authId}','email'),('${otherId}','email');`);
-    for(const file of ['20260924114521_self_service_account_deletion.sql','20260924131404_verified_account_recovery.sql'])await db.exec(await readFile(resolve('supabase/migrations',file),'utf8'));
+    for(const file of ['20260924140124_self_service_account_deletion.sql','20260924140234_verified_account_recovery.sql'])await db.exec(await readFile(resolve('supabase/migrations',file),'utf8'));
     await run('old unverified email is never auto-enrolled',async()=>{
         assert.equal(await scalar('select count(*) from account_recovery_emails'),0);
         await as('service_role',()=>assert.rejects(call('reset_legacy_account_password',['Alice','unverified@example.test',authId,'new-password-123']),/unavailable/i));

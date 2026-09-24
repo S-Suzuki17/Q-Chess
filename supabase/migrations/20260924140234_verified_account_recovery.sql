@@ -1,3 +1,4 @@
+-- Filename aligned with the version assigned by the production migration tool.
 begin;
 set local lock_timeout='3s';
 set local statement_timeout='15s';

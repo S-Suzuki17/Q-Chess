@@ -61,6 +61,10 @@ public class AndroidSmokeTest {
         js("(" + match + ").click();true");
     }
     private void screenshot(String name) throws Exception {
+        // DOM readiness precedes Android's composited frame; do not capture the
+        // previous screen when a dialog has just opened.
+        InstrumentationRegistry.getInstrumentation().waitForIdleSync();
+        SystemClock.sleep(350);
         File folder = new File(InstrumentationRegistry.getInstrumentation().getTargetContext().getExternalFilesDir(null), "qa");
         assertTrue(folder.isDirectory() || folder.mkdirs());
         Bitmap image = InstrumentationRegistry.getInstrumentation().getUiAutomation().takeScreenshot();

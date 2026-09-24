@@ -1,4 +1,6 @@
-# Verified email recovery — local implementation, not released
+# Verified email recovery — released 2026-09-24
+
+Current release: Web/Render application source `fe8b473`; signed Android AAB18 generated from the same source. Both public account capability endpoints return HTTP200 with `available:true`. See `release-1.13-code18.md`. This is not completion of the full 40-item audit.
 
 ## Confirmed transport
 
@@ -27,11 +29,11 @@ Supabase custom SMTP → Resend → the owner's existing email inbox was tested 
 ## Activation order / remaining gates
 
 1. **Complete on 2026-09-24 after explicit owner approval:** saved `{{ .Token }}` in both **Confirm sign up** and **Magic link or OTP**. Existing subjects, body text and `{{ .ConfirmationURL }}` links were preserved; Japanese/English code instructions and an anti-sharing/unsolicited-message notice were appended. Both previews showed the original link plus code placeholder, and both saves returned to the disabled Save changes state. Source copies are in `supabase/templates/`. SMTP credentials, users and passwords were not changed, and no additional email was sent. Prior transport receipt is confirmed; delivery/rendering of the newly edited templates is not yet an end-to-end OTP test.
-2. Apply the already-local account deletion migration, then `20260924131404_verified_account_recovery.sql`, using a reviewed release. Neither has been applied to production by this task. Check service-only readiness, privileges and advisors without creating test accounts or deleting production data.
-3. Deploy the reviewed server with `ACCOUNT_RECOVERY_ENABLED=false` first, then verify compatibility. Enable only after both migrations/templates are ready. Do not turn it on against the old database: recovery identity checks deliberately fail closed.
-4. Deploy matching Web/Android client. The current worktree is an unfinished merge; do not push all unrelated changes or reuse the stale Vercel link. Ads/quotas/preregistration distribution stay OFF. AAB18 is still unbuilt.
+2. **Complete after explicit owner approval:** applied account deletion, then verified recovery. Production versions are `20260924140124` and `20260924140234`; local filenames were reconciled to those tool-assigned versions. General client table reads/RPC execution denied; service-role access verified. Deletion jobs and recovery bindings remained zero, existing 32 game records remained unchanged. No production test accounts or deletion calls.
+3. **Complete:** Render saved `ACCOUNT_RECOVERY_ENABLED=true` with Save only after DB/templates were ready; the subsequent Git deployment activated the reviewed server. Both capability endpoints returned `available:true` and health returned200.
+4. **Complete:** merge resolved and shared source published on main. Correct Vercel project is `sotas-projects-3b57e80d/q-chess-w8rg` (do not reuse the stale local CLI account/project link). AAB18 built and verified; Play upload not performed. Ads/quotas/preregistration distribution stay OFF.
 5. End-to-end verification with a user-operated genuine account is needed for the actual OTP/password change. Do not create production test users; do not change the owner's password automatically. Existing passwords remain usable until a reset is explicitly completed.
-6. Keep QUBE release copy accurate: no claim that recovery is already public. Update the public-source diary only when the release work is complete.
+6. **Complete:** QUBE t6 is included in public Web and the public-source copy. No X posting.
 
 ## References
 
