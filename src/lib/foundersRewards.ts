@@ -1,6 +1,7 @@
 import {Capacitor,registerPlugin} from '@capacitor/core';
 import {supabase} from './supabaseClient';
 import {gameServerUrl,readRankedSession} from './rankedSession';
+import {foundersDistributionEnabled} from '../config/appPlatform';
 
 export type FoundersErrorCode='AUTH_REQUIRED'|'NOT_ELIGIBLE'|'ALREADY_LINKED'|'UNAVAILABLE'|'PENDING'|'ANDROID_ONLY';
 export class FoundersClientError extends Error {constructor(public code:FoundersErrorCode){super(code);}}
@@ -8,7 +9,7 @@ export type FoundersStatus={userId:string;enabled:boolean;owned:boolean;delivery
 const PlayRewards=registerPlugin<{restore():Promise<{tokens:string[];pending:boolean}>}>('PlayRewards');
 export const canRestorePlayRewards=()=>Capacitor.isNativePlatform()&&Capacitor.getPlatform()==='android';
 export async function foundersPurchaseAvailable(signal:AbortSignal):Promise<boolean>{
-    if(!canRestorePlayRewards())return false;
+    if(!canRestorePlayRewards()||!foundersDistributionEnabled())return false;
     signal.throwIfAborted();
     const value=await PlayRewards.restore();signal.throwIfAborted();
     return Array.isArray(value?.tokens)&&value.tokens.length>0&&value.tokens.length<=8;
@@ -39,10 +40,15 @@ async function request(userId:string,signal:AbortSignal,purchaseToken?:string):P
         return {userId,enabled:value.enabled,owned:value.owned,deliveryPending:value.deliveryPending};
     }catch(error){if(signal.aborted)throw signal.reason;if(error instanceof FoundersClientError)throw error;throw new FoundersClientError('UNAVAILABLE');}
 }
-export const readFoundersStatus=(userId:string,signal:AbortSignal)=>request(userId,signal);
+export const readFoundersStatus=async(userId:string,signal:AbortSignal):Promise<FoundersStatus>=>{
+    signal.throwIfAborted();
+    if(!foundersDistributionEnabled())return {userId,enabled:false,owned:false};
+    return request(userId,signal);
+};
 /** Tokens stay in memory; neither localStorage nor analytics receives a receipt. */
 export async function restoreFounders(userId:string,signal:AbortSignal):Promise<FoundersStatus>{
     if(!canRestorePlayRewards())throw new FoundersClientError('ANDROID_ONLY');
+    if(!foundersDistributionEnabled())throw new FoundersClientError('UNAVAILABLE');
     signal.throwIfAborted();
     let purchases:{tokens:string[];pending:boolean};
     try{purchases=await PlayRewards.restore();}catch{throw new FoundersClientError('UNAVAILABLE');}

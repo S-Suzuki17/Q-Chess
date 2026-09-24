@@ -13,29 +13,29 @@ vi.mock('react',()=>({
 }));
 import { useMoveHint } from './useMoveHint';
 const move={fromRow:6,fromCol:4,toRow:4,toCol:4};
-const render=(key='white:0')=>{hooks.cursor=0;return useMoveHint(key);};
+const renderHook=(key='white:0')=>{hooks.cursor=0;return useMoveHint(key);};
 beforeEach(()=>{hooks.cleanups.forEach(cleanup=>cleanup());hooks.slots=[];hooks.cleanups=[];});
 
 it('stores both endpoints on a successful search',async()=>{
-    await render().request(async()=>move);
-    expect(render().hintMove).toEqual(move); expect(render().pending).toBe(false);
+    await renderHook().request(async()=>move);
+    expect(renderHook().hintMove).toEqual(move); expect(renderHook().pending).toBe(false);
 });
 it('aborts a pending worker and rejects its late result when the position changes',async()=>{
     let reply!:(value:typeof move)=>void, signal!:AbortSignal;
-    const pending=render().request(input=>{signal=input;return new Promise(resolve=>{reply=resolve;});});
-    expect(render().pending).toBe(true);
-    expect(render('black:1').hintMove).toBeNull(); expect(signal.aborted).toBe(true);
+    const pending=renderHook().request(input=>{signal=input;return new Promise(resolve=>{reply=resolve;});});
+    expect(renderHook().pending).toBe(true);
+    expect(renderHook('black:1').hintMove).toBeNull(); expect(signal.aborted).toBe(true);
     reply(move); await pending;
-    expect(render('black:1').hintMove).toBeNull(); expect(render('black:1').pending).toBe(false);
+    expect(renderHook('black:1').hintMove).toBeNull(); expect(renderHook('black:1').pending).toBe(false);
 });
 it('closing advice cancels a worker and removes both endpoints',async()=>{
     let reply!:(value:typeof move)=>void;
-    const pending=render().request(()=>new Promise(resolve=>{reply=resolve;}));
-    render().clear(); reply(move); await pending;
-    expect(render().hintMove).toBeNull(); expect(render().pending).toBe(false);
+    const pending=renderHook().request(()=>new Promise(resolve=>{reply=resolve;}));
+    renderHook().clear(); reply(move); await pending;
+    expect(renderHook().hintMove).toBeNull(); expect(renderHook().pending).toBe(false);
 });
 it('reports failures and malformed target coordinates instead of displaying partial advice',async()=>{
-    await render().request(async()=>{throw new Error('worker failed');}); expect(render().failed).toBe(true);
-    await render().request(async()=>({...move,toRow:NaN}));
-    expect(render().hintMove).toBeNull(); expect(render().failed).toBe(true);
+    await renderHook().request(async()=>{throw new Error('worker failed');}); expect(renderHook().failed).toBe(true);
+    await renderHook().request(async()=>({...move,toRow:NaN}));
+    expect(renderHook().hintMove).toBeNull(); expect(renderHook().failed).toBe(true);
 });

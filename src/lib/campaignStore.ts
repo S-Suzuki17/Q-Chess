@@ -27,6 +27,7 @@ export function createCampaignStore(getStorage: () => ProgressStorage) {
         catch { publish({ ...snapshot, loaded: true, storageError: true }); }
     };
     return {
+        resetAfterAccountDeletion:()=>{foundersOwned=false;publish({progress:emptyCampaign(),loaded:true,storageError:false});},
         setFoundersAccess:(owned:boolean)=>{
             if(foundersOwned===(owned===true))return;
             foundersOwned=owned===true;

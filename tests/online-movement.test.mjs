@@ -34,7 +34,8 @@ test('matchmaking preserves authenticated and guest host identities', () => {
       h.React.useEffect = fn => fn();
       const socket = {on: (event, cb) => listeners[event] = cb, emit() {}, off() {}};
       const {useMatchmaking} = load('src/hooks/useMatchmaking.ts', {react: h.React, '../lib/SocketContext': {useSocket: () => ({socket, isConnected: true})}});
-      useMatchmaking({id}); listeners.match_found({hostId: host, joinerId: host === id ? 'opponent' : id, matchId: 'm', timeControl: 600});
+      function TestComponent() { useMatchmaking({id}); return null; }
+      TestComponent(); listeners.match_found({hostId: host, joinerId: host === id ? 'opponent' : id, matchId: 'm', timeControl: 600});
       assert.equal(h.slots[1].myColor, host === id ? 'white' : 'black');
     }
   }
@@ -46,7 +47,7 @@ for (const [role, team, row, target] of [['white', 0, 1, 2], ['black', 1, 6, 5]]
     const Component = load('src/components/OnlineGameBoard.tsx', {
       react: h.React, '../lib/SocketContext': {useSocket: () => ({socket, isConnected: true})},
       '../hooks/useBoardPreferences': {useBoardPreferences: () => ({is2DView:false,setIs2DView(){},boardDesign:'classic',setBoardDesign(){}})},
-      './MatchLayout': {MatchLayout: () => {}},
+      './MatchLayout': {MatchLayout: () => {}}, './MatchResultDialog': {MatchResultDialog: () => {}}, './MatchIntro': {MatchIntro: () => {}}, './MatchResultDialog': {MatchResultDialog: () => {}},
       '../locales/matchText': {matchText: (lang, ja, en) => lang === 'ja' ? ja : en},
       '../locales/dict': {dict: {en: {}, ja: {}}}, './QuantumPieceUI': {QuantumPieceUI: () => {}}, './Board3D': {Board3D: Board}, './Board2D': {Board2D: Board}, './AdBanner': {AdBanner: () => {}},
       uuid: {v4: () => 'test-action'}, '../lib/onlineMovement': load('src/lib/onlineMovement.ts', {}), '../lib/supabaseClient': {supabase: {}},
@@ -94,7 +95,7 @@ for (const [role, team, row, target] of [['white', 0, 1, 2], ['black', 1, 6, 5]]
 }
 test('server accepts alternating white and black opening moves', () => {
   const rules = load('server/src/game/quantumChess.ts', {});
-  const {GameEngine} = load('server/src/game/GameEngine.ts', {'./quantumChess': rules});
+  const {GameEngine} = load('server/src/game/GameEngine.ts', {'./quantumChess': rules, './replayHistory': {}});
   const engine = new GameEngine('m', 'white-user', 'black-user', rules.createInitialBoard());
   for (const [playerId, row, toY] of [['white-user', 1, 2], ['black-user', 6, 5]]) {
     const before = engine.getPublicState(playerId);
@@ -126,7 +127,7 @@ test('online hint geometry matches the server for both teams, captures and moved
 
 test('2D board hides captured pieces and keeps selection and enemy hints', () => {
   const h = hooks(); const Piece = () => {};
-  const {Board2D} = load('src/components/Board2D.tsx', {react: h.React, './QuantumPieceUI': {QuantumPieceUI: Piece}, './HintArrow2D': {HintArrow2D: () => {}}});
+  const {Board2D} = load('src/components/Board2D.tsx', {react: h.React, './QuantumPieceUI': {QuantumPieceUI: Piece}, './HintArrow2D': {HintArrow2D: () => {}}, '../config/campaign': {}});
   const tokens = [{id: 'live', row: 3, col: 3, player: 'black', probabilities: {Knight: 1}}, {id: 'dead', row: 3, col: 3, player: 'white', isCaptured: true, probabilities: {Pawn: 1}}];
   const node = Board2D({tokens, selectedTokenId: 'live', validMoves: [{r: 5, c: 4}], moveHistory: [], showMoveHints: true, currentTurn: 'white', onlineRole: 'black'});
   assert.equal(find(node, n => n.type === Piece && n.props.id === 'dead'), undefined);

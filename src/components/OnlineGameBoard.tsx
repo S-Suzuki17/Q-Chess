@@ -12,7 +12,6 @@ import { MatchResultDialog } from './MatchResultDialog';
 import { MatchIntro } from './MatchIntro';
 import { MatchLayout } from './MatchLayout';
 import { Board2D } from './Board2D';
-import { AdBanner } from './AdBanner';
 import { PieceType } from '../config/gameConfig';
 import { v4 as uuidv4 } from 'uuid';
 import { Token } from '../lib/GameEngine';
@@ -23,6 +22,8 @@ import { cpuOpponent, ratingSettlement, type RatingSettlement } from '../lib/ran
 import { RankedSettlement } from './RankedSettlement';
 import { rankedText, cancelledRankedText } from '../locales/rankedText';
 import { RankedLoginDialog } from './RankedLoginDialog';
+import { soundManager } from '../lib/SoundService';
+import { acceptsOnlineSnapshot, isNewOnlineMove } from '../lib/onlineSnapshot';
 
 export type EmoteType = 'hello' | 'well_played' | 'wow' | 'thinking' | 'resign';
 export const EMOTES: Record<EmoteType, { emoji: string; labelJa: string; labelEn: string }> = {
@@ -158,10 +159,6 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
     // Latency Measurement
 
     useEffect(() => {
-        prevGameStateRef.current = gameState;
-    }, [gameState]);
-
-    useEffect(() => {
         if (!socket || !isConnected) return;
         
         const onPong = (data: { clientTime: number, serverTime: number }) => {
@@ -214,38 +211,12 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
     const [activeEmotes, setActiveEmotes] = useState<{ white: EmoteType | null, black: EmoteType | null }>({ white: null, black: null });
     const emoteTimers = useRef<{ white: NodeJS.Timeout | null, black: NodeJS.Timeout | null }>({ white: null, black: null });
 
-    const pickupSoundRef = useRef<HTMLAudioElement | null>(null);
-    const landingSoundRef = useRef<HTMLAudioElement | null>(null);
-    
-    useEffect(() => {
-        const audio1 = new Audio('/sounds/spo_ge_syogi04.mp3');
-        audio1.preload = 'auto';
-        pickupSoundRef.current = audio1;
-
-        const audio2 = new Audio('/sounds/spo_ge_syogi04.mp3');
-        audio2.preload = 'auto';
-        landingSoundRef.current = audio2;
+    const stopMoveSound = useRef<() => void>(() => {});
+    const playMoveSound = useCallback(() => {
+        stopMoveSound.current();
+        stopMoveSound.current = soundManager.playSE('/sounds/spo_ge_syogi04.mp3');
     }, []);
-
-    const playPickupSound = useCallback(() => {
-        if (pickupSoundRef.current) {
-            pickupSoundRef.current.currentTime = 0; 
-            pickupSoundRef.current.playbackRate = 1.8;
-            pickupSoundRef.current.volume = 0.4;
-            pickupSoundRef.current.play().catch(() => {});
-        }
-    }, []);
-
-    const playLandingSound = useCallback(() => {
-        if (landingSoundRef.current) {
-            landingSoundRef.current.currentTime = 0; 
-            landingSoundRef.current.playbackRate = 0.85 + Math.random() * 0.3;
-            landingSoundRef.current.volume = 1.0;
-            landingSoundRef.current.play().catch(() => {});
-        }
-    }, []);
-    
-    const playMoveSound = playLandingSound;
+    useEffect(() => () => stopMoveSound.current(), []);
 
     const triggerEmote = useCallback((player: 'white' | 'black', emote: EmoteType) => {
         setActiveEmotes(prev => ({ ...prev, [player]: emote }));
@@ -302,16 +273,12 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
             socket.emit('request_sync', { matchId: roomId });
         };
 
-        syncMatch();
-
-        const onMatchStart = (state: any) => {
-            console.log('[OnlineGameBoard] match_start received:', state);
-            setGameState({...state,receivedAt:performance.now()});
-        };
         const onSyncState = (state: any) => {
+            if (!acceptsOnlineSnapshot(roomId, prevGameStateRef.current, state)) return;
+            if (isNewOnlineMove(prevGameStateRef.current, state)) playMoveSound();
+            // Update synchronously: duplicate events can arrive before React renders.
+            prevGameStateRef.current = state;
             setGameState({...state, receivedAt: performance.now()});
-            playPickupSound();
-        setTimeout(() => playLandingSound(), 400);
             if (disconnectTimerRef.current) {
                 clearInterval(disconnectTimerRef.current);
                 disconnectTimerRef.current = null;
@@ -361,16 +328,18 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
             }
         };
 
-        socket.on('match_start', onMatchStart);
+        socket.on('match_start', onSyncState);
         socket.on('sync_state', onSyncState);
         socket.on('action_error', onActionError);
         socket.on('opponent_disconnected', onOpponentDisconnected);
         socket.on('opponent_reconnected', onOpponentReconnected);
         socket.on('match_forfeited', onMatchForfeited);
         socket.on('emote', onEmote);
+        // Register all listeners before requesting a snapshot, including on reconnect.
+        if (isConnected) syncMatch();
 
         return () => {
-            socket.off('match_start', onMatchStart);
+            socket.off('match_start', onSyncState);
             socket.off('sync_state', onSyncState);
             socket.off('action_error', onActionError);
             socket.off('opponent_disconnected', onOpponentDisconnected);
@@ -605,7 +574,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
     const blackName = cpu?.side==='joiner'?'CPU':onlineRole==='spectator'?(joinerServerName||playerLabel):!isHost ? (user?.name || playerLabel) : resolvedOpponent;
     const playerName = isHost ? whiteName : blackName;
     const opponentName = isHost ? blackName : whiteName;
-    const loginPrompt=connectionError==='AUTH_REQUIRED'&&user&&!user.id.startsWith('GUEST-')?<div className="p-3 text-center">
+    const loginPrompt=['AUTH_REQUIRED','SESSION_REPLACED'].includes(connectionError??'')&&user&&!user.id.startsWith('GUEST-')?<div className="p-3 text-center">
         <p role="alert" className="text-sm text-[#D4B872]">{rankedText(lang,'help')}</p>
         <button className="min-h-11 p-3 underline" onClick={()=>setShowRankedLogin(true)}>{t.login}</button>
         {showRankedLogin&&<RankedLoginDialog lang={lang} userId={user.id} onCancel={()=>setShowRankedLogin(false)} onVerified={()=>setShowRankedLogin(false)}/>}
@@ -767,10 +736,6 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
                             {matchText(lang, 'キャンセル', 'Cancel')}
                         </button>
                     </div>
-                        <div className="w-full max-w-sm mt-12 bg-black/50 p-4 rounded-lg">
-                            <p className="text-[#A89C86] text-[10px] tracking-widest text-center mb-2">{matchText(lang, "広告", "Advertisement")}</p>
-                            <AdBanner adClient="ca-pub-1116866075179199" adSlot="8798363654" />
-                        </div>
                     </div>
                 )}
             

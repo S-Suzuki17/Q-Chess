@@ -1,4 +1,5 @@
 import {Capacitor} from '@capacitor/core';
+import { browserCanRequestWebAds } from './webAdPolicy';
 type AdSenseApi = { push: (request: Record<string, never>) => unknown };
 type AdSenseWindow = Window & { adsbygoogle?: AdSenseApi };
 
@@ -12,6 +13,7 @@ export function isAdSenseUnitConfigured(client: string | undefined, slot: string
 
 /** One SDK load per document, including Strict Mode replays and client navigation. */
 export function loadAdSense(client: string): Promise<AdSenseApi | null> {
+    if (!browserCanRequestWebAds()) return Promise.resolve(null);
     if (Capacitor.isNativePlatform() || typeof window === 'undefined' || typeof document === 'undefined' || !/^ca-pub-\d{16}$/.test(client)) {
         return Promise.resolve(null);
     }
@@ -62,7 +64,7 @@ export function mountAdSenseUnit(element: HTMLElement, client: string): () => vo
         window.removeEventListener('resize', request);
     };
     const request = () => {
-        if (cancelled || !api) return;
+        if (cancelled || !api || !browserCanRequestWebAds()) return;
         if (requestedSlots.has(element) || element.hasAttribute('data-adsbygoogle-status')) {
             stopObserving();
             return;

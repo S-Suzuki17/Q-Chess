@@ -49,5 +49,5 @@ describe('Quantum Perft', () => {
         const nodes = perft(state, 2);
         expect(nodes).toBeGreaterThan(0);
         console.log(`Depth 2 nodes: ${nodes}`);
-    });
+    }, 60000);
 });

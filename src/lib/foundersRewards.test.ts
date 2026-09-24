@@ -3,11 +3,19 @@ const mocks=vi.hoisted(()=>({session:vi.fn(),ranked:vi.fn(),restore:vi.fn(),nati
 vi.mock('./supabaseClient',()=>({supabase:{auth:{getSession:mocks.session}}}));
 vi.mock('./rankedSession',()=>({readRankedSession:mocks.ranked,gameServerUrl:()=> 'https://game.example'}));
 vi.mock('@capacitor/core',()=>({Capacitor:{isNativePlatform:mocks.native,getPlatform:mocks.platform},registerPlugin:()=>({restore:mocks.restore})}));
-import {readFoundersStatus,restoreFounders} from './foundersRewards';
-beforeEach(()=>{vi.resetAllMocks();mocks.ranked.mockReturnValue({token:'private-token'});mocks.native.mockReturnValue(true);mocks.platform.mockReturnValue('android');});
-afterEach(()=>vi.unstubAllGlobals());
+import {readFoundersStatus,restoreFounders,foundersPurchaseAvailable} from './foundersRewards';
+beforeEach(()=>{vi.resetAllMocks();vi.stubEnv('NEXT_PUBLIC_FOUNDERS_REWARDS_ENABLED','true');mocks.ranked.mockReturnValue({token:'private-token'});mocks.native.mockReturnValue(true);mocks.platform.mockReturnValue('android');});
+afterEach(()=>{vi.unstubAllGlobals();vi.unstubAllEnvs();});
 const signal=()=>new AbortController().signal;
 describe('founders client boundaries',()=>{
+ it('keeps distribution off without contacting Play or the server',async()=>{
+  vi.stubEnv('NEXT_PUBLIC_FOUNDERS_REWARDS_ENABLED','false');
+  const fetcher=vi.fn();vi.stubGlobal('fetch',fetcher);
+  expect(await readFoundersStatus('alice',signal())).toEqual({userId:'alice',enabled:false,owned:false});
+  expect(await foundersPurchaseAvailable(signal())).toBe(false);
+  await expect(restoreFounders('alice',signal())).rejects.toMatchObject({code:'UNAVAILABLE'});
+  expect(fetcher).not.toHaveBeenCalled();expect(mocks.restore).not.toHaveBeenCalled();expect(mocks.session).not.toHaveBeenCalled();
+ });
  it('uses authenticated no-store requests and checks returned account identity',async()=>{
   const fetcher=vi.fn(async()=>Response.json({userId:'alice',owned:true,enabled:true}));vi.stubGlobal('fetch',fetcher);
   expect((await readFoundersStatus('alice',signal())).owned).toBe(true);

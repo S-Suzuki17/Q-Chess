@@ -7,7 +7,7 @@ export const CIRCUIT_STAGE_COUNT=100;
 export const CIRCUIT_STAGES=Array.from({length:CIRCUIT_STAGE_COUNT},(_,index)=>{
     const strength=Math.floor(index/3)+1;
     return {id:index+1,strength,timeControl:(['10m','3m','10s'] as TimeControl[])[index%3],
-        opponent:(['NOX','EMBER','ORACLE','SOVEREIGN'] as const)[Math.floor(index/3)%4],
+        opponent:`CPU ${String(strength).padStart(2,'0')}`,
         personality:('balanced' as CPUPersonality),
         search:{timeLimitMs:500+(strength-1)*165,maxDepth:Math.min(8,1+Math.floor((strength-1)/5)),tieBreakSeed:strength} satisfies CPUSearchProfile};
 });

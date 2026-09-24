@@ -25,13 +25,16 @@ export function SocketProvider({ children, userId }: { children:React.ReactNode;
     const [queueStats,setQueueStats]=useState<Record<number,number>>({});
 
     useEffect(()=>{
-        let disposed=false,revision=0,current:Socket|null=null,lastToken:string|undefined;
+        let disposed=false,superseded=false,revision=0,current:Socket|null=null,lastToken:string|undefined;
         let expiryTimer:ReturnType<typeof setTimeout>|undefined;
         let refreshTimer:ReturnType<typeof setTimeout>|undefined;
         setSocket(null);setIsConnected(false);setIsAuthenticated(false);setConnectionError(null);setQueueStats({});
         if(!userId){setAuthPending(false);return;}
 
         const refresh=async()=>{
+            // A background token refresh must not steal a match back from the
+            // device the user just switched to. Explicit re-login can reclaim it.
+            if(superseded||disposed)return;
             const request=++revision;
             setAuthPending(true);
             try {
@@ -46,7 +49,7 @@ export function SocketProvider({ children, userId }: { children:React.ReactNode;
                         token=session.access_token;expiresAt=session.expires_at?session.expires_at*1000:undefined;
                     }
                 }
-                if(disposed||request!==revision)return;
+                if(disposed||superseded||request!==revision)return;
                 clearTimeout(expiryTimer);
                 if(!token || (!guest&&expiresAt!==undefined&&expiresAt<=Date.now())){
                     current?.disconnect();current=null;setSocket(null);setIsConnected(false);setIsAuthenticated(false);setConnectionError('AUTH_REQUIRED');return;
@@ -64,10 +67,16 @@ export function SocketProvider({ children, userId }: { children:React.ReactNode;
                         reconnection:true,reconnectionAttempts:Infinity,reconnectionDelay:1000,reconnectionDelayMax:5000,
                     });
                     current=next;setSocket(next);
-                    next.on('connect',()=>{if(!disposed){setIsConnected(true);setIsAuthenticated(authenticated);setConnectionError(null);}});
+                    next.on('connect',()=>{if(!disposed&&!superseded){setIsConnected(true);setIsAuthenticated(authenticated);setConnectionError(null);}});
                     next.on('disconnect',()=>{if(!disposed){setIsConnected(false);setIsAuthenticated(false);}});
-                    next.on('connect_error',(error:Error)=>{if(!disposed){setIsConnected(false);setIsAuthenticated(false);setConnectionError(/auth|token|session/i.test(error.message)?'AUTH_REQUIRED':'CONNECTION_FAILED');}});
-                    next.on('queue_stats',(stats:Record<number,number>)=>{if(!disposed)setQueueStats(stats);});
+                    next.on('session_replaced',()=>{
+                        if(disposed)return;
+                        superseded=true;revision++;clearTimeout(expiryTimer);clearTimeout(refreshTimer);
+                        next.disconnect();setIsConnected(false);setIsAuthenticated(false);setAuthPending(false);
+                        setQueueStats({});setConnectionError('SESSION_REPLACED');
+                    });
+                    next.on('connect_error',(error:Error)=>{if(!disposed&&!superseded){setIsConnected(false);setIsAuthenticated(false);setConnectionError(/auth|token|session/i.test(error.message)?'AUTH_REQUIRED':'CONNECTION_FAILED');}});
+                    next.on('queue_stats',(stats:Record<number,number>)=>{if(!disposed&&!superseded)setQueueStats(stats);});
                     next.connect();
                 }
                 lastToken=token;
@@ -78,10 +87,15 @@ export function SocketProvider({ children, userId }: { children:React.ReactNode;
             }finally{if(!disposed&&request===revision)setAuthPending(false);}
         };
         const requestRefresh=()=>{clearTimeout(refreshTimer);refreshTimer=setTimeout(()=>void refresh(),0);};
-        window.addEventListener(RANKED_SESSION_EVENT,requestRefresh);
+        const explicitLogin=()=>{
+            const proof=readRankedSession(userId);
+            if(proof&&proof.token!==lastToken)superseded=false;
+            requestRefresh();
+        };
+        window.addEventListener(RANKED_SESSION_EVENT,explicitLogin);
         const {data:{subscription}}=supabase.auth.onAuthStateChange(requestRefresh);
         void refresh();
-        return()=>{disposed=true;revision++;clearTimeout(expiryTimer);clearTimeout(refreshTimer);window.removeEventListener(RANKED_SESSION_EVENT,requestRefresh);subscription.unsubscribe();current?.disconnect();};
+        return()=>{disposed=true;revision++;clearTimeout(expiryTimer);clearTimeout(refreshTimer);window.removeEventListener(RANKED_SESSION_EVENT,explicitLogin);subscription.unsubscribe();current?.disconnect();};
     },[userId]);
     return <SocketContext.Provider value={{socket,isConnected,isAuthenticated,authPending,connectionError,queueStats}}>{children}</SocketContext.Provider>;
 }

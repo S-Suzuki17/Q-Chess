@@ -4,6 +4,7 @@ import {useId,useState} from 'react';
 import dynamic from 'next/dynamic';
 import {Crown,Diamond,Grid2X2} from 'lucide-react';
 import {FOUNDERS_ITEMS} from '../config/founders';
+import {foundersDistributionEnabled} from '../config/appPlatform';
 import type {CampaignProgress} from '../config/campaign';
 import type {Language} from '../locales/dict';
 import {foundersText,foundersRewardName} from '../locales/foundersText';
@@ -21,7 +22,7 @@ export function FoundersSettings({lang,accountName,progress,rewards,locked}:{lan
         <div className="founders-items">{FOUNDERS_ITEMS.map(item=>{const Icon=icons[item.kind];return <button type="button" key={item.id} onClick={()=>setPreview(item)}>
             <Icon size={26} strokeWidth={1.2} aria-hidden="true"/><strong>{foundersRewardName(lang,item.id)}</strong><span>{t('preview')} →</span>
         </button>;})}</div>
-        {rewards.signedIn?<>
+        {!foundersDistributionEnabled()?<p>{t('preparing')}</p>:rewards.signedIn?<>
             <p className="founders-account">{t('account')} <strong>{accountName}</strong></p>
             {rewards.status?.owned&&<p className="founders-acquired">✓ {t('acquired')}</p>}
             {!rewards.native&&<p>{t('web')}</p>}

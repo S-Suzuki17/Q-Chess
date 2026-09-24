@@ -15,6 +15,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - 検証: `npm test -- <対象>`、`npm run typecheck`。盤面は `npm run test:board`。
 - 表示確認は docs/verification.md、配布作業は docs/release.md の対象の節だけ読む。
 - 他方との引き継ぎ・並行編集時は docs/agent-workflow.md。移行時は docs/environment-migration.md。
+- アプリ改良・アップデートの完了時は docs/dev-diary-workflow.md に従って開発日記を更新する。
 - 依頼された変更と関連検証まで進め、検証は影響範囲に合わせる。公開は依頼された配布先に限定する。
 - 未コミット変更は保持し、別コピーの変更を無断で上書きしない。
 - 単発スクリプトは scratch/、再利用する処理は scripts/。既存fix/patch群は通常作業では読まない。

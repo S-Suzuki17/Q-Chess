@@ -13,13 +13,29 @@ import { createAdRewardRouter } from './services/AdRewardRoutes';
 import {createFoundersRewardRouter} from './services/FoundersRewardRoutes';
 import {createPlayRewardVerifier} from './services/PlayRewardVerifier';
 import type { MatchSession, QueueMode } from './matchmaking/MatchmakingService';
+import { AccountWriteGate } from './services/AccountDeletion';
+import { accountRequestGuard, createAccountDeletionRouter } from './services/AccountDeletionRoutes';
+import { createAccountRecoveryRouter } from './services/AccountRecoveryRoutes';
 
 const app = express();
 app.use(cors());
 const supabaseService = new SupabaseService();
 const rankedAuth = new RankedAuth((id,password)=>supabaseService.verifyLegacyPassword(id,password));
+const accountGate = new AccountWriteGate();
+const deletionStore = supabaseService.accountDeletionStore();
+app.use(createAccountDeletionRouter(rankedAuth,deletionStore,accountGate,
+    id=>matchmaking.accountBusy(id)||runtime.isSavingAccount(id),
+    id=>{
+        runtime.forgetReceipts(matchmaking.forgetAccount(id));
+        for(const socket of io.sockets.sockets.values())if(socket.data.userId===id)socket.disconnect(true);
+    }));
+app.use(createAccountRecoveryRouter(rankedAuth,supabaseService.accountRecoveryStore(),accountGate,
+    id=>matchmaking.accountBusy(id)||runtime.isSavingAccount(id),
+    id=>{ for(const socket of io.sockets.sockets.values())if(socket.data.userId===id)socket.disconnect(true); },
+    process.env.ACCOUNT_RECOVERY_ENABLED==='true'));
+app.use(accountRequestGuard(rankedAuth,deletionStore,accountGate));
 app.use(createPrivateGameRecordRouter(rankedAuth,supabaseService));
-app.use(createProfileAvatarRouter(rankedAuth,supabaseService.profileAvatarStore()));
+app.use(createProfileAvatarRouter(rankedAuth,supabaseService.profileAvatarStore(),accountGate));
 app.use(createAdRewardRouter(rankedAuth,supabaseService.adRewardStore()));
 app.use(createFoundersRewardRouter(rankedAuth,supabaseService.foundersStore(),createPlayRewardVerifier(),process.env.PLAY_REWARDS_ALLOW_TEST==='true'));
 app.use(express.json({limit:'4kb'}));
@@ -53,7 +69,9 @@ app.post('/auth/ranked-session',async(req,res)=>{
     const total=loginAttempts.get(ip)??{count:0,until:now+60000};
     if(loginAttempts.size>=10000||count.count>=5||total.count>=100)return res.status(429).json({code:'TRY_LATER'});
     count.count++;total.count++;loginAttempts.set(key,count);loginAttempts.set(ip,total);
+    if(accountGate.blocked(username))return res.status(409).json({code:'ACCOUNT_BUSY'});
     const session=await rankedAuth.issueLegacySession(username,req.body?.password);
+    if(accountGate.blocked(username)){rankedAuth.revokeUserSessions(username);return res.status(409).json({code:'ACCOUNT_BUSY'});}
     if(!session)return res.status(401).json({code:'AUTH_FAILED'});
     return res.json(session);
 });
@@ -99,6 +117,9 @@ io.use(async (socket, next) => {
   if (!userId) {
       return next(new Error('Authentication Error: Invalid token'));
   }
+  try {
+      if(accountGate.blocked(userId)||(!guest&&await deletionStore.blocked(userId)))return next(new Error('Authentication Error: Account unavailable'));
+  } catch { return next(new Error('Authentication Error: Account check unavailable')); }
 
   socket.data.userId = userId;
   socket.data.verified=!guest;
@@ -150,7 +171,14 @@ io.on('connection', (socket: Socket) => {
     }
   });
 
+  const previousSocketId = matchmaking.getPlayerSession(userId)?.socketId;
   matchmaking.registerSocket(userId, socket.id);
+  // Replace the session before disconnecting: an old socket must not forfeit the
+  // new device's active match or cancel its queue.
+  if(previousSocketId&&previousSocketId!==socket.id){
+      const previous=io.sockets.sockets.get(previousSocketId);
+      previous?.emit('session_replaced');previous?.disconnect(true);
+  }
   matchmaking.clearDisconnectTimer(userId);
   socket.emit('queue_stats', matchmaking.getQueueStats());
 
@@ -167,6 +195,7 @@ io.on('connection', (socket: Socket) => {
 
   let queueAttempt=0;
   socket.on('join_queue', async (data: { timeControl: number, userName?: string, mode?:QueueMode }) => {
+    if(accountGate.blocked(userId))return;
     const attempt=++queueAttempt;
     const timeControl=data?.timeControl,mode=data?.mode??'random';
     const fail=(code:string)=>{if(attempt===queueAttempt&&socket.connected&&matchmaking.getPlayerSession(userId)?.socketId===socket.id)socket.emit('queue_error',{code,message:code});};
@@ -195,6 +224,7 @@ io.on('connection', (socket: Socket) => {
   });
 
   socket.on('connect_match', async (data: { matchId: string, userName?: string, avatarUrl?: string, avatarFrame?:string,introVersion?:number }) => {
+    if(accountGate.blocked(userId))return;
     if(matchmaking.getPlayerSession(userId)?.socketId!==socket.id)return;
     if(typeof data?.matchId!=='string'||!data.matchId||data.matchId.length>128)return;
     if(data.userName!==undefined&&typeof data.userName!=='string')return;

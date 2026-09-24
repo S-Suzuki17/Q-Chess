@@ -7,6 +7,7 @@ import { badgeFromRating } from '../config/profileBadges';
 import { badgeName, cosmeticsText } from '../locales/profileCosmeticsText';
 import { RankBadgeArtwork } from './RankBadgeArtwork';
 import './match-intro.css';
+import { soundManager } from '../lib/SoundService';
 
 export type IntroPlayer={name:string;avatar?:string;frame?:string;rating?:number|null;detail?:string};
 /** Only block input when the owning engine has paused its clock. */
@@ -14,9 +15,12 @@ export function MatchIntro({lang,white,black,label,onDone,duration=3200,blocking
     const dialog=useRef<HTMLDialogElement>(null),done=useRef(onDone);
     useEffect(()=>{done.current=onDone;},[onDone]);
     useEffect(()=>{
-        if(blocking)dialog.current?.showModal();
+        if(blocking){dialog.current?.showModal();dialog.current?.focus({preventScroll:true});}
+        let stopSound=()=>{};
+        // A cancelled StrictMode effect must not double-trigger the entrance sound.
+        const soundFrame=requestAnimationFrame(()=>{stopSound=soundManager.playSE('/audio/se_match_intro.wav');});
         const timeout=setTimeout(()=>done.current(),duration);
-        return()=>{clearTimeout(timeout);dialog.current?.close();};
+        return()=>{cancelAnimationFrame(soundFrame);stopSound();clearTimeout(timeout);dialog.current?.close();};
     },[blocking,duration]);
     const content=<>
         <p className="intro-eyebrow">{label}</p><h2 id="match-intro-title">{stageText(lang,'ready')}</h2>
@@ -33,8 +37,7 @@ export function MatchIntro({lang,white,black,label,onDone,duration=3200,blocking
             </div>}
         </section>;})}<span className="intro-vs" aria-label={stageText(lang,'versus')}>VS</span></div>
         <div className="intro-rule" aria-hidden="true"/>
-        <button autoFocus={blocking} onClick={onDone}>{stageText(lang,'skip')}</button>
     </>;
-    return blocking?<dialog ref={dialog} className="match-intro" aria-labelledby="match-intro-title" onCancel={event=>{event.preventDefault();onDone();}}>{content}</dialog>
+    return blocking?<dialog ref={dialog} tabIndex={-1} className="match-intro" aria-labelledby="match-intro-title" onCancel={event=>{event.preventDefault();}}>{content}</dialog>
         :<aside className="match-intro match-intro-inline" aria-labelledby="match-intro-title">{content}</aside>;
 }

@@ -1,4 +1,5 @@
 import type { Language } from './dict';
+import { battleMusicTitle } from '../config/circuitMusic';
 const keys=['music','midnight','coronation','astral','preview','close','previewOnly','timeLeft','musicHelp','zenith','valkyrie'] as const;
 const copy:Record<Language,readonly [string,string,string,string,string,string,string,string,string,string,string]>={
  en:['Battle music','Midnight Gambit','Coronation','Astral Crown','Preview','Close','Preview only · Your equipped rewards are unchanged.','Time remaining','Unlock a track, then equip it to hear it in your matches.','Zenith','Valkyrie'],
@@ -14,4 +15,5 @@ const copy:Record<Language,readonly [string,string,string,string,string,string,s
  pt:['Música da partida','Gambito da meia-noite','Coroação','Coroa astral','Prévia','Fechar','Apenas prévia · Seus itens equipados não mudam.','Tempo restante','Desbloqueie e equipe uma faixa para ouvi-la nas partidas.','Zênite','Valquíria'],
  ta:['ஆட்ட இசை','நள்ளிரவு கேம்பிட்','முடிசூட்டு','விண்மீன் மகுடம்','முன்னோட்டம்','மூடு','முன்னோட்டம் மட்டும் · தேர்ந்தெடுத்த பரிசுகள் மாறாது.','மீதமுள்ள நேரம்','இசையைத் திறந்து தேர்ந்தெடுத்த பிறகு ஆட்டத்தில் கேட்கலாம்.','ஜெனித்','வால்கெய்ரி'],
 };
-export const circuitText=(lang:Language,key:typeof keys[number])=>copy[lang][keys.indexOf(key)];
+export const circuitText=(lang:Language,key:typeof keys[number])=>
+    (['midnight','coronation','astral','zenith','valkyrie'].includes(key) ? battleMusicTitle(key) : undefined) ?? copy[lang][keys.indexOf(key)];

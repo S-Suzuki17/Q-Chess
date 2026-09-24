@@ -134,11 +134,26 @@ export class SoundService {
         }).catch(()=>{ /* A later user gesture can retry autoplay. */ });
     }
 
-    public playSE(trackUrl: string) {
-        if (this.adPauses || this.config.masterMute || this.config.seVolume === 0 || typeof window === 'undefined') return;
+    public playSE(trackUrl: string): () => void {
+        if (this.adPauses || this.config.masterMute || this.config.seVolume === 0 || typeof window === 'undefined' || document.hidden) return () => {};
         const se = new Audio(trackUrl);
         se.volume = this.config.seVolume;
-        se.play().catch(e => console.log('SE play failed:', e));
+        let stopped = false;
+        const stop = () => {
+            if (stopped) return;
+            stopped = true;se.pause();unsubscribe();
+            se.removeEventListener('ended', stop);se.removeEventListener('error', stop);
+            document.removeEventListener('visibilitychange', onVisibility);
+        };
+        const onVisibility = () => { if (document.hidden) stop(); };
+        const unsubscribe = this.subscribe(config => {
+            if (config.masterMute || config.seVolume === 0) stop();
+            else se.volume = config.seVolume;
+        });
+        se.addEventListener('ended', stop);se.addEventListener('error', stop);
+        document.addEventListener('visibilitychange', onVisibility);
+        se.play().then(() => { if (stopped) se.pause(); }).catch(stop);
+        return stop;
     }
 }
 

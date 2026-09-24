@@ -16,6 +16,12 @@ export function LiveMatchesMenu({ lang, onClose, onSpectate }: LiveMatchesMenuPr
     const [matches, setMatches] = useState<ActiveMatch[]>([]);
     const [profiles, setProfiles] = useState<Record<string, Profile>>({});
     const [loading, setLoading] = useState(true);
+    const [now, setNow] = useState(() => Date.now());
+
+    useEffect(() => {
+        const interval = setInterval(() => setNow(Date.now()), 10000);
+        return () => clearInterval(interval);
+    }, []);
 
     const loadMatches = async () => {
         setLoading(true);
@@ -64,7 +70,7 @@ export function LiveMatchesMenu({ lang, onClose, onSpectate }: LiveMatchesMenuPr
                         {matches.map(m => {
                             const whiteName = m.white_id ? (profiles[m.white_id]?.name || 'Player') : 'AI';
                             const blackName = m.black_id ? (profiles[m.black_id]?.name || 'Player') : 'AI';
-                            const duration = Math.floor((Date.now() - new Date(m.started_at).getTime()) / 60000);
+                            const duration = Math.floor((now - new Date(m.started_at).getTime()) / 60000);
 
                             return (
                                 <button

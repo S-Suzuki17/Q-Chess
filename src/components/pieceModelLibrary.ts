@@ -37,7 +37,7 @@ export function createPieceModelLibrary(finish: PieceFinish = 'boxwood') {
             material = new THREE.MeshPhysicalMaterial({
                 color: isWhite ? surface.white : surface.black,
                 roughness:glass?.07:surface.roughness, metalness:surface.metalness, clearcoat:glass?1:surface.clearcoat, clearcoatRoughness:glass?.06:.24,
-                map:textures?.map,bumpMap:textures?.detailMap,roughnessMap:textures?.detailMap,bumpScale:textureMotif==='walnut'?.0018:.0006,
+                map:textures?.map??null,bumpMap:textures?.detailMap??null,roughnessMap:textures?.detailMap??null,bumpScale:textureMotif==='walnut'?.0018:.0006,
                 // Transparent candidate shells avoid a refraction pass for all
                 // 192 possibilities. Resolved pieces use optical transmission.
                 transmission:glass&&!candidate?.92:0,thickness:glass?.12:0,ior:1.45,envMapIntensity:glass?1.25:1,

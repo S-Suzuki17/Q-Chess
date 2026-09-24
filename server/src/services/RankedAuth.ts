@@ -61,6 +61,7 @@ function tokenHash(token: unknown): string | null {
  */
 export class RankedAuth {
     private readonly sessions = new Map<string, RankedIdentity>();
+    private readonly pendingChecks = new Map<string, Set<{ revoked: boolean }>>();
     private readonly sessionTtlMs: number;
     private readonly maxSessions: number;
 
@@ -85,9 +86,12 @@ export class RankedAuth {
         this.cleanupExpiredSessions();
         if (this.sessions.size >= this.maxSessions) return null;
 
+        const check = { revoked: false };
+        const checks = this.pendingChecks.get(userId) ?? new Set<{ revoked: boolean }>();
+        checks.add(check); this.pendingChecks.set(userId, checks);
         try {
             // Truthy RPC payloads, errors, and rejected checks must never grant access.
-            if (await this.verifyLegacy(userId, password) !== true) return null;
+            if (await this.verifyLegacy(userId, password) !== true || check.revoked) return null;
             this.cleanupExpiredSessions();
             // Another verification may have filled the store while this one awaited.
             if (this.sessions.size >= this.maxSessions) return null;
@@ -103,6 +107,8 @@ export class RankedAuth {
         } catch {
             // Do not log the verifier error: upstream errors may contain credentials.
             return null;
+        } finally {
+            checks.delete(check); if (!checks.size) this.pendingChecks.delete(userId);
         }
         return null;
     }
@@ -129,6 +135,7 @@ export class RankedAuth {
 
     revokeUserSessions(userId: unknown): number {
         if (!isRankedUserId(userId)) return 0;
+        for (const check of this.pendingChecks.get(userId) ?? []) check.revoked = true;
         let revoked = 0;
         for (const [hash, identity] of this.sessions) {
             if (identity.userId === userId) {

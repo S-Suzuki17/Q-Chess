@@ -23,6 +23,8 @@ const result = spawnSync(process.execPath, [require.resolve('next/dist/bin/next'
     cwd: process.cwd(), stdio: 'inherit',
     env: {
         ...originalEnv, NODE_ENV: 'production', QG_RELEASE_BUILD: '1',
+        NEXT_PUBLIC_APP_TARGET: 'android',
+        NEXT_PUBLIC_FOUNDERS_REWARDS_ENABLED: 'false',
         NEXT_PUBLIC_SUPABASE_URL: url, NEXT_PUBLIC_SUPABASE_ANON_KEY: key,
         NEXT_PUBLIC_SERVER_URL: server,
         NEXT_PUBLIC_ADMOB_LIVE: 'false', NEXT_PUBLIC_NATIVE_REWARDS_ENABLED: 'false',

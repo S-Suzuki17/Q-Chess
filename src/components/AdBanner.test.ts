@@ -4,6 +4,10 @@ import { readFileSync } from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AdBanner, InterstitialAd } from './AdBanner';
 
+// Markup contract when a future reviewed policy enables display ads.
+// publicRelease.test.ts separately tests the real fail-closed release policy.
+vi.mock('../lib/webAdPolicy', () => ({ browserCanRequestWebAds: () => true }));
+
 describe('AdBanner markup', () => {
     beforeEach(() => {
         for (const name of ['NEXT_PUBLIC_ADSENSE_CLIENT_ID', 'NEXT_PUBLIC_ADSENSE_CLIENT', 'NEXT_PUBLIC_ADSENSE_PUB_ID', 'NEXT_PUBLIC_ADSENSE_SLOT']) {
@@ -45,9 +49,9 @@ describe('AdBanner markup', () => {
         expect(renderToStaticMarkup(createElement(InterstitialAd, { show: false, adSlot: '8798363654', onClose: vi.fn() }))).toBe('');
     });
 
-    it('has only the singleton loader at the root, with no legacy auto-ads command', () => {
+    it('does not load advertisements globally on navigation and gameplay screens', () => {
         const layout = readFileSync(new URL('../app/layout.tsx', import.meta.url), 'utf8');
-        expect(layout.match(/<AdSenseLoader /g)).toHaveLength(1);
+        expect(layout).not.toContain('<AdSenseLoader');
         expect(layout).not.toContain('enable_page_level_ads');
         expect(layout).not.toContain('adsense-init');
         expect(layout).not.toContain('adsbygoogle.js');

@@ -4,15 +4,15 @@ import { matchText } from '../locales/matchText';
 import { User } from '../types/game';
 import { circuitAccess } from '../lib/circuitAccess';
 import { dict, Language } from '../locales/dict';
-import { AdBanner } from './AdBanner';
 import { supabase } from '../lib/supabaseClient';
 import { requestRankedSession } from '../lib/rankedSession';
+import { AccountRecoveryPanel } from './AccountRecoveryPanel';
 import Link from 'next/link';
 import './title-screen.css';
 import { ArrowUpRight, ChevronRight } from 'lucide-react';
 
 import { Capacitor } from '@capacitor/core';
-import { App as CapApp } from '@capacitor/app';
+import { useAppPlatform } from '../hooks/useAppPlatform';
 import { Browser } from '@capacitor/browser';
 
 interface TitleScreenProps {
@@ -22,6 +22,7 @@ interface TitleScreenProps {
 }
 
 export function TitleScreen({ lang, onLogin, initialMode='select' }: TitleScreenProps) {
+    const { android, webContent } = useAppPlatform();
     const t = { ...dict['en'], ...(dict[lang] || {}) } as any;
     const [mode, setMode] = useState<'select' | 'register' | 'login' | 'rules'>(initialMode);
     const mounted=React.useRef(false);
@@ -32,50 +33,25 @@ export function TitleScreen({ lang, onLogin, initialMode='select' }: TitleScreen
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
 
-    React.useEffect(() => {
-        if (Capacitor.isNativePlatform()) {
-            CapApp.addListener('appUrlOpen', async (data) => {
-                if (data.url.includes('qgambit://login-callback')) {
-                    await Browser.close().catch(() => {});
-                    const url = new URL(data.url);
-                    const code = url.searchParams.get('code');
-                    if (code) {
-                        await supabase.auth.exchangeCodeForSession(code);
-                    }
-                    const hash = url.hash;
-                    if (hash) {
-                        const params = new URLSearchParams(hash.substring(1));
-                        const accessToken = params.get('access_token');
-                        const refreshToken = params.get('refresh_token');
-                        if (accessToken && refreshToken) {
-                            await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
-                        }
-                    }
-                }
-            });
-        }
-    }, []);
-
     const handleOAuthLogin = async (provider: 'google' | 'discord') => {
         if (loading) return;
         loginRequest.current?.abort();
-        if (Capacitor.isNativePlatform()) {
-            const { data, error } = await supabase.auth.signInWithOAuth({
+        setLoading(true);setError('');
+        try {
+            const native = Capacitor.isNativePlatform();
+            const { data, error: authError } = await supabase.auth.signInWithOAuth({
                 provider,
                 options: {
-                    redirectTo: 'qgambit://login-callback',
-                    skipBrowserRedirect: true,
+                    redirectTo: native ? 'qgambit://login-callback' : window.location.origin,
+                    skipBrowserRedirect: native,
                 },
             });
-            if (data?.url) {
+            if (authError) throw authError;
+            if (native && data?.url) {
                 await Browser.open({ url: data.url });
             }
-        } else {
-            await supabase.auth.signInWithOAuth({
-                provider,
-                options: { redirectTo: window.location.origin },
-            });
-        }
+        } catch { if (mounted.current) setError(matchText(lang,'ログインできませんでした。もう一度お試しください。','Sign-in failed. Please try again.')); }
+        finally { if (mounted.current) setLoading(false); }
     };
 
     const handleGuest = () => {
@@ -229,6 +205,7 @@ export function TitleScreen({ lang, onLogin, initialMode='select' }: TitleScreen
                         <button type="button" onClick={() => setMode('select')} disabled={loading} className="text-[#A89C86] hover:text-[#E8E2D7] text-xs tracking-widest mt-2">{(t as any)?.cancel || "CANCEL"}</button>
                     </form>
                 )}
+                {mode==='login'&&<AccountRecoveryPanel lang={lang}/>}
             </div>
             
             {/* SEO & User Content Section for AdSense Quality */}
@@ -237,21 +214,24 @@ export function TitleScreen({ lang, onLogin, initialMode='select' }: TitleScreen
                     {(t as any)?.seoDesc || 'Q-GAMBIT is a revolutionary Quantum Chess experience where pieces exist in a state of superposition. Master the art of information warfare and quantum collapse.'}
                 </p>
                 <div className="flex gap-4">
-                    <Link href="/rules" className="title-rules">
+                    {android ? <a href="https://q-gambit.com/rules/" target="_blank" rel="noopener noreferrer" className="title-rules">
+                        {t.rulesGuide || 'READ RULES & STRATEGY GUIDE'}
+                        <ChevronRight size={17} aria-hidden="true"/>
+                    </a> : <Link href="/rules" className="title-rules">
                         {(t as any)?.rulesGuide || 'READ RULES & STRATEGY GUIDE'}
                         <ChevronRight size={17} aria-hidden="true"/>
-                    </Link>
+                    </Link>}
                 </div>
             </div>
 
-            <div className="title-badge relative w-full z-10 flex flex-col items-center pointer-events-none">
+            {webContent && <div className="title-badge relative w-full z-10 flex flex-col items-center pointer-events-none">
                 <div className="mb-2 opacity-20 hover:opacity-100 grayscale hover:grayscale-0 transition-all duration-300 pointer-events-auto">
                     <a href="https://pixelpicked.com/game/7TmlOxj21Ub/q-gambit/" target="_blank" rel="noopener noreferrer">
                         <img src="https://api.pixelpicked.com/api/badges/7TmlOxj21Ub/live.png?theme=dark"
                             width="100" alt="Approved on PixelPicked" className="h-auto" onError={event => { event.currentTarget.hidden = true; }} />
                     </a>
                 </div>
-            </div>
+            </div>}
         </div>
     );
 }

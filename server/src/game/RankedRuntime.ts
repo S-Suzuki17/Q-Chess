@@ -31,6 +31,7 @@ export class RankedRuntime {
     private saving=new Set<string>();
     private retryAt=new Map<string,number>();
     private saved=new Map<string,RankedSettlement>();
+    private casualSaving=new Set<string>();
     constructor(private io:Server,private matchmaking:MatchmakingService,
         private settle:(match:MatchSession)=>Promise<RankedSettlement|null>,private runCpu:CpuRunner=runCpuWorker,
         private recordCasual?:(match:MatchSession)=>Promise<void>) {
@@ -57,8 +58,19 @@ export class RankedRuntime {
                 match.settlement='pending';
                 void this.persist(match);
             }
-            else if(match.mode!=='ranked'&&!alreadyFinished)void this.recordCasual?.(match).catch(()=>{});
+            else if(match.mode!=='ranked'&&!alreadyFinished&&this.recordCasual) {
+                this.casualSaving.add(match.matchId);
+                void this.recordCasual(match).catch(()=>{}).finally(()=>this.casualSaving.delete(match.matchId));
+            }
         }
+    }
+
+    public isSavingAccount(userId:string) {
+        return this.matchmaking.getMatches().some(match => Object.values(match.players).includes(userId)
+            && (this.saving.has(match.matchId) || this.casualSaving.has(match.matchId) || match.settlement==='pending'));
+    }
+    public forgetReceipts(matchIds:string[]) {
+        for(const id of matchIds) { this.saved.delete(id); this.retryAt.delete(id); }
     }
 
     private async persist(match:MatchSession) {

@@ -5,11 +5,14 @@ import { matchText } from '../locales/matchText';
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import GameBoard from '../components/GameBoard';
-import AdBanner from '../components/AdBanner';
 import {NativeRewardSettings} from '../components/NativeRewardSettings';
 import {FoundersSettings} from '../components/FoundersSettings';
 import {useFoundersRewards} from '../hooks/useFoundersRewards';
 import {foundersText} from '../locales/foundersText';
+import { SiteIntroduction, SiteLinks } from '../components/SiteInformation';
+import { AppSupportLinks } from '../components/AppSupportLinks';
+import { useAppPlatform } from '../hooks/useAppPlatform';
+import { useNativeAuthLinks } from '../hooks/useNativeAuthLinks';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import { SystemStatusBanner } from '../components/SystemStatusBanner';
 import { supabase } from '../lib/supabaseClient';
@@ -17,6 +20,7 @@ import { TitleScreen } from '../components/TitleScreen';
 import { LevelSelect } from '../components/LevelSelect';
 import { SettingsDialog } from '../components/SettingsDialog';
 import { CampaignMode } from '../components/CampaignMode';
+import { DevDiaryTimeline } from '../components/DevDiaryTimeline';
 import { circuitAccess, isSameCircuitIdentity } from '../lib/circuitAccess';
 import type { Session } from '@supabase/supabase-js';
 import ReplayBoard from '../components/ReplayBoard';
@@ -35,6 +39,8 @@ import { CosmeticsSettings } from '../components/CosmeticsSettings';
 import { cosmeticsLocked } from '../lib/cosmeticOptions';
 
 export default function Home() {
+    const { android, webContent } = useAppPlatform();
+    const nativeAuth = useNativeAuthLinks();
     const {progress:campaignProgress, update:updateCampaign, loaded:cosmeticsLoaded}=useCampaignProgress();
     const playingMusic=React.useRef<string|null>(null);
     useEffect(()=>{
@@ -267,7 +273,11 @@ export default function Home() {
     return (
         <SocketProvider userId={user?.id}>
             <SystemStatusBanner lang={lang} />
-            {foundersRewards.available&&!matchDesignLocked&&!showSettings&&!isSearchingGlobally&&
+            {nativeAuth.failed && <div role="alert" className="fixed bottom-4 left-4 right-4 z-[100] rounded border border-[#D4B872] bg-[#1E1C19] p-4 text-[#E8E2D7]">
+                {matchText(lang,'ログインできませんでした。もう一度お試しください。','Sign-in failed. Please try again.')}
+                <button type="button" onClick={nativeAuth.dismiss} className="ml-4 p-2" aria-label={matchText(lang,'閉じる','Close')}>×</button>
+            </div>}
+            {android&&foundersRewards.available&&!matchDesignLocked&&!showSettings&&!isSearchingGlobally&&
                 <aside className="founders-notice" role="status"><strong>{foundersText(lang,'title')}</strong><button type="button" onClick={()=>setShowSettings(true)}>{foundersText(lang,'claim')}</button></aside>}
             {isSearchingGlobally&&<RankedMatchmakingManager lang={lang}
                 user={user} 
@@ -279,9 +289,9 @@ export default function Home() {
                     handleOnlineMatch(room.id, room.myColor, room.mode, (room.timeControl === 10 ? '10s' : room.timeControl === 180 ? '3m' : '10m') as TimeControl, room.myColor==='white'?room.joinerId:room.hostId);
                 }} 
             />}
-            <SpeedInsights />
-        <main data-screen={gameState} className="fixed inset-0 flex flex-col items-center justify-between bg-[#11100E] text-[#E8E2D7] font-sans overflow-hidden">
-            <div className="relative z-40 w-full max-w-5xl flex items-center justify-between text-sm mb-4">
+            {webContent && <SpeedInsights />}
+        <main data-screen={gameState} className={`fixed inset-0 flex flex-col items-center justify-between bg-[#11100E] text-[#E8E2D7] font-sans overflow-x-hidden ${gameState === 'title' ? 'overflow-y-auto' : 'overflow-hidden'}`}>
+            <div className="relative z-40 w-full max-w-5xl flex items-center justify-between text-sm mb-4 shrink-0">
                 {/* 右上のコントロール群 */}
                 <div className={`fixed right-4 top-4 z-40 flex gap-2 items-center ${showSettings || hideSettingsGlobal || gameState === 'playing' || gameState === 'campaign' ? 'hidden' : ''}`}>
                     <button 
@@ -369,8 +379,9 @@ export default function Home() {
                             </div>
 
                             <CosmeticsSettings lang={lang} progress={campaignProgress} update={updateCampaign} loaded={cosmeticsLoaded} locked={matchDesignLocked}/>
-                            <FoundersSettings lang={lang} accountName={user?.name} progress={campaignProgress} rewards={foundersRewards} locked={matchDesignLocked}/>
-                            {user&&<NativeRewardSettings key={user.id} userId={user.id} lang={lang} locked={matchDesignLocked}/>}
+                            {android && <FoundersSettings lang={lang} accountName={user?.name} progress={campaignProgress} rewards={foundersRewards} locked={matchDesignLocked}/>}
+                            {android && user && <NativeRewardSettings key={user.id} userId={user.id} lang={lang} locked={matchDesignLocked}/>}
+                            {android && <AppSupportLinks lang={lang}/>}
 
                             {user && gameState==='level_select' && (
                                 <div className="flex flex-col gap-3 mt-4 pt-6 border-t border-[#4A4238]">
@@ -402,7 +413,7 @@ export default function Home() {
                 </div>
             )}
 
-            <div className="flex-grow w-full flex flex-col items-center justify-center relative z-10">
+            <div className="flex-grow w-full flex flex-col items-center justify-center relative z-10 shrink-0 mt-8">
                 {gameState === 'title' && (
                     <TitleScreen lang={lang} onLogin={handleLogin} initialMode={loginMode}/>
                 )}
@@ -459,18 +470,22 @@ export default function Home() {
                 )}
             </div>
 
-            {gameState === 'title' && (
+            {gameState === 'title' && webContent && (
                 <>
-                    {/* Removed AdBanner to comply with Google AdSense Policies (No ads on login/navigation screens) */}
+                    <SiteIntroduction lang={lang}/>
+
+
+                    <DevDiaryTimeline />
 
                     {/* Footer */}
-                    <footer className="w-full max-w-4xl mt-4 mb-4 text-center text-gray-500 text-xs font-sans relative z-40">
-                        <Link href="/privacy" className="hover:text-[#D4B872] transition-colors relative z-40 cursor-pointer pointer-events-auto">{dict[lang]?.privacyPolicy || 'Privacy Policy'}</Link>
-                        <span className="mx-2">|</span>
-                        <span>&copy; 2026 Q-GAMBIT</span>
+                    <footer className="w-full max-w-4xl mt-12 mb-8 text-center text-gray-500 text-xs font-sans relative z-40">
+                        <SiteLinks lang={lang}/>
+                        <div>&copy; 2026 Q-GAMBIT - Quantum Superposition Chess. All rights reserved.</div>
                     </footer>
                 </>
             )}
+
+            {gameState === 'title' && android && <footer className="relative z-10 mt-6"><AppSupportLinks lang={lang}/></footer>}
 
         </main></SocketProvider>
     );

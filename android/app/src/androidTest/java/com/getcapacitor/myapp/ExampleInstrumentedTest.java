@@ -21,6 +21,6 @@ public class ExampleInstrumentedTest {
         // Context of the app under test.
         Context appContext = InstrumentationRegistry.getInstrumentation().getTargetContext();
 
-        assertEquals("com.getcapacitor.app", appContext.getPackageName());
+        assertTrue(appContext.getPackageName().equals("com.qgambit.app") || appContext.getPackageName().equals("com.qgambit.app.qa"));
     }
 }

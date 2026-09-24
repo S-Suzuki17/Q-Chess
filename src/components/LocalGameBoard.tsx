@@ -12,7 +12,6 @@ import { MatchResultDialog } from './MatchResultDialog';
 import { MatchIntro } from './MatchIntro';
 import { MatchLayout } from './MatchLayout';
 import { Board2D } from './Board2D';
-import { AdBanner } from './AdBanner';
 import { Language, dict } from '../locales/dict';
 import { User, TimeControl } from '../types/game';
 import { PieceType } from '../config/gameConfig';
@@ -86,8 +85,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
         return () => clearTimeout(timer);
     }, [movingPiece]);
     const tokensRef = useRef<Token[]>([]);
-    const executeMoveRef = useRef<any>(null);
-    useEffect(() => { tokensRef.current = tokens; executeMoveRef.current = executeMove; });
+    const executeMoveRef = useRef<((token: Token, targetRow: number, targetCol: number, possibleTypesForMove: PieceType[], targetToken?: Token, isLocalMove?: boolean, promotedTo?: PieceType) => void) | null>(null);
     
     
     const [selectedTokenId, setSelectedTokenId] = useState<string | null>(null);
@@ -130,12 +128,13 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
     const [showGameOver, setShowGameOver] = useState(false);
 
     useEffect(() => {
+        let timer: NodeJS.Timeout | null = null;
         if (winner) {
-            const timer = setTimeout(() => setShowGameOver(true), 1500);
-            return () => clearTimeout(timer);
+            timer = setTimeout(() => setShowGameOver(true), 1500);
         } else {
-            setShowGameOver(false);
+            timer = setTimeout(() => setShowGameOver(false), 0);
         }
+        return () => { if (timer) clearTimeout(timer); };
     }, [winner]);
     const [disconnectTimeLeft, setDisconnectTimeLeft] = useState<number | null>(null);
     const disconnectTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -424,13 +423,18 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
     }, [currentTurn, winner, tokens, pool, roomId, moveHistory, cpuRetry, movingPiece, cpuLevel, cpuSide, cpuPersonality, cpuSearchProfile, introDone]);
 
     useEffect(() => {
+        let timer1: NodeJS.Timeout | null = null;
+        let timer2: NodeJS.Timeout | null = null;
         if (isCheck && !winner) {
-            setShowCheckWarning(true);
-            const timer = setTimeout(() => setShowCheckWarning(false), 2500);
-            return () => clearTimeout(timer);
+            timer1 = setTimeout(() => setShowCheckWarning(true), 0);
+            timer2 = setTimeout(() => setShowCheckWarning(false), 2500);
         } else {
-            setShowCheckWarning(false);
+            timer1 = setTimeout(() => setShowCheckWarning(false), 0);
         }
+        return () => {
+            if (timer1) clearTimeout(timer1);
+            if (timer2) clearTimeout(timer2);
+        };
     }, [isCheck, winner, moveHistory.length]);
 
     // Active Match Registration
@@ -579,6 +583,12 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
             else setTimeLeftBlack(10);
         }
     };
+
+    useEffect(() => {
+        tokensRef.current = tokens;
+        executeMoveRef.current = executeMove;
+    }, [tokens, executeMove]);
+
 
     const handleSquareClick = (targetRow: number, targetCol: number) => {
         if (!introDone || winner || movingPiece || onlineRole === 'spectator') return;
@@ -992,10 +1002,6 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
                             {t.promotionCancel}
                         </button>
                     </div>
-                        <div className="w-full max-w-sm mt-12 bg-black/50 p-4 rounded-lg">
-                            <p className="text-[#A89C86] text-[10px] tracking-widest text-center mb-2">{matchText(lang, "広告", "Advertisement")}</p>
-                            <AdBanner adClient="ca-pub-1116866075179199" adSlot="8798363654" />
-                        </div>
                     </div>
                 )}
         

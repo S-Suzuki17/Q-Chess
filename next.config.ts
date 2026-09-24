@@ -12,6 +12,8 @@ if (process.env.VERCEL === '1' || process.env.QG_RELEASE_BUILD === '1') {
 
 const nextConfig: NextConfig = {
     output: 'export',
+    // Relative assets are only for the separate embedded-game export.
+    ...(process.env.QG_EMBEDDED_EXPORT === 'true' ? { assetPrefix: './' } : {}),
     trailingSlash: true,
     images: {
         unoptimized: true,

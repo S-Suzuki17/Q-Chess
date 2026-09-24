@@ -408,4 +408,19 @@ export class MatchmakingService {
     public getPlayerSession(userId: string) {
         return this.players.get(userId);
     }
+
+    public accountBusy(userId:string) {
+        return [...this.matches.values()].some(match=>Object.values(match.players).includes(userId)
+            && (['IN_GAME','CONNECTING'].includes(match.state)||match.settlement==='pending'));
+    }
+    /** Only called after accountBusy/persistence guards, never forfeits a live match. */
+    public forgetAccount(userId:string):string[] {
+        if(this.accountBusy(userId))throw new Error('Account has an active match');
+        this.leaveQueue(userId);this.clearDisconnectTimer(userId);
+        const removed:string[]=[];
+        for(const [id,match] of this.matches)if(Object.values(match.players).includes(userId)){
+            this.matches.delete(id);removed.push(id);
+        }
+        this.players.delete(userId);return removed;
+    }
 }

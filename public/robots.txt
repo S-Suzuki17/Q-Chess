@@ -1,4 +1,7 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://q-gambit.vercel.app/sitemap.xml
+Disallow: /teaser/
+Disallow: /teaser2/
+
+Sitemap: https://q-gambit.com/sitemap.xml

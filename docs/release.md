@@ -19,6 +19,9 @@ capacitor.config.json の webDir は out。
 この処理は必要な公開用接続設定のみをプロセスへ読み込み、秘密キーを拒否し、広告・制限をOFFに固定する。環境ファイルを複写・ログ出力しない。
 通常の設定なし `npm run build` の out/ を配布用アプリに使用しない。
 対象の設定でWebをビルドし、ローカルに導入済みのCapacitor CLIでAndroidへ同期する。
+Web専用／アプリ専用の境界は docs/platform-boundaries.md。Androidビルドでは `NEXT_PUBLIC_APP_TARGET=android` を明示する。
+既存アプリが端末に入っている場合は `gradlew :app:assembleDebug -PqaBuild` で `com.qgambit.app.qa` を別途インストールし、既存アプリのデータを消さない。
+QA版は別アプリIDのため、Play配布限定の機能・署名に依存する認証はストア経由で別途確認が必要。AABの静的検証だけを実機試験完了としない。
 versionName / versionCodeを配布履歴と照合し、AndroidのGradle wrapperで依頼された成果物を生成。
 署名・同梱Web・バージョンを検証し、成果物のSHA256と対象コミットを記録する。
 既存の署名情報を変更・表示しない。署名設定に平文資格情報があるため、安全な保管への移行は別途必要。

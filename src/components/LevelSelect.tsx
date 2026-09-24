@@ -32,6 +32,8 @@ import './lobby-studio.css';
 import { campaignText } from '../locales/campaignText';
 import { useCircuitAccess } from '../hooks/useCircuitAccess';
 import { circuitAccessText } from '../locales/circuitAccessText';
+import { AccountDeletionPanel } from './AccountDeletionPanel';
+import { AccountRecoveryPanel } from './AccountRecoveryPanel';
 
 const ProfileCosmetics=dynamic(()=>import('./ProfileCosmetics').then(module=>module.ProfileCosmetics),{ssr:false});
 
@@ -80,10 +82,6 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
     const [userProfile, setUserProfile] = React.useState<Profile | null>(null);
     const [userStats, setUserStats] = React.useState<UserStats | null>(null);
     const showAccount=settingsPanel==='account';
-    const [updateEmail, setUpdateEmail] = React.useState('');
-    const [updatePassword, setUpdatePassword] = React.useState('');
-    const [emailMsg, setEmailMsg] = React.useState('');
-    const [emailLoading, setEmailLoading] = React.useState(false);
     const [isEditingName, setIsEditingName] = React.useState(false);
     const [newName, setNewName] = React.useState('');
     const [nameLoading, setNameLoading] = React.useState(false);
@@ -116,27 +114,6 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
         }
     };
 
-    const handleUpdateEmail = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setEmailMsg('');
-        if (!updateEmail || !updatePassword) {
-            setEmailMsg(matchText(lang,'メールとパスワードを入力してください','Email and password required.'));
-            return;
-        }
-        setEmailLoading(true);
-        const { data, error } = await supabase.rpc('update_user_email', {
-            p_id: user.id,
-            p_password: updatePassword,
-            p_email: updateEmail
-        });
-        setEmailLoading(false);
-        if (error || !data) {
-            setEmailMsg(matchText(lang,'更新できませんでした。パスワードを確認してください','Update failed. Incorrect password?'));
-        } else {
-            setEmailMsg(matchText(lang,'メールを更新しました','Email updated successfully!'));
-            setUpdatePassword('');
-        }
-    };
     const showFriends=settingsPanel==='friends';
     const [showTutorial, setShowTutorial] = React.useState(false);
     const [showLiveMatches, setShowLiveMatches] = React.useState(false);
@@ -263,7 +240,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
             refreshUserProfile(),
             showLeaderboard ? loadLeaderboard(leaderboardCategory) : Promise.resolve()
         ]);
-    });
+    }, user.type === 'registered' || showLeaderboard);
     // Private history cannot subscribe to the former public table. Refresh the
     // authenticated endpoint on focus/online/interval, without a WS subscription.
     useRealtimeRefresh([], async () => {
@@ -499,10 +476,12 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
                             </div>
 
                             <ProfileCosmetics lang={lang} name={userProfile?.name||user.name} url={displayAvatarUrl} frame={cosmetics.avatar} ratings={user.type==='registered'&&userProfile?.id===user.id?userProfile:undefined}/>
+                            {user.type==='registered'&&!/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(user.id)&&<AccountRecoveryPanel key={user.id} userId={user.id} lang={lang}/>}
 
                             <button onClick={onBack} className="w-full mt-4 py-4 border border-[#A89C86]/40 hover:border-[#E8E2D7] text-[#A89C86] hover:text-[#E8E2D7] text-xs tracking-widest transition-colors">
                                 {t.logout}
                             </button>
+                            {user.type==='registered'&&<AccountDeletionPanel key={user.id} userId={user.id} lang={lang} onDeleted={onBack}/>}
                         </div>
                     </div>
                 </SettingsDialog>

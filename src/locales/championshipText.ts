@@ -1,5 +1,5 @@
-import { stageText } from './stageText';
-import { victoryText } from './victoryText';
+import { cosmeticLabel } from './cosmeticNames';
+import { avatarFrame } from '../config/avatarFrames';
 import { rewardFormText } from './rewardFormText';
 import type { Language } from './dict';
 import type { ChampionshipReward } from '../config/championshipRewards';
@@ -21,27 +21,15 @@ const text:Record<Language,Labels<typeof championshipKeys>>={
     pt:['Ciclo','Torneio de ascensão','Próximo ciclo','Anterior','Próximo','Força da CPU','A força atinge o limite no ciclo 5. Depois variam as táticas e aberturas equivalentes.','Recordes pessoais','Títulos','Medalhas','Equilibrado','Atacante','Defensor','100 prêmios de campeão','Efeito de vitória','Títulos necessários','Grau da coleção','Todos os 100 prêmios desbloqueados'],
     ta:['சுற்றுப்பயணம்','முன்னேற்றப் போட்டி','அடுத்த சுற்றுப்பயணம்','முந்தையது','அடுத்தது','CPU வலிமை','5வது சுற்றில் வலிமை உச்சத்தை அடையும். பின்னர் உத்திகளும் சம மதிப்புள்ள தொடக்க நகர்வுகளும் மாறும்.','தனிப்பட்ட சாதனைகள்','வெற்றிக் கோப்பைகள்','பதக்கங்கள்','சமநிலை','தாக்குதல்','தற்காப்பு','100 வெற்றியாளர் பரிசுகள்','வெற்றி விளைவு','தேவையான கோப்பைகள்','சேகரிப்பு நிலை','100 பரிசுகளும் திறக்கப்பட்டன'],
 };
-const families:Record<Language,readonly [string,string,string,string,string,string,string,string,string,string]>={
-    en:['Artisan inlay','Carved stone','Forged metal','Crystal setting','Obsidian sigil','Imperial regalia','Orbital rings','Crystal burst','Falling stars','Crown of light'],
-    ja:['工芸の象嵌','彫刻の石盤','鍛造の金属','結晶の宝飾','黒曜の紋章','王家の装飾','光の軌道','結晶の花火','星の降臨','光冠の祝祭'],
-    zh:['工艺镶嵌','雕刻石盘','锻造金属','水晶镶座','黑曜徽记','皇家华饰','光之轨道','水晶绽放','星辰降临','光冠庆典'],
-    ru:['Инкрустация','Резной камень','Кованый металл','Кристальная оправа','Обсидиановый знак','Королевские регалии','Орбитальные кольца','Взрыв кристаллов','Падающие звёзды','Световая корона'],
-    fr:['Marqueterie','Pierre sculptée','Métal forgé','Sertissage cristal','Sceau d’obsidienne','Ornement impérial','Anneaux orbitaux','Éclat de cristal','Étoiles filantes','Couronne de lumière'],
-    de:['Intarsienkunst','Steinrelief','Schmiedemetall','Kristallfassung','Obsidiansiegel','Kaiserinsignien','Orbitalringe','Kristallexplosion','Sternenfall','Lichtkrone'],
-    es:['Taracea artesanal','Piedra tallada','Metal forjado','Engaste de cristal','Sello de obsidiana','Regalia imperial','Anillos orbitales','Estallido de cristal','Lluvia de estrellas','Corona de luz'],
-    tr:['El işi kakma','Oyma taş','Dövme metal','Kristal yuva','Obsidyen mühür','İmparatorluk nişanı','Yörünge halkaları','Kristal patlaması','Yıldız yağmuru','Işık tacı'],
-    pl:['Artystyczna intarsja','Rzeźbiony kamień','Kuty metal','Kryształowa oprawa','Obsydianowa pieczęć','Cesarskie regalia','Pierścienie orbitalne','Kryształowy rozbłysk','Spadające gwiazdy','Korona światła'],
-    hi:['कारीगरी जड़ाई','नक्काशीदार पत्थर','गढ़ी हुई धातु','क्रिस्टल जड़ाव','ओब्सीडियन चिह्न','शाही अलंकरण','कक्षीय छल्ले','क्रिस्टल विस्फोट','टूटते तारे','प्रकाश मुकुट'],
-    pt:['Marchetaria','Pedra esculpida','Metal forjado','Engaste de cristal','Selo de obsidiana','Insígnia imperial','Anéis orbitais','Explosão de cristal','Chuva de estrelas','Coroa de luz'],
-    ta:['கைவினைப் பதிப்பு','செதுக்கிய கல்','வடித்த உலோகம்','படிகப் பதிப்பு','கருங்கண்ணாடிச் சின்னம்','அரச அலங்காரம்','ஒளி வளையங்கள்','படிக வெடிப்பு','விண்மீன் மழை','ஒளிக் கிரீடம்'],
-};
 export const championshipText=(lang:Language,key:typeof championshipKeys[number])=>text[lang][championshipKeys.indexOf(key)];
 const preview:Record<Language,string>={en:'Preview effect',ja:'エフェクトをプレビュー',zh:'预览特效',ru:'Просмотр эффекта',fr:'Aperçu de l’effet',de:'Effektvorschau',es:'Ver efecto',tr:'Efekti önizle',pl:'Podgląd efektu',hi:'प्रभाव देखें',pt:'Prévia do efeito',ta:'விளைவு முன்னோட்டம்'};
 export const effectPreviewLabel=(lang:Language)=>preview[lang];
-const extras:Record<Language,readonly [string,string]>={en:['Staunton finish','Circuit score'],ja:['スタントン・マテリアル','サーキット・スコア'],zh:['斯汤顿材质','巡回乐章'],ru:['Материал Стаунтона','Музыка цикла'],fr:['Finition Staunton','Partition du circuit'],de:['Staunton-Material','Turniermusik'],es:['Acabado Staunton','Música del circuito'],tr:['Staunton kaplama','Döngü müziği'],pl:['Wykończenie Staunton','Muzyka cyklu'],hi:['स्टॉन्टन सामग्री','चक्र संगीत'],pt:['Acabamento Staunton','Música do circuito'],ta:['ஸ்டான்டன் மேற்பரப்பு','சுற்று இசை']};
 export const championshipName=(lang:Language,reward:ChampionshipReward)=>{
-    if (reward.kind==='music') return `${rewardTrackTitle(reward.url) ?? extras[lang][1]} · ${String(reward.requiredWins).padStart(3,'0')}`;
-    const name=reward.kind==='effect'?victoryText(lang,reward.motif):reward.kind==='avatar'?stageText(lang,'frame'):reward.kind==='piece'?extras[lang][0]:families[lang][reward.familyIndex];
-    const style=rewardFormText(lang,reward.kind==='piece'?reward.form:reward.kind==='board'?reward.profile:undefined);
-    return `${name}${style?' · '+style:''} ${(reward.kind==='piece'||reward.kind==='avatar')?String(reward.requiredWins).padStart(3,'0'):['I','II','III','IV','V','VI','VII','VIII','IX','X'][reward.tier-1]}`;
+    if (reward.kind==='music') return rewardTrackTitle(reward.url) ?? 'BGM';
+    const frame=reward.kind==='avatar'?avatarFrame(reward.id):undefined;
+    const name=frame
+        ? `${cosmeticLabel(lang, ['bronze','silver','gold'][Math.floor((frame.tier-1)/5)])} · ${cosmeticLabel(lang,frame.motif)}`
+        : cosmeticLabel(lang,reward.motif);
+    const form=rewardFormText(lang,reward.kind==='piece'?reward.form:reward.kind==='board'?reward.profile:undefined);
+    return `${name}${form?' · '+form:''} ${String(reward.requiredWins).padStart(3,'0')}`;
 };

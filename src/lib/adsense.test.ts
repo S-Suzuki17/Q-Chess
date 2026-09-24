@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+// SDK lifecycle tests isolate the provider from the separate release gate tests.
+vi.mock('./webAdPolicy', () => ({ browserCanRequestWebAds: () => true }));
 const CLIENT = 'ca-pub-1116866075179199';
 
 class FakeScript extends EventTarget {

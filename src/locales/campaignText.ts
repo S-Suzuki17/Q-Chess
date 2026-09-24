@@ -1,5 +1,6 @@
 import type { Language } from './dict';
 import {foundersRewardName} from './foundersText';
+import { cosmeticLabel } from './cosmeticNames';
 import { championshipReward } from '../config/championshipRewards';
 import { championshipName } from './championshipText';
 export const campaignKeys = ['title','intro','challenge','locked','cleared','rewards','equip','equipped','standard','win','loss','draw','next','retry','back','noHints','quick','local','saveError','champion','round','board','piece','white','black'] as const;
@@ -50,12 +51,10 @@ const cosmetics: Record<Language, readonly string[]> = {
 };
 export const campaignText = (lang:Language,key:Key) => copy[lang][keys.indexOf(key)];
 export const bossDescription = (lang:Language,index:number) => profiles[lang][index];
-const referenceNames:Record<Language,readonly [string,string,string,string]>={
- en:['Walnut & maple','Photon grid','Ice glass','Photon glass'],ja:['ウォールナットとメープル','フォトン・グリッド','アイス・グラス','フォトン・グラス'],zh:['胡桃木与枫木','光子网格','冰晶玻璃','光子玻璃'],ru:['Орех и клён','Фотонная сетка','Ледяное стекло','Фотонное стекло'],fr:['Noyer et érable','Grille photonique','Verre glacé','Verre photonique'],de:['Walnuss und Ahorn','Photonengitter','Eisglas','Photonenglas'],es:['Nogal y arce','Cuadrícula fotónica','Vidrio helado','Vidrio fotónico'],tr:['Ceviz ve akçaağaç','Foton ızgarası','Buz camı','Foton camı'],pl:['Orzech i klon','Siatka fotonowa','Szkło lodowe','Szkło fotonowe'],hi:['अखरोट और मेपल','फोटॉन ग्रिड','बर्फ़ीला काँच','फोटॉन काँच'],pt:['Nogueira e bordo','Grade fotônica','Vidro glacial','Vidro fotônico'],ta:['வால்நட் மற்றும் மேப்பிள்','ஃபோட்டான் கட்டம்','பனிக் கண்ணாடி','ஃபோட்டான் கண்ணாடி']};
 export const rewardName = (lang:Language,id:string) => {
     const founders=foundersRewardName(lang,id);if(founders)return founders;
     const refIndex=['champion-board-reference-wood','champion-board-reference-neon','iceglass','neonglass'].indexOf(id);
-    if(refIndex>=0)return referenceNames[lang][refIndex];
+    if(refIndex>=0)return cosmeticLabel(lang,['wood','neon','iceglass','neonglass'][refIndex]);
     const reward=championshipReward(id);
     if(reward) return championshipName(lang,reward);
     if(id==='standard') return campaignText(lang,'standard');

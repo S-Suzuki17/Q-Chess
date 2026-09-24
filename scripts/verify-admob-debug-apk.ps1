@@ -1,6 +1,8 @@
 param(
     [string]$Apk = 'android/app/build/outputs/apk/debug/app-debug.apk',
     [string]$WebOutput = 'out',
+    [ValidateSet('com.qgambit.app', 'com.qgambit.app.qa')]
+    [string]$ExpectedPackage = 'com.qgambit.app',
     [string]$BuildTools = "$env:LOCALAPPDATA/Android/Sdk/build-tools/36.0.0"
 )
 $ErrorActionPreference = 'Stop'
@@ -11,7 +13,7 @@ if ($LASTEXITCODE -ne 0) { throw "APK signature verification failed: $signature"
 $badging = & (Join-Path $BuildTools 'aapt.exe') dump badging $apkPath
 if ($LASTEXITCODE -ne 0) { throw 'Cannot inspect APK metadata' }
 $metadata = $badging -join "`n"
-if ($metadata -notmatch "package: name='com.qgambit.app'") { throw 'Wrong application package' }
+if ($metadata -notmatch ("package: name='" + [regex]::Escape($ExpectedPackage) + "'")) { throw 'Wrong application package' }
 if ($metadata -notmatch 'application-debuggable') { throw 'Expected a debug test artifact, not a store release' }
 if ($metadata -match "uses-permission: name='(?:com.google.android.gms.permission.AD_ID|android.permission.ACCESS_ADSERVICES_[^']+)'") {
     throw 'Advertising identifier/Privacy Sandbox permission unexpectedly merged into APK'

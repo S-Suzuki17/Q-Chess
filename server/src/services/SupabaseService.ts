@@ -6,6 +6,8 @@ import type { LocalGameRecord, PrivateGameRecord, PrivateGameStats } from './Pri
 import { createProfileAvatarStore } from './ProfileAvatars';
 import { createAdRewardStore } from './AdRewardStore';
 import {createFoundersStore} from './FoundersRewards';
+import { createAccountDeletionStore } from './AccountDeletion';
+import { createRecoveryStore } from './AccountRecovery';
 
 dotenv.config();
 
@@ -37,6 +39,13 @@ export class SupabaseService {
         return createAdRewardStore(this.supabase,token=>this.verifyUser(token));
     }
     public foundersStore() {return createFoundersStore(this.supabase,token=>this.verifyUser(token));}
+    public accountDeletionStore() { return createAccountDeletionStore(this.supabase, token => this.verifyUser(token)); }
+    public accountRecoveryStore() {
+        return createRecoveryStore(this.supabase, () => createClient(supabaseUrl, supabaseKey, {
+            auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+            global: { fetch: (input, init) => fetch(input, { ...init, signal: AbortSignal.timeout(10000) }) },
+        }), (id, password) => this.verifyLegacyPassword(id, password), id => this.accountDeletionStore().blocked(id));
+    }
 
     public async verifyLegacyPassword(userId:string,password:string):Promise<boolean> {
         try {
@@ -147,6 +156,12 @@ export class SupabaseService {
         try {
             const { data: { user }, error } = await this.supabase.auth.getUser(token);
             if (error || !user || user.is_anonymous===true) return null;
+            if(process.env.ACCOUNT_RECOVERY_ENABLED==='true') {
+                const {data:recovery,error:lookupError}=await this.supabase.from('account_recovery_emails')
+                    .select('user_id').eq('auth_user_id',user.id).maybeSingle();
+                // A recovery-only Auth identity is not a second playable account.
+                if(lookupError||recovery)return null;
+            }
             return user.id;
         } catch (e) {
             return null;
