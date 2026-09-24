@@ -12,6 +12,7 @@ import { createAccountProfileStore } from './AccountProfiles';
 import { createAccountSecurityStore,verifiedTokenSessionId } from './AccountSecurity';
 import {createServiceStatusLoader} from './ServiceOperations';
 import {createAccountProgressStore} from './AccountProgress';
+import {createAccountTermsStore} from './AccountTerms';
 import type {SecurityEvent,SecurityOutcome} from './SecurityAudit';
 
 dotenv.config();
@@ -67,6 +68,7 @@ export class SupabaseService {
     }
     public serviceStatusLoader() {return createServiceStatusLoader(this.supabase);}
     public accountProgressStore(){return createAccountProgressStore(this.supabase,token=>this.verifyUser(token),id=>this.accountDeletionStore().blocked(id));}
+    public accountTermsStore(){return createAccountTermsStore(this.supabase,token=>this.verifyUser(token),id=>this.accountDeletionStore().blocked(id),(id,mayCreate)=>this.accountProfileStore().ensure(id,'Player',mayCreate));}
 
     public async verifyLegacyPassword(userId:string,password:string):Promise<boolean> {
         try {

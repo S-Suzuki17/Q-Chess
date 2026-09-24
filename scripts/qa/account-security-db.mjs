@@ -26,6 +26,20 @@ try{
     await db.exec(await readFile('supabase/migrations/20260924160910_account_security_controls.sql','utf8'));
     await db.exec(await readFile('supabase/migrations/20260924163400_account_progress_sync.sql','utf8'));
     await db.exec(await readFile('supabase/migrations/20260924170224_account_security_audit.sql','utf8'));
+    await db.exec(await readFile('supabase/migrations/20260924174539_account_terms_consent.sql','utf8'));
+    await test('terms consent is server-only, immutable on retry, and owner-deleted',async()=>{
+        for(const role of ['anon','authenticated'])await as(role,async()=>{
+            await assert.rejects(db.exec('select * from account_terms_consents'),/permission denied/);
+            await assert.rejects(db.exec("insert into account_terms_consents(user_id,version) values('Existing','2026-09-25.1')"),/permission denied/);
+        });
+        const save=()=>as('service_role',()=>db.exec("insert into account_terms_consents(user_id,version) values('Existing','2026-09-25.1') on conflict(user_id,version) do nothing"));
+        await save();const stamp=await scalar('select accepted_at::text from account_terms_consents');await save();
+        assert.equal(await scalar('select accepted_at::text from account_terms_consents'),stamp);
+        assert.equal(await scalar('select count(*) from account_terms_consents'),1);
+        await assert.rejects(as('service_role',()=>db.exec("update account_terms_consents set accepted_at=now()")),/permission denied/);
+        await db.exec("insert into profiles(id,name) values('ConsentOnly','ConsentOnly');insert into account_terms_consents(user_id,version) values('ConsentOnly','2026-09-25.1');delete from profiles where id='ConsentOnly'");
+        assert.equal(await scalar("select count(*) from account_terms_consents where user_id='ConsentOnly'"),0);
+    });
     await test('initializes a missing service-status row without overwriting operator settings',async()=>{
         const migration=await readFile('supabase/migrations/20260924171734_initialize_service_status.sql','utf8');
         await db.exec('delete from public.system_status');await db.exec(migration);

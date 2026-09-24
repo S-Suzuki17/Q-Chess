@@ -20,6 +20,7 @@ import { createAccountProfileRouter } from './services/AccountProfileRoutes';
 import { createAccountSecurityRouter } from './services/AccountSecurityRoutes';
 import {createServiceOperations} from './services/ServiceOperations';
 import {createAccountProgressRouter} from './services/AccountProgressRoutes';
+import {createAccountTermsRouter} from './services/AccountTermsRoutes';
 import {createSecurityAudit} from './services/SecurityAudit';
 
 const app = express();
@@ -49,6 +50,7 @@ app.use(createAccountRecoveryRouter(rankedAuth,supabaseService.accountRecoverySt
 app.use(createAccountSecurityRouter(rankedAuth,supabaseService.accountSecurityStore(),accountGate,
     id=>{for(const socket of io.sockets.sockets.values())if(socket.data.userId===id){socket.emit('session_replaced');socket.disconnect(true);}},audit));
 app.use(accountRequestGuard(rankedAuth,deletionStore,accountGate));
+app.use(createAccountTermsRouter(rankedAuth,supabaseService.accountTermsStore(),accountGate));
 app.use(createAccountProgressRouter(rankedAuth,supabaseService.accountProgressStore(),accountGate));
 app.use(createAccountProfileRouter(rankedAuth,supabaseService.accountProfileStore(),accountGate));
 app.use(createPrivateGameRecordRouter(rankedAuth,supabaseService));
