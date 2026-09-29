@@ -3,14 +3,18 @@ import { victoryStyle } from '../config/victoryStyles';
 import { fragments, shotAt, SHOT_SECONDS } from './checkmate/timeline';
 import { atmosphereParticles, type WordBox } from './checkmate/atmosphere';
 import { renderSpectacle } from './checkmate/spectacle';
+import { victoryIntensity } from './checkmate/intensity';
+import { burstTrails } from './checkmate/trails';
 
 export function createVictoryPlan(preset: ChampionEffect, compact = false, shotSeed?: number) {
     let seed = 2166136261;
     for (const c of preset.id) seed = Math.imul(seed ^ c.charCodeAt(0), 16777619) >>> 0;
     seed = shotSeed ?? seed;
+    const intensity = victoryIntensity(preset,compact);
     return { seed, tier: preset.tier, motif: preset.motif, style: victoryStyle(preset), duration: SHOT_SECONDS,
-        particles: fragments(seed, compact),
-        ornaments: atmosphereParticles(seed, compact).slice(0, (compact ? 72 : 112) + preset.tier * (compact ? 7 : 11)) };
+        intensity, trails: burstTrails(seed,intensity),
+        particles: fragments(seed, false).slice(0,intensity.chipCount),
+        ornaments: atmosphereParticles(seed, compact,intensity) };
 }
 export type VictoryPlan = ReturnType<typeof createVictoryPlan>;
 export function victoryWordBoxes(width: number, height: number): WordBox[] {
@@ -25,7 +29,7 @@ export function victoryWordBoxes(width: number, height: number): WordBox[] {
 export function renderVictoryFrame(ctx: CanvasRenderingContext2D, plan: VictoryPlan, width: number, height: number, seconds: number,
     _hold = false, words = victoryWordBoxes(width,height), headline = true, reduced = false) {
     if (width <= 0 || height <= 0) return;
-    renderSpectacle(ctx,plan.particles,shotAt(seconds,reduced),width,height,reduced,words,plan.style,plan.ornaments);
+    renderSpectacle(ctx,plan.particles,shotAt(seconds,reduced),width,height,reduced,words,plan.style,plan.ornaments,plan.trails,plan.intensity);
     if (headline) {
         ctx.save(); ctx.textAlign='center'; ctx.textBaseline='middle';
         ctx.font='900 '+Math.min(width*.125,height*.29)+'px Impact, "Arial Black", sans-serif';

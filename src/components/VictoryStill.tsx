@@ -10,7 +10,8 @@ export function VictoryStill({preset}:{preset:ChampionEffect}) {
         const draw=()=>{
             const width=node.clientWidth,height=node.clientHeight,dpr=Math.min(window.devicePixelRatio||1,2);
             node.width=Math.round(width*dpr);node.height=Math.round(height*dpr);ctx.setTransform(dpr,0,0,dpr,0,0);
-            renderVictoryFrame(ctx,createVictoryPlan(preset,true),width,height,1.8,true);
+            // Show the eruption, not the already-dissipated tail, in the reward catalogue.
+            renderVictoryFrame(ctx,createVictoryPlan(preset,true),width,height,.95,true);
         };
         draw();const observer=new ResizeObserver(draw);observer.observe(node);return()=>observer.disconnect();
     },[preset]);

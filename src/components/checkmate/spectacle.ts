@@ -1,6 +1,8 @@
 import {fragmentAt,type Fragment,type shotAt} from './timeline';
 import type {ResultStyle} from '../../config/victoryStyles';
 import { atmosphereParticles, renderAtmosphere,type WordBox,type AtmosphereParticle } from './atmosphere';
+import {victoryIntensity,type VictoryIntensity} from './intensity';
+import {renderBurstTrails,type BurstTrail} from './trails';
 function glow(ctx:CanvasRenderingContext2D,x:number,y:number,rx:number,ry:number,power:number,style:ResultStyle){
     if(power<=0||rx<=0)return;
     ctx.save();ctx.translate(x,y);ctx.scale(1,ry/rx);ctx.globalAlpha=power;
@@ -34,12 +36,13 @@ export function renderBoard(ctx:CanvasRenderingContext2D,width:number,height:num
     }
     ctx.restore();
 }
-export function renderSpectacle(ctx:CanvasRenderingContext2D,points:Fragment[],f:ReturnType<typeof shotAt>,width:number,height:number,reduced:boolean,words:WordBox[],style:ResultStyle,ornaments:AtmosphereParticle[]=atmosphereParticles(1,width<600)){
+export function renderSpectacle(ctx:CanvasRenderingContext2D,points:Fragment[],f:ReturnType<typeof shotAt>,width:number,height:number,reduced:boolean,words:WordBox[],style:ResultStyle,ornaments:AtmosphereParticle[]=atmosphereParticles(1,width<600),trails:BurstTrail[]=[],intensity:VictoryIntensity=victoryIntensity({requiredWins:1},width<600)){
     ctx.clearRect(0,0,width,height);
     const centerY=height*.45,cx=width/2;
     const backdrop=ctx.createRadialGradient(cx,centerY,0,cx,centerY,Math.max(width,height)*.75);
     backdrop.addColorStop(0,style.ambient);backdrop.addColorStop(.46,'#0b1015');backdrop.addColorStop(1,'#030608');
     ctx.fillStyle=backdrop;ctx.fillRect(0,0,width,height);
+    renderBurstTrails(ctx,width,height,f.t,style,words,trails,intensity,reduced);
     renderAtmosphere(ctx,width,height,f,style,reduced,words,ornaments);
     glow(ctx,cx,centerY,width*.47,height*.32,f.reveal*.65,style);
     renderBoard(ctx,width,height,f,style);

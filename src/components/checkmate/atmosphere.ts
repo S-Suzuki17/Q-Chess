@@ -1,26 +1,34 @@
 import {unit, type shotAt} from './timeline';
 import type {ResultStyle} from '../../config/victoryStyles';
+import {victoryIntensity, type VictoryIntensity} from './intensity';
 export type WordBox = {x:number;y:number;width:number;height:number};
 type Point = [number,number];
 type Paint = string | CanvasGradient;
-export type AtmosphereParticle = {origin:number;row:number;direction:number;speed:number;size:number;aspect:number;delay:number;life:number;spin:number;twist:number;drift:number;corners:number[]};
+export type AtmosphereParticle = {origin:number;row:number;direction:number;speed:number;size:number;aspect:number;delay:number;life:number;spin:number;twist:number;drift:number;corners:number[];depth:number;gravity:number;batch:number};
 export const ATMOSPHERE_END=2.8;
-export function atmosphereParticles(seed:number,compact=false):AtmosphereParticle[]{
+export function atmosphereParticles(seed:number,compact=false,intensity:VictoryIntensity=victoryIntensity({requiredWins:1},compact)):AtmosphereParticle[]{
     let n=seed>>>0;
     const random=()=>((n=(Math.imul(n,1664525)+1013904223)>>>0)/4294967296);
-    return Array.from({length:compact?144:224},()=>({
-        origin:random(),row:random(),direction:random()*Math.PI*2,
-        speed:190+random()*560,size:4+random()*17,aspect:.3+random()*1.6,
-        delay:.246+random()*.19,life:.85+random()*1.7,
-        spin:(random()-.5)*12,twist:random()*Math.PI*2,drift:(random()-.5)*32,
-        corners:Array.from({length:5},()=>.55+random()*.7),
-    }));
+    return Array.from({length:intensity.ornamentCount},()=>{
+        // Irregular follow-up eruptions, never evenly spaced rings or mirrored fans.
+        const batch=Math.floor(random()**1.8*intensity.bursts);
+        const depth=random()<intensity.foreground?1.5+random()*.8:.65+random()*.5;
+        const delay=.246+batch*.19+random()*.13;
+        return {
+            origin:random(),row:random(),direction:random()*Math.PI*2,
+            speed:(190+random()*560)*intensity.reach*depth,
+            size:(4+random()*17)*intensity.scale*depth,aspect:.3+random()*1.6,
+            delay,life:Math.min(ATMOSPHERE_END-delay, .72+random()*1.2+intensity.progress*.4),
+            spin:(random()-.5)*12,twist:random()*Math.PI*2,drift:(random()-.5)*48,
+            corners:Array.from({length:5},()=>.55+random()*.7),depth,gravity:35+random()*65,batch,
+        };
+    });
 }
 export function atmosphereAt(p:AtmosphereParticle,time:number){
     const age=time-p.delay,progress=unit(age/p.life);
     const distance=p.speed*(1-Math.exp(-Math.max(0,age)*2.4))/2.4;
     return {x:Math.cos(p.direction)*distance+Math.sin(age*3+p.twist)*p.drift*age,
-        y:Math.sin(p.direction)*distance*.68+age*age*58,
+        y:Math.sin(p.direction)*distance*.8+age*age*p.gravity,
         opacity:age<0||age>=p.life||time>=ATMOSPHERE_END?0:unit(age/.045)*(1-progress)**1.15,
         angle:p.twist+age*p.spin,fold:.18+Math.abs(Math.sin(p.twist+age*4))*.82};
 }
@@ -33,7 +41,7 @@ function gradient(ctx:CanvasRenderingContext2D,from:Point,to:Point,stops:[number
 /** Each material bursts irregularly from the lettering, then expires completely. */
 export function renderAtmosphere(ctx:CanvasRenderingContext2D,width:number,height:number,f:ReturnType<typeof shotAt>,style:ResultStyle,reduced:boolean,words:WordBox[],particles:AtmosphereParticle[]){
     if(reduced||f.t<.246||f.t>=ATMOSPHERE_END||!words.length)return;
-    const factor=Math.min(width/720,height/650),color=style.color,highlight=style.highlight;
+    const factor=Math.min(width/900,height/500),color=style.color,highlight=style.highlight;
     for(let i=0;i<particles.length;i++){
         const p=particles[i],a=atmosphereAt(p,f.t);if(a.opacity<=0)continue;
         const word=words[Math.min(words.length-1,Math.floor(p.row*words.length))];

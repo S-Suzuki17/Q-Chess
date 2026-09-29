@@ -69,7 +69,7 @@ function VictoryShot({ preset, preview, contained, checkmate }: { preset: Champi
     }, [preset, checkmate]);
     return <div ref={host} className="victory-fx" data-victory-effect={preset.id} data-effect-motif={preset.motif}
         data-effect-tier={preset.tier} data-effect-preview={preview} data-contained={contained} aria-hidden="true"
-        data-finish={style.id} data-effect-renderer="checkmate-v3"
+        data-finish={style.id} data-effect-stage={preset.requiredWins} data-effect-renderer="checkmate-v4"
         style={{ '--fx-color':style.color,'--letter-highlight':style.highlight,'--letter-mid':style.mid,'--letter-shade':style.shade,'--letter-edge':style.edge,'--letter-depth':style.depth } as CSSProperties}>
         <canvas ref={canvas}/>
         {checkmate && <div className="result-heading" lang="en"><div className="mate-title" aria-label="CHECKMATE">{['CHECK','MATE'].map(word=><span className="mate-word" data-word={word} key={word}>{[...word].map((letter,index)=><span className="mate-letter" data-letter={letter} key={index}>{letter}</span>)}</span>)}</div></div>}

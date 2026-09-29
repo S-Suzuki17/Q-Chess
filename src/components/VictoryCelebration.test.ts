@@ -11,7 +11,8 @@ it('gives every earned effect a bounded, non-interactive cinematic composition',
         const html=renderToStaticMarkup(React.createElement(VictoryCelebration,{effect:effect.id,preview:true}));
         expect(html).toContain('aria-hidden="true"');
         expect(html).toContain(`data-effect-motif="${effect.motif}"`);
-        expect(html).toContain('data-effect-renderer="checkmate-v3"');
+        expect(html).toContain('data-effect-renderer="checkmate-v4"');
+        expect(html).toContain(`data-effect-stage="${effect.requiredWins}"`);
         expect(html).toContain('aria-label="CHECKMATE"');
         expect(html).not.toContain('reward-sigil');
         expect((html.match(/<canvas/g)??[]).length).toBe(1);
@@ -21,7 +22,7 @@ it('gives every earned effect a bounded, non-interactive cinematic composition',
 });
 it('only labels confirmed checkmates, never timeout or resignation victories',()=>{
     const html=renderToStaticMarkup(React.createElement(VictoryCelebration,{effect:'champion-effect-003',checkmate:false}));
-    expect(html).toContain('data-effect-renderer="checkmate-v3"');
+    expect(html).toContain('data-effect-renderer="checkmate-v4"');
     expect(html).not.toContain('CHECKMATE');
 });
 it('does not add a special effect for the standard reward',()=>{
