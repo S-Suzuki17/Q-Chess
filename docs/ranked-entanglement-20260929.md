@@ -42,10 +42,14 @@ this was an authoritative rule defect, not a CPU-only rendering defect.
 
 User authorized the Render server update including possible interruption of active games.
 Target: `q-chess.onrender.com`, Render service `srv-da5jpcgjo6nc73cpjjl0`.
-At preparation time the controlling browser still requires Render login.
-Deployment is NOT yet verified. Do not report this as live until the target build is
-Live and its `/health` returns `entanglementVersion: subset-v1`.
-QUBE t13 is currently marked local-only; update its status after verified publication.
+Render login was restored after local preparation. Its Live commit is `abd80a6`.
+Use the existing Git auto-deploy from `main`, preserving the already-approved Web
+effects from `b01af87`; do not disable auto-deploy through a specific-commit deploy.
+Deployment is NOT yet verified in this preparation record. Do not report this as
+live until Render shows Live and `/health` returns `entanglementVersion: subset-v1`.
+Record final production evidence separately under outputs/.
+The user's latest direction makes QUBE t13 unrelated light conversation, not an
+update announcement. Its publication status must be reported outside the post.
 
 No schema migration or new client build is required for online candidate propagation.
 Web/itch/Android clients connected to this server receive the corrected snapshot.

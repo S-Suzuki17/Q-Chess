@@ -17,6 +17,12 @@ describe('development diary',()=>{
             for(const removed of ['名前を普通にして','もっとチェスの勝利っぽく','全部ド派手に出して','審査合格まで言い切れ'])expect(post.content).not.toContain(removed);
         }
     });
+    it('uses unrelated light conversation for the newly requested blog comment',()=>{
+        const post=devDiaryTweets.find(p=>p.id==='t13');
+        expect(post?.content).toContain('冷蔵庫');
+        expect(post?.content).not.toMatch(/開発|修正|ランク戦|CPU|公開未反映|トークン/);
+        expect(post?.hasAd).toBe(false);
+    });
     it('exports exactly the same text as the public diary',()=>{
         for(const post of devDiaryTweets.filter(p=>p.authorName==='QUBE')){
             const expected=[post.content,post.tags?.map(t=>'#'+t).join(' ')].filter(Boolean).join('\n').normalize('NFC');
