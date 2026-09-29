@@ -38,6 +38,34 @@ beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(1_000_000); vi.spyOn(Mat
 afterEach(() => { vi.clearAllTimers(); vi.useRealTimers(); vi.restoreAllMocks(); });
 
 describe('ranked runtime', () => {
+    it('broadcasts candidate reductions for unmoved CPU pieces after a fallback move', async () => {
+        const { io, mm, match, events } = fixture();
+        // This fixture assigns CPU to White. Reserve two Rook/Queen identities,
+        // then make the third CPU piece a Rook/Queen through the actual runtime.
+        for (const [x, backwards] of [[0, false], [0, true], [2, false], [2, true], [4, false]] as const) {
+            for (const team of [0, 1]) {
+                const state = match.engine!.getPublicState('human');
+                const id = team === 0 ? x * 2 + 1 : 16 + x * 2;
+                expect(match.engine!.processAction({ actionId: `setup-${state.version}`, version: state.version,
+                    playerId: team === 0 ? match.cpu!.id : 'human', action: { type: 'MOVE', payload: {
+                        pieceId: id, toX: x, toY: team === 0 ? (backwards ? 2 : 3) : (backwards ? 5 : 4),
+                    } } }).success).toBe(true);
+            }
+        }
+        const settle = vi.fn();
+        const runtime = new RankedRuntime(io as any, mm, settle, async state => ({
+            version: state.version, move: { pieceId: 9, toX: 4, toY: 2 },
+        }));
+        runtime.tick(); await flush();
+        const event = events.filter(event => event.event === 'sync_state').at(-1)!;
+        expect(event.payload).toMatchObject({ version: 11, turn: 1, gameOver: null });
+        const unmoved = event.payload.pieces.filter((p: any) => p.team === 0 && !p.hasMoved);
+        expect(unmoved).toHaveLength(13);
+        for (const p of unmoved) expect(p.possibilities).toEqual(['P', 'N', 'B', 'K']);
+        expect(match.state).toBe('IN_GAME');
+        expect(settle).not.toHaveBeenCalled();
+    });
+
     it('applies a legal asynchronous CPU move once and includes it in the replay history', async () => {
         const { io, mm, match, result } = fixture();
         const cpu = deferred<RankCpuWorkerResponse>();

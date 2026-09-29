@@ -12,7 +12,7 @@ const h = vi.hoisted(() => {
     const mm = { registerSocket: vi.fn((userId, socketId) => sessions.set(userId, { userId, socketId, state: 'IDLE' })),
         getPlayerSession: vi.fn(id => sessions.get(id)), clearDisconnectTimer: vi.fn(), getQueueStats: vi.fn(() => ({})),
         takeCpuFallbacks: vi.fn(() => []), joinQueue: vi.fn(), leaveQueue: vi.fn(), removeSocket: vi.fn(), getMatch: vi.fn() };
-    const app = { use: vi.fn(), get: vi.fn(), post: vi.fn((path, handler) => routes.set(path, handler)) };
+    const app = { use: vi.fn(), get: vi.fn((path, handler) => routes.set(path, handler)), post: vi.fn((path, handler) => routes.set(path, handler)) };
     const io = { use: vi.fn(), on: vi.fn((event, handler) => listeners.set(event, handler)),
         sockets: { sockets, adapter: { rooms: new Map() } }, to: vi.fn(() => ({ emit: vi.fn() })) };
     return { routes, listeners, sockets, sessions, service, blocked, mm, app, io, json: vi.fn(), listen: vi.fn(), tick: vi.fn() };
@@ -88,6 +88,12 @@ beforeEach(async () => {
 afterEach(() => { vi.clearAllTimers(); vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
 describe('ranked gateway without network or database side effects', () => {
+    it('identifies the deployed candidate solver without exposing account data', () => {
+        const res = response();
+        h.routes.get('/health')!({}, res);
+        expect(res.headers['Cache-Control']).toBe('no-store');
+        expect(res.body).toEqual({ status: 'ok', timestamp: Date.now(), rulesVersion: 'checkmate-v1', entanglementVersion: 'subset-v1' });
+    });
     it('verifies the actual password and returns an uncached identity-bound proof', async () => {
         expect(h.json).toHaveBeenCalledWith({ limit: '4kb' });
         const wrong = await login('Alice', 'wrong');

@@ -3,6 +3,7 @@ import http from 'http';
 import { Server, Socket } from 'socket.io';
 import cors from 'cors';
 import { GameEngine, Action, ActionPayload } from './game/GameEngine';
+import { ENTANGLEMENT_VERSION } from './game/quantumChess';
 import { MatchmakingService } from './matchmaking/MatchmakingService';
 import { SupabaseService } from './services/SupabaseService';
 import { RankedAuth, isRankedUserId } from './services/RankedAuth';
@@ -61,7 +62,8 @@ app.use(express.json({limit:'4kb'}));
 
 // Phase 4: Health Check & Uptime ping target
 app.get('/health', (req, res) => {
-    res.json({ status: 'ok', timestamp: Date.now(), rulesVersion: 'checkmate-v1' });
+    res.setHeader('Cache-Control', 'no-store');
+    res.json({ status: 'ok', timestamp: Date.now(), rulesVersion: 'checkmate-v1', entanglementVersion: ENTANGLEMENT_VERSION });
 });
 
 const server = http.createServer(app);

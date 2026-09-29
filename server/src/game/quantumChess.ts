@@ -6,6 +6,7 @@
  * 2. Observation - Movement filters possibilities based on valid moves
  * 3. Entanglement - Team piece limits cause wave function collapse
  */
+import type { Piece } from './GameEngine';
 
 // Piece type limits per team
 export const PIECE_LIMITS = {
@@ -19,6 +20,16 @@ export const PIECE_LIMITS = {
 
 // All possible piece types
 export const PIECE_TYPES = ['P', 'N', 'B', 'R', 'Q', 'K'];
+export const ENTANGLEMENT_VERSION = 'subset-v1';
+
+const TYPE_BITS: Record<string, number> = Object.fromEntries(PIECE_TYPES.map((type, i) => [type, 1 << i]));
+const TYPE_SUBSETS = Array.from({ length: 63 }, (_, i) => {
+    const mask = i + 1;
+    return { mask, capacity: PIECE_TYPES.reduce((count, type) =>
+        count + (mask & TYPE_BITS[type] ? PIECE_LIMITS[type] : 0), 0) };
+});
+
+export class EntanglementContradiction extends Error {}
 
 // Unicode symbols for pieces
 export const SYMBOLS = {
@@ -298,57 +309,42 @@ export function countCapturedPieces(pieces, team) {
  * @param {number} team - Team to check (0 or 1)
  * @returns {Piece[]} New pieces array with entanglement resolved
  */
-export function resolveEntanglement(pieces, team) {
-    let result = [...pieces];
+export function resolveEntanglement(pieces: Piece[], team: number): Piece[] {
+    // Captured identities still occupy their original team slots. Promotions
+    // retain a Pawn identity for quotas, separate from their current movement.
+    const members = pieces.filter(p => p.team === team).map(piece => {
+        if (!piece.possibilities.length || piece.possibilities.some(type => !TYPE_BITS[type])) {
+            throw new EntanglementContradiction('Invalid piece candidates');
+        }
+        return { piece, mask: piece.promoted ? TYPE_BITS.P
+            : piece.possibilities.reduce((mask, type) => mask | TYPE_BITS[type], 0) };
+    });
     let changed = true;
-    let iterations = 0;
-    const maxIterations = 100; // Prevent infinite loops
-
-    // Keep iterating until no more changes (propagation complete)
-    while (changed && iterations < maxIterations) {
+    // Every change removes at least one of six bits. This reaches a fixed point
+    // without a partial-result iteration limit or an invented Pawn fallback.
+    while (changed) {
         changed = false;
-        iterations++;
-
-        // Count confirmed pieces at the start of each iteration
-        const confirmedCounts = countConfirmedPieces(result, team);
-
-        result = result.map(piece => {
-            if (piece.team !== team || piece.captured || piece.possibilities.length <= 1) {
-                return piece;
-            }
-
-            // Remove possibilities that are at their limit
-            const filteredPossibilities = piece.possibilities.filter(type =>
-                confirmedCounts[type] < PIECE_LIMITS[type]
-            );
-
-            // Check if anything changed
-            if (filteredPossibilities.length !== piece.possibilities.length) {
-                changed = true;
-
-                // If only one possibility left, it's now confirmed - update counts for next iteration
-                if (filteredPossibilities.length === 1) {
-                    confirmedCounts[filteredPossibilities[0]]++;
+        for (const { mask, capacity } of TYPE_SUBSETS) {
+            let reserved = 0;
+            for (const member of members) if ((member.mask & ~mask) === 0) reserved++;
+            if (reserved > capacity) throw new EntanglementContradiction('Team piece capacity exceeded');
+            if (reserved !== capacity) continue;
+            // A group can exhaust several types before any member is confirmed:
+            // three {R,Q} identities reserve both Rooks and the single Queen.
+            for (const member of members) {
+                if ((member.mask & ~mask) !== 0 && (member.mask & mask) !== 0) {
+                    member.mask &= ~mask;
+                    changed = true;
                 }
-
-                // Handle edge case: no possibilities left
-                if (filteredPossibilities.length === 0) {
-                    console.error('Quantum collapse error: No valid possibilities for piece', piece.id);
-                    return { ...piece, possibilities: ['P'] }; // Fallback
-                }
-
-                return { ...piece, possibilities: filteredPossibilities };
             }
-
-            return piece;
-        });
+        }
     }
-
-    if (iterations >= maxIterations) {
-        console.warn('[Entanglement] Max iterations reached, possible infinite loop');
-    }
-
-    return result;
+    const masks = new Map(members.map(({ piece, mask }) => [piece.id, mask]));
+    return pieces.map(piece => {
+        if (piece.team !== team || piece.promoted) return piece;
+        const possibilities = piece.possibilities.filter(type => (masks.get(piece.id)! & TYPE_BITS[type]) !== 0);
+        return possibilities.length === piece.possibilities.length ? piece : { ...piece, possibilities };
+    });
 }
 
 /**
@@ -451,8 +447,13 @@ export function attemptMove(pieces: any[], board: any[], pieceId: number, toX: n
     newBoard[destIndex] = pieceId;
 
     // Resolve entanglement for both teams (chain the results)
-    let resolvedPieces = resolveEntanglement(newPieces, 0);
-    resolvedPieces = resolveEntanglement(resolvedPieces, 1);
+    let resolvedPieces: Piece[];
+    try {
+        resolvedPieces = resolveEntanglement(resolveEntanglement(newPieces, 0), 1);
+    } catch (error) {
+        if (!(error instanceof EntanglementContradiction)) throw error;
+        return { success: false, pieces, board, capturedPiece: null, message: 'Move exceeds team piece limits' };
+    }
 
     return {
         success: true,
