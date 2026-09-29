@@ -1,6 +1,9 @@
 import {expect,it,vi} from 'vitest';
 import {CHAMPIONSHIP_REWARDS} from '../config/championshipRewards';
-import {createVictoryPlan,particleAt,renderVictoryFrame,startVictoryPlayback} from './victoryScene';
+import {createVictoryPlan,renderVictoryFrame,startVictoryPlayback} from './victoryScene';
+import {fragmentAt} from './checkmate/timeline';
+import {atmosphereAt} from './checkmate/atmosphere';
+import {victoryFinishName} from '../locales/victoryFinishNames';
 import {victoryText} from '../locales/victoryText';
 import {musicMilestoneText} from '../locales/musicMilestoneText';
 import {LANGUAGES} from '../locales/dict';
@@ -11,8 +14,8 @@ it('authors deterministic unique plans for all 20 rewards with bounded mobile pa
   expect(createVictoryPlan(effect)).toEqual(createVictoryPlan(effect));
   const plan=createVictoryPlan(effect,true);expect(plan.particles.length).toBeLessThanOrEqual(76);
   for(const p of plan.particles)for(const t of [0,.1,.4,.8,1.2,2,3.5]){
-   const at=particleAt(p,t,plan.motif);expect(Object.values(at).every(Number.isFinite)).toBe(true);
-   expect(at.alpha).toBeGreaterThanOrEqual(0);expect(at.alpha).toBeLessThanOrEqual(1);
+   const at=fragmentAt(p,t);expect(Object.values(at).every(Number.isFinite)).toBe(true);
+   expect(at.opacity).toBeGreaterThanOrEqual(0);expect(at.opacity).toBeLessThanOrEqual(1);
   }
  }
 });
@@ -20,10 +23,10 @@ it('renders each family throughout the shot without invalid geometry or unbalanc
  for(const effect of effects){
   let depth=0;const gradient={addColorStop:vi.fn()};
   const ctx=new Proxy({globalAlpha:1},{get(target,key){
-   if(key==='save')return()=>{depth++;};if(key==='restore')return()=>{depth--;expect(depth).toBeGreaterThanOrEqual(0);};
+   if(key==='save')return()=>{depth++;};if(key==='restore')return()=>{depth--;if(depth<0)throw new Error('Unbalanced canvas restore');};
    if(String(key).startsWith('create'))return()=>gradient;
    if(key in target)return Reflect.get(target,key);
-   return(...args:unknown[])=>{for(const n of args)if(typeof n==='number')expect(Number.isFinite(n)).toBe(true);};
+   return(...args:unknown[])=>{for(const n of args)if(typeof n==='number'&&!Number.isFinite(n))throw new Error('Non-finite canvas geometry');};
   }}) as unknown as CanvasRenderingContext2D;
   for(const t of [0,.15,.4,.7,1.4,2.4,effect.duration]){renderVictoryFrame(ctx,createVictoryPlan(effect),360,280,t);expect(depth).toBe(0);}
  }
@@ -41,7 +44,18 @@ it('draws reduced motion once, without looping',()=>{
  const draw=vi.fn();let cb:(n:number)=>void=()=>{};
  const request=vi.fn((callback:(n:number)=>void)=>{cb=callback;return 1;});
  startVictoryPlayback({duration:3,draw,request,cancel:vi.fn(),now:()=>0,hidden:()=>false,reduced:()=>true});
- cb(16);expect(draw).toHaveBeenCalledWith(2.4,true);expect(request).toHaveBeenCalledOnce();
+ cb(16);expect(draw).toHaveBeenCalledWith(3,true);expect(request).toHaveBeenCalledOnce();
+});
+it('routes all rewards through eight finishes, preserves stable IDs, and finishes every burst',()=>{
+ expect(new Set(effects.map(effect=>createVictoryPlan(effect).style.id)).size).toBe(8);
+ for(const effect of effects){
+  const plan=createVictoryPlan(effect,true);
+  expect(plan.ornaments.length).toBeLessThanOrEqual(144);
+  expect(plan.duration).toBe(3);
+  for(const p of plan.ornaments)expect(atmosphereAt(p,3).opacity).toBe(0);
+  for(const {code} of LANGUAGES)expect(victoryFinishName(code,effect)).toBeTruthy();
+  expect(createVictoryPlan(effect,true,1).ornaments).not.toEqual(createVictoryPlan(effect,true,2).ornaments);
+ }
 });
 it('localizes the new families and star reward explanation in every supported language',()=>{
  for(const {code} of LANGUAGES){

@@ -1,0 +1,25 @@
+/* Only CHECKMATE is inside the spectacle. All controls are outside it. */
+.victory-fx{container-type:size;container-name:checkmate-shot;--result-accent:#d7ac65}
+.victory-fx .result-heading{position:absolute;text-align:center;top:43%;left:5%;right:5%;padding:0;perspective:900px;pointer-events:none;will-change:auto}
+.victory-fx .result-heading .mate-title{display:flex;align-items:center;justify-content:center;margin:0;font:900 clamp(45px,14.4cqw,180px)/1.02 Impact,'Arial Narrow','Arial Black',sans-serif;letter-spacing:0;text-indent:0;white-space:nowrap;color:var(--letter-mid);text-shadow:none;filter:drop-shadow(0 14px 10px #000a)}
+.victory-fx .result-heading .mate-word{display:inline-flex;align-items:baseline;font:inherit;letter-spacing:inherit;color:inherit;white-space:nowrap}
+.victory-fx .result-heading .mate-letter{display:inline-block;position:relative;font:inherit;letter-spacing:inherit;color:var(--letter-mid);transform-origin:50% 85%;text-shadow:0 1px 0 var(--letter-edge),0 2px 0 var(--letter-shade),0 3px 0 var(--letter-depth),0 4px 0 var(--letter-depth),0 5px 0 var(--letter-depth),0 6px 0 var(--letter-depth),0 7px 0 var(--letter-depth),0 8px 0 var(--letter-depth);-webkit-text-stroke:.5px var(--letter-edge);will-change:transform,opacity}
+.victory-fx .mate-letter::before,.victory-fx .mate-letter::after{content:attr(data-letter);position:absolute;inset:0;color:transparent;-webkit-text-stroke:0;text-shadow:none;background-clip:text;-webkit-background-clip:text}
+.victory-fx .mate-letter::before{background-image:linear-gradient(180deg,var(--letter-highlight) 0%,var(--letter-highlight) 18%,var(--letter-mid) 43%,var(--letter-shade) 49%,var(--letter-highlight) 53%,var(--letter-mid) 64%,var(--letter-shade) 100%)}
+.victory-fx .mate-letter::after{background-image:linear-gradient(108deg,transparent 37%,var(--letter-highlight) 48%,#fffef8 51%,transparent 63%);background-size:250% 100%;background-position:var(--polish-position,160%) 0;opacity:var(--polish-opacity,0)}
+.victory-fx[data-finish=obsidian] .mate-letter::before{background-image:linear-gradient(150deg,#73808b 0%,#283742 25%,#131c25 48%,#a9b4b7 50%,#33404a 54%,#111b24 85%)}
+.victory-fx[data-finish=obsidian] .mate-letter{-webkit-text-stroke:1px var(--letter-edge)}
+.victory-fx[data-finish=ivory] .mate-letter::before{background-image:linear-gradient(125deg,#fff9ee 0%,#e7dbc4 48%,#c3b290 100%)}
+.victory-fx[data-finish=ivory] .mate-letter{text-shadow:0 1px 0 #c3b291,0 2px 0 #988165,0 3px 0 #7c6854;-webkit-text-stroke:.3px #f4e8cd}
+.victory-fx[data-finish=copper] .mate-letter::before{background-image:repeating-linear-gradient(0deg,#30170700 0 2px,#3017072b 2px 3px),linear-gradient(150deg,#ffdcc7 0%,#d9895e 30%,#8c4c31 68%,#edb091 100%)}
+.victory-fx[data-finish=scarlet] .mate-letter::before{background-image:linear-gradient(115deg,#ffb698 0%,#bd3e3b 22%,#882034 49%,#ffd9b0 50%,#c02c37 53%,#711424 100%)}
+.victory-fx[data-finish=crystal] .mate-letter{color:#5d96b866;-webkit-text-stroke:.7px #c3f2ff;text-shadow:0 1px 0 #edfaff,0 3px 0 #67a6c777,0 7px 0 #225072aa}
+.victory-fx[data-finish=crystal] .mate-letter::before{background-image:linear-gradient(115deg,#edfbffcf 0%,#72b1d077 28%,#f7fdffff 29%,#72b1d055 32%,#46819daa 60%,#daffffff 61%,#46819d55 64%,#a8e0f7bb 100%)}
+.victory-fx[data-finish=gilded] .mate-letter::before{background-image:repeating-linear-gradient(130deg,#fff8ce11 0 1px,#74451918 1px 3px),linear-gradient(175deg,#fff7cf 0%,#f1d57b 18%,#b98b29 39%,#fff7c1 48%,#a67622 50%,#fbe899 56%,#d1a83e 84%,#fff1b1 100%)}
+.victory-fx[data-finish=gilded] .mate-letter{text-shadow:0 1px 0 #fff5d0,0 3px 0 #b88b36,0 5px 0 #7b561e,0 7px 0 #684316,0 9px 0 #4d3218,0 12px 0 #302217}
+@container checkmate-shot (max-width:600px){
+    .victory-fx .result-heading{top:22%;left:4%;right:4%}
+    .victory-fx .result-heading .mate-title{flex-direction:column;font-size:min(25cqw,20cqh,148px);line-height:.97;letter-spacing:.012em}
+    .victory-fx .result-heading .mate-word:last-child{font-size:1.22em;line-height:1.03}
+}
+@media(prefers-reduced-motion:reduce){.victory-fx .result-heading .mate-letter{will-change:auto}}

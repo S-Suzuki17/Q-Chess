@@ -24,7 +24,7 @@ export function CampaignResult({lang,stageId,firstClear,effect,outcome,onNext,on
     const perMove=stage.timeControl==='10s';
     return <dialog ref={dialog} className="campaign-result" data-result={outcome.won?'win':outcome.draw?'draw':'loss'} aria-labelledby="campaign-result-title" onCancel={event=>event.preventDefault()}>
         <div className="campaign-result-cinema" aria-hidden="true">
-            {outcome.won&&victoryDesign?.kind==='effect'?<VictoryCelebration effect={effect} preview contained/>:<RewardSigil motif="corona" tier={outcome.won?3:1}/>}
+            {outcome.won&&victoryDesign?.kind==='effect'?<VictoryCelebration effect={effect} checkmate={!!outcome.checkmate} preview contained/>:<RewardSigil motif="corona" tier={outcome.won?3:1}/>}
         </div>
         <div className="campaign-result-card">
             <p>{stageText(lang,'stage')} {stageId} / 100 · {stage.opponent}</p>

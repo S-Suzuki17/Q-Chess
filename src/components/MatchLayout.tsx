@@ -91,7 +91,7 @@ export function MatchLayout(props: Props) {
     }
 
     return <section className="match-layout" data-layout="strategy-studio-v2" aria-label={label('Q-GAMBIT 対局画面', 'Q-GAMBIT match')}>
-        {props.victory && props.victoryEffect && <VictoryCelebration effect={props.victoryEffect}/>}
+        {props.victory && props.victoryEffect && <VictoryCelebration effect={props.victoryEffect} checkmate={!!props.checkmate}/>}
         <header className="match-header">
             <button className="match-brand" onClick={props.onHome} aria-label={label('ホームに戻る', 'Return home')}><span>Q</span><strong>GAMBIT</strong></button>
             <span className="match-heading">{label('対局', 'MATCH')}</span>
@@ -109,7 +109,7 @@ export function MatchLayout(props: Props) {
         <main className={`match-main ${hasAdvice ? 'has-advice' : ''}`}>
             {playerBar(topSide)}
             <div className={`match-board-area ${props.checkmate ? 'is-checkmate' : ''}`} data-testid="match-board">{props.board}
-                {props.checkmate && !props.resultVisible && <div className="checkmate-celebration" role="status" data-testid="checkmate-celebration">
+                {props.checkmate && !props.resultVisible && !(props.victory && props.victoryEffect?.startsWith('champion-effect-')) && <div className="checkmate-celebration" role="status" data-testid="checkmate-celebration">
                     <span aria-hidden="true">♔</span><strong>{label('チェックメイト！','Checkmate!')}</strong>
                 </div>}
                 {props.checkNotice && !props.finished && <div className="match-check-warning" key={props.checkEvent} role="status" data-testid="check-warning">{props.checkNotice}</div>}

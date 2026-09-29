@@ -185,12 +185,14 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
 
     useEffect(() => {
         if (gameState?.gameOver) {
-            const timer = setTimeout(() => setShowGameOver(true), 1500);
+            const result=typeof gameState.gameOver==='object'?gameState.gameOver.winner:gameState.gameOver;
+            const won=(onlineRole==='white'&&result==='WHITE')||(onlineRole==='black'&&result==='BLACK');
+            const timer = setTimeout(() => setShowGameOver(true), won && victoryEffect.startsWith('champion-effect-') ? 3200 : 1500);
             return () => clearTimeout(timer);
         } else {
             setShowGameOver(false);
         }
-    }, [gameState?.gameOver]);
+    }, [gameState?.gameOver,onlineRole,victoryEffect]);
 
     const [castlingPending, setCastlingPending] = useState<{
         pieceId: number;

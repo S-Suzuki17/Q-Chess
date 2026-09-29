@@ -47,7 +47,7 @@ export function RewardPreview({lang,reward,progress,onClose}:{
                 showMoveHints={false} currentTurn="white" autoRotate={false}/>}
             {reward.kind==='effect' && <VictoryCelebration key={run} effect={reward.id as VictoryFinish} preview/>}
         </div>}
-        {design?.kind==='effect'&&<div className="effect-preview-caption"><span>{victoryText(lang,'collection')} · {String(design.requiredWins).padStart(3,'0')}</span><span>{design.duration.toFixed(1)} s</span></div>}
+        {design?.kind==='effect'&&<div className="effect-preview-caption"><span>{victoryText(lang,'collection')} · {String(design.requiredWins).padStart(3,'0')}</span><span>3.0 s</span></div>}
         <footer>
             {reward.kind==='effect' && <button onClick={()=>setRun(value=>value+1)}>{victoryText(lang,'replay')} ↻</button>}
             <span data-testid="preview-acquisition">{cosmeticsSettingsText(lang,unlocked?'acquired':'notAcquired')}</span>

@@ -4,6 +4,7 @@ import { rewardFormText } from './rewardFormText';
 import type { Language } from './dict';
 import type { ChampionshipReward } from '../config/championshipRewards';
 import { rewardTrackTitle } from '../config/musicTracks';
+import { victoryFinishName } from './victoryFinishNames';
 
 export const championshipKeys=['lap','ascension','advance','previous','next','strength','cap','record','wins','medals','balanced','attacker','guardian','collection','effect','unlockAt','tier','complete'] as const;
 type Labels<T extends readonly unknown[]> = {readonly [K in keyof T]:string};
@@ -29,7 +30,7 @@ export const championshipName=(lang:Language,reward:ChampionshipReward)=>{
     const frame=reward.kind==='avatar'?avatarFrame(reward.id):undefined;
     const name=frame
         ? `${cosmeticLabel(lang, ['bronze','silver','gold'][Math.floor((frame.tier-1)/5)])} · ${cosmeticLabel(lang,frame.motif)}`
-        : cosmeticLabel(lang,reward.motif);
+        : reward.kind==='effect' ? victoryFinishName(lang,reward) : cosmeticLabel(lang,reward.motif);
     const form=rewardFormText(lang,reward.kind==='piece'?reward.form:reward.kind==='board'?reward.profile:undefined);
     return `${name}${form?' · '+form:''} ${String(reward.requiredWins).padStart(3,'0')}`;
 };

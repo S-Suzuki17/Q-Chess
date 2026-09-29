@@ -130,12 +130,12 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
     useEffect(() => {
         let timer: NodeJS.Timeout | null = null;
         if (winner) {
-            timer = setTimeout(() => setShowGameOver(true), 1500);
+            timer = setTimeout(() => setShowGameOver(true), winner===`${playerSide}_wins` && victoryEffect.startsWith('champion-effect-') ? 3200 : 1500);
         } else {
             timer = setTimeout(() => setShowGameOver(false), 0);
         }
         return () => { if (timer) clearTimeout(timer); };
-    }, [winner]);
+    }, [winner,playerSide,victoryEffect]);
     const [disconnectTimeLeft, setDisconnectTimeLeft] = useState<number | null>(null);
     const disconnectTimerRef = useRef<NodeJS.Timeout | null>(null);
     const hasOpponentJoinedRef = useRef<boolean>(false);
@@ -721,10 +721,10 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
     useEffect(()=>{
         if (!winner || !onComplete || resultReported.current) return;
         resultReported.current=true;
-        onComplete({won:winner===`${playerSide}_wins`,draw:winner==='draw',timeControl,
+        onComplete({won:winner===`${playerSide}_wins`,draw:winner==='draw',timeControl,checkmate,
             playerMoves:moveHistory.filter(move=>move.player===playerSide).length,hintsUsed:hintsUsed.current,
             initialSeconds:timeControl==='10s'?perMoveTime.current.turns*10:initialTime,remainingSeconds:timeControl==='10s'?perMoveTime.current.remaining:playerSide==='white'?timeLeftWhite:timeLeftBlack});
-    },[winner,onComplete,playerSide,moveHistory,initialTime,timeLeftWhite,timeLeftBlack,timeControl]);
+    },[winner,onComplete,playerSide,moveHistory,initialTime,timeLeftWhite,timeLeftBlack,timeControl,checkmate]);
 
     return (
         <MatchLayout

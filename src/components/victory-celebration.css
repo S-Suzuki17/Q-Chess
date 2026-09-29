@@ -1,6 +1,7 @@
 .victory-fx{position:fixed;inset:0;z-index:80;overflow:hidden;pointer-events:none;color:var(--fx-color);contain:layout paint}
 .victory-fx[data-contained=true],.reward-preview-board .victory-fx{position:absolute}
 .victory-fx canvas{display:block;width:100%;height:100%}
+.victory-fx[data-effect-preview=false][data-finished=true]{opacity:0;transition:opacity .2s ease-out}
 .victory-fx-fallback{position:absolute;inset:20%;display:grid;place-items:center}
 .victory-fx-fallback svg{height:100%;max-width:100%}
 .victory-fx[data-rendered=true] .victory-fx-fallback{display:none}

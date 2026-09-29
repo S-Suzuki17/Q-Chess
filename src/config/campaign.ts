@@ -38,7 +38,7 @@ export interface CampaignProgress {
     stageStars?:number[];
     avatar?:'standard'|AvatarFrameId;
 }
-export interface CampaignOutcome { won:boolean; draw:boolean; playerMoves:number; hintsUsed:number; initialSeconds:number; remainingSeconds:number; timeControl?:TimeControl }
+export interface CampaignOutcome { won:boolean; draw:boolean; playerMoves:number; hintsUsed:number; initialSeconds:number; remainingSeconds:number; timeControl?:TimeControl; checkmate?:boolean }
 export const emptyCampaign = (): CampaignProgress => ({version:2,stars:{},ascensions:[],board:'standard',piece:'standard',effect:'standard',music:'standard',stageStars:[],avatar:'standard'});
 export const rewardClearCount=(progress:CampaignProgress)=>Math.max(progress.stageStars?.length??0,highestUnlockedLap(progress)-1);
 /** Best score per stage, never a sum of attempts or the old four-boss records. */
