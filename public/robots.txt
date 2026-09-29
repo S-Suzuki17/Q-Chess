@@ -1,7 +1,6 @@
 User-agent: *
 Allow: /
 
-Disallow: /teaser/
-Disallow: /teaser2/
+# Retired recording URLs return 404; allow crawlers to observe their removal.
 
 Sitemap: https://q-gambit.com/sitemap.xml

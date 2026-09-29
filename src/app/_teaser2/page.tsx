@@ -1,4 +1,5 @@
 "use client";
+// Archived recording utility. Private App Router folder: never a public route.
 import dynamic from "next/dynamic";
 import React, { useEffect, useState } from "react";
 

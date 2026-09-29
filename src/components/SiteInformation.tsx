@@ -8,11 +8,12 @@ import {stageText} from '../locales/stageText';
 import {siteCopy} from '../locales/siteContent';
 import { AccountDataGuide } from './AccountDataGuide';
 import {termsText} from '../locales/termsText';
+import {aboutContent} from '../locales/aboutContent';
 
-export function SiteLinks({lang}:{lang:Language}) {
+export function SiteLinks({lang,newTab=false}:{lang:Language;newTab?:boolean}) {
  const {labels:t}=siteCopy(lang);
  return <nav aria-label={t[5]} className="flex flex-wrap justify-center gap-5 py-5 text-sm">
-  {([['/rules',t[3]],['/about',t[0]],['/contact',t[1]],['/updates',t[2]],['/privacy',dict[lang].privacyPolicy],['/terms',termsText(lang)[0]]] as const).map(([href,title])=><Link className="text-[#D4B872] underline-offset-4 hover:underline" href={href} key={href}>{title}</Link>)}
+  {([['/rules',t[3]],['/about',t[0]],['/contact',t[1]],['/updates',t[2]],['/privacy',dict[lang].privacyPolicy],['/terms',termsText(lang)[0]]] as const).map(([href,title])=><Link className="inline-flex min-h-11 items-center rounded px-2 text-[#D4B872] underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-4" href={href} key={href} target={newTab?'_blank':undefined} rel={newTab?'noopener noreferrer':undefined}>{title}{newTab&&<span aria-hidden="true" className="ml-1">↗</span>}</Link>)}
  </nav>;
 }
 export function SiteIntroduction({lang}:{lang:Language}) {
@@ -27,6 +28,20 @@ export function SiteIntroduction({lang}:{lang:Language}) {
   <section className="mt-8 border-t border-[#3B342C] pt-6"><h3 className="mb-3 text-xl text-[#D4B872]">{t[4]}</h3><p>{stageText(lang,'intro')} {stageText(lang,'rules')}</p></section>
  </article>;
 }
+export function AboutArticle({lang}:{lang:Language}) {
+ const {labels:t}=siteCopy(lang);
+ const p=aboutContent[lang];
+ return <article lang={lang} data-about-article className="my-8 space-y-8 leading-loose text-[#BEB6A8]">
+  <p className="max-w-3xl text-lg text-[#E8E2D7]">{p[0]}</p>
+  <section className="rounded-xl border border-[#6E614C] bg-[#191714] p-5 sm:p-8">
+   <h2 className="mb-4 text-xl font-semibold text-[#E8E2D7]">{t[7]}</h2>
+   <p aria-hidden="true" className="mb-4 break-words text-2xl text-[#D4B872] sm:text-3xl">♝ ♜ ♛ → ♝ ♛ → ♛</p>
+   <p>{p[1]}</p>
+  </section>
+  <section><h2 className="mb-3 text-xl font-semibold text-[#E8E2D7]">{t[3]}</h2><p>{p[2]}</p><Link href="/rules" className="mt-3 inline-flex min-h-11 items-center text-[#D4B872] underline">{rulesDict[lang].title} →</Link></section>
+  <section className="border-t border-[#3B342C] pt-6"><h2 className="mb-3 text-xl font-semibold text-[#E8E2D7]">{t[4]}</h2><p>{p[3]}</p></section>
+ </article>;
+}
 export function SiteInfoPage({kind}:{kind:'about'|'contact'}) {
  const [lang,setLang]=useState<Language>('ja');
  useEffect(()=>{try{const stored=localStorage.getItem('qg_language');const preferred=stored||navigator.language.split('-')[0];if(LANGUAGES.some(l=>l.code===preferred))setLang(preferred as Language);}catch{}},[]);
@@ -35,7 +50,7 @@ export function SiteInfoPage({kind}:{kind:'about'|'contact'}) {
   <div className="mx-auto max-w-4xl">
    <header className="flex flex-wrap items-center justify-between gap-4"><Link href="/" className="text-[#D4B872]">← {t[6]}</Link><select aria-label={dict[lang].language} value={lang} className="max-w-full rounded border border-[#6E614C] bg-[#191714] p-3" onChange={e=>{const value=e.target.value as Language;setLang(value);try{localStorage.setItem('qg_language',value);}catch{}}}>{LANGUAGES.map(l=><option value={l.code} key={l.code}>{l.label}</option>)}</select></header>
    <h1 className="mt-10 text-3xl font-semibold">{kind==='about'?t[0]:t[1]}</h1>
-   {kind==='about'?<><SiteIntroduction lang={lang}/><p className="leading-relaxed">{t[8]}</p></>:<section className="my-8 max-w-2xl space-y-6 leading-relaxed"><h2 className="text-xl text-[#D4B872]">{t[5]}</h2><p>{p[3]}</p><a href={`mailto:${PUBLIC_SUPPORT_EMAIL}`} className="block break-all text-[#D4B872] underline">{PUBLIC_SUPPORT_EMAIL}</a></section>}
+   {kind==='about'?<><AboutArticle lang={lang}/><p className="leading-relaxed">{t[8]}</p></>:<section className="my-8 max-w-2xl space-y-6 leading-relaxed"><h2 className="text-xl text-[#D4B872]">{t[5]}</h2><p>{p[3]}</p><a href={`mailto:${PUBLIC_SUPPORT_EMAIL}`} className="block break-all text-[#D4B872] underline">{PUBLIC_SUPPORT_EMAIL}</a></section>}
    {kind==='contact'&&<AccountDataGuide lang={lang}/>}
    <SiteLinks lang={lang}/>
   </div>

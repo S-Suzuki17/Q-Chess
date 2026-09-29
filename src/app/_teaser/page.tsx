@@ -1,5 +1,7 @@
 'use client';
 
+// Archived recording utility. Private App Router folder: never a public route.
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Board3D } from '../../components/Board3D';
 import { Token } from '../../lib/GameEngine';

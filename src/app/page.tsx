@@ -390,6 +390,7 @@ export default function Home() {
                             {android && <FoundersSettings lang={lang} accountName={user?.name} progress={campaignProgress} rewards={foundersRewards} locked={matchDesignLocked}/>}
                             {android && user && <NativeRewardSettings key={user.id} userId={user.id} lang={lang} locked={matchDesignLocked}/>}
                             {android && <AppSupportLinks lang={lang}/>}
+                            {webContent && <SiteLinks lang={lang} newTab/>}
 
                             {user && gameState==='level_select' && (
                                 <div className="flex flex-col gap-3 mt-4 pt-6 border-t border-[#4A4238]">
