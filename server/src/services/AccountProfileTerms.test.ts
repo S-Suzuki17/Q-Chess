@@ -45,3 +45,16 @@ it('storage uses an idempotent insert with no writable timestamp or update acces
     await createAccountTermsStore(client as never,store.verifyUser,store.blocked,ensure).accept('Alice',false);
     expect(ensure).toHaveBeenCalledWith('Alice',false);expect(upsert).toHaveBeenCalledWith({user_id:'Alice',version:CURRENT_TERMS_VERSION},{onConflict:'user_id,version',ignoreDuplicates:true});
 });
+it('reads the saved consent after acceptance and again on a fresh login, without another write',async()=>{
+    let saved:typeof consent|null=null;
+    store.read.mockImplementation(async()=>saved);
+    store.accept.mockImplementation(async()=>{saved=consent;});
+    const read=async()=>await (await fetch(base+'/account/terms',{headers:{Authorization:`Bearer ${token}`}})).json();
+    expect((await read()).consent).toBeNull();
+    expect((await fetch(base+'/account/terms',options(valid()))).status).toBe(200);
+    expect((await read()).consent).toEqual(consent);
+    auth.revokeUserSessions('Alice');
+    token=(await auth.issueLegacySession('Alice','correct'))!.token;
+    expect((await read()).consent).toEqual(consent);
+    expect(store.accept).toHaveBeenCalledTimes(1);
+});

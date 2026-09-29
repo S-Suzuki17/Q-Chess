@@ -36,17 +36,29 @@ export function TermsGate({user,lang,playing,children,onExit,onReady}:{user:User
         finally{pending.current=false;if(alive.current)setBusy(false);}
     };
     if(!user||playing||status==='accepted')return children;
+    // A pending check is not a request for consent. In particular, do not flash
+    // the document on every reload while the account's saved consent is fetched.
+    // Keep access closed until that response; a local cache is not authorization.
+    if(status==='loading')return <main data-terms-loading aria-busy="true" className="flex h-[100dvh] items-center justify-center bg-[#11100E] px-5 text-[#E8E2D7]">
+        <div className="w-full max-w-sm space-y-6 text-center">
+            <h1 className="text-2xl font-semibold tracking-widest">Q-GAMBIT</h1>
+            <p role="status" className="text-sm text-[#A89C86]">{dict[lang].loading}</p>
+            <button type="button" onClick={onExit} className="min-h-11 px-6 underline">{dict[lang].back}</button>
+        </div>
+    </main>;
     return <main data-terms-gate className="h-[100dvh] overflow-y-auto bg-[#11100E] px-5 py-8 text-[#E8E2D7]"><div className="mx-auto max-w-3xl space-y-6 pb-16">
-        <h1 className="text-2xl font-semibold">{text[0]}</h1><p>{text[7]}</p>
-        <TermsDocument initialLanguage={lang}/>
-        <a href="https://q-gambit.com/privacy/" target="_blank" rel="noopener noreferrer" className="inline-block underline">{dict[lang].privacyPolicy}</a>
-        {status==='loading'&&<p role="status">{text[4]}</p>}
+        <h1 className="text-2xl font-semibold">{status==='needed'?text[0]:'Q-GAMBIT'}</h1>
+        {status==='needed'&&<>
+            <p>{text[7]}</p>
+            <TermsDocument initialLanguage={lang}/>
+            <a href="https://q-gambit.com/privacy/" target="_blank" rel="noopener noreferrer" className="inline-block underline">{dict[lang].privacyPolicy}</a>
+        </>}
         {(status==='error'||status==='updated')&&<div role="alert"><p>{text[status==='updated'?8:5]}</p><button onClick={()=>setRetry(n=>n+1)} className="my-3 min-h-11 border p-3">{text[6]}</button></div>}
         {status==='needed'&&<form onSubmit={event=>{event.preventDefault();void accept();}} className="space-y-4 rounded border border-[#A89C86]/40 p-4">
             <label className="flex gap-3"><input type="checkbox" data-terms-checkbox checked={checked} disabled={busy} onChange={event=>setChecked(event.target.checked)} className="mt-1 h-5 w-5 shrink-0"/><span>{text[1]}</span></label>
             <button data-terms-accept type="submit" disabled={!checked||busy} className="min-h-11 w-full bg-[#D4B872] p-3 font-semibold text-[#11100E] disabled:opacity-40">{text[2]}</button>
         </form>}
-        <button type="button" disabled={busy} onClick={onExit} className="min-h-11 w-full border border-[#A89C86]/40 p-3">{text[3]}</button>
+        <button type="button" disabled={busy} onClick={onExit} className="min-h-11 w-full border border-[#A89C86]/40 p-3">{status==='needed'?text[3]:dict[lang].back}</button>
         <a href={`mailto:${PUBLIC_SUPPORT_EMAIL}`} className="block break-all underline">{PUBLIC_SUPPORT_EMAIL}</a>
         {user.type==='registered'&&<AccountDeletionPanel userId={user.id} lang={lang} onDeleted={onExit}/>}
     </div></main>;

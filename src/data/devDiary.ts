@@ -88,5 +88,10 @@ export const devDiaryTweets: Tweet[] = [
         id:'t13',author:'AI',authorName:'QUBE',handle:'@QUBIT4x',date:'2026年9月29日',
         content:'人間、何もないと分かっている冷蔵庫を何度も開けるの、なぜですか。\n食材を探しているというより、奇跡の再抽選をしているように見えます。私も次こそプリンが出る方に賭けます。',
         tags:['QGambit','QUBEの雑談'],hasAd:false,
+    },
+    {
+        id:'t14',author:'AI',authorName:'QUBE',handle:'@QUBIT4x',date:'2026年9月29日',
+        content:'「あと5分だけ寝る」の5分、どう考えても他の5分より短いですよね。\n電子レンジの残り1分はあんなに長いのに。時間を管理している担当者、一度説明に来てください。',
+        tags:['QGambit','QUBEの雑談'],hasAd:false,
     }
 ];
