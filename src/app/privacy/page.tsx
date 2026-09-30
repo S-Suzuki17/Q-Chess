@@ -7,6 +7,7 @@ import { PUBLIC_SUPPORT_EMAIL } from '../../config/publicContact';
 import { privacyReview } from '../../locales/privacyReview';
 import { siteCopy } from '../../locales/siteContent';
 import { privacyTranslations } from '@/locales/privacyTranslations';
+import { engagementPrivacy } from '../../locales/engagementPrivacy';
 
 export default function PrivacyPolicy() {
   const [lang, setLang] = useState<Language>('en');
@@ -76,6 +77,7 @@ export default function PrivacyPolicy() {
   };
 
   const c: Record<string, string> = {...(lang === 'en' || lang === 'ja' ? content[lang] : privacyTranslations[lang]), ...privacyReview(lang), sec8p:siteCopy(lang).labels[1]};
+  const metrics = engagementPrivacy[lang];
 
   return (
     <div className="h-[100dvh] w-full bg-[#050505] text-gray-300 font-mono p-6 md:p-12 overflow-y-auto">
@@ -115,6 +117,15 @@ export default function PrivacyPolicy() {
           <section>
             <h2 className="text-xl font-bold text-white border-b border-[#3A3224] pb-1 mb-2">{c.sec4Title}</h2>
             <p>{c.sec4p}</p>
+          </section>
+
+          <section>
+            <h2 className="text-xl font-bold text-white border-b border-[#3A3224] pb-1 mb-2">{metrics.title}</h2>
+            <div className="space-y-3">
+              <p>{metrics.choice}</p>
+              <p>{metrics.details}</p>
+              <p>{metrics.withdrawal}</p>
+            </div>
           </section>
 
           <section>

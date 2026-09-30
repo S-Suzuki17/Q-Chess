@@ -3,6 +3,7 @@ import { Language } from '../locales/dict';
 import { Board3D } from './Board3D';
 import { tutorialDict } from '@/locales/rulesDict';
 import { Token } from '../lib/GameEngine';
+import { recordTutorialCompleted, recordTutorialStarted } from '../lib/engagementMetrics';
 
 interface Props {
     lang: Language;
@@ -21,6 +22,7 @@ export function InteractiveTutorial({ lang, onClose }: Props) {
     
     const [step, setStep] = useState(0);
     const [selectedPieceId, setSelectedPieceId] = useState<string | null>(null);
+    useEffect(() => { recordTutorialStarted(); }, []);
 
     // Board State
     const [pieces, setPieces] = useState<any[]>([
@@ -140,12 +142,13 @@ export function InteractiveTutorial({ lang, onClose }: Props) {
             ]);
             setStep(9);
         } else if (step === 11) {
+            recordTutorialCompleted();
             onClose();
         }
     };
 
     return (
-        <div className="fixed inset-0 bg-[#11100E]/95 z-[200] flex flex-col items-center justify-center p-4 backdrop-blur-md">
+        <div className="interactive-tutorial fixed inset-0 bg-[#11100E]/95 z-[200] flex flex-col items-center justify-center p-4 backdrop-blur-md">
             <div role="dialog" aria-modal="true" aria-label={content.title} className="w-full max-w-4xl max-h-[95dvh] overflow-y-auto bg-[#191714] border-2 border-[#B39A62]/30 rounded-xl flex flex-col md:flex-row shadow-2xl relative">
                 <button onClick={onClose} aria-label={content.close} className="fixed top-4 right-4 w-11 h-11 rounded-full bg-[#191714] border border-[#B39A62] text-white text-2xl font-bold z-50">×</button>
                 

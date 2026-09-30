@@ -32,8 +32,8 @@ function FrameHealth({onReady, onLost, onRestoring}: {onReady: () => void; onLos
 }
 
 /** Never remove the playable board while WebGL loads or recovers. */
-export function ResilientBoardCanvas({children, fallback, lang, onRetry, reducedMotion = false}: {
-    children: React.ReactNode; fallback: React.ReactNode; lang: Language; onRetry: () => void; reducedMotion?: boolean;
+export function ResilientBoardCanvas({children, fallback, toolbar, lang, onRetry, reducedMotion = false}: {
+    children: React.ReactNode; fallback: React.ReactNode; toolbar: React.ReactNode; lang: Language; onRetry: () => void; reducedMotion?: boolean;
 }) {
     const [phase, setPhase] = useState<'loading' | 'ready' | 'recovering' | 'failed'>('loading');
     const [epoch, setEpoch] = useState(0);
@@ -64,7 +64,18 @@ export function ResilientBoardCanvas({children, fallback, lang, onRetry, reduced
     }, [phase, epoch, visible]);
     const quality = graphicsQuality(compact);
     const frameloop = boardFrameLoop(visible, reducedMotion);
-    return <div className="board-render-surface" data-graphics-state={phase} data-render-active={visible} data-render-loop={frameloop} data-graphics-quality={compact ? 'mobile' : 'desktop'}>
+    return <>
+        <div className="board-scene-tools">
+            {phase !== 'ready' && <div className="board-render-status" role="status">
+                <span>{phase === 'failed' ? matchText(lang,'3Dを表示できないため2Dで表示しています。','3D unavailable. Showing 2D.') : `3D · ${dict[lang].loading}`}</span>
+                {phase === 'failed' && <button type="button" onClick={() => {
+                    onRetry(); recoveryCount.current = 0; setEpoch(value => value + 1); setPhase('loading');
+                }}>{matchText(lang,'3Dを再読み込み','Reload 3D')}</button>}
+            </div>}
+            {toolbar}
+        </div>
+        <div className="board-scene-canvas">
+        <div className="board-render-surface" data-graphics-state={phase} data-render-active={visible} data-render-loop={frameloop} data-graphics-quality={compact ? 'mobile' : 'desktop'}>
         {phase !== 'ready' && <div className="board-render-fallback">{fallback}</div>}
         {phase !== 'failed' && <div className="board-webgl-layer" style={{visibility: phase === 'ready' ? 'visible' : 'hidden'}}>
             <GraphicsBoundary key={epoch} onError={fail}>
@@ -77,11 +88,7 @@ export function ResilientBoardCanvas({children, fallback, lang, onRetry, reduced
                 </Canvas>
             </GraphicsBoundary>
         </div>}
-        {phase !== 'ready' && <div className="board-render-status" role="status">
-            <span>{phase === 'failed' ? matchText(lang,'3Dを表示できないため2Dで表示しています。','3D unavailable. Showing 2D.') : `3D · ${dict[lang].loading}`}</span>
-            {phase === 'failed' && <button type="button" onClick={() => {
-                onRetry(); recoveryCount.current = 0; setEpoch(value => value + 1); setPhase('loading');
-            }}>{matchText(lang,'3Dを再読み込み','Reload 3D')}</button>}
-        </div>}
-    </div>;
+        </div>
+        </div>
+    </>;
 }

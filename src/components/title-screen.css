@@ -13,6 +13,8 @@
 .title-screen button:focus-visible,.title-screen a:focus-visible { outline:2px solid #e5d7b6; outline-offset:4px; }
 .title-play { display:flex; justify-content:space-between; align-items:center; gap:16px; width:100%; padding:20px; border:1px solid #e5d7b6; background:#e5d7b6; color:#1c2119; font-size:18px; font-weight:500; text-align:left; transition:background .16s; }
 .title-play svg { flex-shrink:0; }.title-play:hover { background:#f5e8c9; }
+.title-tutorial { display:flex; justify-content:space-between; align-items:center; gap:16px; width:100%; min-height:64px; padding:16px 20px; border:1px solid #d4b872; border-radius:12px; background:#303222; color:#f5e6bd; font-size:18px; font-weight:600; text-decoration:none; transition:background .16s; }
+.title-tutorial svg { flex-shrink:0; }.title-tutorial:hover { background:#41452d; }
 .title-auth-actions { margin-top:8px; }.title-auth-actions button { border-color:#43483b; background:transparent; font-size:13px; }
 .title-screen-actions form { padding:0; border:0; background:transparent; }.title-screen-actions input { border-radius:10px; }
 .title-screen-description { grid-column:1; grid-row:2; text-align:left; align-items:flex-start; line-height:1.7; }
@@ -24,6 +26,6 @@
  .title-screen { display:flex; flex-direction:column; align-items:stretch; padding:72px 20px 20px; gap:24px; }
  .title-screen-heading h1 { font-size:clamp(38px,10vw,68px); }.title-edition { margin-bottom:14px; font-size:11px; }
  .title-identities { margin-top:20px; gap:8px; }.title-identities>span { width:40px; height:44px; font-size:29px; }
- .title-screen-actions { padding:20px; border-radius:18px; }.title-play { padding:16px; font-size:16px; }
+ .title-screen-actions { padding:20px; border-radius:18px; }.title-play,.title-tutorial { padding:16px; font-size:16px; }
  .title-screen-description p { font-size:12px; }.title-badge { padding-top:12px; }
 }

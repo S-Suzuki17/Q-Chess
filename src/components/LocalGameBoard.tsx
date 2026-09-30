@@ -29,6 +29,7 @@ import { replayText } from '../locales/replayText';
 import { ReplaySaveSession } from '../lib/replaySave';
 import { RankedLoginDialog } from './RankedLoginDialog';
 import { soundManager } from '../lib/SoundService';
+import { recordMatchCompleted, recordMatchStarted } from '../lib/engagementMetrics';
 import type { CPUPersonality, CampaignOutcome } from '../config/campaign';
 import type { CPUSearchProfile } from '../config/cpuDifficulty';
 
@@ -126,6 +127,20 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
     const [showCheckWarning, setShowCheckWarning] = useState<boolean>(false);
     const [winner, setWinner] = useState<'white_wins' | 'black_wins' | 'draw' | null>(null);
     const [showGameOver, setShowGameOver] = useState(false);
+    const metricStarted = useRef(false);
+    const metricStartedKind = useRef<'first' | 'second' | null>(null);
+    const metricCompleted = useRef(false);
+
+    useEffect(() => {
+        if (!introDone || winner || onlineRole === 'spectator' || metricStarted.current) return;
+        metricStarted.current = true;
+        metricStartedKind.current = recordMatchStarted();
+    }, [introDone, winner, onlineRole]);
+    useEffect(() => {
+        if (!winner || !metricStarted.current || metricCompleted.current) return;
+        metricCompleted.current = true;
+        recordMatchCompleted(metricStartedKind.current);
+    }, [winner]);
 
     useEffect(() => {
         let timer: NodeJS.Timeout | null = null;

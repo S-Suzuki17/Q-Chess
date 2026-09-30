@@ -20,6 +20,8 @@ import { LevelSelect } from '../components/LevelSelect';
 import { SettingsDialog } from '../components/SettingsDialog';
 import { CampaignMode } from '../components/CampaignMode';
 import { DevDiaryTimeline } from '../components/DevDiaryTimeline';
+import { OptionalMetricsSettings } from '../components/OptionalMetricsSettings';
+import { recordVisit } from '../lib/engagementMetrics';
 import { circuitAccess, isSameCircuitIdentity } from '../lib/circuitAccess';
 import type { Session } from '@supabase/supabase-js';
 import ReplayBoard from '../components/ReplayBoard';
@@ -42,6 +44,7 @@ import { cosmeticsLocked } from '../lib/cosmeticOptions';
 
 export default function Home() {
     const { android, webContent } = useAppPlatform();
+    useEffect(() => { if (webContent) recordVisit(); }, [webContent]);
     const nativeAuth = useNativeAuthLinks();
     const {progress:campaignProgress, update:updateCampaign, loaded:cosmeticsLoaded}=useCampaignProgress();
     const playingMusic=React.useRef<string|null>(null);
@@ -385,6 +388,8 @@ export default function Home() {
                                 </div>
                             </div>
 
+                            {webContent && <OptionalMetricsSettings lang={lang}/>}
+
                             <CosmeticsSettings lang={lang} progress={campaignProgress} update={updateCampaign} loaded={cosmeticsLoaded} locked={matchDesignLocked}/>
                             <CampaignCloudPanel key={cloud.userId??'guest'} lang={lang} cloud={cloud} locked={matchDesignLocked}/>
                             {android && <FoundersSettings lang={lang} accountName={user?.name} progress={campaignProgress} rewards={foundersRewards} locked={matchDesignLocked}/>}
@@ -484,7 +489,7 @@ export default function Home() {
                     <SiteIntroduction lang={lang}/>
 
 
-                    <DevDiaryTimeline />
+                    <DevDiaryTimeline view="home" lang={lang}/>
 
                     {/* Footer */}
                     <footer className="w-full max-w-4xl mt-12 mb-8 text-center text-gray-500 text-xs font-sans relative z-40">

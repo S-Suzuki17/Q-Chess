@@ -8,7 +8,7 @@ const h = vi.hoisted(() => {
     const sockets = new Map<string, any>(), sessions = new Map<string, any>();
     const blocked=vi.fn(async()=>false);
     const service = { cleanupOldRecords: vi.fn(), verifyLegacyPassword: vi.fn(), verifyUser: vi.fn(),
-        rankedReady: vi.fn(), getMatchRating: vi.fn(), settleRankedMatch: vi.fn(), recordUnratedMatch: vi.fn(), profileAvatarStore: vi.fn(()=>({})), adRewardStore: vi.fn(()=>({})), foundersStore: vi.fn(()=>({})) };
+        rankedReady: vi.fn(), getMatchRating: vi.fn(), settleRankedMatch: vi.fn(), recordUnratedMatch: vi.fn(), profileAvatarStore: vi.fn(()=>({})), adRewardStore: vi.fn(()=>({})), engagementMetricsStore: vi.fn(()=>({})), foundersStore: vi.fn(()=>({})) };
     const mm = { registerSocket: vi.fn((userId, socketId) => sessions.set(userId, { userId, socketId, state: 'IDLE' })),
         getPlayerSession: vi.fn(id => sessions.get(id)), clearDisconnectTimer: vi.fn(), getQueueStats: vi.fn(() => ({})),
         takeCpuFallbacks: vi.fn(() => []), joinQueue: vi.fn(), leaveQueue: vi.fn(), removeSocket: vi.fn(), getMatch: vi.fn() };
@@ -28,6 +28,7 @@ vi.mock('../game/GameEngine', () => ({ GameEngine: class {} }));
 vi.mock('./PrivateGameRecordRoutes', () => ({ createPrivateGameRecordRouter: vi.fn(() => () => {}) }));
 vi.mock('./ProfileAvatarRoutes', () => ({ createProfileAvatarRouter: vi.fn(() => () => {}) }));
 vi.mock('./AdRewardRoutes', () => ({ createAdRewardRouter: vi.fn(() => () => {}) }));
+vi.mock('./EngagementMetricsRoutes', () => ({ createEngagementMetricsRouter: vi.fn(() => () => {}) }));
 vi.mock('./FoundersRewardRoutes', () => ({ createFoundersRewardRouter: vi.fn(() => () => {}) }));
 vi.mock('./AccountDeletionRoutes', () => ({ createAccountDeletionRouter: vi.fn(() => () => {}), accountRequestGuard: vi.fn(() => () => {}) }));
 vi.mock('./AccountRecoveryRoutes', () => ({ createAccountRecoveryRouter: vi.fn(() => () => {}) }));

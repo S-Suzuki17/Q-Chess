@@ -130,6 +130,15 @@ export function TitleScreen({ lang, onLogin, initialMode='select' }: TitleScreen
             <div className="title-screen-actions relative z-10 w-full flex flex-col gap-6">
                 {mode === 'select' && (
                     <div className="flex flex-col gap-4">
+                        {android ? (
+                            <a href="https://q-gambit.com/rules/" target="_blank" rel="noopener noreferrer" className="title-tutorial">
+                                {t.rulesButton}<ChevronRight size={24} aria-hidden="true"/>
+                            </a>
+                        ) : (
+                            <Link href="/rules/" className="title-tutorial">
+                                {t.rulesButton}<ChevronRight size={24} aria-hidden="true"/>
+                            </Link>
+                        )}
                         <button onClick={handleGuest} className="title-play">{(t as any)?.guestLogin || "PLAY AS GUEST"}<ArrowUpRight size={24} aria-hidden="true"/></button>
                         
                         <div className="title-auth-actions flex flex-col gap-3 mt-4">

@@ -1,5 +1,6 @@
 import { additionalTutorial } from './additionalTutorial';
 import { additionalRules } from './additionalRules';
+import { rulesVisualDict } from './rulesVisualDict';
 import type { Language as AppLanguage } from './dict';
 export type Language = AppLanguage;
 
@@ -19,7 +20,7 @@ export const rulesDict: Record<Language, any> = {
     sec2li3: "Revealing (Flipping): When only ONE possible identity remains (e.g., it has moved exactly like a Knight), its true identity is permanently revealed to both players.",
     sec2rule: "Crucial Rule: If you attempt a move that is impossible for ALL remaining identities of that piece, the move will be rejected.",
     sec3Title: "3. Winning the Game & Strategy",
-    sec3p1: "The goal is the same as traditional chess: Capture the opponent's King. However, since the King is hidden, finding it is your first objective.",
+    sec3p1: rulesVisualDict.en.chessContrast,
     sec3BoxTitle: "Master Strategy: Hide Your King",
     sec3Boxp1: "The most important strategy in Q-GAMBIT is to keep your King's identity a secret.",
     sec3Boxli1: "Don't reveal your King early: Making King-specific moves will narrow down its identity and make it a target.",
@@ -48,7 +49,7 @@ export const rulesDict: Record<Language, any> = {
     sec2li3: "正体の確定 (フリップ): 可能性が「残り1つ」になると、その駒の正体が確定し、その姿が両プレイヤーに公開されます。",
     sec2rule: "重要ルール: 残っているどの可能性でも「絶対にできない」ような動きをしようとした場合は、エラーとなり動かすことができません。",
     sec3Title: "3. 勝利条件と戦略",
-    sec3p1: "目的は普通のチェスと同じで、「相手のキングを倒す」ことです。しかし、最初はキングも隠れているため、まずは相手のキングを探し出すことが最初の目標になります。",
+    sec3p1: rulesVisualDict.ja.chessContrast,
     sec3BoxTitle: "最強の戦略：キングを隠し通せ！",
     sec3Boxp1: "このゲームで最も重要なのは、「自分のキングがどれかバレないようにすること」です。",
     sec3Boxli1: "キングを不用意に動かさない: １マスしか動かないなど、キング特有の動きをすると、正体が絞り込まれて敵に狙われやすくなります。",
@@ -77,7 +78,7 @@ export const rulesDict: Record<Language, any> = {
     sec2li3: "揭示（翻转）: 当只剩下一个可能的身份时（例如，它的移动方式完全像骑士），它的真实身份将永久向双方玩家揭示。",
     sec2rule: "关键规则: 如果你尝试一个对该棋子所有剩余身份都不可能的移动，该移动将被拒绝。",
     sec3Title: "3. 赢得游戏和策略",
-    sec3p1: "目标与传统国际象棋相同：吃掉对手的国王。然而，由于国王是隐藏的，找到它将是你首要的目标。",
+    sec3p1: rulesVisualDict.zh.chessContrast,
     sec3BoxTitle: "主要策略：隐藏你的国王",
     sec3Boxp1: "Q-GAMBIT 中最重要的策略是保密你国王的身份。",
     sec3Boxli1: "不要过早暴露你的国王: 进行国王特有的移动会缩小它的身份范围并使其成为目标。",
@@ -106,7 +107,7 @@ export const rulesDict: Record<Language, any> = {
     sec2li3: "Раскрытие (Переворот): Когда остается только ОДНА возможная личность (например, она двигалась в точности как Конь), ее истинная личность навсегда раскрывается обоим игрокам.",
     sec2rule: "Важное Правило: Если вы попытаетесь сделать ход, который невозможен для ВСЕХ оставшихся личностей данной фигуры, ход будет отклонен.",
     sec3Title: "3. Победа в Игре и Стратегия",
-    sec3p1: "Цель такая же, как в классических шахматах: Захватить Короля противника. Однако, поскольку Король скрыт, его обнаружение — ваша первая цель.",
+    sec3p1: rulesVisualDict.ru.chessContrast,
     sec3BoxTitle: "Мастер-стратегия: Спрячьте своего Короля",
     sec3Boxp1: "Самая важная стратегия в Q-GAMBIT — держать личность вашего Короля в секрете.",
     sec3Boxli1: "Не раскрывайте своего Короля рано: Совершение ходов, характерных для Короля, сузит круг его возможных личностей и сделает его целью.",
@@ -135,7 +136,7 @@ export const rulesDict: Record<Language, any> = {
     sec2li3: "Révélation (Retournement): Lorsqu'il ne reste plus qu'UNE seule identité possible (par exemple, elle s'est déplacée exactement comme un Cavalier), sa véritable identité est définitivement révélée aux deux joueurs.",
     sec2rule: "Règle Cruciale: Si vous tentez un mouvement qui est impossible pour TOUTES les identités restantes de cette pièce, le mouvement sera rejeté.",
     sec3Title: "3. Gagner la Partie & Stratégie",
-    sec3p1: "Le but est le même que dans les échecs traditionnels : Capturer le Roi de l'adversaire. Cependant, puisque le Roi est caché, le trouver est votre premier objectif.",
+    sec3p1: rulesVisualDict.fr.chessContrast,
     sec3BoxTitle: "Stratégie Maîtresse : Cachez votre Roi",
     sec3Boxp1: "La stratégie la plus importante dans Q-GAMBIT est de garder l'identité de votre Roi secrète.",
     sec3Boxli1: "Ne révélez pas votre Roi trop tôt: Effectuer des mouvements spécifiques au Roi réduira son identité et en fera une cible.",
@@ -164,7 +165,7 @@ export const rulesDict: Record<Language, any> = {
     sec2li3: "Enthüllen (Aufdecken): Wenn nur noch EINE mögliche Identität übrig ist (z.B. wenn sie sich genau wie ein Springer bewegt hat), wird ihre wahre Identität dauerhaft für beide Spieler enthüllt.",
     sec2rule: "Entscheidende Regel: Wenn Sie eine Bewegung versuchen, die für ALLE verbleibenden Identitäten dieser Figur unmöglich ist, wird die Bewegung abgelehnt.",
     sec3Title: "3. Spiel gewinnen & Strategie",
-    sec3p1: "Das Ziel ist das gleiche wie beim traditionellen Schach: Den gegnerischen König schlagen. Da der König jedoch verborgen ist, ist es Ihr erstes Ziel, ihn zu finden.",
+    sec3p1: rulesVisualDict.de.chessContrast,
     sec3BoxTitle: "Meisterstrategie: Verstecken Sie Ihren König",
     sec3Boxp1: "Die wichtigste Strategie bei Q-GAMBIT besteht darin, die Identität Ihres Königs geheim zu halten.",
     sec3Boxli1: "König nicht früh enthüllen: Königsspezifische Bewegungen schränken seine Identität ein und machen ihn zum Ziel.",
@@ -193,7 +194,7 @@ export const rulesDict: Record<Language, any> = {
     sec2li3: "Revelando (Volteando): Cuando solo queda UNA posible identidad (por ejemplo, se ha movido exactamente como un Caballo), su verdadera identidad se revela permanentemente a ambos jugadores.",
     sec2rule: "Regla Crucial: Si intentas un movimiento que es imposible para TODAS las identidades restantes de esa pieza, el movimiento será rechazado.",
     sec3Title: "3. Ganar el Juego y Estrategia",
-    sec3p1: "El objetivo es el mismo que en el ajedrez tradicional: Capturar al Rey del oponente. Sin embargo, dado que el Rey está oculto, encontrarlo es tu primer objetivo.",
+    sec3p1: rulesVisualDict.es.chessContrast,
     sec3BoxTitle: "Estrategia Maestra: Oculta tu Rey",
     sec3Boxp1: "La estrategia más importante en Q-GAMBIT es mantener en secreto la identidad de tu Rey.",
     sec3Boxli1: "No reveles tu Rey temprano: Realizar movimientos específicos del Rey reducirá su identidad y lo convertirá en un objetivo.",

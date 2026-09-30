@@ -24,6 +24,7 @@ import { rankedText, cancelledRankedText } from '../locales/rankedText';
 import { RankedLoginDialog } from './RankedLoginDialog';
 import { soundManager } from '../lib/SoundService';
 import { acceptsOnlineSnapshot, isNewOnlineMove } from '../lib/onlineSnapshot';
+import { recordMatchCompleted, recordMatchStarted } from '../lib/engagementMetrics';
 
 export type EmoteType = 'hello' | 'well_played' | 'wow' | 'thinking' | 'resign';
 export const EMOTES: Record<EmoteType, { emoji: string; labelJa: string; labelEn: string }> = {
@@ -87,6 +88,9 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
     const [matchReady,setMatchReady]=useState(true);
     const introSeen=useRef<string|null>(null);
     const introCompleted=useRef(false);
+    const metricStarted=useRef(false);
+    const metricStartedKind=useRef<'first'|'second'|null>(null);
+    const metricCompleted=useRef(false);
     const [ratings,setRatings]=useState<Record<string,number>>({});
     const [ratingLookupKey,setRatingLookupKey]=useState('');
     const hostId=gameState?.players?.host as string|undefined,joinerId=gameState?.players?.joiner as string|undefined;
@@ -534,6 +538,23 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
         if (go === 'BLACK') return 'black_wins';
         return 'draw';
     }, [gameState]);
+
+    useEffect(() => {
+        const estimatedServerTime = gameState
+            ? (gameState.serverNow ?? Date.now()) + (latency ? latency / 2 : 150) +
+              (performance.now() - (gameState.receivedAt ?? performance.now()))
+            : 0;
+        if (!gameState || gameState.introPending || !matchReady ||
+            (Number.isFinite(gameState.startsAt) && gameState.startsAt > estimatedServerTime) ||
+            winner || cancelledMatch === roomId || onlineRole === 'spectator' || !onlineRole || metricStarted.current) return;
+        metricStarted.current = true;
+        metricStartedKind.current=recordMatchStarted();
+    }, [gameState, matchReady, latency, winner, cancelledMatch, roomId, onlineRole]);
+    useEffect(() => {
+        if (!winner || !metricStarted.current || metricCompleted.current) return;
+        metricCompleted.current = true;
+        recordMatchCompleted(metricStartedKind.current);
+    }, [winner]);
 
     const isCheck=useMemo(()=>!!gameState && !winner && onlineKingInCheck(gameState.board,gameState.pieces,gameState.turn),[gameState,winner]);
     const [showCheckWarning,setShowCheckWarning]=useState(false);

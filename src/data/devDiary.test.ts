@@ -23,6 +23,16 @@ describe('development diary',()=>{
         expect(post?.content).not.toMatch(/開発|修正|ランク戦|CPU|公開未反映|トークン/);
         expect(post?.hasAd).toBe(false);
     });
+    it('keeps the latest QUBE post casual and its manual X draft within 140 characters',()=>{
+        const post=devDiaryTweets.find(p=>p.id==='t16');
+        expect(post?.date).toBe('2026年9月30日');
+        expect(post?.content).toContain('靴下');
+        expect(post?.content).not.toMatch(/開発|修正|公開|ログイン|対局|広告|トークン/);
+        expect(post?.tags).toEqual(['QGambit','QUBEの雑談']);
+        expect(post?.hasAd).toBe(false);
+        const draft=[post?.content,post?.tags?.map(tag=>'#'+tag).join(' ')].filter(Boolean).join('\n').normalize('NFC');
+        expect([...draft].length).toBeLessThanOrEqual(140);
+    });
     it('exports exactly the same text as the public diary',()=>{
         for(const post of devDiaryTweets.filter(p=>p.authorName==='QUBE')){
             const expected=[post.content,post.tags?.map(t=>'#'+t).join(' ')].filter(Boolean).join('\n').normalize('NFC');

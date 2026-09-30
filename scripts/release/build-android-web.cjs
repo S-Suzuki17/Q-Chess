@@ -5,6 +5,7 @@ const path = require('node:path');
 const {readFileSync}=require('node:fs');
 const target=process.argv[3]??'android';
 if(!['android','web'].includes(target))throw new Error('Invalid build target');
+const webMetricsEnabled = target === 'web' && process.env.QG_ENABLE_WEB_ENGAGEMENT_METRICS === '1';
 const androidBuild=target==='android'?/\bversionCode\s+(\d+)/.exec(readFileSync('android/app/build.gradle','utf8'))?.[1]:'0';
 if(!androidBuild)throw new Error('Android versionCode is required');
 
@@ -35,6 +36,7 @@ const result = spawnSync(process.execPath, [require.resolve('next/dist/bin/next'
         NEXT_PUBLIC_SERVER_URL: server,
         NEXT_PUBLIC_ADMOB_LIVE: 'false', NEXT_PUBLIC_NATIVE_REWARDS_ENABLED: 'false',
         NEXT_PUBLIC_NATIVE_INTERSTITIAL_ENABLED: 'false',
+        NEXT_PUBLIC_ENGAGEMENT_METRICS_ENABLED: String(webMetricsEnabled),
     },
 });
 if (result.error) throw result.error;

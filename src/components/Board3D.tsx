@@ -349,14 +349,11 @@ export const Board3D: React.FC<Board3DProps> = props => {
     const motion = motionEnabled && !reducedMotion;
     const active=props.tokens.filter(token=>!token.isCaptured);
     return <div className="board-3d" data-board-theme={design} data-board-finish={props.boardFinish ?? 'standard'} data-piece-finish={props.pieceFinish ?? 'standard'} data-camera="fixed" data-piece-motion={motion ? 'on' : 'off'} data-reduced-motion={reducedMotion} style={{touchAction:'pan-y'}}>
-        <div className="board-scene-tools">
-            <button aria-pressed={motion} disabled={reducedMotion} onClick={()=>{
+        <ResilientBoardCanvas lang={lang} reducedMotion={reducedMotion} fallback={<Board2D {...props} isFlipped={flipped}/>} onRetry={() => Object.values(MODEL_PATHS).forEach(path => useGLTF.clear(path))}
+            toolbar={<button aria-pressed={motion} disabled={reducedMotion} onClick={()=>{
                 setMotionEnabled(!motionEnabled);
                 try { localStorage.setItem('qchess_pieceMotion',String(!motionEnabled)); } catch { /* Keep the session usable. */ }
-            }}>◌ {matchText(lang,'駒のゆらぎ','Piece motion')} {motion?dict[lang].on:dict[lang].muted}</button>
-        </div>
-        <div className="board-scene-canvas">
-        <ResilientBoardCanvas lang={lang} reducedMotion={reducedMotion} fallback={<Board2D {...props} isFlipped={flipped}/>} onRetry={() => Object.values(MODEL_PATHS).forEach(path => useGLTF.clear(path))}>
+            }}>◌ {matchText(lang,'駒のゆらぎ','Piece motion')} {motion?dict[lang].on:dict[lang].muted}</button>}>
             <PieceModels key={props.pieceFinish ?? 'boxwood'} finish={props.pieceFinish ?? 'boxwood'}>
             <StudioReflections/>
             <SceneCamera key={`${flipped}`} flipped={flipped} flat={!!props.is2DView} collection={props.presentation==='collection'} checkmate={props.checkmate} reducedMotion={reducedMotion}/>
@@ -382,6 +379,5 @@ export const Board3D: React.FC<Board3DProps> = props => {
             {props.hintMove && <Hint3D move={props.hintMove}/>}
             </PieceModels>
         </ResilientBoardCanvas>
-        </div>
     </div>;
 };
