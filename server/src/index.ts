@@ -23,6 +23,7 @@ import {createServiceOperations} from './services/ServiceOperations';
 import {createAccountProgressRouter} from './services/AccountProgressRoutes';
 import {createAccountTermsRouter} from './services/AccountTermsRoutes';
 import {createSecurityAudit} from './services/SecurityAudit';
+import {createEngagementMetricsRouter} from './services/EngagementMetricsRoutes';
 
 const app = express();
 app.use(cors());
@@ -57,6 +58,7 @@ app.use(createAccountProfileRouter(rankedAuth,supabaseService.accountProfileStor
 app.use(createPrivateGameRecordRouter(rankedAuth,supabaseService));
 app.use(createProfileAvatarRouter(rankedAuth,supabaseService.profileAvatarStore(),accountGate));
 app.use(createAdRewardRouter(rankedAuth,supabaseService.adRewardStore()));
+app.use(createEngagementMetricsRouter(supabaseService.engagementMetricsStore()));
 app.use(createFoundersRewardRouter(rankedAuth,supabaseService.foundersStore(),createPlayRewardVerifier(),process.env.PLAY_REWARDS_ALLOW_TEST==='true'));
 app.use(express.json({limit:'4kb'}));
 

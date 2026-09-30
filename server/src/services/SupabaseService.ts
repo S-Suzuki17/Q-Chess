@@ -13,6 +13,7 @@ import { createAccountSecurityStore,verifiedTokenSessionId } from './AccountSecu
 import {createServiceStatusLoader} from './ServiceOperations';
 import {createAccountProgressStore} from './AccountProgress';
 import {createAccountTermsStore} from './AccountTerms';
+import {createEngagementMetricsStore} from './EngagementMetrics';
 import type {SecurityEvent,SecurityOutcome} from './SecurityAudit';
 
 dotenv.config();
@@ -44,6 +45,7 @@ export class SupabaseService {
     public adRewardStore() {
         return createAdRewardStore(this.supabase,token=>this.verifyUser(token));
     }
+    public engagementMetricsStore() { return createEngagementMetricsStore(this.supabase); }
     public foundersStore() {return createFoundersStore(this.supabase,token=>this.verifyUser(token));}
     public accountDeletionStore() { return createAccountDeletionStore(this.supabase, token => this.verifyUser(token)); }
     public accountRecoveryStore() {
