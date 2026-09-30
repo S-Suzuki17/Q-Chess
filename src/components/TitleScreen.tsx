@@ -219,7 +219,7 @@ export function TitleScreen({ lang, onLogin, initialMode='select' }: TitleScreen
             {/* SEO & User Content Section for AdSense Quality */}
             <div className="title-screen-description relative w-full z-10 flex flex-col items-center max-w-2xl text-center">
                 <p className="text-gray-400 text-xs md:text-sm mb-2 font-sans pointer-events-none">
-                    {(t as any)?.seoDesc || 'Q-GAMBIT is a revolutionary Quantum Chess experience where pieces exist in a state of superposition. Master the art of information warfare and quantum collapse.'}
+                    {(t as any)?.seoDesc || 'Q-Gambit is a chess variant with uncertain piece identities. Moves and piece-count limits narrow the candidates.'}
                 </p>
                 <div className="flex gap-4">
                     {android ? <a href="https://q-gambit.com/rules/" target="_blank" rel="noopener noreferrer" className="title-rules">

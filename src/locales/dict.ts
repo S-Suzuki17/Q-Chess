@@ -21,7 +21,7 @@ const baseDict = {
     en: {
         privacyPolicy: 'Privacy Policy',
         rulesGuide: 'READ RULES & STRATEGY GUIDE',
-        seoDesc: 'Q-GAMBIT is a revolutionary Quantum Chess experience where pieces exist in a state of superposition. Master the art of information warfare and quantum collapse.',
+        seoDesc: 'Q-Gambit is a chess variant with uncertain piece identities. Moves and piece-count limits narrow the candidates. It is inspired by uncertainty, not a physical quantum simulation.',
         timeLimit: "TIME LIMIT",
         tc10s: "10s / move",
         tc3m: "3 min / player",
@@ -178,7 +178,7 @@ const baseDict = {
         mine: "MY GAMES",
     },
     ja: {
-        seoDesc: 'Q-GAMBITは駒が「重ね合わせ」の状態で存在する革新的な量子チェスです。情報戦と量子的収縮（コラプス）を操り、勝利を掴み取れ。',
+        seoDesc: 'Q-Gambitは駒の正体を推理するチェス変種です。動きと駒数の制約で候補を絞り込みます。不確実性を題材にしたゲームで、物理的な量子シミュレーションではありません。',
         privacyPolicy: 'プライバシーポリシー',
         rulesGuide: 'ルール＆戦略ガイドを読む',
         timeLimit: "持ち時間",
