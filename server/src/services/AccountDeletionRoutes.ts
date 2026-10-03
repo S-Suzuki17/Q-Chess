@@ -12,7 +12,8 @@ async function identity(header: unknown, auth: RankedAuth, store: AccountDeletio
     return id && isRankedUserId(id) ? { id, authId: id } : null;
 }
 export function createAccountDeletionRouter(auth: RankedAuth, store: AccountDeletionStore, gate: AccountWriteGate,
-    isBusy: (id: string) => boolean, disconnect: (id: string) => void) {
+    isBusy: (id: string) => boolean, disconnect: (id: string) => void,
+    cancelStripeBeforeErase: (id: string) => Promise<void>) {
     const router = express.Router();
     const attempts = new Map<string, { count: number; until: number }>();
     const running = new Set<string>();
@@ -68,7 +69,7 @@ export function createAccountDeletionRouter(auth: RankedAuth, store: AccountDele
         try {
             const phase = await completeAccountDeletion(store, hash, id => {
                 gate.reserve(id, isBusy(id)); deletedId = id; auth.revokeUserSessions(id); disconnect(id);
-            });
+            }, cancelStripeBeforeErase);
             if (phase === 'completed' && deletedId) gate.release(deletedId);
             res.status(phase === 'completed' ? 200 : 202).json({ phase });
         } catch (error) { fail(error, res); }

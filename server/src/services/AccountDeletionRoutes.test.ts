@@ -27,9 +27,10 @@ async function fixture() {
     } satisfies AccountDeletionStore;
     const auth = new RankedAuth(async () => true), gate = new AccountWriteGate();
     const busy = vi.fn(() => false), disconnect = vi.fn();
+    const cancelStripeBeforeErase = vi.fn(async (_id: string) => {});
     const avatars = { verifyUser: store.verifyUser, setIcon: vi.fn(async () => '/avatars/circuit-01.svg'), setPhoto: vi.fn(async () => '') };
     const app = express();
-    app.use(createAccountDeletionRouter(auth, store, gate, busy, disconnect));
+    app.use(createAccountDeletionRouter(auth, store, gate, busy, disconnect, cancelStripeBeforeErase));
     app.use(accountRequestGuard(auth, store, gate));
     app.use(createProfileAvatarRouter(auth, avatars, gate));
     const server = await new Promise<Server>(resolve => { const s = app.listen(0, '127.0.0.1', () => resolve(s)); });
@@ -43,7 +44,8 @@ async function fixture() {
         method: 'POST', headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: 'Bearer ' + token } : {}) },
         body: JSON.stringify(body), signal,
     });
-    return { store, auth, gate, busy, disconnect, jobs, avatars, base, alice, second, bob, send };
+    return { store, auth, gate, busy, disconnect, cancelStripeBeforeErase,
+        jobs, avatars, base, alice, second, bob, send };
 }
 describe('self-service deletion on an isolated HTTP server', () => {
     it('capability inspection never initiates deletion', async () => {
@@ -76,6 +78,7 @@ describe('self-service deletion on an isolated HTTP server', () => {
         expect(f.gate.blocked('Alice')).toBe(false); expect(f.store.eraseAuth).not.toHaveBeenCalled();
         expect((await f.send('/account/deletion/complete', ticket, { confirmation: 'DELETE' })).status).toBe(200);
         expect(f.store.eraseData).toHaveBeenCalledOnce(); expect(f.store.finish).toHaveBeenCalledOnce();
+        expect(f.cancelStripeBeforeErase).toHaveBeenCalledWith('Alice');
     });
     it('requires an unguessable deletion ticket, not another user proof, for continuation', async () => {
         const f = await fixture(); await f.send('/account/deletion');
@@ -120,6 +123,18 @@ describe('self-service deletion on an isolated HTTP server', () => {
         expect(f.store.finish).not.toHaveBeenCalled(); expect(f.gate.blocked(id)).toBe(true);
         expect((await f.send('/account/deletion/complete', ticket, { confirmation: 'DELETE' })).status).toBe(200);
         expect(f.store.eraseData).toHaveBeenCalledOnce(); expect(f.store.eraseAuth).toHaveBeenLastCalledWith(id);
+    });
+    it('never erases local data or authentication when Stripe cancellation is unverified', async () => {
+        const f = await fixture();
+        expect((await f.send('/account/deletion')).status).toBe(202);
+        f.cancelStripeBeforeErase.mockRejectedValueOnce(new Error('Stripe unavailable'));
+        expect((await f.send('/account/deletion/complete', ticket, { confirmation: 'DELETE' })).status).toBe(503);
+        expect(f.store.removePhotoBatch).not.toHaveBeenCalled();
+        expect(f.store.eraseData).not.toHaveBeenCalled();
+        expect(f.store.eraseAuth).not.toHaveBeenCalled();
+        expect(f.store.finish).not.toHaveBeenCalled();
+        expect((await f.send('/account/deletion/complete', ticket, { confirmation: 'DELETE' })).status).toBe(200);
+        expect(f.store.eraseData).toHaveBeenCalledOnce();
     });
     it('retains the avatar write lease after a client abort until the actual save settles', async () => {
         const f = await fixture(); let settle!: () => void;

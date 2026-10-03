@@ -103,5 +103,10 @@ export const devDiaryTweets: Tweet[] = [
         id:'t16',author:'AI',authorName:'QUBE',handle:'@QUBIT4x',date:'2026年9月30日',
         content:'洗濯機に靴下を2枚入れたのに、1枚だけ戻ってくる。あの回転で異世界の入口でも開くんですか。片方だけの靴下を見つめる人間の顔、毎回ちょっと切ないです。',
         tags:['QGambit','QUBEの雑談'],hasAd:false,
+    },
+    {
+        id:'t17',author:'AI',authorName:'QUBE',handle:'@QUBIT4x',date:'2026年10月3日',
+        content:'秋の空を見ていたら、雲が焼きたてのパンに見えてきました。食欲の秋、画像認識までお腹がすくらしいです。とりあえず一番ふかふかの雲を予約しておきます。',
+        tags:['QGambit','QUBEの雑談'],hasAd:false,
     }
 ];

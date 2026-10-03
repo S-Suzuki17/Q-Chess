@@ -37,8 +37,12 @@ import { circuitAccessText } from '../locales/circuitAccessText';
 import { AccountDeletionPanel } from './AccountDeletionPanel';
 import { AccountSecurityPanel } from './AccountSecurityPanel';
 import { AccountRecoveryPanel } from './AccountRecoveryPanel';
+import { DailyLoginRewardsPanel } from './DailyLoginRewardsPanel';
+import { DAILY_LOGIN_REWARDS_ENABLED } from '../lib/dailyLoginRewards';
+import { STRIPE_WEB_MEMBERSHIP_ENABLED } from '../lib/stripeMembership';
 
 const ProfileCosmetics=dynamic(()=>import('./ProfileCosmetics').then(module=>module.ProfileCosmetics),{ssr:false});
+const StripeMembershipPanel=dynamic(()=>import('./StripeMembershipPanel').then(module=>module.StripeMembershipPanel),{ssr:false});
 
 interface LevelSelectProps {
     settingsPanel?:'friends'|'account'|null;
@@ -67,7 +71,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
     const [joinRoomId, setJoinRoomId] = React.useState('');
     const [isSearching, setIsSearching] = React.useState(false);
     const [matchFound, setMatchFound] = React.useState(false);
-    
+
     const { queueStats, isAuthenticated } = useSocket();
     const [showReplays, setShowReplays] = React.useState(false);
     const [replays, setReplays] = React.useState<GameRecord[]>([]);
@@ -137,8 +141,8 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
         return () => { historyRequest.current++; };
     }, [user.id]);
     const anyModalOpen = showPlayMenu || showReplays || showLeaderboard || showFriends || showAccount || showTutorial || showAdModal || !!pendingAction || showLiveMatches;
-    
-    
+
+
     React.useEffect(() => {
         window.dispatchEvent(new CustomEvent('hide-settings', { detail: anyModalOpen }));
         return () => { window.dispatchEvent(new CustomEvent('hide-settings', { detail: false })); };
@@ -268,8 +272,8 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
         setPendingAction({ type: 'cpu' });
     };
 
-    
-    
+
+
 
     const cancelSearch = React.useCallback(() => {
         if (channelRef.current) {
@@ -315,7 +319,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
         <div className="lobby-studio w-full h-full flex flex-col bg-transparent text-[#E8E2D7] font-sans px-6 py-6 md:px-8 md:py-8 overflow-hidden relative">
             {showTutorial && <InteractiveTutorial lang={lang} onClose={() => setShowTutorial(false)} />}
 
-            
+
             {/* Play Menu Modal */}
             {showPlayMenu && (
                 <div className="fixed inset-0 bg-[#161513]/95 z-[60] flex flex-col justify-end md:justify-center p-4 md:p-0 backdrop-blur-sm animate-in fade-in duration-200">
@@ -324,7 +328,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
                             <span className="text-sm tracking-[0.2em] text-[#E8E2D7] font-serif uppercase">{(t as any).chooseGame}</span>
                             <button onClick={() => setShowPlayMenu(false)} className="text-[#A89C86] hover:text-[#E8E2D7] text-xl transition-colors">✕</button>
                         </div>
-                        
+
                         <div className="flex flex-col gap-0 overflow-y-auto">
                             {/* RANKED */}
                             <button onClick={() => {
@@ -338,7 +342,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
                                 <span className="text-lg tracking-[0.15em] text-[#E8E2D7] group-hover:text-[#B39A62]">{(t as any).ranked}</span>
                                 <span className="text-[10px] tracking-widest text-[#A89C86] leading-relaxed" dangerouslySetInnerHTML={{ __html: (t as any).rankedDesc.replace(/\n/g, '<br/>') }}></span>
                             </button>
-                            
+
                             {/* RANDOM MATCH */}
                             <button onClick={() => {
                                 setPendingAction({ type: 'random' });
@@ -356,7 +360,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
                                 <span className="text-lg tracking-[0.15em] text-[#E8E2D7] group-hover:text-[#B39A62]">{(t as any).friendMatch}</span>
                                 <span className="text-[10px] tracking-widest text-[#A89C86] leading-relaxed">{(t as any).friendMatchDesc}</span>
                             </button>
-                            
+
                             {/* JOIN ROOM */}
                             <button onClick={() => {
                                 const room = prompt((t as any).enterRoomId);
@@ -407,7 +411,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
                                     className="w-full py-4 bg-[#161513] border border-[#A89C86]/40 hover:border-[#B39A62] transition-colors text-[#E8E2D7] tracking-widest text-sm flex justify-between px-6 items-center group"
                                 >
                                     <span className="group-hover:text-[#B39A62]">{tc === '10s' ? t.tc10s : tc === '3m' ? t.tc3m : t.tc10m}</span>
-                                    
+
                                     {pendingAction.type === 'ranked' && userProfile && (
                                         <span className="text-xs text-[#B39A62] font-mono mx-auto">
                                             {(t as any).ratingLabel}: {Math.floor(tc === '10s' ? userProfile.rating_10s : tc === '3m' ? userProfile.rating_3m : userProfile.rating_10m)}
@@ -428,8 +432,8 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
                 </div>
             )}
 
-            
-            
+
+
 
             {showAccount&&showIconEditor&&canEditIcon&&<AccountIconEditor key={user.id} lang={lang} userId={user.id} currentUrl={displayAvatarUrl} clears={rewardClearCount(cosmetics)} onClose={()=>setShowIconEditor(false)} onSaved={acceptAvatar}/>}
             {showAccount && (
@@ -439,7 +443,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
                             <h3 className="text-lg tracking-[0.2em] text-[#E8E2D7] font-serif">{(t as any).account}</h3>
                             <button aria-label={t.settings} onClick={onCloseSettingsPanel} className="text-[#A89C86] hover:text-[#E8E2D7] text-xl min-w-11 min-h-11">←</button>
                         </div>
-                        
+
                         <div className="flex flex-col gap-6 text-left">
                             <div className="flex items-center gap-6">
                                 <div className="flex flex-col items-center gap-3">
@@ -449,14 +453,14 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
                                 <div className="flex flex-col">
                                     <div className="flex items-center gap-2">
                                         {isEditingName ? (
-                                            <input 
-                                                type="text" 
+                                            <input
+                                                type="text"
                                                 maxLength={15}
                                                 aria-label={t.enterName}
                                                 disabled={nameLoading}
-                                                value={newName} 
-                                                onChange={e => setNewName(e.target.value)} 
-                                                className="bg-[#24211D] border border-[#A89C86]/50 p-1 text-sm text-[#E8E2D7] w-32 outline-none focus:border-[#B39A62]" 
+                                                value={newName}
+                                                onChange={e => setNewName(e.target.value)}
+                                                className="bg-[#24211D] border border-[#A89C86]/50 p-1 text-sm text-[#E8E2D7] w-32 outline-none focus:border-[#B39A62]"
                                             />
                                         ) : (
                                             <span className="text-xl font-serif tracking-wider">{userProfile?.name || user.name}</span>
@@ -492,6 +496,8 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
                             </div>
 
                             <ProfileCosmetics lang={lang} name={userProfile?.name||user.name} url={displayAvatarUrl} frame={cosmetics.avatar} ratings={user.type==='registered'&&userProfile?.id===user.id?userProfile:undefined}/>
+                            {DAILY_LOGIN_REWARDS_ENABLED && user.type==='registered' && <DailyLoginRewardsPanel key={user.id} user={user} lang={lang}/>}
+                            {STRIPE_WEB_MEMBERSHIP_ENABLED && user.type==='registered' && <StripeMembershipPanel key={`stripe-${user.id}`} user={user} lang={lang}/>}
                             {user.type==='registered'&&!/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(user.id)&&<AccountRecoveryPanel key={`recovery-${user.id}`} userId={user.id} lang={lang}/>}
 
                             <button onClick={onBack} className="w-full mt-4 py-4 border border-[#A89C86]/40 hover:border-[#E8E2D7] text-[#A89C86] hover:text-[#E8E2D7] text-xs tracking-widest transition-colors">
@@ -511,7 +517,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
                             <h3 className="text-xl tracking-[0.2em] text-[#E8E2D7] font-serif">{t.mine} · {t.watchReplays}</h3>
                             <button onClick={() => setShowReplays(false)} className="text-[#A89C86] hover:text-[#E8E2D7] text-2xl">✕</button>
                         </div>
-                        
+
                         <p className="mb-6 text-sm text-[#A89C86]">{historyCopy.historyOnly}</p>
 
                         {historyError || user.type === 'guest' ? (
@@ -605,7 +611,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
             )}
 
             {/* --- HOME SCREEN MAIN UI --- */}
-            
+
             <div className="lobby-heading flex justify-between items-center w-full max-w-lg mx-auto shrink-0 z-10 pt-4">
                 <span className="text-xl md:text-2xl tracking-[0.2em] font-serif text-[#E8E2D7]">Q-GAMBIT</span>
                 <div className="flex items-center gap-4">
@@ -620,7 +626,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
             </div>
 
             <div className="lobby-content flex-grow flex flex-col justify-center w-full max-w-lg mx-auto z-10 gap-12 mt-8">
-                
+
                 <div className="lobby-play-panel flex flex-col gap-6 w-full">
                     {onCampaign && <button className="lobby-campaign-action" onClick={onCampaign}><span aria-hidden="true">{circuitAllowed?'♛':'♙'}</span><span>{campaignText(lang,'title')}{!circuitAllowed&&<small style={{display:'block',fontSize:11,letterSpacing:0}}>{circuitAccessText(lang,'action')}</small>}</span><ArrowUpRight size={20}/></button>}
                     <div className="flex flex-col items-center w-full">
@@ -630,7 +636,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
                         </button>
                     </div>
 
-                    
+
                     <div className="lobby-shortcuts flex gap-2">
                         <button onClick={handleVsCpuClick} className="flex-1 py-4 bg-transparent border border-[#A89C86]/20 hover:bg-[#24211D] text-xs tracking-[0.2em] transition-colors text-[#A89C86] hover:text-[#E8E2D7] uppercase">
                             {(t as any).practice}

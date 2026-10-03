@@ -24,6 +24,12 @@ import {createAccountProgressRouter} from './services/AccountProgressRoutes';
 import {createAccountTermsRouter} from './services/AccountTermsRoutes';
 import {createSecurityAudit} from './services/SecurityAudit';
 import {createEngagementMetricsRouter} from './services/EngagementMetricsRoutes';
+import {createDailyLoginRouter} from './services/DailyLoginRoutes';
+import {QG_LIVE_MONTHLY_PRICE_ID, StripeMembershipApi, type StripeMembershipMode} from './services/StripeMembership';
+import {createStripeMembershipRouter,createStripeWebhookRouter} from './services/StripeMembershipRoutes';
+import {createStripeCancellationGuard} from './services/StripeCancellation';
+import {StripePortalApi} from './services/StripePortal';
+import { cpuHintTicketsEnabled, rankedTicketAdmissionEnabled } from './services/TicketFeatureGates';
 
 const app = express();
 app.use(cors());
@@ -31,6 +37,62 @@ const supabaseService = new SupabaseService();
 const audit=createSecurityAudit((event,outcome,id)=>supabaseService.recordSecurityEvent(event,outcome,id));
 const rankedAuth = new RankedAuth((id,password)=>supabaseService.verifyLegacyPassword(id,password));
 const accountGate = new AccountWriteGate();
+const stripeMembershipStore = supabaseService.stripeMembershipStore();
+// Billing reconciliation and cancellation must stay available after the first
+// purchase, even when new checkouts are paused. All gates remain OFF until the
+// corresponding migrations, Stripe E2E, fulfillment, and policy checks pass.
+const STRIPE_BILLING_PROCESSING_READY = false;
+const STRIPE_CHECKOUT_RELEASE_READY = false;
+const STRIPE_BILLING_PORTAL_RELEASE_READY = false;
+// This guard must be enabled before checkout is ever released and must stay
+// enabled during a checkout rollback. Disabling purchases must never disable
+// cancellation of already-existing subscriptions before account deletion.
+// Leave false only while the Stripe DB tables have not been deployed.
+const STRIPE_ACCOUNT_DELETION_GUARD_READY = false;
+const stripeMode = process.env.STRIPE_MEMBERSHIP_MODE;
+const stripeModeValid = stripeMode === 'test' || stripeMode === 'live';
+const stripeModeEnabled = stripeMode === 'live'
+    ? process.env.STRIPE_MEMBERSHIP_LIVE_ENABLED === 'true'
+    : stripeMode === 'test' && process.env.STRIPE_MEMBERSHIP_TEST_ENABLED === 'true';
+const stripeSecretKey = stripeMode === 'live' ? process.env.STRIPE_LIVE_SECRET_KEY : process.env.STRIPE_TEST_SECRET_KEY;
+const stripeWebhookSecret = stripeMode === 'live' ? process.env.STRIPE_LIVE_WEBHOOK_SECRET : process.env.STRIPE_TEST_WEBHOOK_SECRET;
+let stripeMembershipApi: StripeMembershipApi | null = null;
+if (STRIPE_BILLING_PROCESSING_READY && stripeModeValid && stripeModeEnabled) {
+    try {
+        stripeMembershipApi = new StripeMembershipApi({
+            mode: stripeMode as StripeMembershipMode,
+            secretKey: stripeSecretKey ?? '',
+            webhookSecret: stripeWebhookSecret ?? '',
+            priceId: stripeMode === 'live' ? QG_LIVE_MONTHLY_PRICE_ID : process.env.STRIPE_TEST_PRICE_ID ?? '',
+            successUrl: stripeMode === 'live' ? process.env.STRIPE_LIVE_SUCCESS_URL ?? '' : process.env.STRIPE_TEST_SUCCESS_URL ?? '',
+            cancelUrl: stripeMode === 'live' ? process.env.STRIPE_LIVE_CANCEL_URL ?? '' : process.env.STRIPE_TEST_CANCEL_URL ?? '',
+        });
+    } catch { /* Invalid Stripe configuration keeps every payment endpoint disabled. */ }
+}
+const stripeBillingProcessingEnabled = () => STRIPE_BILLING_PROCESSING_READY
+    && STRIPE_ACCOUNT_DELETION_GUARD_READY
+    && stripeModeValid && stripeModeEnabled && stripeMembershipApi !== null;
+const stripeCheckoutEnabled = () => STRIPE_CHECKOUT_RELEASE_READY && stripeBillingProcessingEnabled();
+let stripePortalApi: StripePortalApi | null = null;
+if (STRIPE_BILLING_PORTAL_RELEASE_READY && stripeBillingProcessingEnabled()
+    && process.env.STRIPE_MEMBERSHIP_PORTAL_ENABLED === 'true') {
+    try {
+        stripePortalApi = new StripePortalApi({
+            secretKey: stripeSecretKey ?? '', mode: stripeMode as StripeMembershipMode,
+            returnUrl: 'https://q-gambit.com/',
+        });
+    } catch { /* Invalid billing configuration keeps the portal disabled. */ }
+}
+const stripePortalEnabled = () => STRIPE_BILLING_PORTAL_RELEASE_READY
+    && stripeBillingProcessingEnabled() && process.env.STRIPE_MEMBERSHIP_PORTAL_ENABLED === 'true'
+    && stripePortalApi !== null;
+const cancelStripeBeforeErase = STRIPE_ACCOUNT_DELETION_GUARD_READY
+    ? createStripeCancellationGuard(supabaseService.stripeDeletionLinks(), {
+        test: process.env.STRIPE_TEST_SECRET_KEY, live: process.env.STRIPE_LIVE_SECRET_KEY,
+    })
+    : async (_userId: string) => { /* Billing remains hard OFF; no Stripe records can originate here. */ };
+app.use(createStripeWebhookRouter(stripeMembershipApi,stripeMembershipStore,
+    stripeWebhookSecret ?? '',stripeBillingProcessingEnabled));
 const operations=createServiceOperations(supabaseService.serviceStatusLoader());
 app.use(operations.loginGuard);
 app.get('/service/status',async(_req,res)=>{
@@ -44,7 +106,7 @@ app.use(createAccountDeletionRouter(rankedAuth,deletionStore,accountGate,
     id=>{
         runtime.forgetReceipts(matchmaking.forgetAccount(id));
         for(const socket of io.sockets.sockets.values())if(socket.data.userId===id)socket.disconnect(true);
-    }));
+    },cancelStripeBeforeErase));
 app.use(createAccountRecoveryRouter(rankedAuth,supabaseService.accountRecoveryStore(),accountGate,
     id=>matchmaking.accountBusy(id)||runtime.isSavingAccount(id),
     id=>{ for(const socket of io.sockets.sockets.values())if(socket.data.userId===id)socket.disconnect(true); },
@@ -54,6 +116,9 @@ app.use(createAccountSecurityRouter(rankedAuth,supabaseService.accountSecuritySt
 app.use(accountRequestGuard(rankedAuth,deletionStore,accountGate));
 app.use(createAccountTermsRouter(rankedAuth,supabaseService.accountTermsStore(),accountGate));
 app.use(createAccountProgressRouter(rankedAuth,supabaseService.accountProgressStore(),accountGate));
+app.use(createDailyLoginRouter(rankedAuth,supabaseService.dailyLoginStore(),accountGate));
+app.use(createStripeMembershipRouter(rankedAuth,stripeMembershipApi,stripeMembershipStore,accountGate,
+    stripeBillingProcessingEnabled,stripePortalApi,stripePortalEnabled,stripeCheckoutEnabled));
 app.use(createAccountProfileRouter(rankedAuth,supabaseService.accountProfileStore(),accountGate));
 app.use(createPrivateGameRecordRouter(rankedAuth,supabaseService));
 app.use(createProfileAvatarRouter(rankedAuth,supabaseService.profileAvatarStore(),accountGate));
@@ -164,7 +229,7 @@ const SEVERE_VIOLATION_THRESHOLD = 50; // Dropped packet threshold before forced
 
 io.use(async (socket, next) => {
   const token = socket.handshake.auth.token;
-  
+
   if (!token) {
       return next(new Error('Authentication Error: No token provided'));
   }
@@ -199,7 +264,7 @@ io.on('connection', (socket: Socket) => {
   // Socket middleware for incoming event rate-limiting
   socket.use((packet, next) => {
     const eventName = packet[0];
-    if(['join_queue','connect_match','intro_ready','emote','piece_selection','player_action','request_sync','ping'].includes(eventName)
+    if(['join_queue','connect_match','intro_ready','emote','piece_selection','player_action','request_sync','request_cpu_hint','ping'].includes(eventName)
         &&(!packet[1]||typeof packet[1]!=='object'||Array.isArray(packet[1])))return;
     const now = Date.now();
     const rl = socket.data.rateLimit;
@@ -219,7 +284,7 @@ io.on('connection', (socket: Socket) => {
     } else {
       rl.violations += 1;
       console.warn('[RATE_LIMIT] Packet dropped');
-      
+
       socket.emit('action_error', { message: 'Too many requests. Please slow down.' });
 
       if (rl.violations > SEVERE_VIOLATION_THRESHOLD) {
@@ -307,12 +372,35 @@ io.on('connection', (socket: Socket) => {
     }
     if(!socket.connected||matchmaking.getPlayerSession(userId)?.socketId!==socket.id)return;
     const result = matchmaking.connectMatch(userId, data.matchId, data.userName, data.avatarUrl, data.avatarFrame,data.introVersion,rating);
-    
+
     if(!result.success)return;
     socket.join(data.matchId);
 
     if (result.success && result.engine) {
       if (result.justStarted) {
+          // Free ranked PvP and CPU fallback remain playable without ticket RPCs.
+          // The dormant admission path cannot be released before T1 fixes start
+          // ordering, CPU identities, durable recovery, and ticket refunds.
+          if (result.match?.mode === 'ranked' && rankedTicketAdmissionEnabled()) {
+              try {
+                  const admission = await supabaseService.admitRankedMatch(
+                      data.matchId,
+                      result.match.players.host,
+                      result.match.players.joiner,
+                      result.match.timeControl
+                  );
+                  if (!admission.success) {
+                      io.to(data.matchId).emit('queue_error', { code: 'INSUFFICIENT_FUNDS', message: 'INSUFFICIENT_FUNDS' });
+                      matchmaking.removeSocket(socket.id); // forcefully disconnect them from match
+                      return;
+                  }
+              } catch (e) {
+                  console.error('Failed to admit match:', e);
+                  io.to(data.matchId).emit('queue_error', { code: 'ADMISSION_FAILED', message: 'ADMISSION_FAILED' });
+                  matchmaking.removeSocket(socket.id);
+                  return;
+              }
+          }
           const room = io.sockets.adapter.rooms.get(data.matchId);
           if (room) {
               for (const sid of room) {
@@ -346,7 +434,7 @@ io.on('connection', (socket: Socket) => {
     if (!targetRoom || !socket.rooms.has(targetRoom)||!['hello','well_played','wow','thinking','resign'].includes(data.emote)) return;
     const match=matchmaking.getMatch(targetRoom);
     if(!match||![match.players.host,match.players.joiner].includes(userId))return;
-    
+
     // Broadcast emote to other players in the room
     socket.to(targetRoom).emit('emote', {
       player: match.players.host===userId?'white':'black',
@@ -407,6 +495,32 @@ io.on('connection', (socket: Socket) => {
       socket.emit('sync_state', match.engine.getPublicState(userId));
       runtime.replaySettlement(match,userId,(event,payload)=>socket.emit(event,payload));
     }
+  });
+
+  socket.on('request_cpu_hint', async (data: { requestId: string, moveHistory: any[], pool: 'white'|'black' }) => {
+      try {
+          if (!data?.requestId || typeof data.requestId !== 'string' || data.requestId.length > 128) return;
+          // Until T2 owns the practice session and position, reject before
+          // inspecting client history, searching, or calling a ticket RPC.
+          if (!cpuHintTicketsEnabled()) {
+              socket.emit('cpu_hint_error', { requestId: data.requestId, error: 'FEATURE_DISABLED' });
+              return;
+          }
+          const session = matchmaking.getPlayerSession(userId);
+          const match = session?.currentMatchId ? matchmaking.getMatch(session.currentMatchId) : null;
+          if (match && match.mode === 'ranked' && match.state === 'IN_GAME') {
+              throw new Error('HINT_UNAVAILABLE_IN_RANKED');
+          }
+          const hint = await supabaseService.cpuPracticeService().requestHint(
+              data.requestId,
+              userId,
+              data.moveHistory || [],
+              data.pool
+          );
+          socket.emit('cpu_hint_delivered', { requestId: data.requestId, hint });
+      } catch (e: any) {
+          socket.emit('cpu_hint_error', { requestId: data?.requestId, error: e.message || 'HINT_FAILED' });
+      }
   });
 
   socket.on('ping', (data: { clientTime: number }) => {
