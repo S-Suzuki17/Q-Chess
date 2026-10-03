@@ -14,7 +14,7 @@ export function RankedLoginDialog({lang,userId,onCancel,onVerified,title}:{lang:
         const controller=new AbortController();request.current=controller;
         const timeout=setTimeout(()=>controller.abort(),10000);
         setBusy(true);setError(false);
-        try{await requestRankedSession(userId,password,controller.signal);if(mounted.current){setPassword('');onVerified();}}
+        try{await requestRankedSession(userId,password,false,controller.signal);if(mounted.current){setPassword('');onVerified();}}
         catch{if(mounted.current){setPassword('');setError(true);}}
         finally{clearTimeout(timeout);if(mounted.current)setBusy(false);}
     };

@@ -86,7 +86,7 @@ describe('Match decision feedback', () => {
         expect(render({hintMove,finished:true})).not.toContain('data-testid="move-advice"');
     });
     it('provides pending and failure feedback', () => {
-        expect(render({hintPending:true})).toContain('移動元と移動先を検討しています');
+        expect(render({hintPending:true})).toContain('QUBEが考え中…');
         expect(render({hintFailed:true})).toContain('ヒントを取得できませんでした');
     });
     it('distinguishes no selection from an unresolved piece', () => {

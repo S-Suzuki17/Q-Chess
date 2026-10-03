@@ -105,3 +105,16 @@
  .match-board-area { height:min(calc(100vw + 22px),max(220px,calc(100dvh - 100px))); }
 }
 @media(prefers-reduced-motion:reduce) { .match-layout * { animation-duration:.001ms!important; transition-duration:.001ms!important; } }
+.qube-icon {
+    border-radius: 50%;
+    object-fit: cover;
+    margin-right: 4px;
+}
+.qube-icon.thinking {
+    animation: qube-pulse 1.5s infinite ease-in-out;
+}
+@keyframes qube-pulse {
+    0% { transform: scale(0.9); opacity: 0.7; }
+    50% { transform: scale(1.1); opacity: 1; }
+    100% { transform: scale(0.9); opacity: 0.7; }
+}

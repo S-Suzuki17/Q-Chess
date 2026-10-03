@@ -1,0 +1,66 @@
+{
+  "actions": [],
+  "errors": [],
+  "observedAt": "2026-10-03T16:11:34.085699Z",
+  "policy": {
+    "checkPolicy": "all",
+    "configPath": null,
+    "requiredReviewers": [],
+    "source": "defaults",
+    "strictChangesRequested": false
+  },
+  "schemaVersion": 1,
+  "state": "pending",
+  "targets": [
+    {
+      "actions": [],
+      "checks": {
+        "fail": [],
+        "malformed": [],
+        "pass": [],
+        "pending": [],
+        "skipping": [],
+        "total": 0,
+        "unknown": []
+      },
+      "kind": "explicit",
+      "landingAuthorization": null,
+      "path": "C:\\Users\\souta\\Documents\\Codex\\2026-09-09\\blender-x20\\work\\q-gambit-release-integration-20261003",
+      "pending": [
+        {
+          "checks": [],
+          "reason": "empty or missing check output",
+          "type": "checks"
+        }
+      ],
+      "pr": {
+        "autoMerge": null,
+        "autoMergeEnabled": false,
+        "baseRefName": "main",
+        "baseSha": "a6795783dcca5bbdcf441628c4d6e1febb6269ba",
+        "headRefName": "fix/ranked-limits-candidates-20261004",
+        "headSha": "fb918e9b237b38cb1f69c7d6419846f1d98371c4",
+        "isMergeQueueEnabled": false,
+        "mergeQueueEntry": null,
+        "mergeStateStatus": "CLEAN",
+        "mergeable": "MERGEABLE",
+        "number": 7,
+        "reviewDecision": null,
+        "state": "OPEN",
+        "url": "https://github.com/S-Suzuki17/Q-Chess/pull/7"
+      },
+      "repository": "S-Suzuki17/Q-Chess",
+      "repositoryPolicy": {
+        "mergeCommitAllowed": true,
+        "rebaseMergeAllowed": true,
+        "squashMergeAllowed": true
+      },
+      "reviews": {
+        "missingRequiredReviewers": [],
+        "requiredReviewers": [],
+        "unresolvedThreadCount": 0
+      },
+      "state": "pending"
+    }
+  ]
+}

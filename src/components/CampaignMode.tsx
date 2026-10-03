@@ -66,8 +66,21 @@ function MemberCircuit({lang,user,onBack,onPlayingChange}:CampaignProps) {
         update(value=>finishStage(value,activeId,result));
         setOutcome(result);
     },[activeId,update,user]);
-    const start=(id:number)=>{
+    const start=async(id:number)=>{
         if(!circuitAccess.canPlay(user)||!loaded||!stageUnlocked(progress,id))return;
+        let requiresAd = true;
+        try {
+            const { readStripeMembershipStatus } = await import('../lib/stripeMembership');
+            const status = await readStripeMembershipStatus(user.id);
+            requiresAd = !status.active;
+        } catch { }
+        if (requiresAd) {
+            const key = `${id}-${Date.now()}`;
+            if (adBreakHandled.current === key) return;
+            adBreakHandled.current = key;
+            await requestCircuitInterstitial(key);
+        }
+        if(!circuitAccess.canPlay(user))return;
         runPermit.current=circuitAccess.permit(user);
         setRunDesign({music:progress.music,effect:progress.effect});setRunMusic(CIRCUIT_MUSIC.filter(track=>rewardUnlocked(progress,track.id)).map(track=>track.id));onPlayingChange?.(true);
         setFirstClear(!progress.stageStars?.[id-1]);setSelected(id);setOutcome(null);setRun(value=>value+1);setActiveId(id);
@@ -76,10 +89,7 @@ function MemberCircuit({lang,user,onBack,onPlayingChange}:CampaignProps) {
     const afterResult=async(action:()=>void)=>{
         const permit=runPermit.current;
         if(!permit?.())return;
-        const key=`${activeId}-${run}`;
-        if(adBreakHandled.current===key)return;
-        adBreakHandled.current=key;
-        try { await requestCircuitInterstitial(key); } finally { if(permit()&&runPermit.current===permit)action(); }
+        if(permit()&&runPermit.current===permit)action();
     };
     if(activeId) {
         const active=CIRCUIT_STAGES[activeId-1];

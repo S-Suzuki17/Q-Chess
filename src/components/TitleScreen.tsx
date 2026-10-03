@@ -33,6 +33,7 @@ export function TitleScreen({ lang, onLogin, initialMode='select' }: TitleScreen
     React.useEffect(()=>{mounted.current=true;return()=>{mounted.current=false;loginRequest.current?.abort();};},[]);
     const [inputId, setInputId] = useState('');
     const [inputPassword, setInputPassword] = useState('');
+    const [keepLoggedIn, setKeepLoggedIn] = useState(false);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
 
@@ -82,7 +83,7 @@ export function TitleScreen({ lang, onLogin, initialMode='select' }: TitleScreen
         try {
             await registerAccount(inputId,inputPassword,request.signal);
             if (!mounted.current || request.signal.aborted) return;
-            try{await requestRankedSession(inputId, inputPassword, AbortSignal.any([request.signal,AbortSignal.timeout(15000)]));}
+            try{await requestRankedSession(inputId, inputPassword, keepLoggedIn, AbortSignal.any([request.signal,AbortSignal.timeout(15000)]));}
             catch{if(mounted.current&&!request.signal.aborted){setMode('login');setError(accountSecurityText(lang,'registered'));}return;}
             if(mounted.current && !request.signal.aborted)onLogin({ id: inputId, name: inputId, type: 'registered' },attempt);
         } catch (err) {
@@ -112,7 +113,7 @@ export function TitleScreen({ lang, onLogin, initialMode='select' }: TitleScreen
         loginRequest.current?.abort();
         const request=new AbortController();loginRequest.current=request;
         try {
-            await requestRankedSession(inputId, inputPassword, AbortSignal.any([request.signal,AbortSignal.timeout(30000)]));
+            await requestRankedSession(inputId, inputPassword, keepLoggedIn, AbortSignal.any([request.signal,AbortSignal.timeout(30000)]));
             if(mounted.current && !request.signal.aborted)onLogin({ id: inputId, name: inputId, type: 'registered' },attempt);
         } catch (err) {
             if(mounted.current&&!request.signal.aborted)setError(matchText(lang,'ログインに失敗しました','Login failed.'));
@@ -179,6 +180,19 @@ export function TitleScreen({ lang, onLogin, initialMode='select' }: TitleScreen
                                 className="w-full bg-[#11100E] border border-[#A89C86]/30 p-3 text-[#E8E2D7] focus:outline-none focus:border-[#B39A62] text-sm tracking-widest placeholder:text-[#A89C86]/30"
                                 disabled={loading}
                             />
+                        </div>
+                        <div className="flex items-center gap-2 mt-2">
+                            <input 
+                                type="checkbox" 
+                                id="keepLoggedIn" 
+                                checked={keepLoggedIn} 
+                                onChange={e => setKeepLoggedIn(e.target.checked)} 
+                                disabled={loading}
+                                className="w-4 h-4 accent-[#B39A62]"
+                            />
+                            <label htmlFor="keepLoggedIn" className="text-sm text-[#A89C86] cursor-pointer">
+                                {matchText(lang, 'ログイン状態を保持する', 'Keep me logged in')}
+                            </label>
                         </div>
                         {mode==='register'&&<p className="text-sm text-[#A89C86]">{accountSecurityText(lang,'rules')}</p>}
                         {error && <p role="alert" className="text-red-400 text-sm text-center bg-red-950/50 p-2 border border-red-900/50">{error}</p>}

@@ -1,0 +1,22 @@
+{
+  "headSha": "5a68de6170822fb48d69b9012f8bfcb4251cf77d",
+  "method": "merge",
+  "mode": "auto",
+  "pr": {
+    "number": 6,
+    "url": "https://github.com/S-Suzuki17/Q-Chess/pull/6"
+  },
+  "readinessPolicy": {
+    "checkPolicy": "all",
+    "configPath": null,
+    "requiredReviewers": [],
+    "source": "defaults",
+    "strictChangesRequested": false
+  },
+  "readinessPolicyDigest": "70b3b0605cddc6f2e6abe9331942e469e32758fbc1abb1474b3af09fdda825df",
+  "repository": "S-Suzuki17/Q-Chess",
+  "requiresConfirmation": true,
+  "schemaVersion": 1,
+  "state": "confirmation_required",
+  "warning": "This landing request may merge the pull request immediately."
+}

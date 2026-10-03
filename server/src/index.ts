@@ -220,7 +220,8 @@ app.post('/auth/ranked-session',async(req,res)=>{
         // The durable check survives a server restart; the in-memory gate alone
         // cannot remember a partially completed account deletion.
         if(accountGate.blocked(username)||await deletionStore.blocked(username))return res.status(409).json({code:'ACCOUNT_BUSY'});
-        const session=await rankedAuth.issueLegacySession(username,req.body.password);
+        const keepLoggedIn = req.body?.keepLoggedIn === true;
+        const session=await rankedAuth.issueLegacySession(username,req.body.password,keepLoggedIn);
         if(accountGate.blocked(username)||await deletionStore.blocked(username)){
             rankedAuth.revokeUserSessions(username);return res.status(409).json({code:'ACCOUNT_BUSY'});
         }

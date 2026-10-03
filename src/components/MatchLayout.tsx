@@ -122,7 +122,7 @@ export function MatchLayout(props: Props) {
                     <span className="advice-arrow" aria-hidden="true">→</span>
                     <span className="advice-to">{label('移動先', 'Move to')} <strong data-testid="hint-destination">{square(hint.toRow,hint.toCol)}</strong></span>
                     <small>{label('青の駒を選び、金色のマスへ', 'Select blue, then move to gold')}</small>
-                </div> : <span>{props.hintPending ? label('移動元と移動先を検討しています…', 'Finding a piece and destination…') : label('ヒントを取得できませんでした。もう一度お試しください。', 'Hint unavailable. Please try again.')}</span>}
+                </div> : <span>{props.hintPending ? label('QUBEが考え中…', 'QUBE is thinking…') : label('ヒントを取得できませんでした。もう一度お試しください。', 'Hint unavailable. Please try again.')}</span>}
                 {props.onClearHint && <button onClick={props.onClearHint} aria-label={label('ヒントを閉じる', 'Dismiss hint')}><X size={16}/></button>}
             </section>}
             {playerBar(props.bottomSide)}
@@ -167,7 +167,7 @@ export function MatchLayout(props: Props) {
 
         <footer className="match-footer">
             <label className="match-hints"><input type="checkbox" checked={props.showMoveHints} onChange={e=>props.onHintsChange(e.target.checked)}/>{label('移動候補', 'Move hints')}</label>
-            {props.onHint && <button className="match-button match-hint-action" onClick={props.onHint} disabled={!isMyTurn || props.hintPending}><Lightbulb size={15}/>{props.hintPending ? label('検討中…', 'Thinking…') : label('ヒント', 'Hint')}</button>}
+            {props.onHint && <button className="match-button match-hint-action" onClick={props.onHint} disabled={!isMyTurn || props.hintPending}><img src="/qube_icon.jpg" alt="QUBE" className={`qube-icon ${props.hintPending ? 'thinking' : ''}`} width={15} height={15} />{props.hintPending ? label('QUBEが考え中…', 'QUBE is thinking…') : label('QUBEに聞く', 'Ask QUBE')}</button>}
             <span className="match-view-hint" role={props.feedback ? 'status' : undefined}>{props.feedback || label('選択した駒はもう一度押すと解除', 'Select the same piece again to deselect')}</span>
             <button className="match-button mobile-details" onClick={()=>setExpanded(!expanded)} aria-expanded={expanded} aria-controls="match-detail-panels">{label(expanded ? '閉じる' : '棋譜・正体', expanded ? 'Close' : 'Details')}</button>
             <button className="match-button mobile-rules" onClick={props.onRules}>{label('ルール', 'Rules')}</button>

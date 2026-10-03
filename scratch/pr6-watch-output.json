@@ -1,0 +1,65 @@
+{
+  "actions": [],
+  "errors": [],
+  "observedAt": "2026-10-03T13:53:05.300351Z",
+  "policy": {
+    "checkPolicy": "all",
+    "configPath": null,
+    "requiredReviewers": [],
+    "source": "defaults",
+    "strictChangesRequested": false
+  },
+  "schemaVersion": 1,
+  "state": "merged",
+  "targets": [
+    {
+      "actions": [],
+      "checks": {
+        "fail": [],
+        "malformed": [],
+        "pass": [],
+        "pending": [],
+        "skipping": [],
+        "total": 0,
+        "unknown": []
+      },
+      "kind": "explicit",
+      "landingAuthorization": {
+        "current": true,
+        "currentHead": "5a68de6170822fb48d69b9012f8bfcb4251cf77d",
+        "expectedHead": "5a68de6170822fb48d69b9012f8bfcb4251cf77d",
+        "mode": "auto"
+      },
+      "path": "C:\\Users\\souta\\Documents\\Codex\\2026-09-09\\blender-x20\\work\\q-gambit-release-integration-20261003",
+      "pending": [],
+      "pr": {
+        "autoMerge": null,
+        "autoMergeEnabled": false,
+        "baseRefName": "main",
+        "baseSha": "1949a6e0f94ec4223fabd5c7eac40ed8f945c0d2",
+        "headRefName": "release/web-billing-integration-20261003",
+        "headSha": "5a68de6170822fb48d69b9012f8bfcb4251cf77d",
+        "isMergeQueueEnabled": null,
+        "mergeQueueEntry": null,
+        "mergeStateStatus": "UNKNOWN",
+        "mergeable": "UNKNOWN",
+        "number": 6,
+        "reviewDecision": null,
+        "state": "MERGED",
+        "url": "https://github.com/S-Suzuki17/Q-Chess/pull/6"
+      },
+      "repository": "S-Suzuki17/Q-Chess",
+      "repositoryPolicy": {
+        "mergeCommitAllowed": true,
+        "rebaseMergeAllowed": true,
+        "squashMergeAllowed": true
+      },
+      "reviews": {
+        "missingRequiredReviewers": [],
+        "requiredReviewers": [],
+        "unresolvedThreadCount": 0
+      },
+      "state": "merged"
+    }
+  ]
+}

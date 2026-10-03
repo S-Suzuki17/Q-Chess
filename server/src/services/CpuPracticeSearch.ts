@@ -8,7 +8,8 @@ let activeWorkers = 0;
 export function searchCpuPracticeMove(state: GameState, level: number, signal: AbortSignal, hint = false): Promise<Move | null> {
     signal.throwIfAborted();
     if (activeWorkers >= 2) return Promise.reject(new Error('SEARCH_BUSY'));
-    const budget = level <= 1 ? { timeLimitMs: 1000, maxDepth: 0 }
+    const budget = hint ? { timeLimitMs: 4000, maxDepth: 6 } :
+        level <= 1 ? { timeLimitMs: 1000, maxDepth: 0 }
         : level <= 3 ? { timeLimitMs: 1500, maxDepth: 2 } : { timeLimitMs: 4000, maxDepth: 6 };
     const suffix = existsSync(path.join(__dirname, '../quantum-engine/ai/search.js')) ? '.js' : '.ts';
     const tsx = suffix === '.ts' ? require.resolve('tsx/cjs') : null;

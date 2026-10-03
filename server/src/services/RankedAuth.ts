@@ -81,7 +81,7 @@ export class RankedAuth {
         }
     }
 
-    async issueLegacySession(userId: unknown, password: unknown): Promise<RankedSession | null> {
+    async issueLegacySession(userId: unknown, password: unknown, keepLoggedIn: boolean = false): Promise<RankedSession | null> {
         if (!isRankedUserId(userId) || !isPassword(password)) return null;
         this.cleanupExpiredSessions();
         if (this.sessions.size >= this.maxSessions) return null;
@@ -100,7 +100,8 @@ export class RankedAuth {
                 const token = `ranked_${randomBytes(32).toString('base64url')}`;
                 const hash = tokenHash(token)!;
                 if (this.sessions.has(hash)) continue;
-                const identity = { userId, expiresAt: Date.now() + this.sessionTtlMs };
+                const ttl = keepLoggedIn ? 30 * 24 * 60 * 60 * 1000 : this.sessionTtlMs;
+                const identity = { userId, expiresAt: Date.now() + ttl };
                 this.sessions.set(hash, identity);
                 return { ...identity, token };
             }
