@@ -151,6 +151,29 @@ Advertising is independently OFF and must remain OFF.
 
 ## Production rollout contract (not an execution record)
 
+### Landing review follow-up (16:57 JST)
+
+The owner approved landing head `4f2c6b4`, but a new review thread appeared
+before the helper's final check. The helper refused to merge; no landing was
+requested. The real finding was the old 20-ticket predicate in paid CPU-hint
+recovery, despite the approved 60-ticket member cap. Follow-up migration
+`20261003075158_cpu_hint_restoration_member_cap_60.sql` corrects only that
+predicate and preserves invoker security, ownership/subscription checks,
+locking, the free cap of 20 and one-time immutable restoration records.
+
+The raw production migration-chain test covers balances 0/19/20/21/58/59/60,
+free cap 20, retry, expired/refunded/canceled/off-price/replaced subscriptions,
+owner/reason checks and anon/authenticated denial. It passed, as did the
+existing member-cap SQL (both modes), current-terms SQL (both modes), CPU
+hint service/SQL/worker checks and typecheck. No frontend source changed;
+the prepared Web artifact remains byte-identical.
+
+Production applied the follow-up as `20261003075657`. Read-only verification
+confirmed paid60/free20, SECURITY INVOKER and service-role-only execution.
+Receipt/restoration counts were zero before and after; no recovery was
+performed on user data. Existing advisor warnings are unchanged. This does
+not activate checkout. The amended PR requires fresh exact-head confirmation.
+
 1. Land the verified exact-head PR through the normal approved GitHub path.
 2. Configure Render billing environment `production`, mode `live`, live
    processing and Portal enabled, success/cancel URL `https://q-gambit.com/`.

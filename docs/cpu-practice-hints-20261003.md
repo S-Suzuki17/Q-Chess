@@ -29,7 +29,7 @@ Session/move/hint state is durable. The client saves IDs in session storage befo
 
 `spend_game_tickets` continues to own free-first and currently-bound eligible live paid-pool policy. A refused purchase still commits any invalid-paid-pool expiry; it creates no hint/spend receipt. Test-mode/expired/off-price/refunded/canceled pools are unavailable. Account deletion blocks access first, then cascades sessions, immutable operations, receipts, aliases and restoration records with the profile.
 
-For an operator-confirmed unrecoverable delivery, service-role-only `restore_cpu_hint_credit(receipt_id,user_id,'unrecoverable_delivery')` writes a separate immutable restoration record, at most once. It respects the existing 20 cap, restores only the original pool, and cannot revive expired/reversed/replaced paid subscriptions. No user HTTP route invokes it. Receipts have no service-role UPDATE/DELETE grant; even recovery leaves the hint unchanged.
+For an operator-confirmed unrecoverable delivery, service-role-only `restore_cpu_hint_credit(receipt_id,user_id,'unrecoverable_delivery')` writes a separate immutable restoration record, at most once. It respects the free cap of 20 and member cap of 60, restores only the original pool, and cannot revive expired/reversed/replaced paid subscriptions. The follow-up `cpu_hint_restoration_member_cap_60` migration corrects the original recovery predicate without rewriting applied history. No user HTTP route invokes it. Receipts have no service-role UPDATE/DELETE grant; even recovery leaves the hint unchanged.
 
 ## Verification and release boundary
 
