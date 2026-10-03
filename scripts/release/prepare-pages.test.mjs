@@ -17,4 +17,7 @@ test('refuses secrets and executable server assets without exposing their values
     const token = `eyJhbGciOiJIUzI1NiJ9.${Buffer.from(JSON.stringify({role:'service_role'})).toString('base64url')}.signature`;
     assert.throws(() => checkFiles([{name:'app.js',size:100}], () => token), /Privileged key/);
     assert.throws(() => checkFiles([{name:'app.js',size:100}], () => 'sb_secret_example'), /Secret material/);
+    for (const secret of ['sk_live_example', 'rk_live_example', 'sk_test_example', 'rk_test_example', 'whsec_example']) {
+        assert.throws(() => checkFiles([{name:'app.js',size:100}], () => secret), /Secret material/);
+    }
 });

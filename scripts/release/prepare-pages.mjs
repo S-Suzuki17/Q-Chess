@@ -16,7 +16,7 @@ export function checkFiles(files, read) {
         assert.ok(!/(^|\/)(?:\.env[^/]*|\.git|node_modules|_worker\.js|functions)(\/|$)|\.(?:jks|keystore|pem|map)$/i.test(name), `Forbidden release file: ${name}`);
         if (/\.(?:html|js|json|txt)$/i.test(name)) {
             const content = read(name);
-            assert.ok(!/sb_secret_[\w-]+|-----BEGIN (?:RSA |EC )?PRIVATE KEY-----/.test(content), `Secret material in ${name}`);
+            assert.ok(!/sb_secret_[\w-]+|\b(?:sk|rk)_(?:live|test)_[\w-]+|\bwhsec_[\w-]+|-----BEGIN (?:RSA |EC )?PRIVATE KEY-----/.test(content), `Secret material in ${name}`);
             for (const jwt of content.match(/eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g) ?? []) {
                 let payload;
                 try { payload = JSON.parse(Buffer.from(jwt.split('.')[1], 'base64url').toString()); } catch { continue; }
