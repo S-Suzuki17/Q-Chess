@@ -40,6 +40,8 @@ export function RankedRefundBalancePanel({ user, lang }: { user: User; lang: Lan
     const current = loaded?.userId === user.id && loaded.revision === revision ? loaded : null;
     if (!RANKED_REFUND_BALANCE_ENABLED || !allowed || user.type !== 'registered' || current?.error === 'DISABLED') return null;
     const copy = rankedRecoveryText(lang), common = dailyLoginText(lang);
+    // Do not put a long empty recovery explanation ahead of the player's wallet.
+    if (current?.balance && current.balance.freeRankedRefunds === 0 && current.balance.paidRankedRefunds === 0) return null;
     return <section aria-label={copy.refunds} className="border-t border-[#A89C86]/20 pt-4 text-sm" data-ranked-refund-balance>
         <h4 className="font-semibold text-[#D4B872]">{copy.refunds}</h4>
         {current?.error ? <p role="status" className="mt-2">{common.unavailable}</p> : !current?.balance ? <p role="status" className="mt-2">{common.loading}</p> :
@@ -47,7 +49,8 @@ export function RankedRefundBalancePanel({ user, lang }: { user: User; lang: Lan
                 <dt>{copy.freeRefunds}</dt><dd className="text-right font-mono">{current.balance.freeRankedRefunds}</dd>
                 <dt>{copy.paidRefunds}</dt><dd className="text-right font-mono">{current.balance.paidRankedRefunds}</dd>
             </dl>}
-        <p className="mt-3 text-xs leading-relaxed text-[#A89C86]">{copy.refundPolicy}</p>
-        <p className="mt-2 text-xs leading-relaxed text-[#A89C86]">{copy.paidPolicy}</p>
+        <details className="reward-details"><summary>{copy.refunds}</summary><div className="reward-details__body">
+            <p>{copy.refundPolicy}</p><p>{copy.paidPolicy}</p>
+        </div></details>
     </section>;
 }

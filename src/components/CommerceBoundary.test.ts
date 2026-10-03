@@ -36,6 +36,8 @@ import { MemberTicketsPanel, MemberTicketClaimController } from './MemberTickets
 import { CommercePage } from './CommercePage';
 import { DailyLoginRewardsPanel } from './DailyLoginRewardsPanel';
 import { stripeMembershipText } from '../locales/stripeMembershipText';
+import { rewardsHubText } from '../locales/rewardsHubText';
+import { LANGUAGES } from '../locales/dict';
 
 const user = { id:'Alice', name:'Alice', type:'registered' as const };
 const status: StripeMembershipStatus = { userId:'Alice', enabled:true, active:true, canManageBilling:true, cancelAtPeriodEnd:true,
@@ -138,4 +140,43 @@ it('keeps Checkout and billing closed to consent side effects until explicit acc
     const billingButton=elements(StripeMembershipPanel({user,lang:'en'})).find(element=>element.type==='button') as ReactElement<{onClick:()=>void}>;
     harness.billing.mockResolvedValue('https://billing.stripe.com/p/session/owned');billingButton.props.onClick();await Promise.resolve();
     expect(harness.billing).toHaveBeenCalled();expect(vi.mocked(acceptCurrentAccountTerms).mock.calls.length).toBe(before);
+});
+
+it('makes the offer a closed disclosure without preparing a purchase or preselecting consent', () => {
+    harness.states=panelStates({...status,active:false,canManageBilling:false,periodEnd:null},false);
+    const tree=StripeMembershipPanel({user,lang:'ja'});
+    const disclosure=elements(tree).find(element=>element.type==='details') as ReactElement<{open?:boolean}>;
+    const checkbox=elements(tree).find(element=>element.type==='input') as ReactElement<{checked:boolean}>;
+    expect(disclosure.props.open).toBeUndefined(); expect(checkbox.props.checked).toBe(false);
+    const markup=html(tree);
+    expect(markup).toContain(rewardsHubText('ja').optional);
+    expect(markup).toContain(rewardsHubText('ja').review);
+    expect(markup).toContain('$2.99'); expect(markup).toContain(stripeMembershipText('ja').billingTerms);
+    expect(harness.prepare).not.toHaveBeenCalled(); expect(harness.billing).not.toHaveBeenCalled();
+});
+
+it('labels capped rewards as zero credit, not a reward the account cannot receive', () => {
+    const reward={userId:'Alice',enabled:true,streakDays:7,tickets:{ranked:20,hint:20},lastClaimUtcDay:'2026-10-03',currentUtcDay:'2026-10-03'};
+    harness.rewardRead.mockResolvedValue(reward); harness.states=[{revision:1,status:reward},null,null];
+    const markup=html(DailyLoginRewardsPanel({user,lang:'ja'}));
+    expect(markup).toContain(rewardsHubText('ja').full);
+    expect(markup).toContain('2026-10-04');
+    expect(markup).toContain('ランク戦チケット +0'); expect(markup).toContain('ヒントチケット +0');
+    expect(markup).not.toContain('+3'); expect(markup).not.toContain('+5');
+});
+
+it('does not display a reward preview when the server has disabled rewards', () => {
+    harness.states=[{revision:1,status:{userId:'Alice',enabled:false,streakDays:0,tickets:{ranked:0,hint:0},lastClaimUtcDay:null}},null,null];
+    harness.rewardRead.mockReturnValue(new Promise(()=>{}));
+    const markup=html(DailyLoginRewardsPanel({user,lang:'en'}));
+    expect(markup).toContain('Rewards are unavailable right now.');
+    expect(markup).not.toContain(rewardsHubText('en').today);
+});
+
+it('provides the navigation and disclosure copy for all twelve supported languages', () => {
+    expect(LANGUAGES).toHaveLength(12);
+    for (const {code} of LANGUAGES) {
+        for (const value of Object.values(rewardsHubText(code))) expect(value.trim()).toBeTruthy();
+    }
+    expect(new Set(LANGUAGES.map(({code})=>rewardsHubText(code).title)).size).toBe(12);
 });

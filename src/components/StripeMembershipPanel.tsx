@@ -12,6 +12,7 @@ import { useCircuitAccess } from '../hooks/useCircuitAccess';
 import { circuitAccess } from '../lib/circuitAccess';
 import { stripeMembershipText } from '../locales/stripeMembershipText';
 import { ticketWalletText } from '../locales/ticketWalletText';
+import { rewardsHubText } from '../locales/rewardsHubText';
 import { commerceText } from '../locales/commerceText';
 import { webCommerceCheckoutReady, MEMBER_TICKET_CAP } from '../config/webCommerce';
 import {
@@ -24,7 +25,7 @@ import {
     type StripeMembershipStatus,
 } from '../lib/stripeMembership';
 
-/** Not rendered in current releases. Web-only, including the future checkout entry point. */
+/** Web-only offer. Reviewing the offer never starts Checkout or accepts terms. */
 export function StripeMembershipPanel({ user, lang }: { user: User; lang: Language }) {
     const { webContent } = useAppPlatform();
     const { allowed, revision } = useCircuitAccess(user);
@@ -55,6 +56,7 @@ export function StripeMembershipPanel({ user, lang }: { user: User; lang: Langua
     if (!visible) return null;
     const copy = stripeMembershipText(lang);
     const wallet = ticketWalletText(lang), commerce = commerceText(lang);
+    const hub = rewardsHubText(lang);
     const status = loaded?.revision === revision && loaded.status.userId === user.id ? loaded.status : null;
 
     const startCheckout = async () => {
@@ -81,29 +83,34 @@ export function StripeMembershipPanel({ user, lang }: { user: User; lang: Langua
         } catch { if (!controller.signal.aborted) { setActionFailed(true); setPreparing(false); actionRequest.current = null; } }
     };
 
-    return <section aria-label={copy.title} className="border-t border-[#A89C86]/20 pt-4 text-sm">
-        <h4 className="font-semibold text-[#D4B872]">{copy.title}</h4>
+    return <section aria-label={copy.title} className="reward-card reward-membership text-sm">
+        {!status?.active && <p className="reward-caption mb-2">{hub.optional}</p>}
+        <h4 className="reward-title">Q-Gambit Plus <span className="reward-caption">· {copy.title}</span></h4>
         {!STRIPE_WEB_CHECKOUT_ENABLED && !status?.active
             ? <p className="mt-2 font-mono text-[#E8E2D7]">{copy.planned}</p> : null}
+        <p className="reward-price"><span>{hub.monthly}</span>$2.99</p>
         <p className="mt-1 text-[#D8D0C1]">{copy.benefits}</p>
-        <p className="mt-2 text-xs leading-relaxed text-[#D8D0C1]">{copy.billingTerms}</p>
-        <p className="mt-2 text-xs leading-relaxed text-[#D8D0C1]">{wallet.expiry} {copy.legalRights}</p>
-        <p className="mt-2 text-xs text-[#A89C86]">{copy.webOnly}</p>
         {actionFailed && <p role="status" className="mt-3 text-[#A89C86]">{copy.unavailable}</p>}
         {failedRevision === revision
             ? <p role="status" className="mt-3 text-[#A89C86]">{copy.unavailable}</p>
             : !status
                 ? <p role="status" className="mt-3 text-[#A89C86]">{copy.checking}</p>
-                : <p role="status" className="mt-3 text-[#E8E2D7]">
+                : <p role="status" className="reward-membership-status">
                     {status.active ? copy.active : copy.inactive}
                     {status.active && status.periodEnd
                         ? ` · ${status.cancelAtPeriodEnd ? copy.scheduledEnd : copy.periodEnd}: ${new Date(status.periodEnd).toISOString().slice(0, 10)} UTC`
                         : ''}
                 </p>}
+        <details className="reward-details" key={`${user.id}-${revision}-${status?.active ?? 'loading'}`}>
+            <summary>{status?.active ? hub.rules : hub.review}</summary>
+            <div className="reward-details__body">
+                <p>{copy.billingTerms}</p>
+                <p>{wallet.expiry} {copy.legalRights}</p>
+                <p>{copy.webOnly}</p>
         {STRIPE_WEB_CHECKOUT_ENABLED && webCommerceCheckoutReady() && status && !status.active && failedRevision !== revision
             ? <div className="mt-3 space-y-3" data-purchase-review>
                 <p>{commerce.start}</p><p>{commerce.methods}</p>
-                {MEMBER_TICKET_CAP && <p>{commerce.cap}: {MEMBER_TICKET_CAP.ranked} / {MEMBER_TICKET_CAP.hint}</p>}
+                {MEMBER_TICKET_CAP && <p>{commerce.cap}: {wallet.member} {MEMBER_TICKET_CAP.ranked} / {MEMBER_TICKET_CAP.hint}</p>}
                 <Link href="/commerce/" className="mr-4 inline-block underline">{commerce.title}</Link>
                 <Link href="/terms/" className="inline-block underline">{copy.terms}</Link>
                 <details><summary className="min-h-11 cursor-pointer underline">{copy.terms}</summary><TermsDocument initialLanguage={lang}/></details>
@@ -115,6 +122,8 @@ export function StripeMembershipPanel({ user, lang }: { user: User; lang: Langua
                 </button>
             </div>
             : null}
+            </div>
+        </details>
         {STRIPE_WEB_PORTAL_ENABLED && status?.canManageBilling && failedRevision !== revision
             ? <button type="button" disabled={preparing} onClick={() => void openBilling()}
                 className="mt-3 min-h-11 w-full border border-[#B39A62] px-4 py-2 text-[#E8E2D7] disabled:opacity-50">

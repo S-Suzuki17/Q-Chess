@@ -37,19 +37,16 @@ import { circuitAccessText } from '../locales/circuitAccessText';
 import { AccountDeletionPanel } from './AccountDeletionPanel';
 import { AccountSecurityPanel } from './AccountSecurityPanel';
 import { AccountRecoveryPanel } from './AccountRecoveryPanel';
-import { DailyLoginRewardsPanel } from './DailyLoginRewardsPanel';
-import { MemberTicketsPanel } from './MemberTicketsPanel';
-import { CurrentTermsConsentPanel } from './CurrentTermsConsentPanel';
-import { RankedRefundBalancePanel } from './RankedRefundBalancePanel';
-import { RANKED_REFUND_BALANCE_ENABLED } from '../lib/rankedRefundBalance';
-import { DAILY_LOGIN_REWARDS_ENABLED } from '../lib/dailyLoginRewards';
-import { MEMBER_TICKET_USAGE_ENABLED, STRIPE_WEB_MEMBERSHIP_ENABLED, STRIPE_WEB_PORTAL_ENABLED } from '../lib/stripeMembership';
+import { rewardsHubEnabled } from '../config/rewardsHub';
+import { rewardsHubText } from '../locales/rewardsHubText';
+import './rewards-hub.css';
 
 const ProfileCosmetics=dynamic(()=>import('./ProfileCosmetics').then(module=>module.ProfileCosmetics),{ssr:false});
-const StripeMembershipPanel=dynamic(()=>import('./StripeMembershipPanel').then(module=>module.StripeMembershipPanel),{ssr:false});
+const RewardsDialog=dynamic(()=>import('./RewardsDialog').then(module=>module.RewardsDialog),{ssr:false});
 
 interface LevelSelectProps {
-    settingsPanel?:'friends'|'account'|null;
+    settingsPanel?:'friends'|'account'|'rewards'|null;
+    onOpenRewards?:()=>void;
     onCloseSettingsPanel?:()=>void;
     lang: Language;
     user: User;
@@ -62,7 +59,7 @@ interface LevelSelectProps {
     onProfileUpdated?:(profile:{id:string;avatar_url?:string;name?:string})=>void;
 }
 
-export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobalMatch, onReplay, onBack, onCampaign,settingsPanel,onCloseSettingsPanel,onProfileUpdated }: LevelSelectProps) {
+export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobalMatch, onReplay, onBack, onCampaign,settingsPanel,onCloseSettingsPanel,onProfileUpdated,onOpenRewards }: LevelSelectProps) {
     const t = { ...dict['en'], ...(dict[lang] || {}) } as any;
     const historyCopy = replayText(lang);
     const {progress:cosmetics}=useCampaignProgress();
@@ -93,6 +90,9 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
     const [userProfile, setUserProfile] = React.useState<Profile | null>(null);
     const [userStats, setUserStats] = React.useState<UserStats | null>(null);
     const showAccount=settingsPanel==='account';
+    const rewardsAvailable=user.type==='registered' && rewardsHubEnabled();
+    const showRewards=settingsPanel==='rewards' && rewardsAvailable;
+    const rewardCopy=rewardsHubText(lang);
     const [isEditingName, setIsEditingName] = React.useState(false);
     const [newName, setNewName] = React.useState('');
     const [nameLoading, setNameLoading] = React.useState(false);
@@ -144,7 +144,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
         setRecentGames([]); setReplays([]); setUserStats(null); setHistoryError(null);
         return () => { historyRequest.current++; };
     }, [user.id]);
-    const anyModalOpen = showPlayMenu || showReplays || showLeaderboard || showFriends || showAccount || showTutorial || showAdModal || !!pendingAction || showLiveMatches;
+    const anyModalOpen = showPlayMenu || showReplays || showLeaderboard || showFriends || showAccount || showRewards || showTutorial || showAdModal || !!pendingAction || showLiveMatches;
 
 
     React.useEffect(() => {
@@ -440,6 +440,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
 
 
             {showAccount&&showIconEditor&&canEditIcon&&<AccountIconEditor key={user.id} lang={lang} userId={user.id} currentUrl={displayAvatarUrl} clears={rewardClearCount(cosmetics)} onClose={()=>setShowIconEditor(false)} onSaved={acceptAvatar}/>}
+            {showRewards && <RewardsDialog key={user.id} user={user} lang={lang} onClose={()=>onCloseSettingsPanel?.()}/>}
             {showAccount && (
                 <SettingsDialog label={t.account} onClose={()=>onCloseSettingsPanel?.()}>
                     <div className="bg-[#161513] border border-[#A89C86]/40 p-6 md:p-8 w-full max-w-md shadow-2xl max-h-[90vh] overflow-y-auto custom-scrollbar">
@@ -500,11 +501,9 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
                             </div>
 
                             <ProfileCosmetics lang={lang} name={userProfile?.name||user.name} url={displayAvatarUrl} frame={cosmetics.avatar} ratings={user.type==='registered'&&userProfile?.id===user.id?userProfile:undefined}/>
-                            {(DAILY_LOGIN_REWARDS_ENABLED || MEMBER_TICKET_USAGE_ENABLED) && user.type==='registered' && <CurrentTermsConsentPanel key={`current-terms-${user.id}`} user={user} lang={lang}/>}
-                            {DAILY_LOGIN_REWARDS_ENABLED && user.type==='registered' && <DailyLoginRewardsPanel key={user.id} user={user} lang={lang}/>}
-                            {MEMBER_TICKET_USAGE_ENABLED && user.type==='registered' && <MemberTicketsPanel key={`member-${user.id}`} user={user} lang={lang}/>}
-                            {RANKED_REFUND_BALANCE_ENABLED && user.type==='registered' && <RankedRefundBalancePanel key={`refund-${user.id}`} user={user} lang={lang}/>}
-                            {(STRIPE_WEB_MEMBERSHIP_ENABLED || STRIPE_WEB_PORTAL_ENABLED) && user.type==='registered' && <StripeMembershipPanel key={`stripe-${user.id}`} user={user} lang={lang}/>}
+                            {rewardsAvailable && <button type="button" onClick={onOpenRewards} className="reward-entry">
+                                <span>{rewardCopy.title}<small>{rewardCopy.description}</small></span><span aria-hidden="true">→</span>
+                            </button>}
                             {user.type==='registered'&&!/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(user.id)&&<AccountRecoveryPanel key={`recovery-${user.id}`} userId={user.id} lang={lang}/>}
 
                             <button onClick={onBack} className="w-full mt-4 py-4 border border-[#A89C86]/40 hover:border-[#E8E2D7] text-[#A89C86] hover:text-[#E8E2D7] text-xs tracking-widest transition-colors">
@@ -644,6 +643,9 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
                     </div>
 
 
+                    {rewardsAvailable && <button type="button" onClick={onOpenRewards} className="reward-entry" data-rewards-entry="lobby">
+                        <span>{rewardCopy.title}<small>{rewardCopy.description}</small></span><span aria-hidden="true">→</span>
+                    </button>}
                     <div className="lobby-shortcuts flex gap-2">
                         <button onClick={handleVsCpuClick} className="flex-1 py-4 bg-transparent border border-[#A89C86]/20 hover:bg-[#24211D] text-xs tracking-[0.2em] transition-colors text-[#A89C86] hover:text-[#E8E2D7] uppercase">
                             {(t as any).practice}

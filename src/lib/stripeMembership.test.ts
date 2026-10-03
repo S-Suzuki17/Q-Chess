@@ -49,7 +49,9 @@ it('requires browser Web content and rejects native apps even if a future flag i
 it('keeps the account screen doubly gated and hides billing management', () => {
     const account = readFileSync('src/components/LevelSelect.tsx', 'utf8');
     const panel = readFileSync('src/components/StripeMembershipPanel.tsx', 'utf8');
-    expect(account).toContain('(STRIPE_WEB_MEMBERSHIP_ENABLED || STRIPE_WEB_PORTAL_ENABLED) && user.type');
+    const hub = readFileSync('src/components/RewardsDialog.tsx', 'utf8');
+    expect(account).toContain("user.type==='registered' && rewardsHubEnabled()");
+    expect(hub).toContain("user.type !== 'registered' || !rewardsHubEnabled()");
     expect(panel).toContain('stripeWebMembershipAllowed(webContent, Capacitor.isNativePlatform())');
     expect(panel).toContain('STRIPE_WEB_PORTAL_ENABLED && status?.canManageBilling');
     expect(panel).toContain('{copy.billingTerms}');
