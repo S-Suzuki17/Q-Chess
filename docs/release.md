@@ -10,7 +10,7 @@ npm run release:status -- <web|android|itch> で作業場所、HEAD、変更状�
 ## Web
 npm run build で静的出力 out/ を生成する。
 現在の公開先はCloudflare Pagesのq-gambit-web（q-gambit.com / www.q-gambit.com）。scripts/release/prepare-pages.mjsで検査済みの専用ディレクトリを作り、指定のPagesプロジェクトへDirect Uploadする。
-GitHubへのpushだけではCloudflareに反映されない。残っているVercel連携のデプロイは現行サイトの公開とは別。過去の別コピーのリンク先を流用せず、環境変数の値を資料・ログに転記しない。
+GitHubへのpushだけではCloudflareに反映されない。旧Vercel公開（q-chess-w8rg、GitHub連携解除済み）は停止済みで、Hobbyプランは非商用限定のため課金機能を含む本サイトでは再接続しない。過去の別コピーのリンク先を流用せず、環境変数の値を資料・ログに転記しない。
 公開後は対象デプロイの状態と変更した画面/動作を確認する。AABは別途更新が必要。
 
 ## Android
