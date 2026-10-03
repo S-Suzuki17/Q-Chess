@@ -4,7 +4,13 @@ set local statement_timeout = '15s';
 
 -- Replacement for the never-released client-history hint groundwork.
 -- Only the authenticated game service creates/advances these sessions.
-drop function if exists public.buy_cpu_hint(uuid,text,text,integer,integer,integer,integer);
+-- The obsolete experimental RPC was never published on this deployment. Do
+-- not silently remove it on another installation with an unknown old client.
+do $$ begin
+    if to_regprocedure('public.buy_cpu_hint(uuid,text,text,integer,integer,integer,integer)') is not null then
+        raise exception 'Legacy hint RPC requires a separately reviewed compatibility migration';
+    end if;
+end $$;
 
 create table public.cpu_practice_sessions (
     session_id uuid primary key,
