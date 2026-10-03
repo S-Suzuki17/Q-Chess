@@ -31,6 +31,7 @@ import {QG_LIVE_MONTHLY_PRICE_ID, StripeMembershipApi, type StripeMembershipMode
 import {createStripeMembershipRouter,createStripeWebhookRouter} from './services/StripeMembershipRoutes';
 import {createStripeCancellationGuard} from './services/StripeCancellation';
 import {StripePortalApi} from './services/StripePortal';
+import {createStripeCheckoutReadiness} from './services/StripeMembershipReadiness';
 import { cpuHintTicketsEnabled, rankedTicketAdmissionEnabled, rankedAdmissionRecoveryEnabled } from './services/TicketFeatureGates';
 import { RankedAdmissionCoordinator } from './services/RankedAdmissionCoordinator';
 import type { AdmissionOutcome } from './services/RankedAdmissionStore';
@@ -47,16 +48,15 @@ let cpuPractice:ReturnType<SupabaseService['cpuPracticeService']>|undefined;
 const getCpuPractice=()=>cpuPractice??=supabaseService.cpuPracticeService();
 const stripeMembershipStore = supabaseService.stripeMembershipStore();
 // Billing reconciliation and cancellation must stay available after the first
-// purchase, even when new checkouts are paused. All gates remain OFF until the
-// corresponding migrations, Stripe E2E, fulfillment, and policy checks pass.
-const STRIPE_BILLING_PROCESSING_READY = false;
-const STRIPE_CHECKOUT_RELEASE_READY = false;
-const STRIPE_BILLING_PORTAL_RELEASE_READY = false;
+// purchase, even when new checkouts are paused. Source readiness is verified;
+// deploy only after the billing migrations. Environment gates still default OFF.
+const STRIPE_BILLING_PROCESSING_READY = true;
+const STRIPE_CHECKOUT_RELEASE_READY = true;
+const STRIPE_BILLING_PORTAL_RELEASE_READY = true;
 // This guard must be enabled before checkout is ever released and must stay
 // enabled during a checkout rollback. Disabling purchases must never disable
 // cancellation of already-existing subscriptions before account deletion.
-// Leave false only while the Stripe DB tables have not been deployed.
-const STRIPE_ACCOUNT_DELETION_GUARD_READY = false;
+const STRIPE_ACCOUNT_DELETION_GUARD_READY = true;
 const stripeMode = process.env.STRIPE_MEMBERSHIP_MODE;
 const stripeModeValid = stripeDeploymentModeAllowed(process.env.STRIPE_BILLING_ENVIRONMENT, stripeMode);
 const stripeModeEnabled = stripeMode === 'live'
@@ -82,10 +82,8 @@ if (STRIPE_BILLING_PROCESSING_READY && stripeModeValid && stripeModeEnabled) {
 const stripeBillingProcessingEnabled = () => STRIPE_BILLING_PROCESSING_READY
     && STRIPE_ACCOUNT_DELETION_GUARD_READY
     && stripeModeValid && stripeModeEnabled && stripeMembershipApi !== null;
-const stripeCheckoutEnabled = () => STRIPE_CHECKOUT_RELEASE_READY && stripeBillingProcessingEnabled();
 let stripePortalApi: StripePortalApi | null = null;
-if (STRIPE_BILLING_PORTAL_RELEASE_READY && stripeBillingProcessingEnabled()
-    && process.env.STRIPE_MEMBERSHIP_PORTAL_ENABLED === 'true') {
+if (STRIPE_BILLING_PORTAL_RELEASE_READY && stripeBillingProcessingEnabled()) {
     try {
         stripePortalApi = new StripePortalApi({
             secretKey: stripeSecretKey ?? '', mode: stripeMode as StripeMembershipMode,
@@ -96,6 +94,14 @@ if (STRIPE_BILLING_PORTAL_RELEASE_READY && stripeBillingProcessingEnabled()
 const stripePortalEnabled = () => STRIPE_BILLING_PORTAL_RELEASE_READY
     && stripeBillingProcessingEnabled() && process.env.STRIPE_MEMBERSHIP_PORTAL_ENABLED === 'true'
     && stripePortalApi !== null;
+const stripeCheckoutReadiness = createStripeCheckoutReadiness({
+    api: stripeMembershipApi, portal: stripePortalApi,
+    processingEnabled: stripeBillingProcessingEnabled, portalEnabled: stripePortalEnabled,
+});
+const stripeCheckoutEnabled = () => STRIPE_CHECKOUT_RELEASE_READY && stripeCheckoutReadiness.enabled();
+void stripeCheckoutReadiness.check().then(result => {
+    console.info(`[stripe] checkout_preflight=${result}`);
+});
 const cancelStripeBeforeErase = STRIPE_ACCOUNT_DELETION_GUARD_READY
     ? createStripeCancellationGuard(supabaseService.stripeDeletionLinks(), {
         test: process.env.STRIPE_TEST_SECRET_KEY, live: process.env.STRIPE_LIVE_SECRET_KEY,

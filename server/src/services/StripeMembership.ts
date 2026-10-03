@@ -139,10 +139,8 @@ export class StripeMembershipApi {
         return data;
     }
 
-    async createCheckout(userId: string): Promise<StripeCheckout> {
-        if (typeof userId !== 'string' || !userId || userId.length > 256 || /[\u0000-\u001f\u007f]/.test(userId)) {
-            throw new StripeMembershipError('INVALID_ACCOUNT');
-        }
+    /** Read-only startup preflight, also repeated immediately before each purchase. */
+    async verifyCheckoutPrice(): Promise<void> {
         const price = await this.call(`prices/${encodeURIComponent(this.config.priceId)}`);
         const recurring = object(price.recurring) ? price.recurring : null;
         if (price.id !== this.config.priceId || price.active !== true
@@ -152,6 +150,13 @@ export class StripeMembershipApi {
             || price.tax_behavior !== 'inclusive') {
             throw new StripeMembershipError(this.mode === 'test' ? 'STRIPE_TEST_PRICE_MISMATCH' : 'STRIPE_LIVE_PRICE_MISMATCH');
         }
+    }
+
+    async createCheckout(userId: string): Promise<StripeCheckout> {
+        if (typeof userId !== 'string' || !userId || userId.length > 256 || /[\u0000-\u001f\u007f]/.test(userId)) {
+            throw new StripeMembershipError('INVALID_ACCOUNT');
+        }
+        await this.verifyCheckoutPrice();
         const form = new URLSearchParams({
             mode: 'subscription',
             'line_items[0][price]': this.config.priceId,

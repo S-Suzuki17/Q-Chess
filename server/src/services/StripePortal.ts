@@ -41,8 +41,8 @@ export class StripePortalApi {
         return data;
     }
 
-    async createSession(customerId: string): Promise<string> {
-        if (!stripeId(customerId, 'cus_')) throw new StripeMembershipError('STRIPE_PORTAL_CUSTOMER_INVALID');
+    /** Read-only preflight. Returns the validated configuration for session creation. */
+    async verifyDefaultConfiguration(): Promise<string> {
         // Fail closed if the Dashboard default portal does not permit both
         // payment-method changes and cancellation, or enables plan changes.
         const list = await this.call('billing_portal/configurations?limit=100');
@@ -63,9 +63,15 @@ export class StripePortalApi {
             || update?.enabled !== false) {
             throw new StripeMembershipError('STRIPE_PORTAL_FEATURES_NOT_READY');
         }
+        return portal.id;
+    }
+
+    async createSession(customerId: string): Promise<string> {
+        if (!stripeId(customerId, 'cus_')) throw new StripeMembershipError('STRIPE_PORTAL_CUSTOMER_INVALID');
+        const configurationId = await this.verifyDefaultConfiguration();
         const form = new URLSearchParams({
             customer: customerId,
-            configuration: portal.id,
+            configuration: configurationId,
             return_url: this.config.returnUrl,
         });
         const session = await this.call('billing_portal/sessions', {
@@ -73,7 +79,7 @@ export class StripePortalApi {
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         });
         if (!stripeId(session.id, 'bps_') || session.object !== 'billing_portal.session'
-            || session.customer !== customerId || session.configuration !== portal.id
+            || session.customer !== customerId || session.configuration !== configurationId
             || session.return_url !== this.config.returnUrl || typeof session.url !== 'string') {
             throw new StripeMembershipError('STRIPE_PORTAL_SESSION_INVALID');
         }
