@@ -1,3 +1,4 @@
+import { invoiceFixture, paymentFixture, reconciliationToken } from './StripeTestFixtures';
 import { describe, expect, it, vi } from 'vitest';
 import { StripeTestMembershipApi, type StripeEvent } from './StripeMembership';
 
@@ -29,27 +30,26 @@ describe('Stripe reversal membership context', () => {
         await expect(api.reversalContext({ ...event, livemode: true }, 'sub_ABCDEFGH')).rejects.toThrow();
     });
     it('marks a new paid period only for the canonical latest invoice', async () => {
-        const request = vi.fn(async (url: string) => Response.json(url.includes('/subscriptions/')
-            ? { id: 'sub_ABCDEFGH', livemode: false, customer: 'cus_ABCDEFGH', status: 'active',
+        const request = vi.fn(async (url: string) => Response.json(paymentFixture(url) ?? (url.includes('/subscriptions/')
+            ? { id: 'sub_ABCDEFGH', livemode: false, customer: 'cus_ABCDEFGH', status: 'active', automatic_tax: { enabled: false },
                 latest_invoice: 'in_ABCDEFGH', current_period_end: 1800000000,
                 cancel_at_period_end: false,
                 items: { data: [{ price: { id: 'price_ABCDEFGH' }, quantity: 1 }], has_more: false } }
             : url.includes('/checkout/sessions?')
                 ? { data: [{ id: 'cs_test_ABCDEFGH', livemode: false, mode: 'subscription',
-                    subscription: 'sub_ABCDEFGH', customer: 'cus_ABCDEFGH', client_reference_id: 'Alice' }],
+                    subscription: 'sub_ABCDEFGH', customer: 'cus_ABCDEFGH', client_reference_id: 'Alice', status: 'complete', payment_status: 'paid' }],
                     has_more: false }
-                : { id: 'in_ABCDEFGH', livemode: false, subscription: 'sub_ABCDEFGH',
-                    currency: 'usd', paid: true, status: 'paid', amount_paid: 299 }));
+                : invoiceFixture())));
         const api = new StripeTestMembershipApi({
             secretKey: 'sk_test_ABCDEFGH', webhookSecret: 'whsec_testsecret123456',
             priceId: 'price_ABCDEFGH', successUrl: 'https://q-gambit.com/',
             cancelUrl: 'https://q-gambit.com/',
         }, request as unknown as typeof fetch);
         const paid = { ...event, type: 'invoice.paid',
-            data: { object: { id: 'in_ABCDEFGH', subscription: 'sub_ABCDEFGH' } } };
+            data: { object: { id: 'in_ABCDEFGH', parent: invoiceFixture().parent } } };
         expect((await api.snapshot(paid))?.paidNewPeriod).toBe(true);
         expect((await api.snapshot({ ...paid, data: { object: {
-            id: 'in_OLDINVO1', subscription: 'sub_ABCDEFGH',
+            id: 'in_OLDINVO1', parent: invoiceFixture().parent,
         } } }))?.paidNewPeriod).toBe(false);
         expect((await api.snapshot({ ...paid, type: 'invoice.payment_failed' }))?.paidNewPeriod).toBe(false);
     });

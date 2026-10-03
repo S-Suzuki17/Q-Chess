@@ -1,3 +1,4 @@
+import { reconciliationToken } from './StripeTestFixtures';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { describe, expect, it, vi } from 'vitest';
 import { createStripeMembershipStore } from './StripeMembershipStore';
@@ -6,12 +7,12 @@ describe('Stripe service-role adapter', () => {
     it('passes server-only checkout, immutable webhook hash, and grant arguments to exact RPCs', async () => {
         const calls: { name: string; args: Record<string, unknown> }[] = [];
         const rpc = vi.fn((name: string, args: Record<string, unknown>) => {
-            calls.push({ name, args });
-            const data = name === 'stripe_checkout_preflight' ? {
+            if (name !== 'assert_stripe_billing_mode') calls.push({ name, args });
+            const data = name === 'assert_stripe_billing_mode' ? true : name === 'stripe_checkout_preflight' ? {
                 eligible: true, reason: null, checkoutId: null, expiresAt: null,
             }
-                : name === 'apply_stripe_membership_snapshot_with_schedule' ? { applied: true, duplicate: false }
-                : name === 'apply_stripe_membership_reversal' ? { applied: true, duplicate: false, blocked: true }
+                : name === 'apply_stripe_canonical_membership_snapshot' ? { applied: true, duplicate: false }
+                : name === 'apply_stripe_canonical_membership_reversal' ? { applied: true, duplicate: false, blocked: true }
                 : name === 'claim_stripe_member_daily_grant_with_schedule' ? {
                     userId: 'Alice', active: true, cancelAtPeriodEnd: false, periodEnd: '2026-10-30T00:00:00Z',
                     lastGrantUtcDay: '2026-09-30', tickets: { ranked: 3, hint: 3 },
@@ -31,16 +32,16 @@ describe('Stripe service-role adapter', () => {
             subscriptionId: 'sub_ABCDEFGH', checkoutId: 'cs_test_ABCDEFGH', customerId: 'cus_ABCDEFGH',
             userId: 'Alice', priceId: 'price_ABCDEFGH', status: 'active',
             periodEnd: '2026-10-30T00:00:00Z', paidNewPeriod: false,
-            cancelAtPeriodEnd: true, livemode: false });
+            cancelAtPeriodEnd: true, livemode: false, reconciliationToken });
         await store.applyReversal({ eventId: 'evt_REVERSAL1', eventPayloadHash: 'b'.repeat(64),
             eventType: 'charge.refunded', subscriptionId: 'sub_ABCDEFGH',
             reversedInvoiceId: 'in_ABCDEFGH', currentInvoiceId: 'in_ABCDEFGH',
             checkoutId: 'cs_test_ABCDEFGH', customerId: 'cus_ABCDEFGH', userId: 'Alice',
-            periodEnd: '2026-10-30T00:00:00Z', livemode: false });
+            periodEnd: '2026-10-30T00:00:00Z', livemode: false, reconciliationToken });
         expect((await store.claim('Alice')).credited).toEqual({ ranked: 3, hint: 3 });
         expect(calls.map(call => call.name)).toEqual([
             'stripe_checkout_preflight', 'register_stripe_checkout_intent',
-            'apply_stripe_membership_snapshot_with_schedule', 'apply_stripe_membership_reversal',
+            'apply_stripe_canonical_membership_snapshot', 'apply_stripe_canonical_membership_reversal',
             'claim_stripe_member_daily_grant_with_schedule',
         ]);
         expect(calls[1].args).toMatchObject({ p_user_id: 'Alice', p_checkout_id: 'cs_test_ABCDEFGH',
@@ -50,13 +51,13 @@ describe('Stripe service-role adapter', () => {
             p_cancel_at_period_end: true });
         expect(calls[3].args).toMatchObject({ p_event_type: 'charge.refunded',
             p_reversed_invoice_id: 'in_ABCDEFGH', p_current_invoice_id: 'in_ABCDEFGH',
-            p_user_id: 'Alice', p_livemode: false });
+            p_user_id: 'Alice', p_livemode: false, p_token: reconciliationToken });
     });
     it('forwards only the verified new-period marker and rejects malformed reversal RPC receipts', async () => {
         const calls: Record<string, unknown>[] = [];
         const rpc = vi.fn((name: string, args: Record<string, unknown>) => {
             calls.push({ name, ...args });
-            const data = name === 'apply_stripe_membership_snapshot_with_schedule'
+            const data = name === 'assert_stripe_billing_mode' ? true : name === 'apply_stripe_canonical_membership_snapshot'
                 ? { applied: true, duplicate: false }
                 : { applied: true, duplicate: false, blocked: 'yes' };
             return { abortSignal: vi.fn().mockResolvedValue({ data, error: null }) };
@@ -68,24 +69,24 @@ describe('Stripe service-role adapter', () => {
             observedAt: '2026-09-30T00:00:00Z', subscriptionId: 'sub_ABCDEFGH',
             checkoutId: 'cs_test_ABCDEFGH', customerId: 'cus_ABCDEFGH', userId: 'Alice',
             priceId: 'price_ABCDEFGH', status: 'active', periodEnd: '2026-10-30T00:00:00Z',
-            paidNewPeriod: true, cancelAtPeriodEnd: false, livemode: false });
+            paidNewPeriod: true, cancelAtPeriodEnd: false, livemode: false, reconciliationToken });
         expect(calls[0].p_paid_new_period).toBe(true);
         await expect(store.applyReversal({ eventId: 'evt_REVERSAL1', eventPayloadHash: 'b'.repeat(64),
             eventType: 'charge.refunded', subscriptionId: 'sub_ABCDEFGH',
             reversedInvoiceId: 'in_ABCDEFGH', currentInvoiceId: 'in_ABCDEFGH',
             checkoutId: 'cs_test_ABCDEFGH', customerId: 'cus_ABCDEFGH', userId: 'Alice',
-            periodEnd: '2026-10-30T00:00:00Z', livemode: false })).rejects.toThrow('MEMBERSHIP_UNAVAILABLE');
+            periodEnd: '2026-10-30T00:00:00Z', livemode: false, reconciliationToken })).rejects.toThrow('MEMBERSHIP_UNAVAILABLE');
     });
     it('routes live writes to live-only RPCs and resolves the portal customer from the owner-scoped RPC', async () => {
         const calls: { name: string; args: Record<string, unknown> }[] = [];
         const rpc = vi.fn((name: string, args: Record<string, unknown>) => {
-            calls.push({ name, args });
-            const data = name === 'stripe_live_checkout_preflight'
+            if (name !== 'assert_stripe_billing_mode') calls.push({ name, args });
+            const data = name === 'assert_stripe_billing_mode' ? true : name === 'stripe_live_checkout_preflight'
                 ? { eligible: true, reason: null, checkoutId: null, expiresAt: null }
                 : name === 'stripe_portal_customer_for_user'
                     ? { manageable: true, customerId: 'cus_ABCDEFGH',
                         subscriptionId: 'sub_ABCDEFGH', livemode: true }
-                    : name.startsWith('apply_stripe_live_')
+                    : name.startsWith('apply_stripe_canonical_')
                         ? { applied: true, duplicate: false, blocked: true }
                         : { userId: 'Alice', active: true, cancelAtPeriodEnd: true,
                             periodEnd: '2026-10-30T00:00:00Z',
@@ -102,29 +103,29 @@ describe('Stripe service-role adapter', () => {
             subscriptionId: 'sub_ABCDEFGH', checkoutId: 'cs_live_ABCDEFGH',
             customerId: 'cus_ABCDEFGH', userId: 'Alice', priceId: 'price_1ULM9fQWzwYDIuXWgs5Uj3yt',
             status: 'active', periodEnd: '2026-10-30T00:00:00Z', paidNewPeriod: true,
-            cancelAtPeriodEnd: true, livemode: true });
+            cancelAtPeriodEnd: true, livemode: true, reconciliationToken });
         await store.applyReversal({ eventId: 'evt_REFUND123', eventPayloadHash: 'b'.repeat(64),
             eventType: 'charge.refunded', subscriptionId: 'sub_ABCDEFGH',
             reversedInvoiceId: 'in_ABCDEFGH', currentInvoiceId: 'in_ABCDEFGH',
             checkoutId: 'cs_live_ABCDEFGH', customerId: 'cus_ABCDEFGH', userId: 'Alice',
-            periodEnd: '2026-10-30T00:00:00Z', livemode: true });
+            periodEnd: '2026-10-30T00:00:00Z', livemode: true, reconciliationToken });
         await store.status('Alice', true);
         expect(await store.portalCustomer('Alice', true)).toEqual({ customerId: 'cus_ABCDEFGH',
             subscriptionId: 'sub_ABCDEFGH', livemode: true });
         expect(calls.map(({ name }) => name)).toEqual([
             'stripe_live_checkout_preflight', 'register_stripe_live_checkout_intent',
-            'apply_stripe_live_membership_snapshot_with_schedule', 'apply_stripe_live_membership_reversal',
+            'apply_stripe_canonical_membership_snapshot', 'apply_stripe_canonical_membership_reversal',
             'stripe_live_member_status_with_schedule', 'stripe_portal_customer_for_user',
         ]);
         expect(calls[1].args).not.toHaveProperty('p_livemode');
-        expect(calls[2].args).not.toHaveProperty('p_livemode');
+        expect(calls[2].args.p_livemode).toBe(true);
         expect(calls[2].args.p_cancel_at_period_end).toBe(true);
-        expect(calls[3].args).not.toHaveProperty('p_livemode');
+        expect(calls[3].args.p_livemode).toBe(true);
         expect(calls[5].args.p_livemode).toBe(true);
     });
     it('fails closed when portal ownership lookup is absent or malformed', async () => {
         let result: unknown = { manageable: false };
-        const rpc = vi.fn(() => ({ abortSignal: vi.fn().mockImplementation(async () => ({ data: result, error: null })) }));
+        const rpc = vi.fn((name: string) => ({ abortSignal: vi.fn().mockImplementation(async () => ({ data: name === 'assert_stripe_billing_mode' ? true : result, error: null })) }));
         const store = createStripeMembershipStore({ rpc } as unknown as SupabaseClient,
             async () => 'Alice', async () => false);
         expect(await store.portalCustomer('Alice', false)).toBeNull();

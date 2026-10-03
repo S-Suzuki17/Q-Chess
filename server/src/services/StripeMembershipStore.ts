@@ -25,6 +25,7 @@ export interface StripeMembershipReversal {
     userId: string;
     periodEnd: string;
     livemode: boolean;
+    reconciliationToken?: string;
 }
 export interface StripePortalCustomer {
     customerId: string;
@@ -39,6 +40,8 @@ export interface StripeMembershipStore {
     registerCheckoutIntent(userId: string, checkoutId: string, priceId: string, expiresAt: string, livemode?: boolean): Promise<void>;
     applySnapshot(snapshot: StripeMembershipSnapshot): Promise<void>;
     applyReversal(reversal: StripeMembershipReversal): Promise<void>;
+    acquireReconciliation(subscriptionId: string, livemode: boolean): Promise<{ token: string | null; retired: boolean }>;
+    releaseReconciliation(subscriptionId: string, livemode: boolean, token: string): Promise<void>;
     portalCustomer(userId: string, livemode: boolean): Promise<StripePortalCustomer | null>;
     status(userId: string, livemode?: boolean): Promise<StripeMembershipStatus>;
     claim(userId: string, livemode?: boolean): Promise<StripeMembershipClaim>;
@@ -66,9 +69,32 @@ export function createStripeMembershipStore(
     verifyUser: StripeMembershipStore['verifyUser'],
     blocked: StripeMembershipStore['blocked'],
 ): StripeMembershipStore {
+    const assertMode = async (livemode: boolean) => {
+        const { data, error } = await client.rpc('assert_stripe_billing_mode', { p_livemode: livemode })
+            .abortSignal(AbortSignal.timeout(5000));
+        if (error || data !== true) throw new Error('STRIPE_MODE_PINNED');
+    };
     return {
         verifyUser, blocked,
+        async acquireReconciliation(subscriptionId, livemode) {
+            const { data, error } = await client.rpc('acquire_stripe_reconciliation', {
+                p_subscription_id: subscriptionId, p_livemode: livemode,
+            }).abortSignal(AbortSignal.timeout(5000));
+            if (error || !object(data) || typeof data.retired !== 'boolean'
+                || !(data.token === null || (typeof data.token === 'string' && /^[0-9a-f-]{36}$/.test(data.token)))) {
+                throw new Error('MEMBERSHIP_UNAVAILABLE');
+            }
+            if (!data.retired && !data.token) throw new Error('RECONCILIATION_BUSY');
+            return { token: data.token as string | null, retired: data.retired };
+        },
+        async releaseReconciliation(subscriptionId, livemode, token) {
+            const { error } = await client.rpc('release_stripe_reconciliation', {
+                p_subscription_id: subscriptionId, p_livemode: livemode, p_token: token,
+            }).abortSignal(AbortSignal.timeout(5000));
+            if (error) throw new Error('MEMBERSHIP_UNAVAILABLE');
+        },
         async preflight(userId, livemode = false) {
+            await assertMode(livemode);
             const { data, error } = await client.rpc(livemode ? 'stripe_live_checkout_preflight' : 'stripe_checkout_preflight', { p_user_id: userId })
                 .abortSignal(AbortSignal.timeout(5000));
             if (error || !object(data) || typeof data.eligible !== 'boolean'
@@ -86,6 +112,7 @@ export function createStripeMembershipStore(
                 checkoutId: data.checkoutId as string | null, expiresAt: data.expiresAt as string | null };
         },
         async closeExpiredIntent(userId, checkoutId, livemode = false) {
+            await assertMode(livemode);
             const { error } = await client.rpc(livemode
                 ? 'close_expired_stripe_live_checkout_intent' : 'close_expired_stripe_checkout_intent', {
                 p_user_id: userId, p_checkout_id: checkoutId,
@@ -93,6 +120,7 @@ export function createStripeMembershipStore(
             if (error) throw new Error('MEMBERSHIP_UNAVAILABLE');
         },
         async registerCheckoutIntent(userId, checkoutId, priceId, expiresAt, livemode = false) {
+            await assertMode(livemode);
             const { error } = await client.rpc(livemode
                 ? 'register_stripe_live_checkout_intent' : 'register_stripe_checkout_intent', {
                 p_user_id: userId, p_checkout_id: checkoutId,
@@ -101,30 +129,31 @@ export function createStripeMembershipStore(
             if (error) throw new Error('MEMBERSHIP_UNAVAILABLE');
         },
         async applySnapshot(value) {
-            const { data, error } = await client.rpc(value.livemode
-                ? 'apply_stripe_live_membership_snapshot_with_schedule' : 'apply_stripe_membership_snapshot_with_schedule', {
+            if (!value.reconciliationToken) throw new Error('RECONCILIATION_REQUIRED');
+            const { data, error } = await client.rpc('apply_stripe_canonical_membership_snapshot', {
                 p_event_id: value.eventId, p_event_payload_hash: value.eventPayloadHash,
                 p_event_type: value.eventType, p_event_created: value.eventCreated,
                 p_observed_at: value.observedAt, p_subscription_id: value.subscriptionId,
                 p_checkout_id: value.checkoutId, p_customer_id: value.customerId,
                 p_user_id: value.userId, p_price_id: value.priceId,
                 p_status: value.status, p_period_end: value.periodEnd,
-                ...(value.livemode ? {} : { p_livemode: false }), p_paid_new_period: value.paidNewPeriod,
+                p_livemode: value.livemode, p_paid_new_period: value.paidNewPeriod,
                 p_cancel_at_period_end: value.cancelAtPeriodEnd,
+                p_token: value.reconciliationToken,
             }).abortSignal(AbortSignal.timeout(5000));
             if (error || !object(data) || typeof data.applied !== 'boolean'
                 || typeof data.duplicate !== 'boolean') throw new Error('MEMBERSHIP_UNAVAILABLE');
         },
         async applyReversal(value) {
-            const { data, error } = await client.rpc(value.livemode
-                ? 'apply_stripe_live_membership_reversal' : 'apply_stripe_membership_reversal', {
+            if (!value.reconciliationToken) throw new Error('RECONCILIATION_REQUIRED');
+            const { data, error } = await client.rpc('apply_stripe_canonical_membership_reversal', {
                 p_event_id: value.eventId, p_event_payload_hash: value.eventPayloadHash,
                 p_event_type: value.eventType, p_subscription_id: value.subscriptionId,
                 p_reversed_invoice_id: value.reversedInvoiceId,
                 p_current_invoice_id: value.currentInvoiceId,
                 p_checkout_id: value.checkoutId, p_customer_id: value.customerId,
                 p_user_id: value.userId, p_period_end: value.periodEnd,
-                ...(value.livemode ? {} : { p_livemode: false }),
+                p_livemode: value.livemode, p_token: value.reconciliationToken,
             }).abortSignal(AbortSignal.timeout(5000));
             if (error || !object(data) || typeof data.applied !== 'boolean'
                 || typeof data.duplicate !== 'boolean' || typeof data.blocked !== 'boolean') {
@@ -132,6 +161,7 @@ export function createStripeMembershipStore(
             }
         },
         async portalCustomer(userId, livemode) {
+            await assertMode(livemode);
             const { data, error } = await client.rpc('stripe_portal_customer_for_user', {
                 p_user_id: userId, p_livemode: livemode,
             }).abortSignal(AbortSignal.timeout(5000));
@@ -148,6 +178,7 @@ export function createStripeMembershipStore(
                 livemode: data.livemode };
         },
         async status(userId, livemode = false) {
+            await assertMode(livemode);
             const { data, error } = await client.rpc(livemode
                 ? 'stripe_live_member_status_with_schedule' : 'stripe_member_status_with_schedule', { p_user_id: userId })
                 .abortSignal(AbortSignal.timeout(5000));
@@ -155,6 +186,7 @@ export function createStripeMembershipStore(
             return parseStatus(data, userId);
         },
         async claim(userId, livemode = false) {
+            await assertMode(livemode);
             const { data, error } = await client.rpc(livemode
                 ? 'claim_stripe_live_member_daily_grant_with_schedule' : 'claim_stripe_member_daily_grant_with_schedule', { p_user_id: userId })
                 .abortSignal(AbortSignal.timeout(5000));

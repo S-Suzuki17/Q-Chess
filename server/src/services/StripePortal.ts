@@ -1,5 +1,6 @@
 import { StripeMembershipError } from './StripeMembership';
-import { QG_STRIPE_API_VERSION } from './StripeApiVersion';
+import { createStripeClient, stripeRequest } from './StripeClient';
+import type Stripe from 'stripe';
 
 const object = (value: unknown): value is Record<string, unknown> =>
     value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -14,6 +15,7 @@ export interface StripePortalConfig {
 
 /** The caller obtains customerId only from a trusted owner-scoped DB lookup. */
 export class StripePortalApi {
+    private readonly client: Stripe;
     get livemode() { return this.config.mode === 'live'; }
     constructor(private readonly config: StripePortalConfig, private readonly request: typeof fetch = fetch) {
         const keyMode = /^(?:sk|rk)_(test|live)_[A-Za-z0-9_]{8,}$/.exec(config.secretKey)?.[1];
@@ -26,20 +28,13 @@ export class StripePortalApi {
         if (!keyMode || keyMode !== config.mode || !validReturn) {
             throw new StripeMembershipError('STRIPE_PORTAL_CONFIG_REQUIRED');
         }
+        this.client = createStripeClient(config.secretKey, request);
     }
 
     private async call(path: string, init?: RequestInit): Promise<Record<string, unknown>> {
-        const response = await this.request(`https://api.stripe.com/v1/${path}`, {
-            ...init,
-            headers: {
-                Authorization: `Bearer ${this.config.secretKey}`,
-                'Stripe-Version': QG_STRIPE_API_VERSION,
-                ...(init?.headers ?? {}),
-            },
-            signal: AbortSignal.timeout(6000),
-        });
-        if (!response.ok) throw new StripeMembershipError('STRIPE_PORTAL_UNAVAILABLE');
-        const data: unknown = await response.json();
+        let data: unknown;
+        try { data = await stripeRequest(this.client, path, init); }
+        catch { throw new StripeMembershipError('STRIPE_PORTAL_UNAVAILABLE'); }
         if (!object(data) || ('livemode' in data && data.livemode !== (this.config.mode === 'live'))) {
             throw new StripeMembershipError('STRIPE_PORTAL_MODE_MISMATCH');
         }

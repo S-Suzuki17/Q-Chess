@@ -13,7 +13,7 @@ const invoicePayment = (invoice: string, id = 'inpay_ABCDEFGH') => ({
     payment: { type: 'payment_intent', payment_intent: 'pi_ABCDEFGH' },
 });
 const invoice = (id: string, subscription = 'sub_ABCDEFGH') => ({
-    id, object: 'invoice', status: 'paid', paid: true, livemode: false,
+    id, object: 'invoice', status: 'paid', livemode: false,
     parent: { type: 'subscription_details', subscription_details: { subscription } },
 });
 const key = 'sk_test_ABCDEFGH';
@@ -27,8 +27,8 @@ describe('Stripe test-only refund/dispute lineage', () => {
         await expect(resolveStripeReversal(event, key, request as unknown as typeof fetch)).resolves.toEqual([
             { subscriptionId: 'sub_ABCDEFGH', reversedInvoiceIds: ['in_ABCDEFGH'] },
         ]);
-        expect(request.mock.calls[0][0]).toContain('payment%5Bpayment_intent%5D=pi_ABCDEFGH');
-        expect(request.mock.calls[0][1]?.headers).toMatchObject({ 'Stripe-Version': QG_STRIPE_API_VERSION });
+        expect(new URL(request.mock.calls[0][0]).searchParams.get('payment[payment_intent]')).toBe('pi_ABCDEFGH');
+        expect(new Headers(request.mock.calls[0][1]?.headers).get('Stripe-Version')).toBe(QG_STRIPE_API_VERSION);
         expect(request).toHaveBeenCalledTimes(2);
     });
 

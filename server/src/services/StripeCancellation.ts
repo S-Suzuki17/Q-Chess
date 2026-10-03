@@ -1,12 +1,24 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { DeletionError } from './AccountDeletion';
-import { QG_STRIPE_API_VERSION } from './StripeApiVersion';
+import { createStripeClient, stripeRequest } from './StripeClient';
 
 type Mode = 'test' | 'live';
 type Intent = { checkoutId: string; livemode: boolean };
 type Membership = { subscriptionId: string; checkoutId: string };
 export type StripeDeletionLinks = { intents: Intent[]; memberships: Membership[] };
 export type StripeDeletionLinkSource = (userId: string) => Promise<StripeDeletionLinks>;
+export type StripeRetireSubscriptions = (userId: string, subscriptions: Array<{
+    subscriptionId: string; checkoutId: string; livemode: boolean;
+}>) => Promise<void>;
+
+export function createStripeRetireSubscriptions(client: SupabaseClient): StripeRetireSubscriptions {
+    return async (userId, subscriptions) => {
+        const { error } = await client.rpc('retire_stripe_account_subscriptions', {
+            p_user_id: userId, p_subscriptions: subscriptions,
+        }).abortSignal(AbortSignal.timeout(5000));
+        if (error) throw new DeletionError('UNAVAILABLE');
+    };
+}
 
 const checkoutId = (id: unknown): id is string =>
     typeof id === 'string' && /^cs_(?:test|live)_[A-Za-z0-9]{8,200}$/.test(id);
@@ -54,24 +66,22 @@ export function createStripeCancellationGuard(
     linksFor: StripeDeletionLinkSource,
     keys: { test?: string; live?: string },
     request: typeof fetch = fetch,
+    retire?: StripeRetireSubscriptions,
 ): (userId: string) => Promise<void> {
     return async userId => {
         if (!userId || userId.length > 256) throw new DeletionError('UNAVAILABLE');
         const links = await linksFor(userId);
         const intents = new Map(links.intents.map(intent => [intent.checkoutId, intent]));
         if (intents.size !== links.intents.length) throw new DeletionError('UNAVAILABLE');
-        const expected = new Map<string, { mode: Mode; customer: string }>();
+        const expected = new Map<string, { mode: Mode; customer: string; checkoutId: string }>();
         const stripeCall = async (mode: Mode, path: string, method = 'GET') => {
             const key = keys[mode];
             if (!key || !new RegExp(`^(?:sk|rk)_${mode}_[A-Za-z0-9_]{8,}$`).test(key)) {
                 throw new DeletionError('UNAVAILABLE');
             }
-            const response = await request(`https://api.stripe.com/v1/${path}`, {
-                method, headers: { Authorization: `Bearer ${key}`, 'Stripe-Version': QG_STRIPE_API_VERSION },
-                signal: AbortSignal.timeout(6000),
-            });
-            if (!response.ok) throw new DeletionError('UNAVAILABLE');
-            const value: unknown = await response.json();
+            let value: unknown;
+            try { value = await stripeRequest(createStripeClient(key, request), path, { method }); }
+            catch { throw new DeletionError('UNAVAILABLE'); }
             if (!object(value) || value.livemode !== (mode === 'live')) throw new DeletionError('UNAVAILABLE');
             return value;
         };
@@ -97,7 +107,7 @@ export function createStripeCancellationGuard(
             if (previous && (previous.mode !== mode || previous.customer !== session.customer)) {
                 throw new DeletionError('UNAVAILABLE');
             }
-            expected.set(session.subscription, { mode, customer: session.customer });
+            expected.set(session.subscription, { mode, customer: session.customer, checkoutId: intent.checkoutId });
         }
         for (const member of links.memberships) {
             if (!intents.has(member.checkoutId) || !expected.has(member.subscriptionId)) {
@@ -116,5 +126,9 @@ export function createStripeCancellationGuard(
                 throw new DeletionError('UNAVAILABLE');
             }
         }
+        if (!retire && (links.intents.length || links.memberships.length)) throw new DeletionError('UNAVAILABLE');
+        if (retire) await retire(userId, [...expected].map(([id, owner]) => ({
+            subscriptionId: id, checkoutId: owner.checkoutId, livemode: owner.mode === 'live',
+        })));
     };
 }

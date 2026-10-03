@@ -1,3 +1,4 @@
+import { invoiceFixture, paymentFixture, reconciliationToken } from './StripeTestFixtures';
 import { describe, expect, it, vi } from 'vitest';
 import { QG_LIVE_MONTHLY_PRICE_ID, StripeMembershipApi, type StripeEvent } from './StripeMembership';
 import { QG_STRIPE_API_VERSION } from './StripeApiVersion';
@@ -32,7 +33,7 @@ describe('Stripe live-mode boundary (mocked; never contacts Stripe)', () => {
                     client_reference_id: 'Alice', expires_at: Math.floor(Date.now() / 1000) + 3600,
                     url: 'https://checkout.stripe.com/c/pay/cs_live_ABCDEFGH',
                     currency: 'usd', amount_total: 299, status: 'open',
-                    automatic_tax: { enabled: true },
+                    automatic_tax: { enabled: false },
                 } : { data: [{ price: { id: QG_LIVE_MONTHLY_PRICE_ID }, quantity: 1 }], has_more: false },
         ));
         const api = new StripeMembershipApi(config, request as unknown as typeof fetch);
@@ -41,11 +42,13 @@ describe('Stripe live-mode boundary (mocked; never contacts Stripe)', () => {
         expect(request).toHaveBeenCalledTimes(3);
         const post = request.mock.calls.find(([, init]) => (init as RequestInit | undefined)?.method === 'POST');
         expect(post?.[0]).toBe('https://api.stripe.com/v1/checkout/sessions');
-        const form = (post?.[1] as RequestInit).body as URLSearchParams;
-        expect((post?.[1] as RequestInit).headers).toMatchObject({ 'Stripe-Version': QG_STRIPE_API_VERSION });
+        const form = new URLSearchParams((post?.[1] as RequestInit).body as string);
+        expect(new Headers((post?.[1] as RequestInit).headers).get('Stripe-Version')).toBe(QG_STRIPE_API_VERSION);
         expect(form.get('client_reference_id')).toBe('Alice');
         expect(form.get('line_items[0][price]')).toBe(QG_LIVE_MONTHLY_PRICE_ID);
-        expect(form.get('automatic_tax[enabled]')).toBe('true');
+        expect(form.get('automatic_tax[enabled]')).toBe('false');
+        expect(form.get('managed_payments[enabled]')).toBe('false');
+        expect(form.get('integration_identifier')).toMatch(/^qg_web_membership_[a-z]{8}$/);
     });
 
     it('fails closed before Checkout creation for non-inclusive tax or wrong price', async () => {
@@ -60,7 +63,7 @@ describe('Stripe live-mode boundary (mocked; never contacts Stripe)', () => {
             id: 'sub_ABCDEFGH', livemode: true, customer: 'cus_ABCDEFGH', status: 'active',
             latest_invoice: 'in_ABCDEFGH', current_period_end: 1790000000,
             cancel_at_period_end: true,
-            automatic_tax: { enabled: true },
+            automatic_tax: { enabled: false },
             items: { data: [{ price: { id: QG_LIVE_MONTHLY_PRICE_ID }, quantity: 1 }], has_more: false },
         };
         const checkout = {
@@ -68,22 +71,22 @@ describe('Stripe live-mode boundary (mocked; never contacts Stripe)', () => {
             customer: subscription.customer, mode: 'subscription', client_reference_id: 'Alice',
             status: 'complete', payment_status: 'paid',
         };
-        const invoice = {
+        const invoice = { ...invoiceFixture(true),
             id: 'in_ABCDEFGH', livemode: true, subscription: subscription.id,
             customer: subscription.customer, currency: 'usd', collection_method: 'charge_automatically',
-            paid_out_of_band: false, paid: true, status: 'paid', amount_paid: 299,
-            automatic_tax: { enabled: true },
+            status: 'paid', amount_paid: 299,
+            automatic_tax: { enabled: false },
         };
         let invoiceCustomer = invoice.customer;
         const request = vi.fn(async (url: string) => Response.json(
-            url.includes('/subscriptions/') ? subscription
+            paymentFixture(url, true) ?? (url.includes('/subscriptions/') ? subscription
                 : url.includes('/checkout/sessions?') ? { data: [checkout], has_more: false }
-                    : { ...invoice, customer: invoiceCustomer },
+                    : { ...invoice, customer: invoiceCustomer }),
         ));
         const api = new StripeMembershipApi(config, request as unknown as typeof fetch);
         const event: StripeEvent = {
             id: 'evt_ABCDEFGH', type: 'invoice.paid', created: 1780000000,
-            livemode: true, data: { object: { id: invoice.id, subscription: subscription.id } },
+            livemode: true, data: { object: { id: invoice.id, parent: invoice.parent } },
             payloadHash: 'a'.repeat(64),
         };
         const snapshot = await api.snapshot(event);
@@ -94,7 +97,7 @@ describe('Stripe live-mode boundary (mocked; never contacts Stripe)', () => {
         invoiceCustomer = 'cus_WRONG1234';
         await expect(api.snapshot(event)).rejects.toThrow();
         invoiceCustomer = invoice.customer;
-        subscription.automatic_tax.enabled = false;
+        subscription.automatic_tax.enabled = true;
         await expect(api.snapshot(event)).resolves.toMatchObject({ status: 'unpaid',
             priceId: QG_LIVE_MONTHLY_PRICE_ID, paidNewPeriod: false });
     });

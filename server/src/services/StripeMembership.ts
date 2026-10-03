@@ -1,8 +1,9 @@
-import { createHash, randomUUID } from 'node:crypto';
+import { createHash, randomUUID, randomInt } from 'node:crypto';
 import type { IncomingHttpHeaders } from 'node:http';
 import Stripe from 'stripe';
 import type { StripeReversalTarget } from './StripeReversal';
 import { QG_STRIPE_API_VERSION } from './StripeApiVersion';
+import { createStripeClient, stripeRequest } from './StripeClient';
 
 const STRIPE_ID = /^(?:cs_(?:test|live)_|sub_|cus_|price_|evt_|in_)[A-Za-z0-9]{8,200}$/;
 export const QG_LIVE_MONTHLY_PRICE_ID = 'price_1ULM9fQWzwYDIuXWgs5Uj3yt';
@@ -21,6 +22,8 @@ const INVOICE_EVENTS = new Set([
 const REVERSAL_EVENTS = new Set([
     'charge.refunded', 'charge.dispute.created', 'radar.early_fraud_warning.created',
 ]);
+const CHECKOUT_EVENTS = new Set(['checkout.session.completed',
+    'checkout.session.async_payment_succeeded', 'checkout.session.async_payment_failed']);
 const object = (value: unknown): value is Record<string, unknown> =>
     value !== null && typeof value === 'object' && !Array.isArray(value);
 
@@ -48,6 +51,7 @@ export interface StripeMembershipSnapshot {
     paidNewPeriod: boolean;
     cancelAtPeriodEnd: boolean;
     livemode: boolean;
+    reconciliationToken?: string;
 }
 export interface StripeCheckout { id: string; url: string; expiresAt: string; }
 export interface StripeMembershipConfig {
@@ -57,6 +61,8 @@ export interface StripeMembershipConfig {
     priceId: string;
     successUrl: string;
     cancelUrl: string;
+    automaticTaxEnabled?: boolean;
+    taxRegistrationConfirmed?: boolean;
 }
 
 export class StripeMembershipError extends Error {
@@ -84,6 +90,7 @@ export function verifyStripeWebhook(body: Buffer, headers: IncomingHttpHeaders, 
     catch { throw new StripeMembershipError('INVALID_SIGNATURE'); }
     if (!object(value) || typeof value.id !== 'string' || !STRIPE_ID.test(value.id) || !value.id.startsWith('evt_')
         || typeof value.type !== 'string' || !Number.isSafeInteger(value.created)
+        || value.api_version !== QG_STRIPE_API_VERSION
         || typeof value.livemode !== 'boolean' || !object(value.data) || !object(value.data.object)) {
         throw new StripeMembershipError('INVALID_EVENT');
     }
@@ -100,6 +107,7 @@ export class StripeMembershipApi {
     get priceId() { return this.config.priceId; }
     get livemode() { return this.mode === 'live'; }
     readonly mode: StripeMembershipMode;
+    private readonly client: Stripe;
     constructor(
         private readonly config: StripeMembershipConfig,
         private readonly request: typeof fetch = fetch,
@@ -114,18 +122,17 @@ export class StripeMembershipApi {
             || ![config.successUrl, config.cancelUrl].every(url => {
                 try { const parsed = new URL(url); return parsed.protocol === 'https:' && parsed.hostname === 'q-gambit.com'; }
                 catch { return false; }
-            })) throw new StripeMembershipError('STRIPE_CONFIG_REQUIRED');
+            })
+            || (config.automaticTaxEnabled === true && config.taxRegistrationConfirmed !== true)) {
+            throw new StripeMembershipError('STRIPE_CONFIG_REQUIRED');
+        }
+        this.client = createStripeClient(config.secretKey, request);
     }
 
     private async call(path: string, init?: RequestInit): Promise<Record<string, unknown>> {
-        const response = await this.request(`https://api.stripe.com/v1/${path}`, {
-            ...init,
-            headers: { Authorization: `Bearer ${this.config.secretKey}`,
-                'Stripe-Version': QG_STRIPE_API_VERSION, ...(init?.headers ?? {}) },
-            signal: AbortSignal.timeout(6000),
-        });
-        if (!response.ok) throw new StripeMembershipError();
-        const data: unknown = await response.json();
+        let data: unknown;
+        try { data = await stripeRequest(this.client, path, init); }
+        catch { throw new StripeMembershipError(); }
         if (!object(data) || ('livemode' in data && data.livemode !== (this.mode === 'live'))) {
             throw new StripeMembershipError();
         }
@@ -142,7 +149,7 @@ export class StripeMembershipApi {
             || price.livemode !== (this.mode === 'live')
             || price.currency !== 'usd' || price.unit_amount !== 299 || price.type !== 'recurring'
             || recurring?.interval !== 'month' || recurring?.interval_count !== 1
-            || (this.mode === 'live' && price.tax_behavior !== 'inclusive')) {
+            || price.tax_behavior !== 'inclusive') {
             throw new StripeMembershipError(this.mode === 'test' ? 'STRIPE_TEST_PRICE_MISMATCH' : 'STRIPE_LIVE_PRICE_MISMATCH');
         }
         const form = new URLSearchParams({
@@ -154,7 +161,12 @@ export class StripeMembershipApi {
             cancel_url: this.config.cancelUrl,
             'subscription_data[metadata][qgambit_user_id]': userId,
         });
-        form.set('automatic_tax[enabled]', 'true');
+        form.set('automatic_tax[enabled]', String(this.config.automaticTaxEnabled === true));
+        // Managed Payments enables tax by default in some accounts. Tax policy
+        // is explicit and independent of sales; never change account settings.
+        form.set('managed_payments[enabled]', 'false');
+        const suffix = Array.from({ length: 8 }, () => String.fromCharCode(97 + randomInt(26))).join('');
+        form.set('integration_identifier', `qg_web_membership_${suffix}`);
         const data = await this.call('checkout/sessions', {
             method: 'POST', body: form,
             headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Idempotency-Key': randomUUID() },
@@ -168,12 +180,12 @@ export class StripeMembershipApi {
             || data.livemode !== (this.mode === 'live') || !Number.isSafeInteger(data.expires_at)
             || (data.expires_at as number) * 1000 <= Date.now()
             || checkoutUrl.protocol !== 'https:' || checkoutUrl.hostname !== 'checkout.stripe.com'
-            || (this.mode === 'live' && (data.currency !== 'usd' || data.amount_total !== 299
+            || (data.currency !== 'usd' || data.amount_total !== 299
                 || data.status !== 'open' || !object(data.automatic_tax)
-                || data.automatic_tax.enabled !== true))) {
+                || data.automatic_tax.enabled !== (this.config.automaticTaxEnabled === true))) {
             throw new StripeMembershipError();
         }
-        if (this.mode === 'live') {
+        {
             // Verify the server-created Session actually contains exactly the
             // reviewed $2.99 subscription Price before exposing its URL.
             const lines = await this.call(`checkout/sessions/${encodeURIComponent(data.id as string)}/line_items?limit=2`);
@@ -215,15 +227,34 @@ export class StripeMembershipApi {
         const invoice = await this.call(`invoices/${encodeURIComponent(invoiceId)}`);
         const parentSubscription = object(invoice.parent) && object(invoice.parent.subscription_details)
             ? invoice.parent.subscription_details.subscription : null;
-        if (invoice.id !== invoiceId || (invoice.subscription !== subscriptionId && parentSubscription !== subscriptionId)
+        if (invoice.id !== invoiceId || parentSubscription !== subscriptionId
             || invoice.livemode !== (this.mode === 'live') || invoice.currency !== 'usd'
-            || (this.mode === 'live' && (invoice.customer !== subscription.customer
-                || invoice.collection_method !== 'charge_automatically'
-                || invoice.paid_out_of_band === true || !object(invoice.automatic_tax)
-                || invoice.automatic_tax.enabled !== true))) throw new StripeMembershipError();
+            || invoice.customer !== subscription.customer
+            || invoice.collection_method !== 'charge_automatically'
+            || !object(invoice.automatic_tax)
+            || invoice.automatic_tax.enabled !== (this.config.automaticTaxEnabled === true)) throw new StripeMembershipError();
         // A paid invoice is a necessary condition, not sufficient evidence against a later refund.
-        return invoice.paid === true && invoice.status === 'paid'
-            && typeof invoice.amount_paid === 'number' && invoice.amount_paid === 299;
+        if (invoice.status !== 'paid' || invoice.total !== 299 || invoice.amount_paid !== 299
+            || invoice.amount_remaining !== 0 || (invoice.amount_paid_off_stripe ?? 0) !== 0) return false;
+        const payments = await this.call(`invoice_payments?invoice=${encodeURIComponent(invoiceId)}&status=paid&limit=100`);
+        if (!Array.isArray(payments.data) || payments.has_more !== false || payments.data.length !== 1) return false;
+        const payment = payments.data[0];
+        if (!object(payment) || payment.invoice !== invoiceId || payment.livemode !== this.livemode
+            || payment.status !== 'paid' || payment.amount_paid !== 299 || payment.currency !== 'usd'
+            || !object(payment.payment) || payment.payment.type !== 'payment_intent'
+            || typeof payment.payment.payment_intent !== 'string') return false;
+        const intentId = payment.payment.payment_intent;
+        if (!/^pi_[A-Za-z0-9]{8,200}$/.test(intentId)) return false;
+        const intent = await this.call(`payment_intents/${encodeURIComponent(intentId)}`);
+        if (!(intent.id === intentId && intent.livemode === this.livemode && intent.status === 'succeeded'
+            && intent.customer === subscription.customer && intent.currency === 'usd' && intent.amount_received === 299
+        )) return false;
+        if (typeof intent.latest_charge !== 'string' || !/^ch_[A-Za-z0-9]{8,200}$/.test(intent.latest_charge)) return false;
+        const charge = await this.call(`charges/${encodeURIComponent(intent.latest_charge)}`);
+        return charge.id === intent.latest_charge && charge.livemode === this.livemode
+            && charge.payment_intent === intentId && charge.customer === subscription.customer
+            && charge.paid === true && charge.status === 'succeeded' && charge.currency === 'usd'
+            && charge.amount === 299 && charge.amount_refunded === 0 && charge.disputed === false;
     }
 
     private async checkoutFor(subscriptionId: string, customerId: string): Promise<Record<string, unknown>> {
@@ -273,16 +304,8 @@ export class StripeMembershipApi {
         // Current-period refund/dispute reconciliation needs invoice/payment lineage.
         // Retrying instead of acknowledging prevents a stale active projection from being silently accepted.
         if (REVERSAL_EVENTS.has(event.type)) throw new StripeMembershipError('PAYMENT_REVERSAL_REQUIRES_RECONCILIATION');
-        let subscriptionId: unknown;
-        if (SUBSCRIPTION_EVENTS.has(event.type)) subscriptionId = event.data.object.id;
-        else if (event.type === 'checkout.session.completed' && event.data.object.mode === 'subscription') {
-            subscriptionId = event.data.object.subscription;
-        } else if (INVOICE_EVENTS.has(event.type)) {
-            const parent = object(event.data.object.parent) ? event.data.object.parent : null;
-            const details = parent && object(parent.subscription_details) ? parent.subscription_details : null;
-            subscriptionId = event.data.object.subscription ?? details?.subscription;
-        } else return null;
-        if (!stripeId(subscriptionId, 'sub_')) throw new StripeMembershipError();
+        const subscriptionId = this.eventSubscriptionId(event);
+        if (!subscriptionId) return null;
         const subscription = await this.subscription(subscriptionId);
         const customerId = subscription.customer as string;
         const checkout = await this.checkoutFor(subscriptionId, customerId);
@@ -294,15 +317,14 @@ export class StripeMembershipApi {
         const price = stripeId(itemPrice, 'price_') ? itemPrice : INELIGIBLE_PRICE_ID;
         const eligiblePrice = subscriptionItems?.has_more === false
             && price === this.config.priceId && item?.quantity === 1
-            && (this.mode !== 'live' || (object(subscription.automatic_tax)
-                && subscription.automatic_tax.enabled === true));
+            && object(subscription.automatic_tax)
+            && subscription.automatic_tax.enabled === (this.config.automaticTaxEnabled === true);
         const periodEnd = subscription.current_period_end ?? (object(item) ? item.current_period_end : null);
         const allowedStatuses = new Set(['incomplete', 'incomplete_expired', 'trialing', 'active', 'past_due', 'canceled', 'unpaid', 'paused']);
         if (typeof userId !== 'string' || !userId || userId.length > 256
             || !stripeId(checkout.id, `cs_${this.mode}_`)
-            || (event.type === 'checkout.session.completed' && event.data.object.id !== checkout.id)
-            || (this.mode === 'live' && (checkout.status !== 'complete'
-                || checkout.payment_status !== 'paid'))
+            || (CHECKOUT_EVENTS.has(event.type) && event.data.object.id !== checkout.id)
+            || checkout.status !== 'complete'
             || typeof subscription.status !== 'string'
             || !allowedStatuses.has(subscription.status) || !Number.isSafeInteger(periodEnd)
             || typeof subscription.cancel_at_period_end !== 'boolean'
@@ -312,6 +334,7 @@ export class StripeMembershipApi {
         // The DB still requires the original server-registered Checkout and
         // owner; current_price_id must match that intent to grant tickets.
         const latestInvoicePaid = eligiblePrice && subscription.status === 'active'
+            && checkout.payment_status === 'paid'
             && await this.invoicePaid(subscription, subscriptionId);
         const normalizedStatus = subscription.status === 'active' && !latestInvoicePaid
             ? 'unpaid' : subscription.status;
@@ -326,6 +349,20 @@ export class StripeMembershipApi {
             paidNewPeriod, cancelAtPeriodEnd: subscription.cancel_at_period_end as boolean,
             livemode: this.mode === 'live',
         };
+    }
+
+    /** Decode only a signed routing key; all ownership/state comes from API + DB. */
+    eventSubscriptionId(event: StripeEvent): string | null {
+        let id: unknown;
+        if (SUBSCRIPTION_EVENTS.has(event.type)) id = event.data.object.id;
+        else if (CHECKOUT_EVENTS.has(event.type) && event.data.object.mode === 'subscription') id = event.data.object.subscription;
+        else if (INVOICE_EVENTS.has(event.type)) {
+            const parent = object(event.data.object.parent) ? event.data.object.parent : null;
+            const details = parent && object(parent.subscription_details) ? parent.subscription_details : null;
+            id = details?.subscription;
+        } else return null;
+        if (!stripeId(id, 'sub_')) throw new StripeMembershipError();
+        return id;
     }
 }
 

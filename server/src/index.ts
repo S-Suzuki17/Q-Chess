@@ -33,6 +33,7 @@ import { cpuHintTicketsEnabled, rankedTicketAdmissionEnabled, rankedAdmissionRec
 import { RankedAdmissionCoordinator } from './services/RankedAdmissionCoordinator';
 import type { AdmissionOutcome } from './services/RankedAdmissionStore';
 import { createCpuPracticeRouter } from './services/CpuPracticeRoutes';
+import {stripeDeploymentModeAllowed} from './services/StripeDeploymentMode';
 
 const app = express();
 app.use(cors());
@@ -55,7 +56,7 @@ const STRIPE_BILLING_PORTAL_RELEASE_READY = false;
 // Leave false only while the Stripe DB tables have not been deployed.
 const STRIPE_ACCOUNT_DELETION_GUARD_READY = false;
 const stripeMode = process.env.STRIPE_MEMBERSHIP_MODE;
-const stripeModeValid = stripeMode === 'test' || stripeMode === 'live';
+const stripeModeValid = stripeDeploymentModeAllowed(process.env.STRIPE_BILLING_ENVIRONMENT, stripeMode);
 const stripeModeEnabled = stripeMode === 'live'
     ? process.env.STRIPE_MEMBERSHIP_LIVE_ENABLED === 'true'
     : stripeMode === 'test' && process.env.STRIPE_MEMBERSHIP_TEST_ENABLED === 'true';
@@ -71,6 +72,8 @@ if (STRIPE_BILLING_PROCESSING_READY && stripeModeValid && stripeModeEnabled) {
             priceId: stripeMode === 'live' ? QG_LIVE_MONTHLY_PRICE_ID : process.env.STRIPE_TEST_PRICE_ID ?? '',
             successUrl: stripeMode === 'live' ? process.env.STRIPE_LIVE_SUCCESS_URL ?? '' : process.env.STRIPE_TEST_SUCCESS_URL ?? '',
             cancelUrl: stripeMode === 'live' ? process.env.STRIPE_LIVE_CANCEL_URL ?? '' : process.env.STRIPE_TEST_CANCEL_URL ?? '',
+            automaticTaxEnabled: process.env.STRIPE_AUTOMATIC_TAX_ENABLED === 'true',
+            taxRegistrationConfirmed: process.env.STRIPE_TAX_REGISTRATION_CONFIRMED === 'true',
         });
     } catch { /* Invalid Stripe configuration keeps every payment endpoint disabled. */ }
 }
@@ -94,7 +97,7 @@ const stripePortalEnabled = () => STRIPE_BILLING_PORTAL_RELEASE_READY
 const cancelStripeBeforeErase = STRIPE_ACCOUNT_DELETION_GUARD_READY
     ? createStripeCancellationGuard(supabaseService.stripeDeletionLinks(), {
         test: process.env.STRIPE_TEST_SECRET_KEY, live: process.env.STRIPE_LIVE_SECRET_KEY,
-    })
+    }, fetch, supabaseService.stripeRetireSubscriptions())
     : async (_userId: string) => { /* Billing remains hard OFF; no Stripe records can originate here. */ };
 app.use(createStripeWebhookRouter(stripeMembershipApi,stripeMembershipStore,
     stripeWebhookSecret ?? '',stripeBillingProcessingEnabled));

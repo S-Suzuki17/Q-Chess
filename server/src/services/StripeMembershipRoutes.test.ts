@@ -1,3 +1,4 @@
+import { invoiceFixture, paymentFixture, reconciliationToken } from './StripeTestFixtures';
 import { createHmac } from 'node:crypto';
 import http from 'node:http';
 import type { AddressInfo } from 'node:net';
@@ -8,6 +9,7 @@ import { AccountWriteGate } from './AccountDeletion';
 import { createStripeMembershipRouter, createStripeWebhookRouter } from './StripeMembershipRoutes';
 import { StripeMembershipError, StripeTestMembershipApi, verifyStripeWebhook, type StripeEvent } from './StripeMembership';
 import type { StripeMembershipStore } from './StripeMembershipStore';
+import { QG_STRIPE_API_VERSION } from './StripeApiVersion';
 
 const secret = 'whsec_testsecret123456';
 const checkout = { id: 'cs_test_ABCDEFGH', url: 'https://checkout.stripe.com/c/pay/cs_test_ABCDEFGH',
@@ -28,13 +30,15 @@ describe('Stripe test-only membership HTTP boundary', () => {
         token = (await auth.issueLegacySession('Alice', 'right'))!.token;
         api = { priceId: 'price_ABCDEFGH', livemode: false, createCheckout: vi.fn().mockResolvedValue(checkout),
             expireCheckout: vi.fn().mockResolvedValue(undefined),
-            isCheckoutExpired: vi.fn().mockResolvedValue(false), snapshot: vi.fn().mockResolvedValue(null),
+            isCheckoutExpired: vi.fn().mockResolvedValue(false), eventSubscriptionId: vi.fn().mockReturnValue(null), snapshot: vi.fn().mockResolvedValue(null),
             resolveReversal: vi.fn().mockResolvedValue([]), reversalContext: vi.fn() };
         store = { verifyUser: vi.fn().mockResolvedValue(null), blocked: vi.fn().mockResolvedValue(false),
             preflight: vi.fn().mockResolvedValue({ eligible: true, reason: null, checkoutId: null, expiresAt: null }),
             closeExpiredIntent: vi.fn().mockResolvedValue(undefined),
             registerCheckoutIntent: vi.fn().mockResolvedValue(undefined), applySnapshot: vi.fn().mockResolvedValue(undefined),
             applyReversal: vi.fn().mockResolvedValue(undefined),
+            acquireReconciliation: vi.fn().mockResolvedValue({ token: reconciliationToken, retired: false }),
+            releaseReconciliation: vi.fn().mockResolvedValue(undefined),
             portalCustomer: vi.fn().mockResolvedValue(null),
             status: vi.fn().mockResolvedValue(status), claim: vi.fn().mockResolvedValue(claim) };
         const app = express();
@@ -111,7 +115,7 @@ describe('Stripe test-only membership HTTP boundary', () => {
         expect(store.claim).toHaveBeenCalledExactlyOnceWith('Alice', false);
     });
     it('verifies raw webhook signature and never accepts a forged or live-mode event', async () => {
-        const event = { id: 'evt_ABCDEFGH', type: 'invoice.paid', created: Math.floor(Date.now() / 1000),
+        const event = { id: 'evt_ABCDEFGH', type: 'invoice.paid', created: Math.floor(Date.now() / 1000), api_version: QG_STRIPE_API_VERSION,
             livemode: false, data: { object: { id: 'in_ABCDEFGH' } } };
         const body = JSON.stringify(event);
         const t = Math.floor(Date.now() / 1000);
@@ -123,8 +127,8 @@ describe('Stripe test-only membership HTTP boundary', () => {
         expect((await signed(`${body} `)).status).toBe(400);
         expect(api.snapshot).not.toHaveBeenCalled();
         expect((await signed(body)).status).toBe(202);
-        expect(api.snapshot).toHaveBeenCalledOnce();
-        const verified = (api.snapshot as ReturnType<typeof vi.fn>).mock.calls[0][0] as StripeEvent;
+        expect(api.eventSubscriptionId).toHaveBeenCalledOnce();
+        const verified = (api.eventSubscriptionId as ReturnType<typeof vi.fn>).mock.calls[0][0] as StripeEvent;
         expect(verified.payloadHash).toMatch(/^[0-9a-f]{64}$/);
         expect(store.applySnapshot).not.toHaveBeenCalled();
         const liveBody = JSON.stringify({ ...event, livemode: true });
@@ -133,7 +137,7 @@ describe('Stripe test-only membership HTTP boundary', () => {
         expect((await signed(liveBody, liveSig)).status).toBe(400);
     });
     it('suspends current-period refunded membership before acknowledging a signed risk event', async () => {
-        const risk = { id: 'evt_REVERSAL1', type: 'charge.refunded', created: Math.floor(Date.now() / 1000),
+        const risk = { id: 'evt_REVERSAL1', type: 'charge.refunded', created: Math.floor(Date.now() / 1000), api_version: QG_STRIPE_API_VERSION,
             livemode: false, data: { object: { id: 'ch_ABCDEFGH', payment_intent: 'pi_ABCDEFGH' } } };
         const body = JSON.stringify(risk);
         const timestamp = Math.floor(Date.now() / 1000);
@@ -166,8 +170,27 @@ describe('Stripe test-only membership HTTP boundary', () => {
         expect(live.status).toBe(400);
         expect(api.resolveReversal).toHaveBeenCalledTimes(2);
     });
+    it('acquires the DB lease before canonical reads, retries contention, and acknowledges retired IDs without reading Stripe', async () => {
+        const subscriptionId='sub_ABCDEFGH';
+        api.eventSubscriptionId = vi.fn().mockReturnValue(subscriptionId);
+        api.snapshot = vi.fn().mockResolvedValue({ subscriptionId, eventId:'evt_LEASE001', livemode:false });
+        const event={id:'evt_LEASE001',type:'customer.subscription.updated',created:Math.floor(Date.now()/1000),
+            api_version:QG_STRIPE_API_VERSION,livemode:false,data:{object:{id:subscriptionId}}};
+        const body=JSON.stringify(event), t=Math.floor(Date.now()/1000);
+        const sig=createHmac('sha256',secret).update(`${t}.${body}`).digest('hex');
+        const send=()=>fetch(`${base}/membership/stripe/webhook`,{method:'POST',body,
+            headers:{'Content-Type':'application/json','Stripe-Signature':`t=${t},v1=${sig}`}});
+        store.acquireReconciliation.mockRejectedValueOnce(new Error('busy'));
+        expect((await send()).status).toBe(503); expect(api.snapshot).not.toHaveBeenCalled();
+        expect((await send()).status).toBe(200);
+        expect(store.acquireReconciliation.mock.invocationCallOrder[1]).toBeLessThan((api.snapshot as ReturnType<typeof vi.fn>).mock.invocationCallOrder[0]);
+        expect(store.applySnapshot).toHaveBeenCalledWith(expect.objectContaining({reconciliationToken}));
+        expect(store.releaseReconciliation).toHaveBeenCalledWith(subscriptionId,false,reconciliationToken);
+        store.acquireReconciliation.mockResolvedValueOnce({retired:true,token:null});
+        expect((await send()).status).toBe(200); expect(api.snapshot).toHaveBeenCalledOnce();
+    });
     it('records an old-invoice dispute without presenting it as the current invoice', async () => {
-        const risk = { id: 'evt_DISPUTE12', type: 'charge.dispute.created', created: Math.floor(Date.now() / 1000),
+        const risk = { id: 'evt_DISPUTE12', type: 'charge.dispute.created', created: Math.floor(Date.now() / 1000), api_version: QG_STRIPE_API_VERSION,
             livemode: false, data: { object: { charge: 'ch_ABCDEFGH' } } };
         const body = JSON.stringify(risk);
         const timestamp = Math.floor(Date.now() / 1000);
@@ -193,7 +216,7 @@ describe('Stripe test-only membership HTTP boundary', () => {
         });
         expect(result.status).toBe(200);
         expect(store.status).toHaveBeenCalledWith('Alice', true);
-        const risk = { id: 'evt_LIVERISK1', type: 'charge.refunded', created: Math.floor(Date.now() / 1000),
+        const risk = { id: 'evt_LIVERISK1', type: 'charge.refunded', created: Math.floor(Date.now() / 1000), api_version: QG_STRIPE_API_VERSION,
             livemode: true, data: { object: { id: 'ch_ABCDEFGH', payment_intent: 'pi_ABCDEFGH' } } };
         const body = JSON.stringify(risk);
         const timestamp = Math.floor(Date.now() / 1000);
@@ -218,19 +241,18 @@ describe('Stripe test-only membership HTTP boundary', () => {
 describe('Stripe canonical test-mode snapshot', () => {
     const subscription = { id: 'sub_ABCDEFGH', livemode: false, customer: 'cus_ABCDEFGH', status: 'active',
         latest_invoice: 'in_ABCDEFGH', current_period_end: 1800000000,
-        cancel_at_period_end: false,
+        cancel_at_period_end: false, automatic_tax: { enabled: false },
         items: { data: [{ price: { id: 'price_ABCDEFGH' }, quantity: 1 }], has_more: false } };
     const sessionList = { data: [{ id: 'cs_test_ABCDEFGH', livemode: false, mode: 'subscription',
-        subscription: 'sub_ABCDEFGH', customer: 'cus_ABCDEFGH', client_reference_id: 'Alice' }], has_more: false };
-    const event = { id: 'evt_ABCDEFGH', type: 'customer.subscription.updated', created: 1790000000,
+        subscription: 'sub_ABCDEFGH', customer: 'cus_ABCDEFGH', client_reference_id: 'Alice', status: 'complete', payment_status: 'paid' }], has_more: false };
+    const event = { id: 'evt_ABCDEFGH', type: 'customer.subscription.updated', created: 1790000000, api_version: QG_STRIPE_API_VERSION,
         livemode: false, data: { object: { id: 'sub_ABCDEFGH' } }, payloadHash: 'a'.repeat(64) };
     it('projects unpaid unless the canonical latest invoice is paid in USD', async () => {
         let paid = false;
         const request = vi.fn(async (url: string) => {
-            const value = url.includes('/subscriptions/') ? subscription
+            const value = paymentFixture(url) ?? (url.includes('/subscriptions/') ? subscription
                 : url.includes('/checkout/sessions?') ? sessionList
-                : { id: 'in_ABCDEFGH', livemode: false, subscription: subscription.id,
-                    currency: 'usd', paid, status: paid ? 'paid' : 'open', amount_paid: paid ? 299 : 0 };
+                : { ...invoiceFixture(), status: paid ? 'paid' : 'open', amount_paid: paid ? 299 : 0 });
             return Response.json(value);
         });
         const api = new StripeTestMembershipApi({ secretKey: 'sk_test_ABCDEFGH', webhookSecret: secret,

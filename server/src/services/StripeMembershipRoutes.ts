@@ -30,25 +30,41 @@ export function createStripeWebhookRouter(
             if (REVERSAL_EVENTS.has(event.type)) {
                 const targets = await api!.resolveReversal(event);
                 for (const target of targets) {
-                    const context = await api!.reversalContext(event, target.subscriptionId);
-                    const reversedInvoiceId = target.reversedInvoiceIds.includes(context.currentInvoiceId)
-                        ? context.currentInvoiceId : target.reversedInvoiceIds[0];
-                    if (!reversedInvoiceId) throw new StripeMembershipError('REVERSAL_INVOICE_MISSING');
-                    await store.applyReversal({
-                        eventId: event.id, eventPayloadHash: event.payloadHash,
-                        eventType: event.type as 'charge.refunded' | 'charge.dispute.created' | 'radar.early_fraud_warning.created',
-                        subscriptionId: target.subscriptionId, reversedInvoiceId,
-                        currentInvoiceId: context.currentInvoiceId,
-                        checkoutId: context.checkoutId, customerId: context.customerId,
-                        userId: context.userId, periodEnd: context.periodEnd, livemode: event.livemode,
-                    });
+                    const lease = await store.acquireReconciliation(target.subscriptionId, event.livemode);
+                    if (lease.retired) continue;
+                    try {
+                        const context = await api!.reversalContext(event, target.subscriptionId);
+                        const reversedInvoiceId = target.reversedInvoiceIds.includes(context.currentInvoiceId)
+                            ? context.currentInvoiceId : target.reversedInvoiceIds[0];
+                        if (!reversedInvoiceId) throw new StripeMembershipError('REVERSAL_INVOICE_MISSING');
+                        await store.applyReversal({
+                            eventId: event.id, eventPayloadHash: event.payloadHash,
+                            eventType: event.type as 'charge.refunded' | 'charge.dispute.created' | 'radar.early_fraud_warning.created',
+                            subscriptionId: target.subscriptionId, reversedInvoiceId,
+                            currentInvoiceId: context.currentInvoiceId,
+                            checkoutId: context.checkoutId, customerId: context.customerId,
+                            userId: context.userId, periodEnd: context.periodEnd, livemode: event.livemode,
+                            reconciliationToken: lease.token!,
+                        });
+                    } finally {
+                        await store.releaseReconciliation(target.subscriptionId, event.livemode, lease.token!);
+                    }
                 }
                 res.status(targets.length ? 200 : 202).json({ received: true });
                 return;
             }
-            const snapshot = await api!.snapshot(event);
-            if (snapshot) await store.applySnapshot(snapshot);
-            res.status(snapshot ? 200 : 202).json({ received: true });
+            const subscriptionId = api!.eventSubscriptionId(event);
+            if (!subscriptionId) { res.status(202).json({ received: true }); return; }
+            const lease = await store.acquireReconciliation(subscriptionId, event.livemode);
+            if (lease.retired) { res.status(200).json({ received: true }); return; }
+            try {
+                const snapshot = await api!.snapshot(event);
+                if (!snapshot || snapshot.subscriptionId !== subscriptionId) throw new StripeMembershipError();
+                await store.applySnapshot({ ...snapshot, reconciliationToken: lease.token! });
+            } finally {
+                await store.releaseReconciliation(subscriptionId, event.livemode, lease.token!);
+            }
+            res.status(200).json({ received: true });
         } catch (error) {
             const code = error instanceof StripeMembershipError ? error.message : '';
             // Bad signatures are terminal. Transient Stripe/DB or unresolved reversal

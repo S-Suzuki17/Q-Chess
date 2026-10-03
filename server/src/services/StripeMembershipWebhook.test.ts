@@ -2,11 +2,12 @@ import { createHash } from 'node:crypto';
 import Stripe from 'stripe';
 import { describe, expect, it } from 'vitest';
 import { verifyStripeWebhook } from './StripeMembership';
+import { QG_STRIPE_API_VERSION } from './StripeApiVersion';
 
 const secret = 'whsec_FAKESECRET12345';
 const now = 1800000000000;
 const event = {
-    id: 'evt_ABCDEFGH', type: 'customer.subscription.updated', created: now / 1000,
+    id: 'evt_ABCDEFGH', type: 'customer.subscription.updated', created: now / 1000, api_version: QG_STRIPE_API_VERSION,
     livemode: false, data: { object: { id: 'sub_ABCDEFGH' } },
 };
 const raw = Buffer.from(JSON.stringify(event));
@@ -44,5 +45,10 @@ describe('official Stripe webhook signature boundary', () => {
         const tampered = signed.replace(/v1=([0-9a-f])/, (_match, first: string) => `v1=${first === '0' ? '1' : '0'}`);
         expect(() => verifyStripeWebhook(raw,
             { 'stripe-signature': tampered }, secret, now)).toThrow('INVALID_SIGNATURE');
+    });
+    it('rejects a correctly signed event from another destination schema', () => {
+        const wrong = Buffer.from(JSON.stringify({ ...event, api_version: '2025-03-31.basil' }));
+        expect(() => verifyStripeWebhook(wrong, { 'stripe-signature': header(wrong, now / 1000) }, secret, now))
+            .toThrow('INVALID_EVENT');
     });
 });

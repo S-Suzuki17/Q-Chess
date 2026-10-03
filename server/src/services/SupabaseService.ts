@@ -16,7 +16,7 @@ import {createAccountTermsStore} from './AccountTerms';
 import {createEngagementMetricsStore} from './EngagementMetrics';
 import {createDailyLoginStore} from './DailyLoginStore';
 import {createStripeMembershipStore} from './StripeMembershipStore';
-import {createStripeDeletionLinkSource} from './StripeCancellation';
+import {createStripeDeletionLinkSource, createStripeRetireSubscriptions} from './StripeCancellation';
 import { CpuPracticeService } from './CpuPracticeService';
 import { cpuHintTicketsEnabled, rankedTicketAdmissionEnabled, rankedAdmissionRecoveryEnabled } from './TicketFeatureGates';
 import { createRankedAdmissionStore } from './RankedAdmissionStore';
@@ -60,6 +60,7 @@ export class SupabaseService {
             id=>this.accountDeletionStore().blocked(id));
     }
     public stripeDeletionLinks() { return createStripeDeletionLinkSource(this.supabase); }
+    public stripeRetireSubscriptions() { return createStripeRetireSubscriptions(this.supabase); }
     public engagementMetricsStore() { return createEngagementMetricsStore(this.supabase); }
     public foundersStore() {return createFoundersStore(this.supabase,token=>this.verifyUser(token));}
     public accountDeletionStore() { return createAccountDeletionStore(this.supabase, token => this.verifyUser(token)); }

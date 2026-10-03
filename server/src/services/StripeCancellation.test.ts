@@ -12,7 +12,7 @@ describe('Stripe cancellation before permanent account deletion', () => {
     it('does not call Stripe when the server-owned inventory is empty', async () => {
         const source = linkSource({ intents: [], memberships: [] });
         const request = vi.fn();
-        await createStripeCancellationGuard(source, {}, request as unknown as typeof fetch)('Alice');
+        await createStripeCancellationGuard(source, {}, request as unknown as typeof fetch, vi.fn().mockResolvedValue(undefined))('Alice');
         expect(request).not.toHaveBeenCalled();
     });
     it('expires an open Checkout Session before erasing its account', async () => {
@@ -20,7 +20,7 @@ describe('Stripe cancellation before permanent account deletion', () => {
         const request = vi.fn(async (url: string, init: RequestInit) => Response.json({
             ...completeSession, status: init.method === 'POST' ? 'expired' : 'open', subscription: null,
         }));
-        await createStripeCancellationGuard(source, key, request as unknown as typeof fetch)('Alice');
+        await createStripeCancellationGuard(source, key, request as unknown as typeof fetch, vi.fn().mockResolvedValue(undefined))('Alice');
         expect(request).toHaveBeenCalledTimes(2);
         expect(request.mock.calls[1][0]).toContain('/expire');
     });
@@ -38,7 +38,7 @@ describe('Stripe cancellation before permanent account deletion', () => {
             if (init.method === 'DELETE') canceled = true;
             return response;
         });
-        const guard = createStripeCancellationGuard(source, key, guardedRequest as unknown as typeof fetch);
+        const guard = createStripeCancellationGuard(source, key, guardedRequest as unknown as typeof fetch, vi.fn().mockResolvedValue(undefined));
         await guard('Alice');
         expect(canceled).toBe(true);
         expect(guardedRequest.mock.calls.filter(([, init]) => init.method === 'DELETE')).toHaveLength(1);
@@ -65,8 +65,17 @@ describe('Stripe cancellation before permanent account deletion', () => {
             url.includes('/checkout/sessions/') ? completeSession : {
                 ...subscription, status: init.method === 'DELETE' ? 'canceled' : 'active',
             }));
-        await createStripeCancellationGuard(source, key, request as unknown as typeof fetch)('Alice');
+        await createStripeCancellationGuard(source, key, request as unknown as typeof fetch, vi.fn().mockResolvedValue(undefined))('Alice');
         expect(request.mock.calls.some(([url, init]) => url.includes('/subscriptions/') && init.method === 'DELETE'))
             .toBe(true);
+    });
+    it('retains canceled routing IDs before deletion and blocks deletion if the tombstone write fails',async()=>{
+        const source=linkSource({intents:[testIntent],memberships:[]});
+        const request=vi.fn(async(url:string,init:RequestInit)=>Response.json(url.includes('/checkout/')?completeSession:
+            {...subscription,status:init.method==='DELETE'?'canceled':'active'}));
+        const retire=vi.fn().mockRejectedValue(new Error('DB unavailable'));
+        await expect(createStripeCancellationGuard(source,key,request as unknown as typeof fetch,retire)('Alice')).rejects.toThrow();
+        expect(retire).toHaveBeenCalledWith('Alice',[{subscriptionId:subscription.id,checkoutId:testIntent.checkoutId,livemode:false}]);
+        expect(request.mock.invocationCallOrder.at(-1)).toBeLessThan(retire.mock.invocationCallOrder[0]);
     });
 });

@@ -1,3 +1,4 @@
+import { invoiceFixture, paymentFixture, reconciliationToken } from './StripeTestFixtures';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { describe, expect, it, vi } from 'vitest';
 import { QG_LIVE_MONTHLY_PRICE_ID, StripeMembershipApi, type StripeEvent } from './StripeMembership';
@@ -15,7 +16,7 @@ for (const mode of ['test', 'live'] as const) {
         const subscription = {
             id: 'sub_ABCDEFGH', livemode: mode === 'live', customer: 'cus_ABCDEFGH',
             status: 'active', latest_invoice: 'in_ABCDEFGH', current_period_end: 1800000000,
-            cancel_at_period_end: false,
+            cancel_at_period_end: false, automatic_tax: { enabled: false },
             items: { data: [{ price: { id: wrongPrice }, quantity: 1 }], has_more: false },
         };
         const checkout = {
@@ -41,7 +42,7 @@ for (const mode of ['test', 'live'] as const) {
                 priceId: wrongPrice, status: 'unpaid', paidNewPeriod: false, livemode: mode === 'live' });
             expect(request).toHaveBeenCalledTimes(2);
             const invoiceEvent: StripeEvent = { ...event, type: 'invoice.paid',
-                data: { object: { id: subscription.latest_invoice, subscription: subscription.id } } };
+                data: { object: { id: subscription.latest_invoice, parent: invoiceFixture().parent } } };
             expect((await api.snapshot(invoiceEvent))?.paidNewPeriod).toBe(false);
         });
 
@@ -89,11 +90,9 @@ for (const mode of ['test', 'live'] as const) {
                 subscriptionId: subscription.id, checkoutId: checkout.id, customerId: subscription.customer,
                 userId: 'Alice', priceId: wrongPrice, status: 'unpaid',
                 periodEnd: new Date(subscription.current_period_end * 1000).toISOString(),
-                paidNewPeriod: false, cancelAtPeriodEnd: false, livemode: mode === 'live',
+                paidNewPeriod: false, cancelAtPeriodEnd: false, reconciliationToken, livemode: mode === 'live',
             });
-            expect(rpc).toHaveBeenCalledWith(mode === 'live'
-                ? 'apply_stripe_live_membership_snapshot_with_schedule'
-                : 'apply_stripe_membership_snapshot_with_schedule',
+            expect(rpc).toHaveBeenCalledWith('apply_stripe_canonical_membership_snapshot',
             expect.objectContaining({ p_price_id: wrongPrice, p_status: 'unpaid', p_paid_new_period: false }));
         });
     });

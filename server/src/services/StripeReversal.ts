@@ -1,5 +1,5 @@
 import { StripeMembershipError, type StripeEvent } from './StripeMembership';
-import { QG_STRIPE_API_VERSION } from './StripeApiVersion';
+import { createStripeClient, stripeRequest } from './StripeClient';
 
 const stripeId = (value: unknown, prefix: string): value is string =>
     typeof value === 'string' && new RegExp(`^${prefix}[A-Za-z0-9]{8,200}$`).test(value);
@@ -33,13 +33,11 @@ export async function resolveStripeReversal(
         throw new StripeMembershipError('STRIPE_REVERSAL_MODE_MISMATCH');
     }
 
+    const client = createStripeClient(secretKey, request);
     const call = async (path: string): Promise<Record<string, unknown>> => {
-        const response = await request(`https://api.stripe.com/v1/${path}`, {
-            headers: { Authorization: `Bearer ${secretKey}`, 'Stripe-Version': QG_STRIPE_API_VERSION },
-            signal: AbortSignal.timeout(6000),
-        });
-        if (!response.ok) throw new StripeMembershipError('REVERSAL_LOOKUP_UNAVAILABLE');
-        const value: unknown = await response.json();
+        let value: unknown;
+        try { value = await stripeRequest(client, path); }
+        catch { throw new StripeMembershipError('REVERSAL_LOOKUP_UNAVAILABLE'); }
         if (!object(value) || ('livemode' in value && value.livemode !== livemode)) {
             throw new StripeMembershipError('REVERSAL_LOOKUP_INVALID');
         }
@@ -86,7 +84,7 @@ export async function resolveStripeReversal(
             const invoiceId = payment.invoice;
             const invoice = await call(`invoices/${encodeURIComponent(invoiceId)}`);
             if (invoice.id !== invoiceId || invoice.object !== 'invoice'
-                || invoice.status !== 'paid' || invoice.paid !== true) {
+                || invoice.status !== 'paid' || invoice.livemode !== livemode) {
                 throw new StripeMembershipError('REVERSAL_INVOICE_INVALID');
             }
             const parent = object(invoice.parent) ? invoice.parent : null;
