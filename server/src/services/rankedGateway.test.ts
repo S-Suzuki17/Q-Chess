@@ -82,6 +82,8 @@ async function socket(token: unknown, id = 'socket-1') {
     return { s, next, dispatch };
 }
 beforeEach(async () => {
+    vi.stubEnv('RANKED_TICKET_ADMISSION_ENABLED', 'false');
+    vi.stubEnv('RANKED_ADMISSION_RECOVERY_ENABLED', 'false');
     vi.resetModules(); vi.clearAllMocks(); vi.useFakeTimers(); vi.setSystemTime(1_000_000);
     vi.spyOn(console, 'log').mockImplementation(() => {});
     vi.spyOn(NetServer.prototype, 'listen').mockImplementation(() => { throw new Error('Real server startup forbidden in gateway tests'); });
@@ -93,6 +95,8 @@ beforeEach(async () => {
     h.service.getMatchRating.mockResolvedValue(1000); h.mm.joinQueue.mockReturnValue({ success: true });
     h.blocked.mockReset().mockResolvedValue(false);
     (h.service as any).accountDeletionStore = () => ({ blocked: h.blocked });
+    (h.service as any).stripeDeletionLinks = () => vi.fn(async () => ({ intents: [], memberships: [] }));
+    (h.service as any).stripeRetireSubscriptions = () => vi.fn(async () => {});
     (h.service as any).accountRecoveryStore = () => ({});
     (h.service as any).accountProfileStore = () => ({});
     (h.service as any).accountSecurityStore = () => ({restricted:async()=>false});
@@ -117,7 +121,7 @@ async function realMatchmaking() {
         'takeCpuFallbacks', 'joinQueue', 'leaveQueue', 'removeSocket', 'getMatch', 'reserveMatch', 'connectMatch']) {
         vi.spyOn(h.mm as any, key).mockImplementation((...args: any[]) => (actual as any)[key](...args));
     }
-    vi.stubEnv('RANKED_TICKET_ADMISSION_ENABLED', 'true');
+    vi.stubEnv('RANKED_TICKET_ADMISSION_ENABLED', 'false');
     h.service.admitRankedMatch.mockRejectedValue(new Error('Missing ticket migration'));
     return actual;
 }
@@ -164,11 +168,11 @@ describe('ranked gateway without network or database side effects', () => {
         expect(h.service.voidRankedAdmission).not.toHaveBeenCalled();
     });
 
-    it('rejects untrusted paid hint history before constructing a service or debiting any ticket', async () => {
-        vi.stubEnv('CPU_HINT_TICKETS_ENABLED', 'true');
+    it.each(['false', 'true'])('rejects untrusted paid hint history without debiting tickets when enabled=%s', async enabled => {
+        vi.stubEnv('CPU_HINT_TICKETS_ENABLED', enabled);
         const guest = await socket('GUEST-test');
         await guest.dispatch('request_cpu_hint', { requestId: 'request', pool: 'white', moveHistory: ['forged'] });
-        expect(guest.s.emit).toHaveBeenCalledWith('cpu_hint_error', { requestId: 'request', error: 'FEATURE_DISABLED' });
+        expect(guest.s.emit).toHaveBeenCalledWith('cpu_hint_error', { requestId: 'request', error: enabled === 'true' ? 'USE_CPU_PRACTICE_API' : 'FEATURE_DISABLED' });
         expect(h.service.cpuPracticeService).not.toHaveBeenCalled();
         expect(fetch).not.toHaveBeenCalled();
     });

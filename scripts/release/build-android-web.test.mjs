@@ -27,9 +27,11 @@ function run(env = {}, target = 'web', publicSettings = {}) {
     return call;
 }
 
-test('keeps the default bundler and supports explicit webpack for shared dependencies', () => {
-    assert.deepEqual(Array.from(run()[1]), ['/next-cli', 'build']);
+test('uses the verified Webpack bundler by default for shared server dependencies', () => {
+    assert.deepEqual(Array.from(run()[1]), ['/next-cli', 'build', '--webpack']);
+    assert.equal(JSON.parse(readFileSync(new URL('../../package.json',import.meta.url),'utf8')).scripts.build,'next build --webpack');
     assert.deepEqual(Array.from(run({ QG_BUILD_BUNDLER: 'webpack' })[1]), ['/next-cli', 'build', '--webpack']);
+    assert.deepEqual(Array.from(run({ QG_BUILD_BUNDLER: 'turbopack' })[1]), ['/next-cli', 'build']);
     assert.throws(() => run({ QG_BUILD_BUNDLER: 'other' }), /Invalid release build bundler/);
 });
 

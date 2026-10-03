@@ -12,7 +12,8 @@ if(!androidBuild)throw new Error('Android versionCode is required');
 const sourceRoot = process.argv[2];
 if (!sourceRoot) throw new Error('Usage: node scripts/release/build-android-web.cjs <configured-project-directory>');
 const originalEnv = { ...process.env };
-const bundler = originalEnv.QG_BUILD_BUNDLER ?? 'turbopack';
+// Shared TypeScript from the CommonJS game-server package requires Webpack.
+const bundler = originalEnv.QG_BUILD_BUNDLER ?? 'webpack';
 if (!['turbopack', 'webpack'].includes(bundler)) throw new Error('Invalid release build bundler');
 const { combinedEnv: configured } = loadEnvConfig(path.resolve(sourceRoot), false);
 const url = configured.NEXT_PUBLIC_SUPABASE_URL;

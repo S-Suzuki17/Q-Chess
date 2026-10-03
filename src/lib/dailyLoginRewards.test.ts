@@ -19,9 +19,9 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
-it('keeps account claims and balance UI OFF until the release is verified', () => {
+it('keeps Web claims OFF without public opt-in even when server source is ready', () => {
     expect(DAILY_LOGIN_REWARDS_ENABLED).toBe(false);
-    expect(DAILY_LOGIN_REWARDS_ENABLED).toBe(DAILY_LOGIN_REWARDS_RELEASE_READY);
+    expect(DAILY_LOGIN_REWARDS_RELEASE_READY).toBe(true);
 });
 it('blocks even direct status and claim requests while the Web gate is OFF', async () => {
     const fetcher = vi.fn(); vi.stubGlobal('fetch', fetcher);

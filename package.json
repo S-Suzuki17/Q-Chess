@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build --webpack",
     "start": "next start",
     "test": "vitest run",
     "test:board": "vitest run src/components/MatchLayout.test.ts src/hooks/useMoveHint.test.ts",

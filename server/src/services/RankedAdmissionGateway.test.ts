@@ -27,7 +27,10 @@ vi.mock('http', () => ({ default: { createServer: vi.fn(() => ({ listen: h.liste
 vi.mock('cors', () => ({ default: vi.fn(() => () => {}) }));
 vi.mock('socket.io', () => ({ Server: class { constructor() { return h.io; } } }));
 vi.mock('./SupabaseService', () => ({ SupabaseService: class { constructor() { return h.service; } } }));
-vi.mock('../matchmaking/MatchmakingService', () => ({ MatchmakingService: class { constructor() { return h.mm; } } }));
+vi.mock('../matchmaking/MatchmakingService', async importOriginal => ({
+    CPU_FALLBACK_MS: (await importOriginal<typeof import('../matchmaking/MatchmakingService')>()).CPU_FALLBACK_MS,
+    MatchmakingService: class { constructor() { return h.mm; } },
+}));
 vi.mock('../game/RankedRuntime', () => ({ RankedRuntime: class { tick = h.tick; } }));
 vi.mock('../game/GameEngine', () => ({ GameEngine: class {
     constructor(...args: any[]) { if (h.engineClass) return new (h.engineClass as any)(...args); }
@@ -94,6 +97,8 @@ beforeEach(async () => {
     h.service.getMatchRating.mockResolvedValue(1000); h.mm.joinQueue.mockReturnValue({ success: true });
     h.blocked.mockReset().mockResolvedValue(false);
     (h.service as any).accountDeletionStore = () => ({ blocked: h.blocked });
+    (h.service as any).stripeDeletionLinks = () => vi.fn(async () => ({ intents: [], memberships: [] }));
+    (h.service as any).stripeRetireSubscriptions = () => vi.fn(async () => {});
     (h.service as any).accountRecoveryStore = () => ({});
     (h.service as any).accountProfileStore = () => ({});
     (h.service as any).accountSecurityStore = () => ({restricted:async()=>false});

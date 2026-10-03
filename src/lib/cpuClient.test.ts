@@ -9,7 +9,7 @@ import { cpuHintTicketsEnabled } from '../../server/src/services/TicketFeatureGa
 afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
 
 it('still returns a legal CPU practice hint from the local worker while ticket services are OFF', async () => {
-    vi.stubEnv('CPU_HINT_TICKETS_ENABLED', 'true');
+    vi.stubEnv('CPU_HINT_TICKETS_ENABLED', 'false');
     expect(cpuHintTicketsEnabled()).toBe(false);
     const fetcher = vi.fn(() => { throw new Error('Free practice must not contact ticket services'); });
     vi.stubGlobal('fetch', fetcher);

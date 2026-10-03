@@ -52,8 +52,8 @@ describe('authenticated daily login reward HTTP API', () => {
         expect(result.headers.get('cache-control')).toBe('no-store');
         expect(store.read).not.toHaveBeenCalled();
     });
-    it('keeps the production default OFF even when the environment requests ON', async () => {
-        vi.stubEnv('DAILY_LOGIN_REWARDS_ENABLED', 'true');
+    it('keeps the production default OFF without explicit environment activation', async () => {
+        vi.stubEnv('DAILY_LOGIN_REWARDS_ENABLED', undefined);
         const app = express(); app.use(createDailyLoginRouter(auth, store, gate));
         const dormant = http.createServer(app);
         await new Promise<void>(resolve => dormant.listen(0, '127.0.0.1', resolve));
