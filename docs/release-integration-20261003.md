@@ -10,7 +10,8 @@ This is a local integration checkpoint, not authorization to sell or deploy.
 - T2 durable CPU practice / hint fulfillment: `b7cd7bf` (source `caf3fb5`).
 - T4 canonical Stripe reconciliation: `5b8d4c3` (source `db7a391`).
 - Integration preserves both ranked/CPU routes and test patterns, the dynamic CPU feature gate and all distinct QUBE posts. No unrelated worktree changes were discarded.
-- T3's additional refund-credit display and match-preparation/recovery UI are still being verified in its separate task; take only its new commit after the T1 base.
+- T3's additional refund-credit API/UI are integrated as `4d497df` and `3a80989` (sources `29c2e82` / `35d78d9`).
+- The owner confirmed member-ticket caps of 60 each, separate from free caps of 20, and approved `docs/sales-owner-review-20261003.md` for publication on the actual release date.
 
 ## Integration fixes and evidence
 
@@ -20,10 +21,10 @@ The Stripe SQL fixture failed because T1's new ranked-void migration expects the
 
 After these fixes:
 
-- All 151 Vitest files / 1,148 tests passed; typecheck and server build passed.
+- After refund UI and the approved member cap update, all 156 Vitest files / 1,184 tests passed; typecheck and server build passed.
 - CPU hint SQL / actual service / search-worker tests passed, including request retries, disconnects, free/paid entitlement changes and ownership.
 - Ranked SQL's 13 scenarios and the ranked migration-chain check passed.
-- Stripe canonical SQL passed. Native PostgreSQL with independent processes passed lease contention, expired-owner fencing, crashes before/after commit and 12 refund/late-payment races. Test processes and database were stopped.
+- Stripe canonical SQL passed with 14 raw migrations. The new cap suite passed both test/live-mode SQL: 60-cap, partial/full grants, same-day replay, unchanged free cap 20, invalid values and role denial. Native PostgreSQL with independent processes again passed lease contention, expired-owner fencing, crashes before/after commit and 12 refund/late-payment races. Test processes and database were stopped.
 - The production-configured Web export passed with explicit Webpack. An initial cached build failed inside `WasmHash`; the root worktree's generated cache was moved aside, not source-deleted. The fresh build needed permitted Google Fonts reads and then succeeded. This does not prove every Node/bundler configuration works.
 - Known Vite CommonJS configuration and Node local-storage warnings remain visible; they were not suppressed.
 
@@ -37,10 +38,10 @@ Production Supabase has only the free-wallet migration applied in this workflow 
 
 All source-level ticket, processing, checkout, portal, member-usage and sales-ready gates remain OFF. Advertising is independently OFF.
 
-- Confirm the paid-ticket holding cap; the SQL default of 20 is not owner approval.
-- Approve/finalize sales terms and coordinate Web/server/SQL consent versions while preserving older Android access to support, deletion and existing billing management.
+- Implement the now-approved sales terms and coordinate Web/server/SQL consent versions while preserving older Android access to support, deletion and existing billing management.
 - Owner must enter the restricted live key and webhook signing secret directly into server-only Render settings. Do not put keys in chat, source, browser inspection, build output or this document.
 - Finish a real sandbox Checkout → signed webhook → membership → daily ticket grant → consumption E2E. Direct API-created subscriptions and local SQL races are not that E2E.
+- Stripe CLI reauthentication is waiting for the owner in its browser. The approval button is disabled; an attempted form-selection reset was safety-blocked as potential account deletion. No account was deleted. Do not repeat that action or switch to live purchases for testing.
 - Check Supabase/PostgREST and target Render capacity, including CPU searches. Local PGlite/native PostgreSQL are useful evidence, not production parity or capacity proof.
 - Tax registrations and selling-region responsibilities remain unresolved. Automatic tax is OFF; do not claim tax exemption or regulatory compliance.
 - Verify the restricted key against the needed endpoint permissions without live charges. After first sale, processing, portal and deletion cancellation must remain enabled when only new checkout is rolled back.

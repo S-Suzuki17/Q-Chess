@@ -49,7 +49,7 @@ export interface StripeMembershipStore {
 
 const object = (value: unknown): value is Record<string, unknown> =>
     value !== null && typeof value === 'object' && !Array.isArray(value);
-const count = (value: unknown) => Number.isSafeInteger(value) && (value as number) >= 0 && (value as number) <= 20;
+const count = (value: unknown, maximum = 60) => Number.isSafeInteger(value) && (value as number) >= 0 && (value as number) <= maximum;
 function parseStatus(data: unknown, userId: string): StripeMembershipStatus {
     if (!object(data) || data.userId !== userId || typeof data.active !== 'boolean'
         || typeof data.cancelAtPeriodEnd !== 'boolean'
@@ -193,7 +193,7 @@ export function createStripeMembershipStore(
             if (error) throw new Error('MEMBERSHIP_UNAVAILABLE');
             const status = parseStatus(data, userId);
             if (!object(data) || typeof data.claimed !== 'boolean' || !object(data.credited)
-                || !count(data.credited.ranked) || !count(data.credited.hint)
+                || !count(data.credited.ranked, 3) || !count(data.credited.hint, 3)
                 || (!data.claimed && (data.credited.ranked !== 0 || data.credited.hint !== 0))) {
                 throw new Error('MEMBERSHIP_UNAVAILABLE');
             }

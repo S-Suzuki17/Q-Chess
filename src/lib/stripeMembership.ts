@@ -4,7 +4,7 @@ import { Capacitor } from '@capacitor/core';
 import { ANDROID_BUILD, platformFeatures } from '../config/appPlatform';
 import { supabase } from './supabaseClient';
 import { gameServerUrl, readRankedSession } from './rankedSession';
-import { webCommerceCheckoutReady } from '../config/webCommerce';
+import { MEMBER_TICKET_CAP, webCommerceCheckoutReady } from '../config/webCommerce';
 
 /** Local scaffold only. Never turn on before policy, fulfillment, and Play separation review. */
 export const STRIPE_WEB_MEMBERSHIP_ENABLED = false;
@@ -56,8 +56,8 @@ export function parseStripeMembershipStatus(value: unknown, userId: string): Str
         (row.active && row.periodEnd === null) ||
         (row.periodEnd !== null && (typeof row.periodEnd !== 'string' || !Number.isFinite(Date.parse(row.periodEnd)))) ||
         (row.lastGrantUtcDay !== null && !validDay(row.lastGrantUtcDay)) || !tickets ||
-        !Number.isSafeInteger(tickets.ranked) || (tickets.ranked as number) < 0 || (tickets.ranked as number) > 20 ||
-        !Number.isSafeInteger(tickets.hint) || (tickets.hint as number) < 0 || (tickets.hint as number) > 20) {
+        !Number.isSafeInteger(tickets.ranked) || (tickets.ranked as number) < 0 || (tickets.ranked as number) > MEMBER_TICKET_CAP.ranked ||
+        !Number.isSafeInteger(tickets.hint) || (tickets.hint as number) < 0 || (tickets.hint as number) > MEMBER_TICKET_CAP.hint) {
         throw new StripeMembershipError('UNAVAILABLE');
     }
     return {

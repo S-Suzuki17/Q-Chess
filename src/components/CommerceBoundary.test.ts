@@ -22,7 +22,7 @@ vi.mock('../hooks/useCircuitAccess', () => ({ useCircuitAccess: () => ({ allowed
 vi.mock('../lib/circuitAccess', () => ({ circuitAccess: { canPlay: () => true } }));
 vi.mock('../lib/dailyLoginRewards', () => ({ DAILY_LOGIN_REWARDS_ENABLED:true, DAILY_LOGIN_REWARD_CHANGED_EVENT:'daily-changed', readDailyLoginStatus:harness.rewardRead }));
 vi.mock('../config/webCommerce', async original => ({ ...await original<typeof import('../config/webCommerce')>(),
-    MEMBER_TICKET_CAP: {ranked:20,hint:20}, webCommerceCheckoutReady: () => harness.ready }));
+    MEMBER_TICKET_CAP: {ranked:60,hint:60}, webCommerceCheckoutReady: () => harness.ready }));
 vi.mock('../lib/stripeMembership', () => ({
     get STRIPE_WEB_MEMBERSHIP_ENABLED() { return harness.membership; }, get STRIPE_WEB_PORTAL_ENABLED() { return harness.portal; },
     get STRIPE_WEB_CHECKOUT_ENABLED() { return harness.checkout; }, MEMBER_TICKET_USAGE_ENABLED: true,

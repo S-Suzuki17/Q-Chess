@@ -11,13 +11,13 @@ export const COMMERCE_SELLER = {
     email: 'qgambit970@gmail.com',
 } as const;
 
-/** Filled only after the owner confirms the cap. Never treat the current SQL cap as approval. */
-export const MEMBER_TICKET_CAP: Readonly<{ ranked: number; hint: number }> | null = null;
+/** Owner approved on 2026-10-03; separate from each free pool's cap of 20. */
+export const MEMBER_TICKET_CAP: Readonly<{ ranked: number; hint: number }> = { ranked: 60, hint: 60 };
 export const WEB_COMMERCE_SALES_RELEASE_READY = false;
 
 export function webCommerceCheckoutReady(
     releaseReady = WEB_COMMERCE_SALES_RELEASE_READY,
-    cap = MEMBER_TICKET_CAP,
+    cap: Readonly<{ ranked: number; hint: number }> | null = MEMBER_TICKET_CAP,
     termsVersion = TERMS_VERSION,
 ): boolean {
     return releaseReady && termsVersion === SALES_TERMS_DRAFT_VERSION && !!cap &&

@@ -6,6 +6,7 @@ import { useCircuitAccess } from '../hooks/useCircuitAccess';
 import { circuitAccess } from '../lib/circuitAccess';
 import { dailyLoginText } from '../locales/dailyLoginText';
 import { ticketWalletText } from '../locales/ticketWalletText';
+import { MEMBER_TICKET_CAP } from '../config/webCommerce';
 import { MEMBER_TICKET_USAGE_ENABLED, readMemberTicketStatus, claimMemberTickets, type StripeMembershipStatus } from '../lib/stripeMembership';
 
 const MEMBER_TICKETS_CHANGED = 'qg-member-tickets-changed';
@@ -38,8 +39,8 @@ export function MemberTicketsPanel({ user, lang }: { user: User; lang: Language 
         <h4 className="font-semibold text-[#D4B872]">{wallet.member}</h4>
         {failed === revision ? <p role="status">{text.unavailable}</p> : !status ? <p role="status">{text.loading}</p> : <>
             <dl className="mt-2 grid grid-cols-[1fr_auto] gap-2">
-                <dt>{text.rankedTickets}</dt><dd>{status.tickets.ranked}</dd>
-                <dt>{text.hintTickets}</dt><dd>{status.tickets.hint}</dd>
+                <dt>{text.rankedTickets}</dt><dd>{status.tickets.ranked} / {MEMBER_TICKET_CAP.ranked}</dd>
+                <dt>{text.hintTickets}</dt><dd>{status.tickets.hint} / {MEMBER_TICKET_CAP.hint}</dd>
                 <dt>{text.lastClaimUtcDay}</dt><dd>{status.lastGrantUtcDay ?? text.notClaimed}</dd>
             </dl>
             <p className="mt-2 text-xs leading-relaxed">{wallet.expiry}</p>

@@ -4,7 +4,7 @@ import { SALES_TERMS_DRAFT } from './salesTermsDraft';
 import { TERMS_VERSION } from './terms';
 
 it('fails closed until the cap, reviewed release and new effective consent version are all configured', () => {
-    expect(MEMBER_TICKET_CAP).toBeNull();
+    expect(MEMBER_TICKET_CAP).toEqual({ ranked: 60, hint: 60 });
     expect(webCommerceCheckoutReady()).toBe(false);
     expect(webCommerceCheckoutReady(true, null, SALES_TERMS_DRAFT_VERSION)).toBe(false);
     expect(webCommerceCheckoutReady(true, {ranked:20,hint:20}, TERMS_VERSION)).toBe(false);

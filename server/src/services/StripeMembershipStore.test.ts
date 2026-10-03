@@ -4,6 +4,23 @@ import { describe, expect, it, vi } from 'vitest';
 import { createStripeMembershipStore } from './StripeMembershipStore';
 
 describe('Stripe service-role adapter', () => {
+    it('accepts member balances up to 60 but grants no more than 3 per day', async () => {
+        let data = { userId: 'Alice', active: true, cancelAtPeriodEnd: false,
+            periodEnd: '2026-11-03T00:00:00Z', lastGrantUtcDay: '2026-10-03',
+            tickets: { ranked: 60, hint: 60 }, claimed: true, credited: { ranked: 1, hint: 2 } };
+        const rpc = vi.fn((name: string) => ({ abortSignal: vi.fn().mockImplementation(async () =>
+            ({ data: name === 'assert_stripe_billing_mode' ? true : data, error: null })) }));
+        const store = createStripeMembershipStore({ rpc } as unknown as SupabaseClient,
+            async () => 'Alice', async () => false);
+        for (const live of [false, true]) {
+            expect((await store.status('Alice', live)).tickets).toEqual({ ranked: 60, hint: 60 });
+            expect((await store.claim('Alice', live)).credited).toEqual({ ranked: 1, hint: 2 });
+        }
+        data = { ...data, tickets: { ranked: 61, hint: 60 } };
+        await expect(store.status('Alice', true)).rejects.toThrow('MEMBERSHIP_UNAVAILABLE');
+        data = { ...data, tickets: { ranked: 60, hint: 60 }, credited: { ranked: 4, hint: 0 } };
+        await expect(store.claim('Alice', true)).rejects.toThrow('MEMBERSHIP_UNAVAILABLE');
+    });
     it('passes server-only checkout, immutable webhook hash, and grant arguments to exact RPCs', async () => {
         const calls: { name: string; args: Record<string, unknown> }[] = [];
         const rpc = vi.fn((name: string, args: Record<string, unknown>) => {

@@ -7,6 +7,7 @@ export const stripeMigrations = [
     '20260930141357_stripe_scheduled_cancellation_projection.sql','20260930144240_stripe_test_member_ticket_binding.sql',
     '20261001000000_cpu_hint_receipts.sql','20261001000001_ranked_match_admissions.sql',
     '20261001000002_ranked_match_void.sql','20261003023533_stripe_canonical_reconciliation.sql',
+    '20261003041000_member_ticket_cap_60.sql',
 ];
 export async function setupStripeFixture(db) {
     await db.exec(`create role anon; create role authenticated; create role service_role bypassrls;

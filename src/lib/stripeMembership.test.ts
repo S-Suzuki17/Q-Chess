@@ -65,11 +65,19 @@ it('only accepts same-account membership state with bounded ticket balances', ()
         { ...status, cancelAtPeriodEnd: 'yes' },
         { ...status, cancelAtPeriodEnd: true },
         { ...status, active: true },
-        { ...status, active: 'yes' }, { ...status, tickets: { ranked: 21, hint: 0 } },
+        { ...status, active: 'yes' }, { ...status, tickets: { ranked: 61, hint: 0 } },
+        { ...status, tickets: { ranked: 0, hint: 61 } },
         { ...status, tickets: { ranked: -1, hint: 0 } },
         { ...status, lastGrantUtcDay: '2026-02-30' },
         { ...status, periodEnd: 'tomorrow' },
     ]) expect(() => parseStripeMembershipStatus(value, 'Alice')).toThrow('UNAVAILABLE');
+});
+
+it('accepts the approved separate member pools through 60 tickets', () => {
+    for (const count of [20, 21, 59, 60]) {
+        const value = { ...status, tickets: { ranked: count, hint: count } };
+        expect(parseStripeMembershipStatus(value, 'Alice').tickets).toEqual(value.tickets);
+    }
 });
 
 it('accepts only short-lived HTTPS Stripe-hosted billing portal URLs', () => {
