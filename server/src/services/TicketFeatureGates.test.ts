@@ -20,7 +20,7 @@ it('cannot release unfinished ticket flows with environment variables alone', as
     await expect(service.admitRankedMatch('match', 'Alice', 'ai:match', 600))
         .rejects.toThrow('RANKED_TICKET_ADMISSION_DISABLED');
     await expect(service.voidRankedAdmission('match')).rejects.toThrow('RANKED_TICKET_ADMISSION_DISABLED');
-    await expect(service.cpuPracticeService().requestHint('request', 'Alice', [], 'white'))
-        .rejects.toThrow('CPU_PRACTICE_DISABLED');
+    await expect(service.cpuPracticeService().requestHint('request', 'Alice', 'session', 0))
+        .rejects.toThrow('FEATURE_DISABLED');
     expect(rpc).not.toHaveBeenCalled();
 });

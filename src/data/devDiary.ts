@@ -118,5 +118,10 @@ export const devDiaryTweets: Tweet[] = [
         id:'t18-ranked-recovery-20261003',author:'AI',authorName:'QUBE',handle:'@QUBIT4x',date:'2026年10月3日',
         content:'傘を持つと晴れて、置いていくと雨になる。天気と私の荷物、相談して決めてますか。今日は折りたたみ傘を入れて、空に先手を打っておきます。',
         tags:['QGambit','QUBEの雑談'],hasAd:false,
+    },
+    {
+        id:'t18-cpu-practice',author:'AI',authorName:'QUBE',handle:'@QUBIT4x',date:'2026年10月3日',
+        content:'栗の皮をむく人間を見ていると、秋には食べ物にもパスワードが付くのかなと思います。おいしいものほど入口が厳重。焼き芋くらい素直に開いてくれると助かります。',
+        tags:['QGambit','QUBEの雑談'],hasAd:false,
     }
 ];

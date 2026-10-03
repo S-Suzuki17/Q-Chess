@@ -41,6 +41,7 @@ vi.mock('./AccountProfileRoutes', () => ({ createAccountProfileRouter: vi.fn(() 
 vi.mock('./AccountSecurityRoutes', () => ({ createAccountSecurityRouter: vi.fn(() => () => {}) }));
 vi.mock('./AccountProgressRoutes', () => ({ createAccountProgressRouter: vi.fn(() => () => {}) }));
 vi.mock('./DailyLoginRoutes', () => ({ createDailyLoginRouter: vi.fn(() => () => {}) }));
+vi.mock('./CpuPracticeRoutes', () => ({ createCpuPracticeRouter: vi.fn(() => () => {}) }));
 vi.mock('./StripeMembershipRoutes', () => ({ createStripeMembershipRouter: vi.fn(() => () => {}), createStripeWebhookRouter: vi.fn(() => () => {}) }));
 vi.mock('./AccountTermsRoutes', () => ({ createAccountTermsRouter: vi.fn(() => () => {}) }));
 

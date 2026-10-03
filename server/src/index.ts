@@ -32,6 +32,7 @@ import {StripePortalApi} from './services/StripePortal';
 import { cpuHintTicketsEnabled, rankedTicketAdmissionEnabled, rankedAdmissionRecoveryEnabled } from './services/TicketFeatureGates';
 import { RankedAdmissionCoordinator } from './services/RankedAdmissionCoordinator';
 import type { AdmissionOutcome } from './services/RankedAdmissionStore';
+import { createCpuPracticeRouter } from './services/CpuPracticeRoutes';
 
 const app = express();
 app.use(cors());
@@ -39,6 +40,8 @@ const supabaseService = new SupabaseService();
 const audit=createSecurityAudit((event,outcome,id)=>supabaseService.recordSecurityEvent(event,outcome,id));
 const rankedAuth = new RankedAuth((id,password)=>supabaseService.verifyLegacyPassword(id,password));
 const accountGate = new AccountWriteGate();
+let cpuPractice:ReturnType<SupabaseService['cpuPracticeService']>|undefined;
+const getCpuPractice=()=>cpuPractice??=supabaseService.cpuPracticeService();
 const stripeMembershipStore = supabaseService.stripeMembershipStore();
 // Billing reconciliation and cancellation must stay available after the first
 // purchase, even when new checkouts are paused. All gates remain OFF until the
@@ -119,6 +122,8 @@ app.use(accountRequestGuard(rankedAuth,deletionStore,accountGate));
 app.use(createAccountTermsRouter(rankedAuth,supabaseService.accountTermsStore(),accountGate));
 app.use(createAccountProgressRouter(rankedAuth,supabaseService.accountProgressStore(),accountGate));
 app.use(createDailyLoginRouter(rankedAuth,supabaseService.dailyLoginStore(),accountGate));
+app.use(createCpuPracticeRouter(rankedAuth,getCpuPractice,token=>supabaseService.verifyUser(token),accountGate,
+    id=>matchmaking.accountBusy(id)||matchmaking.getPlayerSession(id)?.state==='WAITING'));
 app.use(createStripeMembershipRouter(rankedAuth,stripeMembershipApi,stripeMembershipStore,accountGate,
     stripeBillingProcessingEnabled,stripePortalApi,stripePortalEnabled,stripeCheckoutEnabled));
 app.use(createAccountProfileRouter(rankedAuth,supabaseService.accountProfileStore(),accountGate));
@@ -351,6 +356,7 @@ io.on('connection', (socket: Socket) => {
     const attempt=++queueAttempt;
     const timeControl=data?.timeControl,mode=data?.mode??'random';
     const fail=(code:string)=>{if(attempt===queueAttempt&&socket.connected&&matchmaking.getPlayerSession(userId)?.socketId===socket.id)socket.emit('queue_error',{code,message:code});};
+    if(cpuPractice?.isBusy(userId))return fail('CPU_PRACTICE_PENDING');
     if(![10,180,600].includes(timeControl)||!['random','ranked'].includes(mode))return fail('INVALID_QUEUE');
     const unavailable=await operations.admission(socket.handshake.auth.client);
     if(unavailable)return fail(unavailable);
@@ -368,6 +374,7 @@ io.on('connection', (socket: Socket) => {
         if(rating===null)return fail('RATING_UNAVAILABLE');
     }
     if(attempt!==queueAttempt||!socket.connected||matchmaking.getPlayerSession(userId)?.socketId!==socket.id)return;
+    if(cpuPractice?.isBusy(userId))return fail('CPU_PRACTICE_PENDING');
     const name=typeof data?.userName==='string'?data.userName.slice(0,80):undefined;
     const result=matchmaking.joinQueue(userId,timeControl,name,mode,rating??undefined);
     if(!result.success)return fail('QUEUE_BUSY');
@@ -383,6 +390,7 @@ io.on('connection', (socket: Socket) => {
 
   socket.on('connect_match', async (data: { matchId: string, userName?: string, avatarUrl?: string, avatarFrame?:string,introVersion?:number }) => {
     if(accountGate.blocked(userId))return;
+    if(cpuPractice?.isBusy(userId)){socket.emit('queue_error',{code:'CPU_PRACTICE_PENDING'});return;}
     if(matchmaking.getPlayerSession(userId)?.socketId!==socket.id)return;
     if(typeof data?.matchId!=='string'||!data.matchId||data.matchId.length>128)return;
     if(data.userName!==undefined&&typeof data.userName!=='string')return;
@@ -407,6 +415,7 @@ io.on('connection', (socket: Socket) => {
         if(!socket.connected||matchmaking.getPlayerSession(userId)?.socketId!==socket.id)return;
     }
     if(data.userName)data.userName=data.userName.slice(0,80);
+    if(cpuPractice?.isBusy(userId)){socket.emit('queue_error',{code:'CPU_PRACTICE_PENDING'});return;}
     const reserved=matchmaking.reserveMatch(userId,data.matchId,data.userName);
     if(!reserved)return;
     const role=reserved.players.host===userId?'host':'joiner';
@@ -548,32 +557,12 @@ io.on('connection', (socket: Socket) => {
     }
   });
 
-  socket.on('request_cpu_hint', async (data: { requestId: string, moveHistory: any[], pool: 'white'|'black' }) => {
-      try {
-          if (!data?.requestId || typeof data.requestId !== 'string' || data.requestId.length > 128) return;
-          // Until T2 owns the practice session and position, reject before
-          // inspecting client history, searching, or calling a ticket RPC.
-          if (!cpuHintTicketsEnabled()) {
-              socket.emit('cpu_hint_error', { requestId: data.requestId, error: 'FEATURE_DISABLED' });
-              return;
-          }
-          const session = matchmaking.getPlayerSession(userId);
-          const match = session?.currentMatchId ? matchmaking.getMatch(session.currentMatchId) : null;
-          if (match && match.mode === 'ranked' && match.state === 'IN_GAME') {
-              throw new Error('HINT_UNAVAILABLE_IN_RANKED');
-          }
-          const hint = await supabaseService.cpuPracticeService().requestHint(
-              data.requestId,
-              userId,
-              data.moveHistory || [],
-              data.pool
-          );
-          socket.emit('cpu_hint_delivered', { requestId: data.requestId, hint });
-      } catch (e: any) {
-          socket.emit('cpu_hint_error', { requestId: data?.requestId, error: e.message || 'HINT_FAILED' });
-      }
+  // Legacy browser-history requests can never buy a hint, even after release.
+  socket.on('request_cpu_hint', (data: { requestId?: string }) => {
+      if(typeof data?.requestId !== 'string' || data.requestId.length > 128)return;
+      socket.emit('cpu_hint_error', {requestId:data.requestId,
+          error:cpuHintTicketsEnabled() ? 'USE_CPU_PRACTICE_API' : 'FEATURE_DISABLED'});
   });
-
   socket.on('ping', (data: { clientTime: number }) => {
       if(!Number.isFinite(data?.clientTime))return;
       socket.emit('pong', { clientTime: data.clientTime, serverTime: Date.now() });

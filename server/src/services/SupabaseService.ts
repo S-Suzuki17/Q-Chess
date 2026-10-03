@@ -74,7 +74,7 @@ export class SupabaseService {
         return createAccountProfileStore(this.supabase, token => this.verifyUser(token), id => this.accountDeletionStore().blocked(id));
     }
     public accountSecurityStore() {return createAccountSecurityStore(this.supabase,token=>this.verifyUser(token));}
-    public cpuPracticeService() { return new CpuPracticeService(this.supabase, cpuHintTicketsEnabled()); }
+    public cpuPracticeService() { return new CpuPracticeService(this.supabase, cpuHintTicketsEnabled); }
     public rankedAdmissionStore() { return createRankedAdmissionStore(this.supabase,rankedAdmissionRecoveryEnabled,rankedTicketAdmissionEnabled); }
     public async rankedRefundBalance(userId:string):Promise<{freeRankedRefunds:number;paidRankedRefunds:number}> {
         if(!rankedAdmissionRecoveryEnabled())return {freeRankedRefunds:0,paidRankedRefunds:0};

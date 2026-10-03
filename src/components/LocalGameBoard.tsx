@@ -20,7 +20,11 @@ import { RealtimeChannel } from '@supabase/supabase-js';
 import { MoveRecord, saveGameRecord, GameRecord } from '../lib/gameRecordService';
 import { cpuDifficulty } from '../config/cpuDifficulty';
 import { requestCPUSearch } from '../lib/cpuClient';
-import { legacyToQuantumState, quantumToLegacyMove } from '../quantum-engine/adapter';
+import { legacyToQuantumState, quantumToLegacyMove, TYPE_TO_BIT } from '../quantum-engine/adapter';
+import { CPU_HINT_TICKETS_ENABLED, CpuPracticeClient, CpuPracticeClientError, displayCpuPractice, officialCpuPractice } from '../lib/cpuPractice';
+import type { CpuPracticeSnapshot } from '../quantum-engine/practice';
+import type { HintMove } from './boardPresentation';
+import { RANKED_SESSION_EVENT } from '../lib/rankedSession';
 import { getWinner } from '../quantum-engine/terminal';
 import { isCheckmateFinish } from '../lib/checkmatePresentation';
 import { createLocalPosition, applyLocalMove } from '../lib/localGame';
@@ -66,6 +70,15 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
     const t = { ...dict['en'], ...(dict[lang] || {}) } as any;
     const { is2DView, setIs2DView, boardDesign, boardFinish, pieceFinish, victoryEffect, avatarFrame } = useBoardPreferences();
     const hintsUsed=useRef(0);
+    const officialPractice=officialCpuPractice({roomId,matchMode,campaignLabel,cpuPersonality,cpuSearchProfile,onComplete,onlineRole});
+    const ticketPractice=CPU_HINT_TICKETS_ENABLED&&officialPractice&&!!user?.id&&!/^(GUEST-|anon_)/i.test(user.id);
+    const [practiceClient,setPracticeClient]=useState<CpuPracticeClient|null>(null);
+    const [practiceSession,setPracticeSession]=useState<CpuPracticeSnapshot|null>(null);
+    const [practicePending,setPracticePending]=useState(false);
+    const practiceBusy=useRef(false);
+    const [practiceAttempt,setPracticeAttempt]=useState(0);
+    const [pendingHintRevision,setPendingHintRevision]=useState<number|null>(null);
+    const [recoveredHint,setRecoveredHint]=useState<HintMove|null>(null);
     const [introDone,setIntroDone]=useState(!!roomId);
     const finishIntro=useCallback(()=>setIntroDone(true),[]);
     const perMoveTime=useRef({turns:0,remaining:0});
@@ -166,7 +179,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
     }, [winner]);
 
     useEffect(()=>{
-        if(winner||!introDone)return;
+        if(winner||!introDone||(ticketPractice&&!practiceSession))return;
         const base=currentTurn==='white'?timeLeftWhite:timeLeftBlack;
         const start=performance.now();
         turnClock.current={start,base};
@@ -179,7 +192,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
         return()=>clearInterval(timer);
         // A turn has one fixed deadline; rerendering must not reset it.
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    },[currentTurn,winner,introDone]);
+    },[currentTurn,winner,introDone,ticketPractice,practiceSession]);
 
     // Initial timeout if opponent never connects from the start
     useEffect(() => {
@@ -222,6 +235,45 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
     } | null>(null);
 
     const [moveHistory, setMoveHistory] = useState<MoveRecord[]>([]);
+    const acceptPractice=useCallback((session:CpuPracticeSnapshot)=>{
+        const display=displayCpuPractice(session);
+        setPracticeSession(session);setTokens(display.tokens);setPool(display.pool);
+        setMoveHistory(display.history);setTurnCount(session.revision);setCurrentTurn(session.state.sideToMove);
+        setTimeLeftWhite(session.whiteMs/1000);setTimeLeftBlack(session.blackMs/1000);
+        setIsCheck(isPlayerInCheck(session.state.sideToMove,display.tokens,display.pool));
+        setSelectedTokenId(null);
+        const result=session.state.winner;
+        setWinner(result==='draw'?'draw':result?`${result}_wins`:session.status==='finished'
+            ?session.whiteMs===0?'black_wins':session.blackMs===0?'white_wins':'draw':null);
+    },[]);
+    useEffect(()=>{
+        const changed=()=>setPracticeAttempt(value=>value+1);
+        window.addEventListener(RANKED_SESSION_EVENT,changed);
+        return()=>window.removeEventListener(RANKED_SESSION_EVENT,changed);
+    },[]);
+    useEffect(()=>{
+        if(!ticketPractice||!introDone||!user?.id)return;
+        const controller=new AbortController();
+        let client:CpuPracticeClient;
+        try {
+            client=new CpuPracticeClient(user.id,{playerSide,level:cpuLevel&&cpuLevel<=1?1:cpuLevel&&cpuLevel<=3?3:5,
+                seconds:timeControl==='10s'?10:timeControl==='3m'?180:600});
+            setPracticeClient(client);setPracticePending(true);
+            void client.open(controller.signal).then(session=>{
+                if(!controller.signal.aborted){acceptPractice(session);setErrorMsg(null);}
+            }).catch(error=>{
+                if(controller.signal.aborted)return;
+                if(error instanceof CpuPracticeClientError&&error.code==='AUTH_REQUIRED')setShowReplayLogin(true);
+                setErrorMsg(matchText(lang,'練習セッションを再接続してください。','Reconnect the practice session.'));
+            }).finally(()=>{if(!controller.signal.aborted)setPracticePending(false);});
+        } catch {setErrorMsg(matchText(lang,'練習セッションを保存できません。','The practice session could not be saved.'));}
+        return()=>controller.abort();
+    },[ticketPractice,introDone,user?.id,playerSide,cpuLevel,timeControl,practiceAttempt,acceptPractice,lang]);
+    useEffect(()=>{
+        if(!ticketPractice||!winner||!practiceClient)return;
+        // Ending a practice never debits; prior paid hints remain recoverable.
+        void practiceClient.close().catch(()=>{});
+    },[ticketPractice,winner,practiceClient]);
     const anyModalOpen = !introDone || showGameOver || showRules || showReplayLogin || promotionPending !== null || castlingPending !== null;
     useEffect(() => {
         window.dispatchEvent(new CustomEvent('hide-settings', { detail: anyModalOpen }));
@@ -416,6 +468,21 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
         if (!introDone || currentTurn !== cpuSide || winner || roomId || movingPiece || tokens.length === 0) return;
         const controller = new AbortController();
         setCpuFailed(false);
+        if(ticketPractice){
+            if(!practiceClient||!practiceSession||practiceBusy.current)return;
+            practiceBusy.current=true;setPracticePending(true);
+            void practiceClient.advance(practiceSession.revision,'cpu',undefined,controller.signal).then(session=>{
+                if(!controller.signal.aborted)acceptPractice(session);
+            }).catch(async()=>{
+                if(controller.signal.aborted)return;
+                setCpuFailed(true);
+                try{const fresh=await practiceClient.read(controller.signal);
+                    if(!controller.signal.aborted&&(fresh.revision!==practiceSession.revision||fresh.status!=='active'))acceptPractice(fresh);
+                }catch{}
+            })
+                .finally(()=>{practiceBusy.current=false;if(!controller.signal.aborted)setPracticePending(false);});
+            return()=>controller.abort();
+        }
         const state = legacyToQuantumState(tokens, pool, cpuSide, moveHistory.length, moveHistory.at(-1) ?? null);
         requestCPUSearch(state, controller.signal, cpuLevel, cpuPersonality, cpuSearchProfile).then(stats => {
             if (controller.signal.aborted) return;
@@ -435,7 +502,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
             setCpuFailed(true);
         });
         return () => controller.abort();
-    }, [currentTurn, winner, tokens, pool, roomId, moveHistory, cpuRetry, movingPiece, cpuLevel, cpuSide, cpuPersonality, cpuSearchProfile, introDone]);
+    }, [currentTurn, winner, tokens, pool, roomId, moveHistory, cpuRetry, movingPiece, cpuLevel, cpuSide, cpuPersonality, cpuSearchProfile, introDone,ticketPractice,practiceClient,practiceSession,acceptPractice]);
 
     useEffect(() => {
         let timer1: NodeJS.Timeout | null = null;
@@ -531,6 +598,20 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
     }, [selectedTokenId, tokens, pool, winner, moveHistory]); // tokensが変わる（ターンが進む）か選択が切り替わったら再計算
 
     const executeMove = (token: Token, targetRow: number, targetCol: number, possibleTypesForMove: PieceType[], targetToken?: Token, isLocalMove: boolean = true, promotedTo?: PieceType) => {
+        if(ticketPractice){
+            if(!practiceClient||!practiceSession||practiceBusy.current||token.player!==playerSide)return;
+            practiceBusy.current=true;setPracticePending(true);
+            const move={pieceId:token.id,target:{row:targetRow,col:targetCol},
+                chosenType:possibleTypesForMove.reduce((mask,type)=>mask|TYPE_TO_BIT[type],0),
+                ...(promotedTo?{promotionTarget:TYPE_TO_BIT[promotedTo]}:{})};
+            void practiceClient.advance(practiceSession.revision,'human',move).then(session=>{
+                acceptPractice(session);playMoveSound();setErrorMsg(null);
+            }).catch(async()=>{
+                setErrorMsg(t.errInvalidMove);
+                try{acceptPractice(await practiceClient.read());}catch{setCpuFailed(true);}
+            }).finally(()=>{practiceBusy.current=false;setPracticePending(false);});
+            return;
+        }
         // Tutorial hint logic (VS CPU only)
         if (cpuLevel !== undefined && token.player === playerSide) {
             const dx = Math.abs(targetCol - token.col);
@@ -606,7 +687,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
 
 
     const handleSquareClick = (targetRow: number, targetCol: number) => {
-        if (!introDone || winner || movingPiece || onlineRole === 'spectator') return;
+        if (!introDone || winner || movingPiece || onlineRole === 'spectator'||(ticketPractice&&(practicePending||!practiceSession||hint.pending))) return;
         
         // Inspection is safe while the CPU thinks; only submitting a move is blocked.
         if (!roomId && currentTurn === cpuSide) {
@@ -715,10 +796,23 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
         const state = legacyToQuantumState(tokens, pool, currentTurn, moveHistory.length, moveHistory.at(-1) ?? null);
         return isCheckmateFinish(winner, state);
     }, [winner, tokens, pool, currentTurn, moveHistory]);
-    const hint = useMoveHint(`${currentTurn}:${moveHistory.length}:${winner ?? 'playing'}`);
+    const hint = useMoveHint(`${practiceSession?.sessionId??'local'}:${currentTurn}:${moveHistory.length}:${winner ?? 'playing'}`);
     const { hintMove } = hint;
     const requestHint = () => {
-        if (!introDone || winner || hint.pending || currentTurn !== myRole || !tokens.length || roomId) return;
+        if (!introDone || winner || hint.pending || currentTurn !== myRole || !tokens.length || roomId||matchMode==='ranked'||matchMode==='random') return;
+        if(CPU_HINT_TICKETS_ENABLED){
+            if(!officialPractice)return;
+            if(!practiceClient||!practiceSession){setShowReplayLogin(true);return;}
+            if(practicePending)return;
+            setPendingHintRevision(practiceSession.revision);setRecoveredHint(null);
+            void hint.request(signal=>practiceClient.hint(practiceSession.revision,signal).catch(error=>{
+                if(error instanceof CpuPracticeClientError&&error.code==='INSUFFICIENT_FUNDS')
+                    setErrorMsg(matchText(lang,'ヒント券がありません。','No hint tickets remain.'));
+                if(error instanceof CpuPracticeClientError&&error.code==='AUTH_REQUIRED')setShowReplayLogin(true);
+                throw error;
+            }),()=>{hintsUsed.current++;});
+            return;
+        }
         const state = legacyToQuantumState(tokens, pool, myRole, moveHistory.length, moveHistory.at(-1) ?? null);
         void hint.request(async signal => {
             const stats = await requestCPUSearch(state, signal, 5);
@@ -751,7 +845,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
             checkNotice={showCheckWarning&&!winner?t.check:undefined} checkEvent={moveHistory.length}
             tokens={tokens} selectedTokenId={selectedTokenId} candidatesMap={pool.piecePossibilities} history={moveHistory}
             validMoveCount={validMoves.length} onClearSelection={() => setSelectedTokenId(null)}
-            onHint={!roomId ? requestHint : undefined} hintPending={hint.pending} hintMove={hintMove} hintFailed={hint.failed} onClearHint={hint.clear} feedback={tutorialHint}
+            onHint={!roomId&&matchMode!=='ranked'&&matchMode!=='random'&&(!CPU_HINT_TICKETS_ENABLED||officialPractice) ? requestHint : undefined} hintPending={hint.pending||practicePending} hintMove={hintMove} hintFailed={hint.failed} onClearHint={hint.clear} feedback={tutorialHint}
             is2D={is2DView} onViewChange={setIs2DView}
             onResetView={() => setViewResetKey(key => key + 1)}
             onHome={() => setShowHomeConfirm(true)} onRules={() => setShowRules(true)} onResign={() => setShowResignConfirm(true)}
@@ -828,6 +922,17 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
             {cpuFailed && <button onClick={() => setCpuRetry(value => value + 1)} className="match-retry">
                 {matchText(lang, 'CPUの思考を再試行', 'Retry CPU turn')}
             </button>}
+            {CPU_HINT_TICKETS_ENABLED&&officialPractice&&practiceClient&&<button className="match-retry" onClick={()=>{
+                const revision=pendingHintRevision??practiceSession?.revision??0;
+                void practiceClient.recover(revision).then(move=>{
+                    setRecoveredHint(move);
+                    if(!move)setErrorMsg(matchText(lang,'保存済みヒントはありません。','No saved hint is available.'));
+                }).catch(()=>setErrorMsg(matchText(lang,'ヒントを再取得できませんでした。もう一度お試しください。','The saved hint could not be retrieved. Please retry.')));
+            }}>{matchText(lang,'ヒントを再取得（追加消費なし）','Retrieve saved hint (no extra ticket)')}</button>}
+            {recoveredHint&&<div role="status" className="match-retry">
+                {matchText(lang,'保存済みヒント','Saved hint')}: {String.fromCharCode(97+recoveredHint.fromCol)}{8-recoveredHint.fromRow}
+                {' → '}{String.fromCharCode(97+recoveredHint.toCol)}{8-recoveredHint.toRow}
+            </div>}
             {/* Resign Confirmation Modal */}
             {showResignConfirm && (
                 <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 backdrop-blur-sm animate-fade-in">
