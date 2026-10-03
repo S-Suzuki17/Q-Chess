@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { MatchmakingService, type MatchSession } from '../matchmaking/MatchmakingService';
+import { CPU_FALLBACK_MS, MatchmakingService, type MatchSession } from '../matchmaking/MatchmakingService';
 import { RankedRuntime } from './RankedRuntime';
 import type { RankCpuWorkerResponse } from './rankCpuWorker';
 
@@ -22,7 +22,7 @@ function fixture(timeControl = 600) {
     const mm = new MatchmakingService(io as any);
     mm.registerSocket('human', 'human-socket', 'Human');
     mm.joinQueue('human', timeControl, 'Human', 'ranked', 1234);
-    vi.advanceTimersByTime(60_000);
+    vi.advanceTimersByTime(CPU_FALLBACK_MS);
     const [match] = mm.takeCpuFallbacks();
     mm.connectMatch('human', match.matchId, 'Human', undefined, undefined, 1, 1234);
     match.engine!.acknowledgeIntro('human');

@@ -4,7 +4,7 @@ import { Server, Socket } from 'socket.io';
 import cors from 'cors';
 import { GameEngine, Action, ActionPayload } from './game/GameEngine';
 import { ENTANGLEMENT_VERSION } from './game/quantumChess';
-import { MatchmakingService } from './matchmaking/MatchmakingService';
+import { CPU_FALLBACK_MS, MatchmakingService } from './matchmaking/MatchmakingService';
 import { SupabaseService } from './services/SupabaseService';
 import { RankedAuth, isRankedUserId } from './services/RankedAuth';
 import { RankedRuntime } from './game/RankedRuntime';
@@ -389,7 +389,7 @@ io.on('connection', (socket: Socket) => {
     const name=typeof data?.userName==='string'?data.userName.slice(0,80):undefined;
     const result=matchmaking.joinQueue(userId,timeControl,name,mode,rating??undefined);
     if(!result.success)return fail('QUEUE_BUSY');
-    socket.emit('queue_joined',{mode,timeControl,cpuFallbackAt:mode==='ranked'?Date.now()+60000:null});
+    socket.emit('queue_joined',{mode,timeControl,cpuFallbackAt:mode==='ranked'?Date.now()+CPU_FALLBACK_MS:null});
     if(result.match)announceMatch(result.match);
   });
 

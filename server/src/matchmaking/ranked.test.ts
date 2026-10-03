@@ -15,10 +15,10 @@ beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(1_000_000); vi.spyOn(Mat
 afterEach(() => { vi.clearAllTimers(); vi.useRealTimers(); vi.restoreAllMocks(); });
 
 describe('ranked matchmaking fallback', () => {
-    it('waits the full 60 seconds and reserves exactly one CPU match', () => {
+    it('waits the full 10 seconds and reserves exactly one CPU match', () => {
         const { mm, register } = fixture(); register('human');
         expect(mm.joinQueue('human', 600, 'Human', 'ranked', 1264).success).toBe(true);
-        vi.advanceTimersByTime(CPU_FALLBACK_MS - 1);
+        vi.advanceTimersByTime(9_999);
         expect(mm.takeCpuFallbacks()).toEqual([]);
         vi.advanceTimersByTime(1);
         const [match] = mm.takeCpuFallbacks();
@@ -71,13 +71,13 @@ describe('ranked matchmaking fallback', () => {
     it('preserves queue age and opening ratings across duplicate joins and reconnections', () => {
         const { mm, register } = fixture(); register('human');
         mm.joinQueue('human', 10, 'Original', 'ranked', 1375);
-        vi.advanceTimersByTime(30_000);
+        vi.advanceTimersByTime(CPU_FALLBACK_MS / 2);
         const queuedAt = mm.getPlayerSession('human')?.queuedAt;
         register('human', 'new-socket');
         mm.removeSocket('socket:human');
         expect(mm.joinQueue('human', 600, 'Changed', 'ranked', 2200).success).toBe(false);
         expect(mm.getPlayerSession('human')?.queuedAt).toBe(queuedAt);
-        vi.advanceTimersByTime(30_000);
+        vi.advanceTimersByTime(CPU_FALLBACK_MS / 2);
         const [match] = mm.takeCpuFallbacks();
         const first = mm.connectMatch('human', match.matchId, 'Original', undefined, undefined, 1, 2200);
         const again = mm.connectMatch('human', match.matchId, 'Original', undefined, undefined, 1, 2300);

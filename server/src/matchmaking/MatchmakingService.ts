@@ -4,7 +4,7 @@ import { GameEngine } from '../game/GameEngine';
 import { createInitialBoard } from '../game/quantumChess';
 import { cpuProfileForRating, CpuProfile } from '../game/RankCpuSearch';
 
-export const CPU_FALLBACK_MS = 60_000;
+export const CPU_FALLBACK_MS = 10_000;
 export type QueueMode = 'ranked' | 'random';
 
 export type PlayerState = 'IDLE' | 'WAITING' | 'CONNECTING' | 'ADMITTING' | 'IN_GAME';

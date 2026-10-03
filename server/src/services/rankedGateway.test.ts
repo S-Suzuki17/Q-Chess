@@ -25,7 +25,10 @@ vi.mock('http', () => ({ default: { createServer: vi.fn(() => ({ listen: h.liste
 vi.mock('cors', () => ({ default: vi.fn(() => () => {}) }));
 vi.mock('socket.io', () => ({ Server: class { constructor() { return h.io; } } }));
 vi.mock('./SupabaseService', () => ({ SupabaseService: class { constructor() { return h.service; } } }));
-vi.mock('../matchmaking/MatchmakingService', () => ({ MatchmakingService: class { constructor() { return h.mm; } } }));
+vi.mock('../matchmaking/MatchmakingService', async importOriginal => ({
+    CPU_FALLBACK_MS: (await importOriginal<typeof import('../matchmaking/MatchmakingService')>()).CPU_FALLBACK_MS,
+    MatchmakingService: class { constructor() { return h.mm; } },
+}));
 vi.mock('../game/RankedRuntime', () => ({ RankedRuntime: class { tick = h.tick; } }));
 vi.mock('../game/GameEngine', () => ({ GameEngine: class {
     constructor(...args: any[]) { if (h.engineClass) return new (h.engineClass as any)(...args); }
@@ -146,7 +149,10 @@ describe('ranked gateway without network or database side effects', () => {
         vi.spyOn(Math, 'random').mockReturnValue(random);
         const alice = await socket((await login()).body.token);
         await alice.dispatch('join_queue', { mode: 'ranked', timeControl: 600 });
-        vi.setSystemTime(Date.now() + 60_000);
+        expect(alice.s.emit).toHaveBeenCalledWith('queue_joined', { mode: 'ranked', timeControl: 600, cpuFallbackAt: Date.now() + 10_000 });
+        vi.setSystemTime(Date.now() + 9_999);
+        expect(mm.takeCpuFallbacks()).toEqual([]);
+        vi.setSystemTime(Date.now() + 1);
         const [match] = mm.takeCpuFallbacks();
         expect(match.cpu!.id).toMatch(/^ai:/);
         expect(match.cpu!.side).toBe(random < 0.5 ? 'host' : 'joiner');

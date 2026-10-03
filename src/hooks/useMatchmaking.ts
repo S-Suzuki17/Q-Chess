@@ -47,7 +47,7 @@ export function useMatchmaking(user:User|null) {
         stopTimer();setError(null);setErrorMessage(null);setMatchedRoom(null);setWaitTime(0);setIsSearching(true);
         const startedAt=Date.now();active.current={mode,timeControl,startedAt};
         setClockNow(startedAt);
-        setCPUFallbackAt(mode==='ranked'?startedAt+60000:null);
+        setCPUFallbackAt(mode==='ranked'?startedAt+10_000:null);
         socket.emit('join_queue',{timeControl,userName:user.name,mode});
         timer.current=setInterval(()=>{if(active.current){const now=Date.now();setClockNow(now);setWaitTime(Math.max(0,now-active.current.startedAt));}},1000);
         return true;
