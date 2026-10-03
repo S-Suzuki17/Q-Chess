@@ -5,11 +5,11 @@ import { SupabaseService } from './SupabaseService';
 
 afterEach(() => vi.unstubAllEnvs());
 
-it('cannot release unfinished ticket flows with environment variables alone', async () => {
-    vi.stubEnv('RANKED_TICKET_ADMISSION_ENABLED', 'true');
-    vi.stubEnv('RANKED_ADMISSION_RECOVERY_ENABLED', 'true');
-    vi.stubEnv('CPU_HINT_TICKETS_ENABLED', 'true');
-    vi.stubEnv('DAILY_LOGIN_REWARDS_ENABLED', 'true');
+it('defaults OFF and never touches ticket storage without explicit deployment switches', async () => {
+    vi.stubEnv('RANKED_TICKET_ADMISSION_ENABLED', undefined);
+    vi.stubEnv('RANKED_ADMISSION_RECOVERY_ENABLED', undefined);
+    vi.stubEnv('CPU_HINT_TICKETS_ENABLED', undefined);
+    vi.stubEnv('DAILY_LOGIN_REWARDS_ENABLED', undefined);
     expect(rankedTicketAdmissionEnabled()).toBe(false);
     expect(rankedAdmissionRecoveryEnabled()).toBe(false);
     expect(cpuHintTicketsEnabled()).toBe(false);
@@ -23,4 +23,16 @@ it('cannot release unfinished ticket flows with environment variables alone', as
     await expect(service.cpuPracticeService().requestHint('request', 'Alice', 'session', 0))
         .rejects.toThrow('FEATURE_DISABLED');
     expect(rpc).not.toHaveBeenCalled();
+});
+
+it.each(['true','false','1','TRUE',' true'])('only exact true enables verified ticket workflows (%s)', value => {
+    for (const name of ['RANKED_TICKET_ADMISSION_ENABLED','RANKED_ADMISSION_RECOVERY_ENABLED','CPU_HINT_TICKETS_ENABLED','DAILY_LOGIN_REWARDS_ENABLED']) vi.stubEnv(name,value);
+    for (const enabled of [rankedTicketAdmissionEnabled,rankedAdmissionRecoveryEnabled,cpuHintTicketsEnabled,dailyLoginRewardsEnabled]) expect(enabled()).toBe(value==='true');
+});
+
+it('keeps admission recovery running when only new ticket admissions are rolled back', () => {
+    vi.stubEnv('RANKED_TICKET_ADMISSION_ENABLED','false');
+    vi.stubEnv('RANKED_ADMISSION_RECOVERY_ENABLED','true');
+    expect(rankedTicketAdmissionEnabled()).toBe(false);
+    expect(rankedAdmissionRecoveryEnabled()).toBe(true);
 });

@@ -1,8 +1,8 @@
 import { TERMS_SECTIONS, TERMS_ENGLISH } from './terms';
 
-/** Owner approved. Root sets the actual publication date here and in the DB policy before release. */
+/** Owner-approved publication, coordinated with the database policy. */
 export const CURRENT_TERMS_VERSION = '2026-10-03.1';
-export const CURRENT_TERMS_EFFECTIVE_DATE: string | null = null;
+export const CURRENT_TERMS_EFFECTIVE_DATE: string | null = '2026-10-03';
 export function currentTermsEffective(date: string | null = CURRENT_TERMS_EFFECTIVE_DATE, now = Date.now()): boolean {
     if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return false;
     const utc = Date.parse(`${date}T00:00:00Z`);

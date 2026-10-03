@@ -21,6 +21,8 @@ for (const live of [false,true]) {
   const register=(owner,id)=>live?db.query('select public.register_stripe_live_checkout_intent($1,$2,$3,clock_timestamp()+interval \'1 hour\')',[owner,id,price]):db.query('select public.register_stripe_checkout_intent($1,$2,$3,false,clock_timestamp()+interval \'1 hour\')',[owner,id,price]);
   await register('TermsOwner',checkout);
   await db.exec('reset role;'+migration+'set role service_role');
+  // Exercise pending-publication behavior explicitly without changing release SQL.
+  await db.exec('reset role; update public.current_terms_policy set effective_date=null; set role service_role');
   const policy=()=>scalar("select public.current_account_terms_status('TermsOwner') as result");
   const accept=owner=>scalar('select public.accept_current_account_terms($1,\'2026-10-03.1\') as result',[owner]);
   assert.equal((await policy()).effective,false); assert.equal((await policy()).effectiveDate,null);

@@ -2,14 +2,14 @@ begin;
 set local lock_timeout = '3s';
 set local statement_timeout = '15s';
 
--- Owner-approved document; publication day is deliberately UNSET. Release owner
--- sets the same actual JST publication date here and in currentTerms.ts.
+-- Owner-approved publication date, identical to currentTerms.ts. Feature
+-- activation still requires the independently verified server/Web switches.
 create table public.current_terms_policy (
     singleton boolean primary key default true check (singleton),
     version text not null check (version = '2026-10-03.1'),
     effective_date date
 );
-insert into public.current_terms_policy(singleton,version,effective_date) values(true,'2026-10-03.1',null);
+insert into public.current_terms_policy(singleton,version,effective_date) values(true,'2026-10-03.1','2026-10-03');
 alter table public.current_terms_policy enable row level security;
 revoke all on public.current_terms_policy from public,anon,authenticated,service_role;
 grant select on public.current_terms_policy to service_role;

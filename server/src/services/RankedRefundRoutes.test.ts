@@ -32,8 +32,8 @@ it('passes uncapped free and eligible paid credits for the authenticated owner o
     store.read.mockResolvedValue({ freeRankedRefunds: 43, paidRankedRefunds: 0 });
     expect(await (await fetch(base, get())).json()).toMatchObject({ freeRankedRefunds: 43, paidRankedRefunds: 0 });
 });
-it('is hard OFF even when admission/recovery environments request ON', async () => {
-    vi.stubEnv('RANKED_TICKET_ADMISSION_ENABLED', 'true'); vi.stubEnv('RANKED_ADMISSION_RECOVERY_ENABLED', 'true');
+it('is OFF when neither admission nor recovery is explicitly enabled', async () => {
+    vi.stubEnv('RANKED_TICKET_ADMISSION_ENABLED', undefined); vi.stubEnv('RANKED_ADMISSION_RECOVERY_ENABLED', undefined);
     const app = express(); app.use(createRankedRefundRouter(auth, store, gate));
     const dormant = http.createServer(app);
     await new Promise<void>(resolve => dormant.listen(0, '127.0.0.1', resolve));
