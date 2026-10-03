@@ -4,8 +4,8 @@ import { requireCurrentAccountTerms } from './currentAccountTerms';
 import { supabase } from './supabaseClient';
 import { gameServerUrl, readRankedSession } from './rankedSession';
 
-/** Remains hard-off until the database, Render API, and account deletion path are verified. */
-export const DAILY_LOGIN_REWARDS_ENABLED = false;
+/** Public build opt-in only; the server independently enforces release and consent. */
+export const DAILY_LOGIN_REWARDS_ENABLED = process.env.NEXT_PUBLIC_QG_DAILY_LOGIN_REWARDS_ENABLED === 'true';
 export const DAILY_LOGIN_REWARD_CHANGED_EVENT = 'qg-daily-login-reward-changed';
 
 export type DailyTicketAmounts = Readonly<{ ranked: number; hint: number }>;

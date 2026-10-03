@@ -12,8 +12,8 @@ import type { Move } from '../quantum-engine/types';
 import type { MoveRecord } from './gameRecordService';
 import type { HintMove } from '../components/boardPresentation';
 
-/** Integration must verify DB/server/Web/Android before changing this barrier. */
-export const CPU_HINT_TICKETS_ENABLED = false;
+/** Explicit public build opt-in; server enforcement is independent. */
+export const CPU_HINT_TICKETS_ENABLED = process.env.NEXT_PUBLIC_QG_CPU_HINT_TICKETS_ENABLED === 'true';
 export type PracticeSettings = { playerSide: 'white' | 'black'; level: 1 | 3 | 5; seconds: 10 | 180 | 600 };
 export type CpuHintReceipt = { receiptId: string; sessionId: string; revision: number; stateHash: string;
     rulesVersion: string; hint: HintMove; move: Move; deliveryState: 'paid_retrievable' };

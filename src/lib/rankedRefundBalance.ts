@@ -3,7 +3,7 @@ import { supabase } from './supabaseClient';
 import { gameServerUrl, readRankedSession } from './rankedSession';
 
 /** Release alongside ranked recovery, independently of new sales/daily rewards. */
-export const RANKED_REFUND_BALANCE_ENABLED = false;
+export const RANKED_REFUND_BALANCE_ENABLED = process.env.NEXT_PUBLIC_QG_RANKED_REFUND_BALANCE_ENABLED === 'true';
 export type RankedRefundBalance = Readonly<{ userId: string; enabled: true; freeRankedRefunds: number; paidRankedRefunds: number }>;
 export class RankedRefundBalanceError extends Error {
     constructor(public readonly code: 'DISABLED' | 'AUTH_REQUIRED' | 'UNAVAILABLE') { super(code); }

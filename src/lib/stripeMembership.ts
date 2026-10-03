@@ -7,12 +7,12 @@ import { supabase } from './supabaseClient';
 import { gameServerUrl, readRankedSession } from './rankedSession';
 import { MEMBER_TICKET_CAP, webCommerceCheckoutReady } from '../config/webCommerce';
 
-/** Local scaffold only. Never turn on before policy, fulfillment, and Play separation review. */
-export const STRIPE_WEB_MEMBERSHIP_ENABLED = false;
-export const STRIPE_WEB_CHECKOUT_ENABLED = false;
-export const STRIPE_WEB_PORTAL_ENABLED = false;
+/** Explicit public build flags, default OFF. Native/runtime guards remain mandatory. */
+export const STRIPE_WEB_MEMBERSHIP_ENABLED = !ANDROID_BUILD && process.env.NEXT_PUBLIC_QG_STRIPE_WEB_MEMBERSHIP_ENABLED === 'true';
+export const STRIPE_WEB_CHECKOUT_ENABLED = !ANDROID_BUILD && process.env.NEXT_PUBLIC_QG_STRIPE_WEB_CHECKOUT_ENABLED === 'true';
+export const STRIPE_WEB_PORTAL_ENABLED = !ANDROID_BUILD && process.env.NEXT_PUBLIC_QG_STRIPE_WEB_PORTAL_ENABLED === 'true';
 /** Use of existing entitlements is separate from new purchases and allowed on Android. */
-export const MEMBER_TICKET_USAGE_ENABLED = false;
+export const MEMBER_TICKET_USAGE_ENABLED = process.env.NEXT_PUBLIC_QG_MEMBER_TICKET_USAGE_ENABLED === 'true';
 
 export type StripeMembershipStatus = Readonly<{
     userId: string;

@@ -27,11 +27,33 @@ if (!key || (!key.startsWith('sb_publishable_') && !anon)) {
 }
 const server = configured.NEXT_PUBLIC_SERVER_URL || 'https://q-chess.onrender.com';
 if (new URL(server).protocol !== 'https:') throw new Error('Release game server must use HTTPS');
+// Only these eight public release switches may be imported from a configured
+// project. Shell values override that project's values, including explicit false.
+const publicReleaseFlags = {
+    NEXT_PUBLIC_QG_DAILY_LOGIN_REWARDS_ENABLED: 'usage',
+    NEXT_PUBLIC_QG_STRIPE_WEB_MEMBERSHIP_ENABLED: 'web',
+    NEXT_PUBLIC_QG_STRIPE_WEB_CHECKOUT_ENABLED: 'web',
+    NEXT_PUBLIC_QG_STRIPE_WEB_PORTAL_ENABLED: 'web',
+    NEXT_PUBLIC_QG_MEMBER_TICKET_USAGE_ENABLED: 'usage',
+    NEXT_PUBLIC_QG_CPU_HINT_TICKETS_ENABLED: 'usage',
+    NEXT_PUBLIC_QG_RANKED_REFUND_BALANCE_ENABLED: 'usage',
+    NEXT_PUBLIC_QG_WEB_COMMERCE_SALES_RELEASE_READY: 'web',
+};
+const releaseEnv = {};
+for (const [name, scope] of Object.entries(publicReleaseFlags)) {
+    const value = originalEnv[name] ?? configured[name];
+    if (value !== undefined && value !== 'true' && value !== 'false') {
+        throw new Error(`Release flag must be true or false: ${name}`);
+    }
+    releaseEnv[name] = String(value === 'true' && (scope !== 'web' || target === 'web'));
+}
+// Unknown public QG names must not piggyback on the shell environment either.
+const inheritedEnv = Object.fromEntries(Object.entries(originalEnv).filter(([name]) => !name.startsWith('NEXT_PUBLIC_QG_')));
 const result = spawnSync(process.execPath, [require.resolve('next/dist/bin/next'), 'build',
     ...(bundler === 'webpack' ? ['--webpack'] : [])], {
     cwd: process.cwd(), stdio: 'inherit',
     env: {
-        ...originalEnv, NODE_ENV: 'production', QG_RELEASE_BUILD: '1',
+        ...inheritedEnv, ...releaseEnv, NODE_ENV: 'production', QG_RELEASE_BUILD: '1',
         NEXT_PUBLIC_APP_TARGET: target,
         NEXT_PUBLIC_ANDROID_VERSION_CODE: androidBuild,
         NEXT_PUBLIC_FOUNDERS_REWARDS_ENABLED: 'false',
