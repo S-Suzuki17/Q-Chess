@@ -4,7 +4,7 @@ import { gameServerUrl, readRankedSession } from './rankedSession';
 import type { Friend, Profile } from './gameRecordService';
 
 export class AccountProfileError extends Error {
-    constructor(public readonly code: 'AUTH_REQUIRED' | 'INVALID_REQUEST' | 'UNAVAILABLE') { super(code); }
+    constructor(public readonly code: 'AUTH_REQUIRED' | 'INVALID_REQUEST' | 'CONFLICT' | 'UNAVAILABLE') { super(code); }
 }
 export async function requestAccountProfile(path: string, userId: string, body?: unknown, signal?: AbortSignal): Promise<Record<string, unknown>> {
     if (!userId || /^(?:guest(?:[-_]|$)|anon(?:ymous)?(?:[-_]|$)|cpu(?:[-_]|$)|ai(?::|$)|supabase-)/i.test(userId)) throw new AccountProfileError('AUTH_REQUIRED');

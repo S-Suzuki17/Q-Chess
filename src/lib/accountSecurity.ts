@@ -9,7 +9,7 @@ export async function registerAccount(username:string,password:string,signal?:Ab
         if(url.protocol!=='https:'&&!['localhost','127.0.0.1','[::1]'].includes(url.hostname))throw new Error('UNAVAILABLE');
         const response=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json',...clientReleaseHeaders()},body:JSON.stringify({username,password}),
             credentials:'omit',cache:'no-store',redirect:'error',signal:AbortSignal.any([...(signal?[signal]:[]),AbortSignal.timeout(20000)])});
-        if(!response.ok)throw new AccountProfileError(response.status===400?'INVALID_REQUEST':'UNAVAILABLE');
+        if(!response.ok)throw new AccountProfileError(response.status===400?'INVALID_REQUEST':(response.status===409?'CONFLICT':'UNAVAILABLE'));
         if((await response.json())?.registered!==true)throw new Error('UNAVAILABLE');
     }catch(error){if(error instanceof AccountProfileError)throw error;throw new AccountProfileError('UNAVAILABLE');}
 }

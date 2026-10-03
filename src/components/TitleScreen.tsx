@@ -86,7 +86,13 @@ export function TitleScreen({ lang, onLogin, initialMode='select' }: TitleScreen
             catch{if(mounted.current&&!request.signal.aborted){setMode('login');setError(accountSecurityText(lang,'registered'));}return;}
             if(mounted.current && !request.signal.aborted)onLogin({ id: inputId, name: inputId, type: 'registered' },attempt);
         } catch (err) {
-            if(mounted.current&&!request.signal.aborted)setError(accountSecurityText(lang,err instanceof AccountProfileError&&err.code==='INVALID_REQUEST'?'rules':'failed'));
+            if(mounted.current&&!request.signal.aborted){
+                if(err instanceof AccountProfileError && err.code==='CONFLICT') {
+                    setError(matchText(lang, 'このIDは既に使用されています。', 'This ID is already taken.'));
+                } else {
+                    setError(accountSecurityText(lang,err instanceof AccountProfileError&&err.code==='INVALID_REQUEST'?'rules':'failed'));
+                }
+            }
         } finally {
             if(mounted.current)setLoading(false);
         }
