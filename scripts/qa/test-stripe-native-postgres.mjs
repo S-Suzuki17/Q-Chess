@@ -23,7 +23,7 @@ function command(exe,args){const result=spawnSync(exe,args,{windowsHide:true,std
 let running=false,admin;const clients=[],children=[];
 async function connect(service=true){const c=new Client({host:'127.0.0.1',port,database:'postgres',user:'fixtureadmin'});await c.connect();if(service)await c.query('set role service_role');clients.push(c);return c;}
 const result=async(c,sql,args=[]) => (await c.query(sql,args)).rows[0].result;
-async function account(user){await admin.query('insert into public.profiles values($1)',[user]);await admin.query("insert into public.account_terms_consents values($1,'2026-09-25.1')",[user]);const c=await connect();const m={user,sub:'sub_'+user,checkout:'cs_test_'+user,end:new Date(Date.now()+30*86400000).toISOString()};await c.query("select public.register_stripe_checkout_intent($1,$2,'price_ABCDEFGH',false,clock_timestamp()+interval '1 hour')",[user,m.checkout]);return m;}
+async function account(user){await admin.query('insert into public.profiles(id) values($1)',[user]);await admin.query("insert into public.account_terms_consents values($1,'2026-09-25.1')",[user]);const c=await connect();const m={user,sub:'sub_'+user,checkout:'cs_test_'+user,end:new Date(Date.now()+30*86400000).toISOString()};await c.query("select public.register_stripe_checkout_intent($1,$2,'price_ABCDEFGH',false,clock_timestamp()+interval '1 hour')",[user,m.checkout]);return m;}
 const acquire=(c,m)=>result(c,'select public.acquire_stripe_reconciliation($1,false) as result',[m.sub]);
 const release=(c,m,token)=>c.query('select public.release_stripe_reconciliation($1,false,$2)',[m.sub,token]);
 const expire=m=>admin.query("update public.stripe_reconciliation_leases set expires_at=clock_timestamp()-interval '1 second' where subscription_id=$1",[m.sub]);

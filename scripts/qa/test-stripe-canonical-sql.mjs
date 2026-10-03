@@ -1,18 +1,11 @@
 // Disposable PostgreSQL (PGlite), no connection to hosted Supabase or Stripe.
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
-import { readFile } from 'node:fs/promises';
+import { setupStripeFixture, stripeMigrations } from './stripe-canonical-fixture.mjs';
 const require = createRequire(new URL('../../scratch/ticket-sql/package.json', import.meta.url));
 const { PGlite } = require('@electric-sql/pglite');
 const db = await PGlite.create();
-const migrations = [
-    '20260930083253_ticket_wallet_daily_login.sql', '20260930095339_stripe_membership_entitlements.sql',
-    '20260930123309_stripe_billing_portal_customer_lookup.sql', '20260930123542_stripe_membership_reversal.sql',
-    '20260930123817_stripe_live_membership_allowlist.sql', '20260930133414_atomic_ticket_spending.sql',
-    '20260930141357_stripe_scheduled_cancellation_projection.sql', '20260930144240_stripe_test_member_ticket_binding.sql',
-    '20261001000000_cpu_hint_receipts.sql', '20261001000001_ranked_match_admissions.sql',
-    '20261001000002_ranked_match_void.sql', '20261003023533_stripe_canonical_reconciliation.sql',
-];
+const migrations = stripeMigrations;
 const scalar = async (sql, args = []) => (await db.query(sql,args)).rows[0].result;
 const lease = (id='sub_ABCDEFGH', live=false) => scalar('select public.acquire_stripe_reconciliation($1,$2) as result',[id,live]);
 const release = (token,id='sub_ABCDEFGH',live=false) => db.query('select public.release_stripe_reconciliation($1,$2,$3)',[id,live,token]);
@@ -32,16 +25,9 @@ const claim = () => scalar("select public.claim_stripe_member_daily_grant_with_s
 const status = () => scalar("select public.stripe_member_status_with_schedule('Alice') as result");
 const wallet = () => scalar("select to_jsonb(w) as result from public.ticket_wallets w where user_id='Alice'");
 try {
-    await db.exec(`create role anon; create role authenticated; create role service_role bypassrls;
-        create table public.profiles(id text primary key);
-        create table public.account_deletion_jobs(user_id text,phase text);
-        create table public.account_restrictions(user_id text,blocked boolean);
-        create table public.account_terms_consents(user_id text,version text);
-        grant usage on schema public to anon,authenticated,service_role;
-        grant all on all tables in schema public to service_role;
-        insert into public.profiles values('Alice'),('Bob');
+    await setupStripeFixture(db);
+    await db.exec(`insert into public.profiles(id) values('Alice'),('Bob');
         insert into public.account_terms_consents values('Alice','2026-09-25.1'),('Bob','2026-09-25.1');`);
-    for (const name of migrations) await db.exec(await readFile(new URL(`../../supabase/migrations/${name}`,import.meta.url),'utf8'));
     await db.exec('set role service_role');
     await scalar("select public.claim_daily_login_reward('Alice') as result");
     await db.query("select public.register_stripe_checkout_intent('Alice','cs_test_ABCDEFGH','price_ABCDEFGH',false,clock_timestamp()+interval '1 hour')");
@@ -115,5 +101,5 @@ try {
         await assert.rejects(()=>db.query('select * from public.stripe_reconciliation_leases'));
         await db.exec('reset role');
     }
-    console.log('PASS: 12 raw migrations; fenced canonical ordering/recovery, duplicate/hash collision, lease death/replacement, refund hold, terminal denial, separate 3+3 grants, expiration/rejoin, deletion tombstone, permanent live pin, RLS/client denial. PGlite serializes calls; cross-process PostgreSQL contention remains an integration gate.');
+    console.log(`PASS: ${migrations.length} raw migrations; fenced canonical ordering/recovery, duplicate/hash collision, lease death/replacement, refund hold, terminal denial, separate 3+3 grants, expiration/rejoin, deletion tombstone, permanent live pin, RLS/client denial. PGlite serializes calls; cross-process PostgreSQL contention is checked separately.`);
 } finally { await db.close(); }

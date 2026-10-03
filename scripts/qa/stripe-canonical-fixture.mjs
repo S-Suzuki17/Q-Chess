@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises';
 export const stripeMigrations = [
+    '20260918072145_ranked_server_settlement.sql',
     '20260930083253_ticket_wallet_daily_login.sql','20260930095339_stripe_membership_entitlements.sql',
     '20260930123309_stripe_billing_portal_customer_lookup.sql','20260930123542_stripe_membership_reversal.sql',
     '20260930123817_stripe_live_membership_allowlist.sql','20260930133414_atomic_ticket_spending.sql',
@@ -9,7 +10,11 @@ export const stripeMigrations = [
 ];
 export async function setupStripeFixture(db) {
     await db.exec(`create role anon; create role authenticated; create role service_role bypassrls;
-        create table public.profiles(id text primary key);
+        create table public.profiles(id text primary key,name text,password_hash text,
+            rating integer default 1000,rating_10s integer default 1000,rating_3m integer default 1000,rating_10m integer default 1000);
+        create table public.game_records(id uuid primary key,created_at timestamptz default now(),
+            white_player text,black_player text,winner text,mode text,cpu_level integer,moves jsonb,total_moves integer,
+            white_id text,black_id text,time_control text);
         create table public.account_deletion_jobs(user_id text,phase text);
         create table public.account_restrictions(user_id text,blocked boolean);
         create table public.account_terms_consents(user_id text,version text);
