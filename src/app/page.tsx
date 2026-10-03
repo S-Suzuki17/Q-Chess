@@ -37,6 +37,8 @@ import { useCampaignProgress } from '../hooks/useCampaignProgress';
 import {TermsGate} from '../components/TermsGate';
 import {DailyLoginClaimController} from '../components/DailyLoginClaimController';
 import {DAILY_LOGIN_REWARDS_ENABLED} from '../lib/dailyLoginRewards';
+import { MemberTicketClaimController } from '../components/MemberTicketsPanel';
+import { MEMBER_TICKET_USAGE_ENABLED } from '../lib/stripeMembership';
 import { battleMusicUrl } from '../config/circuitMusic';
 import { soundManager } from '../lib/SoundService';
 import { CosmeticsSettings } from '../components/CosmeticsSettings';
@@ -286,6 +288,7 @@ export default function Home() {
         <TermsGate key={termsIdentity} user={user} lang={lang} playing={matchDesignLocked} onExit={()=>void handleLogout()} onReady={()=>setTermsReadyIdentity(termsIdentity)}>
         <SocketProvider userId={user?.id}>
             {DAILY_LOGIN_REWARDS_ENABLED && <DailyLoginClaimController user={user} termsReady={termsReadyIdentity===termsIdentity}/>}
+            {MEMBER_TICKET_USAGE_ENABLED && <MemberTicketClaimController user={user} termsReady={termsReadyIdentity===termsIdentity}/>}
             <SystemStatusBanner lang={lang} playing={gameState==='playing'||circuitPlaying} />
             {nativeAuth.failed && <div role="alert" className="fixed bottom-4 left-4 right-4 z-[100] rounded border border-[#D4B872] bg-[#1E1C19] p-4 text-[#E8E2D7]">
                 {matchText(lang,'ログインできませんでした。もう一度お試しください。','Sign-in failed. Please try again.')}

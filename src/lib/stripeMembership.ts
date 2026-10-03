@@ -4,11 +4,14 @@ import { Capacitor } from '@capacitor/core';
 import { ANDROID_BUILD, platformFeatures } from '../config/appPlatform';
 import { supabase } from './supabaseClient';
 import { gameServerUrl, readRankedSession } from './rankedSession';
+import { webCommerceCheckoutReady } from '../config/webCommerce';
 
 /** Local scaffold only. Never turn on before policy, fulfillment, and Play separation review. */
 export const STRIPE_WEB_MEMBERSHIP_ENABLED = false;
 export const STRIPE_WEB_CHECKOUT_ENABLED = false;
 export const STRIPE_WEB_PORTAL_ENABLED = false;
+/** Use of existing entitlements is separate from new purchases and allowed on Android. */
+export const MEMBER_TICKET_USAGE_ENABLED = false;
 
 export type StripeMembershipStatus = Readonly<{
     userId: string;
@@ -25,14 +28,14 @@ export class StripeMembershipError extends Error {
     constructor(public readonly code: 'DISABLED' | 'AUTH_REQUIRED' | 'UNAVAILABLE') { super(code); }
 }
 
-export function stripeWebMembershipAllowed(webContent: boolean, nativePlatform: boolean, enabled = STRIPE_WEB_MEMBERSHIP_ENABLED): boolean {
+export function stripeWebMembershipAllowed(webContent: boolean, nativePlatform: boolean, enabled = STRIPE_WEB_MEMBERSHIP_ENABLED || STRIPE_WEB_PORTAL_ENABLED): boolean {
     return enabled && webContent && !nativePlatform && platformFeatures(ANDROID_BUILD, nativePlatform).webContent;
 }
 
-type Action = 'status' | 'checkout' | 'portal';
+type Action = 'status' | 'checkout' | 'portal' | 'daily-grant';
 function assertWebOnly(action: Action): void {
     if (!stripeWebMembershipAllowed(true, Capacitor.isNativePlatform())
-        || (action === 'checkout' && !STRIPE_WEB_CHECKOUT_ENABLED)
+        || (action === 'checkout' && (!STRIPE_WEB_CHECKOUT_ENABLED || !STRIPE_WEB_MEMBERSHIP_ENABLED || !webCommerceCheckoutReady()))
         || (action === 'portal' && !STRIPE_WEB_PORTAL_ENABLED)) {
         throw new StripeMembershipError('DISABLED');
     }
@@ -94,8 +97,10 @@ export function parseStripePortalUrl(value: unknown): string {
     } catch { throw new StripeMembershipError('UNAVAILABLE'); }
 }
 
-async function request(userId: string, action: Action, signal?: AbortSignal): Promise<unknown> {
-    assertWebOnly(action);
+async function request(userId: string, action: Action, signal?: AbortSignal, usageOnly = false): Promise<unknown> {
+    if (usageOnly) {
+        if (!MEMBER_TICKET_USAGE_ENABLED || !['status','daily-grant'].includes(action)) throw new StripeMembershipError('DISABLED');
+    } else assertWebOnly(action);
     if (!validUserId(userId)) throw new StripeMembershipError('AUTH_REQUIRED');
     signal?.throwIfAborted();
     try {
@@ -133,6 +138,14 @@ async function request(userId: string, action: Action, signal?: AbortSignal): Pr
 
 export async function readStripeMembershipStatus(userId: string, signal?: AbortSignal): Promise<StripeMembershipStatus> {
     return parseStripeMembershipStatus(await request(userId, 'status', signal), userId);
+}
+
+/** Same authenticated status API, with no offer, billing URL or purchase operation. */
+export async function readMemberTicketStatus(userId: string, signal?: AbortSignal): Promise<StripeMembershipStatus> {
+    return parseStripeMembershipStatus(await request(userId, 'status', signal, true), userId);
+}
+export async function claimMemberTickets(userId: string, signal?: AbortSignal): Promise<StripeMembershipStatus> {
+    return parseStripeMembershipStatus(await request(userId, 'daily-grant', signal, true), userId);
 }
 
 /** Returns a validated URL; the caller must decide whether to navigate. Never called while checkout flag is off. */

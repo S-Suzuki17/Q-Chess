@@ -14,11 +14,13 @@ export type DailyLoginStatus = Readonly<{
     streakDays: number;
     tickets: DailyTicketAmounts;
     lastClaimUtcDay: string | null;
+    /** Render server's UTC day, used only to preview the next claim. Older APIs may omit it. */
+    currentUtcDay?: string;
 }>;
 export type DailyLoginClaim = DailyLoginStatus & Readonly<{ credited: DailyTicketAmounts }>;
 
 export class DailyLoginRewardsError extends Error {
-    constructor(public readonly code: 'AUTH_REQUIRED' | 'UNAVAILABLE') { super(code); }
+    constructor(public readonly code: 'DISABLED' | 'AUTH_REQUIRED' | 'UNAVAILABLE') { super(code); }
 }
 
 const validCount = (value: unknown): value is number => Number.isSafeInteger(value) && (value as number) >= 0;
@@ -41,7 +43,9 @@ function parseStatus(value: unknown, userId: string): DailyLoginStatus {
     const row = value as Record<string, unknown>;
     if (row.userId !== userId || row.enabled !== true || !validCount(row.streakDays) || row.streakDays > 7 ||
         !validTickets(row.tickets) || (row.lastClaimUtcDay !== null && !validUtcDay(row.lastClaimUtcDay)) ||
-        (row.lastClaimUtcDay === null ? row.streakDays !== 0 : row.streakDays < 1)) {
+        (row.lastClaimUtcDay === null ? row.streakDays !== 0 : row.streakDays < 1) ||
+        (row.currentUtcDay !== undefined && (!validUtcDay(row.currentUtcDay) ||
+            (typeof row.lastClaimUtcDay === 'string' && row.lastClaimUtcDay > row.currentUtcDay)))) {
         throw new DailyLoginRewardsError('UNAVAILABLE');
     }
     return {
@@ -50,6 +54,7 @@ function parseStatus(value: unknown, userId: string): DailyLoginStatus {
         streakDays: row.streakDays,
         tickets: { ranked: row.tickets.ranked, hint: row.tickets.hint },
         lastClaimUtcDay: row.lastClaimUtcDay,
+        ...(row.currentUtcDay !== undefined ? { currentUtcDay: row.currentUtcDay as string } : {}),
     };
 }
 
@@ -81,8 +86,11 @@ async function request(userId: string, claim: boolean, signal?: AbortSignal): Pr
         });
         signal?.throwIfAborted();
         if (response.status === 401 || response.status === 403) throw new DailyLoginRewardsError('AUTH_REQUIRED');
-        if (!response.ok) throw new DailyLoginRewardsError('UNAVAILABLE');
         const value = await response.json();
+        if (response.status === 503 && value?.code === 'FEATURE_DISABLED' && value?.enabled === false) {
+            throw new DailyLoginRewardsError('DISABLED');
+        }
+        if (!response.ok) throw new DailyLoginRewardsError('UNAVAILABLE');
         signal?.throwIfAborted();
         const status = parseStatus(value, userId);
         if (!claim) return status;
@@ -96,5 +104,11 @@ async function request(userId: string, claim: boolean, signal?: AbortSignal): Pr
 }
 
 /** Reading the balance never claims a reward. Automatic claims are separately release-gated. */
-export const readDailyLoginStatus = (userId: string, signal?: AbortSignal) => request(userId, false, signal);
-export const claimDailyLoginReward = (userId: string, signal?: AbortSignal) => request(userId, true, signal);
+export function createDailyLoginApi(enabled: () => boolean = () => DAILY_LOGIN_REWARDS_ENABLED) {
+    const requireEnabled = () => { if (!enabled()) throw new DailyLoginRewardsError('DISABLED'); };
+    return {
+        async readDailyLoginStatus(userId: string, signal?: AbortSignal) { requireEnabled(); return request(userId, false, signal); },
+        async claimDailyLoginReward(userId: string, signal?: AbortSignal) { requireEnabled(); return request(userId, true, signal); },
+    };
+}
+export const { readDailyLoginStatus, claimDailyLoginReward } = createDailyLoginApi();

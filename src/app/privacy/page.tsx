@@ -8,6 +8,7 @@ import { privacyReview } from '../../locales/privacyReview';
 import { siteCopy } from '../../locales/siteContent';
 import { privacyTranslations } from '@/locales/privacyTranslations';
 import { engagementPrivacy } from '../../locales/engagementPrivacy';
+import { CommercePrivacyNotice } from '../../components/CommercePrivacyNotice';
 
 export default function PrivacyPolicy() {
   const [lang, setLang] = useState<Language>('en');
@@ -94,6 +95,7 @@ export default function PrivacyPolicy() {
         <p className="text-gray-500 text-sm mb-8">{c.updated}</p>
 
         <div className="flex flex-col gap-8 text-sm leading-relaxed">
+          <CommercePrivacyNotice lang={lang}/>
           <section>
             <h2 className="text-xl font-bold text-white border-b border-[#3A3224] pb-1 mb-2">{c.sec1Title}</h2>
             <p>{c.sec1p}</p>

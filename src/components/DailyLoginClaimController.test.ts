@@ -51,6 +51,7 @@ beforeEach(() => {
 afterEach(() => {
     for (const slot of harness.slots) slot?.cleanup?.();
     vi.unstubAllGlobals();
+    vi.useRealTimers();
 });
 
 it('claims only after verified registered access and current terms readiness', async () => {
@@ -102,6 +103,15 @@ it('does not expose a successful result when server validation loses access', as
     window.addEventListener('qg-daily-login-reward-changed', event => events.push(event));
     render(account, true);
     await flush();
-    expect(harness.claim).toHaveBeenCalledTimes(1);
+    expect(harness.claim).not.toHaveBeenCalled();
     expect(events).toHaveLength(0);
+});
+it('reclaims after the next UTC day while open, without duplicate claims on the same day', async () => {
+    vi.useFakeTimers(); vi.setSystemTime(new Date('2026-10-03T23:59:59Z'));
+    harness.allowed = true; render(account, true); await flush();
+    expect(harness.claim).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1100);
+    expect(harness.claim).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(harness.claim).toHaveBeenCalledTimes(2);
 });

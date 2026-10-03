@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { claimDailyLoginReward, DAILY_LOGIN_REWARDS_ENABLED, readDailyLoginStatus } from './dailyLoginRewards';
+import { createDailyLoginApi, claimDailyLoginReward as disabledClaim, DAILY_LOGIN_REWARDS_ENABLED, readDailyLoginStatus as disabledRead } from './dailyLoginRewards';
+import { DAILY_LOGIN_REWARDS_RELEASE_READY } from '../../server/src/services/TicketFeatureGates';
+const { claimDailyLoginReward, readDailyLoginStatus } = createDailyLoginApi(() => true);
 
 const mocks = vi.hoisted(() => ({ session: vi.fn(), proof: vi.fn(), origin: vi.fn(), from: vi.fn() }));
 vi.mock('./supabaseClient', () => ({ supabase: { auth: { getSession: mocks.session }, from: mocks.from } }));
@@ -18,6 +20,26 @@ afterEach(() => vi.unstubAllGlobals());
 
 it('keeps account claims and balance UI OFF until the release is verified', () => {
     expect(DAILY_LOGIN_REWARDS_ENABLED).toBe(false);
+    expect(DAILY_LOGIN_REWARDS_ENABLED).toBe(DAILY_LOGIN_REWARDS_RELEASE_READY);
+});
+it('blocks even direct status and claim requests while the Web gate is OFF', async () => {
+    const fetcher = vi.fn(); vi.stubGlobal('fetch', fetcher);
+    await expect(disabledRead('Alice')).rejects.toThrow('DISABLED');
+    await expect(disabledClaim('Alice')).rejects.toThrow('DISABLED');
+    expect(fetcher).not.toHaveBeenCalled(); expect(mocks.session).not.toHaveBeenCalled();
+});
+it('separates server feature OFF from temporary 503 failure and validates its UTC day', async () => {
+    const fetcher = vi.fn(); vi.stubGlobal('fetch', fetcher);
+    fetcher.mockResolvedValue(reply({code:'FEATURE_DISABLED',enabled:false},503));
+    await expect(readDailyLoginStatus('Alice')).rejects.toThrow('DISABLED');
+    fetcher.mockResolvedValue(reply({code:'REWARD_UNAVAILABLE'},503));
+    await expect(readDailyLoginStatus('Alice')).rejects.toThrow('UNAVAILABLE');
+    fetcher.mockResolvedValue(reply({...status,currentUtcDay:'2026-10-03'}));
+    expect((await readDailyLoginStatus('Alice')).currentUtcDay).toBe('2026-10-03');
+    for (const currentUtcDay of ['2026-02-30','2026-09-29',123]) {
+        fetcher.mockResolvedValue(reply({...status,currentUtcDay}));
+        await expect(readDailyLoginStatus('Alice')).rejects.toThrow('UNAVAILABLE');
+    }
 });
 
 it('reads the authenticated owner balance without claiming or sending identity in the URL/body', async () => {

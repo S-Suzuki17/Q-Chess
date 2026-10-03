@@ -16,17 +16,35 @@ export function DailyLoginClaimController({ user, termsReady }: { user: User | n
 
     useEffect(() => {
         if (!DAILY_LOGIN_REWARDS_ENABLED || !termsReady || !allowed || user?.type !== 'registered') return;
-        const controller = new AbortController();
-        void claimDailyLoginReward(user.id, controller.signal)
+        let controller: AbortController | null = null;
+        let timer: ReturnType<typeof setTimeout>;
+        let lastAttemptDay = '';
+        const claim = () => {
+            const today = new Date().toISOString().slice(0, 10);
+            if (today === lastAttemptDay || !circuitAccess.canPlay(user)) return;
+            lastAttemptDay = today;
+            controller?.abort(); controller = new AbortController();
+            const request = controller;
+            void claimDailyLoginReward(user.id, request.signal)
             .then(() => {
-                if (!controller.signal.aborted && circuitAccess.canPlay(user)) {
+                if (!request.signal.aborted && circuitAccess.canPlay(user)) {
                     window.dispatchEvent(new CustomEvent(DAILY_LOGIN_REWARD_CHANGED_EVENT, {
                         detail: { userId: user.id },
                     }));
                 }
             })
             .catch(() => { /* A failed request can be retried at the next verified login. */ });
-        return () => controller.abort();
+        };
+        const schedule = () => {
+            const now = Date.now(); timer = setTimeout(() => { claim(); schedule(); }, 86_400_000 - now % 86_400_000 + 100);
+        };
+        const resumed = () => { if (document.visibilityState === 'visible') claim(); };
+        claim(); schedule();
+        if (typeof document !== 'undefined') document.addEventListener('visibilitychange', resumed);
+        return () => {
+            controller?.abort(); clearTimeout(timer);
+            if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', resumed);
+        };
     }, [allowed, revision, termsReady, user?.id, user?.type]);
 
     return null;

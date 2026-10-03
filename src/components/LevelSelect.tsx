@@ -38,8 +38,9 @@ import { AccountDeletionPanel } from './AccountDeletionPanel';
 import { AccountSecurityPanel } from './AccountSecurityPanel';
 import { AccountRecoveryPanel } from './AccountRecoveryPanel';
 import { DailyLoginRewardsPanel } from './DailyLoginRewardsPanel';
+import { MemberTicketsPanel } from './MemberTicketsPanel';
 import { DAILY_LOGIN_REWARDS_ENABLED } from '../lib/dailyLoginRewards';
-import { STRIPE_WEB_MEMBERSHIP_ENABLED } from '../lib/stripeMembership';
+import { MEMBER_TICKET_USAGE_ENABLED, STRIPE_WEB_MEMBERSHIP_ENABLED, STRIPE_WEB_PORTAL_ENABLED } from '../lib/stripeMembership';
 
 const ProfileCosmetics=dynamic(()=>import('./ProfileCosmetics').then(module=>module.ProfileCosmetics),{ssr:false});
 const StripeMembershipPanel=dynamic(()=>import('./StripeMembershipPanel').then(module=>module.StripeMembershipPanel),{ssr:false});
@@ -497,7 +498,8 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
 
                             <ProfileCosmetics lang={lang} name={userProfile?.name||user.name} url={displayAvatarUrl} frame={cosmetics.avatar} ratings={user.type==='registered'&&userProfile?.id===user.id?userProfile:undefined}/>
                             {DAILY_LOGIN_REWARDS_ENABLED && user.type==='registered' && <DailyLoginRewardsPanel key={user.id} user={user} lang={lang}/>}
-                            {STRIPE_WEB_MEMBERSHIP_ENABLED && user.type==='registered' && <StripeMembershipPanel key={`stripe-${user.id}`} user={user} lang={lang}/>}
+                            {MEMBER_TICKET_USAGE_ENABLED && user.type==='registered' && <MemberTicketsPanel key={`member-${user.id}`} user={user} lang={lang}/>}
+                            {(STRIPE_WEB_MEMBERSHIP_ENABLED || STRIPE_WEB_PORTAL_ENABLED) && user.type==='registered' && <StripeMembershipPanel key={`stripe-${user.id}`} user={user} lang={lang}/>}
                             {user.type==='registered'&&!/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(user.id)&&<AccountRecoveryPanel key={`recovery-${user.id}`} userId={user.id} lang={lang}/>}
 
                             <button onClick={onBack} className="w-full mt-4 py-4 border border-[#A89C86]/40 hover:border-[#E8E2D7] text-[#A89C86] hover:text-[#E8E2D7] text-xs tracking-widest transition-colors">
