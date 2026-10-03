@@ -26,6 +26,7 @@
     "uuid": "^14.0.2"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "0.5.8",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/node": "^26.2.0",
@@ -39,5 +40,8 @@
     "gaxios@6.7.1": {
       "uuid": "11.1.1"
     }
+  },
+  "optionalDependencies": {
+    "@opentelemetry/api": "^1.9.1"
   }
 }

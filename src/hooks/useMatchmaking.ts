@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSocket } from '../lib/SocketContext';
 import type { User } from '../types/game';
-import { cpuOpponent, type MatchedRoom, type QueueMode } from '../lib/rankedProtocol';
+import { cpuOpponent, queueFailureCode, type MatchedRoom, type QueueMode } from '../lib/rankedProtocol';
 
 export function useMatchmaking(user:User|null) {
     const [isSearching,setIsSearching]=useState(false);
@@ -26,14 +26,16 @@ export function useMatchmaking(user:User|null) {
                 (data.hostId!==user?.id&&data.joinerId!==user?.id)||![10,180,600].includes(data.timeControl??0))return;
             const room:MatchedRoom={id:data.matchId,hostId:data.hostId,joinerId:data.joinerId,timeControl:data.timeControl!,myColor:data.hostId===user?.id?'white':'black',mode:data.mode==='ranked'?'ranked':data.mode==='random'?'random':search.mode,cpu:cpuOpponent(data.cpu)};
             stop();setError(null);setErrorMessage(null);setMatchedRoom(room);
-            socket.emit('connect_match',{matchId:room.id,userName:user?.name,introVersion:1});
+            // OnlineGameBoard connects only after its cancellation/snapshot
+            // listeners are mounted. An early admission here can lose a fast
+            // INSUFFICIENT_FUNDS response during the screen transition.
         };
         const joined=(data:{mode?:QueueMode;timeControl?:number;cpuFallbackAt?:number|null})=>{
             const search=active.current;
             if(!search||data.mode!==search.mode||data.timeControl!==search.timeControl)return;
             setCPUFallbackAt(search.mode==='ranked'&&typeof data.cpuFallbackAt==='number'&&Number.isFinite(data.cpuFallbackAt)?data.cpuFallbackAt:null);
         };
-        const failed=(data?:{code?:string;message?:string})=>{if(!active.current)return;stop();setMatchedRoom(null);setError(data?.code||'QUEUE_FAILED');setErrorMessage(typeof data?.message==='string'&&data.message!==data.code?data.message.slice(0,300):null);};
+        const failed=(data?:{code?:string;reason?:string;message?:string})=>{if(!active.current)return;stop();setMatchedRoom(null);setError(queueFailureCode(data));setErrorMessage(typeof data?.message==='string'&&data.message!==data.code?data.message.slice(0,300):null);};
         const disconnected=()=>{if(active.current)failed({code:'CONNECTION_FAILED'});};
         socket.on('match_found',found);socket.on('queue_joined',joined);socket.on('queue_error',failed);socket.on('match_cancelled',failed);socket.on('disconnect',disconnected);
         return()=>{socket.off('match_found',found);socket.off('queue_joined',joined);socket.off('queue_error',failed);socket.off('match_cancelled',failed);socket.off('disconnect',disconnected);};

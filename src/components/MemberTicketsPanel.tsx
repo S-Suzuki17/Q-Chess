@@ -7,6 +7,7 @@ import { useCircuitAccess } from '../hooks/useCircuitAccess';
 import { circuitAccess } from '../lib/circuitAccess';
 import { dailyLoginText } from '../locales/dailyLoginText';
 import { ticketWalletText } from '../locales/ticketWalletText';
+import { rewardsHubText } from '../locales/rewardsHubText';
 import { MEMBER_TICKET_CAP } from '../config/webCommerce';
 import { MEMBER_TICKET_USAGE_ENABLED, readMemberTicketStatus, claimMemberTickets, type StripeMembershipStatus } from '../lib/stripeMembership';
 
@@ -33,18 +34,19 @@ export function MemberTicketsPanel({ user, lang }: { user: User; lang: Language 
     }, [allowed, revision, user.id, user.type]);
     if (!MEMBER_TICKET_USAGE_ENABLED || !allowed || user.type !== 'registered') return null;
     const status = loaded?.revision === revision && loaded.userId === user.id ? loaded.status : null;
-    const wallet = ticketWalletText(lang), text = dailyLoginText(lang);
+    const wallet = ticketWalletText(lang), text = dailyLoginText(lang), hub = rewardsHubText(lang);
     // An account with no entitlement sees no offer or purchase invitation.
     if (status && !status.active) return null;
-    return <section aria-label={wallet.member} className="border-t border-[#A89C86]/20 pt-4 text-sm" data-member-ticket-usage>
-        <h4 className="font-semibold text-[#D4B872]">{wallet.member}</h4>
+    return <section aria-label={wallet.member} className="reward-card text-sm" data-member-ticket-usage>
+        <h4 className="reward-title">{wallet.member}</h4>
         {failed === revision ? <p role="status">{text.unavailable}</p> : !status ? <p role="status">{text.loading}</p> : <>
-            <dl className="mt-2 grid grid-cols-[1fr_auto] gap-2">
-                <dt>{text.rankedTickets}</dt><dd>{status.tickets.ranked} / {MEMBER_TICKET_CAP.ranked}</dd>
-                <dt>{text.hintTickets}</dt><dd>{status.tickets.hint} / {MEMBER_TICKET_CAP.hint}</dd>
-                <dt>{text.lastClaimUtcDay}</dt><dd>{status.lastGrantUtcDay ?? text.notClaimed}</dd>
+            <dl className="reward-balances">
+                <div className="reward-balance"><dt>{text.rankedTickets}</dt><dd>{status.tickets.ranked}<small>{hub.limit} {MEMBER_TICKET_CAP.ranked}</small></dd></div>
+                <div className="reward-balance"><dt>{text.hintTickets} · CPU</dt><dd>{status.tickets.hint}<small>{hub.limit} {MEMBER_TICKET_CAP.hint}</small></dd></div>
             </dl>
-            <p className="mt-2 text-xs leading-relaxed">{wallet.expiry}</p>
+            <details className="reward-details"><summary>{hub.rules}</summary><div className="reward-details__body">
+                <p>{text.lastClaimUtcDay}: {status.lastGrantUtcDay ?? text.notClaimed}</p><p>{wallet.expiry}</p>
+            </div></details>
         </>}
     </section>;
 }

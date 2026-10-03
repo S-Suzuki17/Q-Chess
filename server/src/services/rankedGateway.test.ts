@@ -180,7 +180,7 @@ describe('ranked gateway without network or database side effects', () => {
         const res = response();
         h.routes.get('/health')!({}, res);
         expect(res.headers['Cache-Control']).toBe('no-store');
-        expect(res.body).toEqual({ status: 'ok', timestamp: Date.now(), rulesVersion: 'checkmate-v1', entanglementVersion: 'subset-v1' });
+        expect(res.body).toEqual({ status: 'ok', timestamp: Date.now(), rulesVersion: 'checkmate-v1', entanglementVersion: 'capture-king-v2' });
     });
     it('verifies the actual password and returns an uncached identity-bound proof', async () => {
         expect(h.json).toHaveBeenCalledWith({ limit: '4kb' });

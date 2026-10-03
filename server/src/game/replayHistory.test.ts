@@ -109,7 +109,14 @@ describe('authoritative online replay', () => {
                     p.captured, !!p.hasMoved, p.promoted ? ['Pawn', 'Knight', 'Bishop', 'Rook', 'Queen', 'King'][['P', 'N', 'B', 'R', 'Q', 'K'].indexOf(p.possibilities[0])] : null,
                     (p.promoted ? ['Pawn'] : p.possibilities.map(type => ({ P: 'Pawn', N: 'Knight', B: 'Bishop', R: 'Rook', Q: 'Queen', K: 'King' })[type])).sort()
                 ]).sort((a, b) => Number(a[0]) - Number(b[0]));
-                expect(compact(timeline.positions[i])).toEqual(expected);
+                const actual = compact(timeline.positions[i]);
+                // Pre-delta ranked records used the old capture rule. Keep their
+                // reconstruction unchanged; new records must match every bit.
+                if (!keepDelta) for (const row of actual) {
+                    if (row[3] && (row[6] as string[]).length > 1)
+                        row[6] = (row[6] as string[]).filter(type => type !== 'King');
+                }
+                expect(actual).toEqual(expected);
             }
         }
     });

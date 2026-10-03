@@ -37,6 +37,8 @@ import { useCampaignProgress } from '../hooks/useCampaignProgress';
 import {TermsGate} from '../components/TermsGate';
 import {DailyLoginClaimController} from '../components/DailyLoginClaimController';
 import {DAILY_LOGIN_REWARDS_ENABLED} from '../lib/dailyLoginRewards';
+import { rewardsHubEnabled } from '../config/rewardsHub';
+import { rewardsHubText } from '../locales/rewardsHubText';
 import { MemberTicketClaimController } from '../components/MemberTicketsPanel';
 import { MEMBER_TICKET_USAGE_ENABLED } from '../lib/stripeMembership';
 import { battleMusicUrl } from '../config/circuitMusic';
@@ -89,7 +91,12 @@ export default function Home() {
     const [replayRecord, setReplayRecord] = useState<GameRecord | null>(null);
     const [soundConfig, setSoundConfig] = useState(() => soundManager.getConfig());
     const [showSettings, setShowSettings] = useState(false);
-    const [settingsPanel,setSettingsPanel]=useState<'friends'|'account'|null>(null);
+    const [settingsPanel,setSettingsPanel]=useState<'friends'|'account'|'rewards'|null>(null);
+    const rewardsOrigin=React.useRef<'settings'|'account'|'lobby'>('lobby');
+    const openRewards = (fromSettings: boolean) => {
+        rewardsOrigin.current=fromSettings?'settings':settingsPanel==='account'?'account':'lobby';
+        setShowSettings(false); setSettingsPanel('rewards');
+    };
     useEffect(() => {
         const openSettings = () => setShowSettings(true);
         window.addEventListener('qg-open-settings', openSettings);
@@ -394,6 +401,10 @@ export default function Home() {
                                 </div>
                             </div>
 
+                            {user?.type==='registered' && gameState==='level_select' && rewardsHubEnabled() && <button type="button"
+                                data-settings-panel="rewards" onClick={()=>openRewards(true)} className="reward-entry">
+                                <span>{rewardsHubText(lang).title}<small>{rewardsHubText(lang).description}</small></span><span aria-hidden="true">→</span>
+                            </button>}
                             {webContent && <OptionalMetricsSettings lang={lang}/>}
 
                             <CosmeticsSettings lang={lang} progress={campaignProgress} update={updateCampaign} loaded={cosmeticsLoaded} locked={matchDesignLocked}/>
@@ -441,7 +452,12 @@ export default function Home() {
                 {gameState === 'level_select' && user && (
                     <LevelSelect
                         settingsPanel={settingsPanel}
-                        onCloseSettingsPanel={()=>{setSettingsPanel(null);setShowSettings(true);}}
+                        onOpenRewards={()=>openRewards(false)}
+                        onCloseSettingsPanel={()=>{
+                            const returnToAccount=settingsPanel==='rewards'&&rewardsOrigin.current==='account';
+                            setSettingsPanel(returnToAccount?'account':null);
+                            setShowSettings(settingsPanel!=='rewards'||rewardsOrigin.current==='settings');
+                        }}
                         lang={lang}
                         user={user}
                         onSelect={handleSelectLevel}

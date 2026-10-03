@@ -20,7 +20,7 @@ export const PIECE_LIMITS = {
 
 // All possible piece types
 export const PIECE_TYPES = ['P', 'N', 'B', 'R', 'Q', 'K'];
-export const ENTANGLEMENT_VERSION = 'subset-v1';
+export const ENTANGLEMENT_VERSION = 'capture-king-v2';
 
 const TYPE_BITS: Record<string, number> = Object.fromEntries(PIECE_TYPES.map((type, i) => [type, 1 << i]));
 const TYPE_SUBSETS = Array.from({ length: 63 }, (_, i) => {
@@ -420,7 +420,17 @@ export function attemptMove(pieces: any[], board: any[], pieceId: number, toX: n
     // Handle capture
     if (capturedPiece) {
         const capturedIndex = newPieces.findIndex(p => p.id === capturedPiece.id);
-        newPieces[capturedIndex] = { ...newPieces[capturedIndex], captured: true };
+        const target = newPieces[capturedIndex];
+        // As in practice, a captured superposition cannot keep a King slot
+        // while another living piece can still be the King. Otherwise the
+        // captured piece hides the last King's identity and all later quotas.
+        const otherKing = newPieces.some(p => p.id !== target.id && p.team === target.team
+            && !p.captured && p.possibilities.includes('K'));
+        const possibilities = target.possibilities.includes('K')
+            ? (otherKing && target.possibilities.length > 1
+                ? target.possibilities.filter(type => type !== 'K') : ['K'])
+            : target.possibilities;
+        newPieces[capturedIndex] = { ...target, captured: true, possibilities };
     }
 
     // Handle castling side effect (move the rook)
@@ -459,7 +469,7 @@ export function attemptMove(pieces: any[], board: any[], pieceId: number, toX: n
         success: true,
         pieces: resolvedPieces,
         board: newBoard,
-        capturedPiece,
+        capturedPiece: capturedPiece ? resolvedPieces.find(p => p.id === capturedPiece.id) ?? null : null,
         message: newPossibilities.length === 1
             ? `Piece collapsed to ${SYMBOLS[newPossibilities[0]]}!`
             : `Piece now has ${newPossibilities.length} possibilities`
@@ -651,7 +661,8 @@ export function attemptLegalMove(pieces: any[], board: any[], pieceId: number, t
     const invalid = { success: false, pieces, board, capturedPiece: null, message: 'Invalid move' };
     if (!piece || !Number.isInteger(toX) || !Number.isInteger(toY) || !isInBounds(toX, toY)) return invalid;
     const result = attemptMove(pieces, board, pieceId, toX, toY, intention, promotedTo);
-    if (!result.success || isKingInCheck(result.board, result.pieces, piece.team)) return invalid;
+    if (!result.success || isKingCaptured(result.pieces, piece.team)
+        || isKingInCheck(result.board, result.pieces, piece.team)) return invalid;
     const moved = result.pieces.find(p => p.id === pieceId);
     if (moved?.possibilities.includes('K') && Math.abs(toX - piece.x) === 2) {
         // Castling cannot escape check or cross an attacked square, even when
