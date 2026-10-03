@@ -99,6 +99,27 @@ describe('durable ranked admission faults',()=>{
         expect(f.mm.accountBusy('human')).toBe(false);expect(f.started).not.toHaveBeenCalled();
         expect(f.notify).toHaveBeenCalledWith(expect.objectContaining({state:'rejected',reason:'INSUFFICIENT_FUNDS'}));
     });
+    it.each(['42501','22023','23505'])('definitive admission SQL error %s cancels durably instead of retrying forever',async code=>{
+        const f=fixture();
+        vi.mocked(f.store.admit).mockRejectedValue({code,message:'database rejected admission'});
+        await f.coordinator.begin(f.match);
+        expect(f.store.void).toHaveBeenCalledWith(f.match.matchId,f.coordinator.ownerId,'admission_unavailable');
+        expect(f.match.state).toBe('CANCELLED');expect(f.match.engine).toBeUndefined();
+        expect(f.mm.accountBusy('human')).toBe(false);expect(f.started).not.toHaveBeenCalled();
+        vi.advanceTimersByTime(1500);f.coordinator.tick();await flush();
+        expect(f.store.admit).toHaveBeenCalledOnce();
+    });
+    it('a rejected admission with a lost void response stays busy and retries only the tombstone',async()=>{
+        const f=fixture();
+        vi.mocked(f.store.admit).mockRejectedValue({code:'42501'});
+        vi.mocked(f.store.void).mockRejectedValueOnce(new Error('void acknowledgement lost'));
+        await f.coordinator.begin(f.match);
+        expect(f.match.state).toBe('VOIDING');expect(f.mm.accountBusy('human')).toBe(true);
+        expect(f.notify).not.toHaveBeenCalled();
+        vi.advanceTimersByTime(1000);f.coordinator.tick();await flush();
+        expect(f.match.state).toBe('CANCELLED');expect(f.mm.accountBusy('human')).toBe(false);
+        expect(f.store.admit).toHaveBeenCalledOnce();expect(f.store.void).toHaveBeenCalledTimes(2);
+    });
     it('cancellation racing a committed admission waits for its void and never constructs an engine',async()=>{
         const f=fixture(),admit=deferred<AdmissionOutcome>(),refund=deferred<AdmissionOutcome>();
         vi.mocked(f.store.admit).mockReturnValue(admit.promise);

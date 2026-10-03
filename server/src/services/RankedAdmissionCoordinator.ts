@@ -75,7 +75,18 @@ export class RankedAdmissionCoordinator {
         }
         return this.request(match, async () => {
             if (!this.alive() && !await this.renew()) { await this.voidMatch(match, 'owner_unavailable'); return; }
-            const result = await this.store.admit(match, this.ownerId);
+            let result: AdmissionOutcome;
+            try {
+                result = await this.store.admit(match, this.ownerId);
+            } catch (error) {
+                // A definitive SQL rejection cannot become eligible by replaying
+                // this UUID. Persist a tombstone before releasing either player.
+                // Transport failures and transient DB errors still retry admission.
+                const code = (error as {code?: unknown} | null)?.code;
+                if (!['42501','22023','23505'].includes(typeof code === 'string' ? code : '')) throw error;
+                await this.voidMatch(match, match.admission?.reason ?? 'admission_unavailable');
+                return;
+            }
             if (result.state === 'active' && match.state === 'ADMITTING' && this.alive()) {
                 match.admission!.state = 'active';
                 if (this.matchmaking.activateMatch(match, {
@@ -115,6 +126,7 @@ export class RankedAdmissionCoordinator {
     private async voidMatch(match: MatchSession, reason: string) {
         match.state = 'VOIDING';
         match.admission!.state = 'voiding';
+        match.admission!.reason = reason;
         match.engine?.freeze();
         const result = await this.store.void(match.matchId, this.ownerId, reason);
         if (result.state === 'active' || result.state === 'missing') throw new Error('VOID_UNCONFIRMED');
