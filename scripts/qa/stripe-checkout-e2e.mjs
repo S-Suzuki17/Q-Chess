@@ -35,7 +35,7 @@ const control=path.join(task,'work','stripe-checkout-e2e-'+suffix+'.stop');
 const report={run,user,startedAt:new Date().toISOString(),phase:'preparing',completed:false,
   scope:'Actual authenticated membership HTTP routes, SDK via CLI auth transport, raw signed events, actual Store and native PostgreSQL migrations. Loopback auth fixture and direct PostgreSQL RPC transport; not hosted Supabase/PostgREST or full gameplay.',
   consumptionLimitation:'Current game consumers only accept live paid tickets. Sandbox paid consumption cannot pass without a separately approved mode-aware implementation. No test-to-live rewriting is performed.',
-  sourceCommit:'db7a391159c8ed5d654006af0c0a16f819868494',migrations:stripeMigrations,apiVersion:version,accountId:account,livemode:false,
+  sourceCommit:process.env.QG_QA_SOURCE_COMMIT??'db7a391159c8ed5d654006af0c0a16f819868494',migrations:stripeMigrations,apiVersion:version,accountId:account,livemode:false,
   automaticTax:false,capSourceUnmodified:true,events:[],checks:[],resources:{},cleanup:[],controlFile:control};
 let saveQueue=Promise.resolve();
 const save=()=>{const snapshot=JSON.stringify(report,null,2)+'\n';saveQueue=saveQueue.then(async()=>{
@@ -61,7 +61,9 @@ async function identity(){
 function flatten(value,prefix,out){if(value!==null&&typeof value==='object')for(const [k,v]of Object.entries(value))flatten(v,prefix?`${prefix}[${k}]`:k,out);else if(value!==undefined)out.push('-d',`${prefix}=${value===null?'':String(value)}`);}
 async function apiCall(method,endpoint,params={},options={}){
   must(/^\/v1\/[a-z_/A-Za-z0-9]+$/.test(endpoint)&&['get','post','delete'].includes(method),'API_PATH_GUARD');
-  if(method!=='get')await identity();
+  // Also guard read calls: the owner may have authenticated other accounts.
+  // This harness never switches accounts or passes --live / credential flags.
+  await identity();
   const args=[method,endpoint,'--confirm','--stripe-version',version];flatten(params,'',args);
   if(options.idempotencyKey)args.push('--idempotency',options.idempotencyKey);
   let result;try{result=await execute(cli,args,{encoding:'utf8',windowsHide:true,maxBuffer:2*1024*1024,timeout:25000});}catch{throw new Error('CLI_REQUEST_FAILED');}
@@ -164,6 +166,7 @@ async function prepare(){
     res.writeHead(await work).end();
   }catch(e){report.lastWebhookError=safeError(e);await save();res.writeHead(400).end();}});
   const forwardPort=await listen(proxy);
+  await identity();
   listener=spawn(cli,['listen','--latest','--skip-update','--events','checkout.session.completed,checkout.session.async_payment_succeeded,checkout.session.async_payment_failed,customer.subscription.created,customer.subscription.updated,customer.subscription.deleted,invoice.paid,invoice.payment_failed','--forward-to','http://127.0.0.1:'+forwardPort+'/stripe'],{windowsHide:true,stdio:['ignore','pipe','pipe']});
   const capture=chunk=>{const match=/whsec_[A-Za-z0-9_-]+/.exec(chunk.toString());if(match)secret=match[0];};listener.stdout.on('data',capture);listener.stderr.on('data',capture);
   for(let i=0;i<30&&!secret;i++)await delay(1000);must(secret,'CLI_LISTENER_NOT_READY');
