@@ -32,6 +32,7 @@ describe('authoritative full-team candidate propagation', () => {
         const after = attemptLegalMove(pieces, board, (1-team)*16, 0, 5);
         expect(after.success).toBe(true);
         expect(after.pieces.find(p=>p.id===base+14)).toMatchObject({captured:true,possibilities:['P']});
+        expect(after.capturedPiece).toBe(after.pieces.find(p=>p.id===base+14));
         expect(after.pieces.find(p=>p.id===base+15)!.possibilities).toEqual(['K']);
         for (const [type, count] of Object.entries(PIECE_LIMITS)) {
             expect(after.pieces.filter(p=>p.team===team&&p.possibilities.includes(type))).toHaveLength(count);

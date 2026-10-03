@@ -469,7 +469,7 @@ export function attemptMove(pieces: any[], board: any[], pieceId: number, toX: n
         success: true,
         pieces: resolvedPieces,
         board: newBoard,
-        capturedPiece,
+        capturedPiece: capturedPiece ? resolvedPieces.find(p => p.id === capturedPiece.id) ?? null : null,
         message: newPossibilities.length === 1
             ? `Piece collapsed to ${SYMBOLS[newPossibilities[0]]}!`
             : `Piece now has ${newPossibilities.length} possibilities`

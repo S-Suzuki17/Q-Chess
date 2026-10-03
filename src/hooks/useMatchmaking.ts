@@ -26,7 +26,9 @@ export function useMatchmaking(user:User|null) {
                 (data.hostId!==user?.id&&data.joinerId!==user?.id)||![10,180,600].includes(data.timeControl??0))return;
             const room:MatchedRoom={id:data.matchId,hostId:data.hostId,joinerId:data.joinerId,timeControl:data.timeControl!,myColor:data.hostId===user?.id?'white':'black',mode:data.mode==='ranked'?'ranked':data.mode==='random'?'random':search.mode,cpu:cpuOpponent(data.cpu)};
             stop();setError(null);setErrorMessage(null);setMatchedRoom(room);
-            socket.emit('connect_match',{matchId:room.id,userName:user?.name,introVersion:1});
+            // OnlineGameBoard connects only after its cancellation/snapshot
+            // listeners are mounted. An early admission here can lose a fast
+            // INSUFFICIENT_FUNDS response during the screen transition.
         };
         const joined=(data:{mode?:QueueMode;timeControl?:number;cpuFallbackAt?:number|null})=>{
             const search=active.current;
