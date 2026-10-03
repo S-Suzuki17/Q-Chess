@@ -153,19 +153,26 @@ try {
         await exhaust('Paid');
         const m=match('Paid');assert.equal((await admit(m)).entries[0].pool,'paid');await cancel(m);
         assert.equal(await refunds('Paid'),1);
+        const refundBalance=async()=>(await service("select public.get_ranked_refund_balance('Paid') as result")).result;
+        assert.deepEqual(await refundBalance(),{freeRankedRefunds:0,paidRankedRefunds:1});
         for(const status of ['paused','canceled','refunded']) {
             await db.query('update public.stripe_memberships set status=$1 where user_id=$2',[status,'Paid']);
             assert.equal((await admit(match('Paid'))).reason,'INSUFFICIENT_FUNDS');
+            assert.deepEqual(await refundBalance(),{freeRankedRefunds:0,paidRankedRefunds:0});
         }
         await db.exec("update public.stripe_memberships set status='active' where user_id='Paid'");
         await db.exec("update public.ranked_ticket_refunds set expires_at=now()-interval '1 second' where user_id='Paid'");
         assert.equal((await admit(match('Paid'))).reason,'INSUFFICIENT_FUNDS');
+        assert.equal((await refundBalance()).paidRankedRefunds,0);
         await db.exec("update public.ranked_ticket_refunds set expires_at=now()+interval '1 hour' where user_id='Paid'");
         await db.exec("update public.stripe_memberships set refund_blocked_until=now()+interval '1 day' where user_id='Paid'");
         assert.equal((await admit(match('Paid'))).reason,'INSUFFICIENT_FUNDS');
+        assert.equal((await refundBalance()).paidRankedRefunds,0);
         await db.exec("update public.stripe_memberships set refund_blocked_until=null where user_id='Paid'");
+        assert.equal((await refundBalance()).paidRankedRefunds,1);
         const reuse=match('Paid');assert.equal((await admit(reuse)).entries[0].pool,'paid');await settle(reuse);
         assert.equal((await wallet('Paid')).member_ranked_tickets,0);
+        assert.equal((await refundBalance()).paidRankedRefunds,0);
     });
     await test('a live owner cannot be recovered; expired owners are fenced forever and refunds idempotent',async()=>{
         const m=match('Bob');await admit(m);

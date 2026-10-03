@@ -25,6 +25,7 @@ import {createAccountTermsRouter} from './services/AccountTermsRoutes';
 import {createSecurityAudit} from './services/SecurityAudit';
 import {createEngagementMetricsRouter} from './services/EngagementMetricsRoutes';
 import {createDailyLoginRouter} from './services/DailyLoginRoutes';
+import { createRankedRefundRouter } from './services/RankedRefundRoutes';
 import {QG_LIVE_MONTHLY_PRICE_ID, StripeMembershipApi, type StripeMembershipMode} from './services/StripeMembership';
 import {createStripeMembershipRouter,createStripeWebhookRouter} from './services/StripeMembershipRoutes';
 import {createStripeCancellationGuard} from './services/StripeCancellation';
@@ -127,6 +128,11 @@ app.use(createAccountProgressRouter(rankedAuth,supabaseService.accountProgressSt
 app.use(createDailyLoginRouter(rankedAuth,supabaseService.dailyLoginStore(),accountGate));
 app.use(createCpuPracticeRouter(rankedAuth,getCpuPractice,token=>supabaseService.verifyUser(token),accountGate,
     id=>matchmaking.accountBusy(id)||matchmaking.getPlayerSession(id)?.state==='WAITING'));
+app.use(createRankedRefundRouter(rankedAuth, {
+    verifyUser: token => supabaseService.verifyUser(token),
+    blocked: id => deletionStore.blocked(id),
+    read: id => supabaseService.rankedRefundBalance(id),
+}, accountGate));
 app.use(createStripeMembershipRouter(rankedAuth,stripeMembershipApi,stripeMembershipStore,accountGate,
     stripeBillingProcessingEnabled,stripePortalApi,stripePortalEnabled,stripeCheckoutEnabled));
 app.use(createAccountProfileRouter(rankedAuth,supabaseService.accountProfileStore(),accountGate));
