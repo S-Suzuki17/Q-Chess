@@ -4,6 +4,7 @@ import { DAILY_LOGIN_REWARDS_RELEASE_READY } from '../../server/src/services/Tic
 const { claimDailyLoginReward, readDailyLoginStatus } = createDailyLoginApi(() => true);
 
 const mocks = vi.hoisted(() => ({ session: vi.fn(), proof: vi.fn(), origin: vi.fn(), from: vi.fn() }));
+vi.mock('./currentAccountTerms', () => ({ requireCurrentAccountTerms: vi.fn().mockResolvedValue(undefined) }));
 vi.mock('./supabaseClient', () => ({ supabase: { auth: { getSession: mocks.session }, from: mocks.from } }));
 vi.mock('./rankedSession', () => ({ gameServerUrl: mocks.origin, readRankedSession: mocks.proof }));
 

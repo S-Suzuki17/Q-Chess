@@ -75,6 +75,7 @@ export function createDailyLoginRouter(
                     : await store.verifyUser(session) !== userId)) {
                     res.status(401).json({ code: 'AUTH_REQUIRED' }); return;
                 }
+                if (!await store.hasCurrentTerms(userId)) { res.status(403).json({ code: 'CURRENT_TERMS_REQUIRED' }); return; }
                 // Atomic same-day idempotency and server UTC time belong to the DB RPC.
                 res.json({ userId, enabled: true, ...await store.claim(userId), currentUtcDay: new Date().toISOString().slice(0, 10) });
             } catch { res.status(503).json({ code: 'REWARD_UNAVAILABLE' }); }

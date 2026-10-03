@@ -2,6 +2,8 @@
 
 import React from 'react';
 import Link from 'next/link';
+import { acceptCurrentAccountTerms } from '../lib/currentAccountTerms';
+import { TermsDocument } from './TermsDocument';
 import { Capacitor } from '@capacitor/core';
 import type { User } from '../types/game';
 import type { Language } from '../locales/dict';
@@ -61,6 +63,8 @@ export function StripeMembershipPanel({ user, lang }: { user: User; lang: Langua
         const controller = new AbortController(); actionRequest.current = controller;
         setPreparing(true); setActionFailed(false);
         try {
+            await acceptCurrentAccountTerms(user.id, controller.signal);
+            controller.signal.throwIfAborted();
             const url = await prepareStripeCheckout(user.id, controller.signal);
             if (!controller.signal.aborted && circuitAccess.canPlay(user) && stripeWebMembershipAllowed(webContent, Capacitor.isNativePlatform())) window.location.assign(url);
         } catch { if (!controller.signal.aborted) { setActionFailed(true); setPreparing(false); actionRequest.current = null; } }
@@ -102,6 +106,7 @@ export function StripeMembershipPanel({ user, lang }: { user: User; lang: Langua
                 {MEMBER_TICKET_CAP && <p>{commerce.cap}: {MEMBER_TICKET_CAP.ranked} / {MEMBER_TICKET_CAP.hint}</p>}
                 <Link href="/commerce/" className="mr-4 inline-block underline">{commerce.title}</Link>
                 <Link href="/terms/" className="inline-block underline">{copy.terms}</Link>
+                <details><summary className="min-h-11 cursor-pointer underline">{copy.terms}</summary><TermsDocument initialLanguage={lang}/></details>
                 <label className="flex gap-3"><input type="checkbox" checked={acceptedPurchaseTerms} disabled={preparing}
                     onChange={event => setAcceptedPurchaseTerms(event.target.checked)} className="mt-1 h-5 w-5 shrink-0"/><span>{copy.confirmPurchase}</span></label>
                 <button type="button" disabled={preparing || !acceptedPurchaseTerms} onClick={() => void startCheckout()}

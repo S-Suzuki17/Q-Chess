@@ -1,4 +1,5 @@
 'use client';
+import { CURRENT_TERMS_ACCEPTED_EVENT } from '../lib/currentAccountTerms';
 import React, { useEffect } from 'react';
 import type { User } from '../types/game';
 import type { Language } from '../locales/dict';
@@ -62,8 +63,10 @@ export function MemberTicketClaimController({ user, termsReady }: { user: User |
             }).catch(() => { /* No client credit; the next verified attempt can retry. */ });
             const now = Date.now(); timer = setTimeout(claim, 86_400_000 - now % 86_400_000 + 100);
         };
+        const accepted = (event: Event) => { if ((event as CustomEvent<{userId: string}>).detail?.userId === user.id) { clearTimeout(timer); claim(); } };
+        window.addEventListener(CURRENT_TERMS_ACCEPTED_EVENT, accepted);
         claim();
-        return () => { controller?.abort(); clearTimeout(timer); };
+        return () => { controller?.abort(); clearTimeout(timer); window.removeEventListener(CURRENT_TERMS_ACCEPTED_EVENT, accepted); };
     }, [allowed, revision, termsReady, user?.id, user?.type]);
     return null;
 }

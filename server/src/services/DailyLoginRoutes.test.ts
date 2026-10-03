@@ -21,7 +21,7 @@ describe('authenticated daily login reward HTTP API', () => {
     beforeEach(async () => {
         enabled = true;
         store = {
-            verifyUser: vi.fn().mockResolvedValue(null), blocked: vi.fn().mockResolvedValue(false),
+            verifyUser: vi.fn().mockResolvedValue(null), blocked: vi.fn().mockResolvedValue(false), hasCurrentTerms: vi.fn().mockResolvedValue(true),
             read: vi.fn().mockResolvedValue(state), claim: vi.fn().mockResolvedValue(claim),
         };
         auth = new RankedAuth(async (id, password) => id === 'Alice' && password === 'right');
@@ -38,6 +38,12 @@ describe('authenticated daily login reward HTTP API', () => {
         vi.restoreAllMocks();
     });
 
+    it('rejects old-consent claims but permits reading the existing balance', async () => {
+        store.hasCurrentTerms.mockResolvedValue(false);
+        expect((await fetch(base+'/rewards/daily-login/claim',post(token))).status).toBe(403);
+        expect(store.claim).not.toHaveBeenCalled();
+        expect((await fetch(base+'/rewards/daily-login',get(token))).status).toBe(200);
+    });
     it('is OFF by default and does not call the store while disabled', async () => {
         enabled = false;
         const result = await fetch(`${base}/rewards/daily-login`, get(token));

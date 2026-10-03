@@ -1,6 +1,6 @@
-import { TERMS_VERSION } from './terms';
+import { CURRENT_TERMS_VERSION, CURRENT_TERMS_EFFECTIVE_DATE, currentTermsEffective } from './currentTerms';
 
-export const SALES_TERMS_DRAFT_VERSION = '2026-10-03.1';
+export const SALES_TERMS_DRAFT_VERSION = CURRENT_TERMS_VERSION;
 /** Publication of these purpose-limited fields was approved by the owner on 2026-10-03. */
 export const COMMERCE_SELLER = {
     legalName: '鈴木 壮太',
@@ -18,9 +18,10 @@ export const WEB_COMMERCE_SALES_RELEASE_READY = false;
 export function webCommerceCheckoutReady(
     releaseReady = WEB_COMMERCE_SALES_RELEASE_READY,
     cap: Readonly<{ ranked: number; hint: number }> | null = MEMBER_TICKET_CAP,
-    termsVersion = TERMS_VERSION,
+    termsVersion = CURRENT_TERMS_VERSION,
+    effectiveDate: string | null = CURRENT_TERMS_EFFECTIVE_DATE,
 ): boolean {
-    return releaseReady && termsVersion === SALES_TERMS_DRAFT_VERSION && !!cap &&
+    return releaseReady && currentTermsEffective(effectiveDate) && termsVersion === CURRENT_TERMS_VERSION && !!cap &&
         Number.isSafeInteger(cap.ranked) && cap.ranked > 0 &&
         Number.isSafeInteger(cap.hint) && cap.hint > 0;
 }

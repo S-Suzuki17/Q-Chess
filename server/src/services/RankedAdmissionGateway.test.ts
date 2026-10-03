@@ -46,6 +46,7 @@ vi.mock('./DailyLoginRoutes', () => ({ createDailyLoginRouter: vi.fn(() => () =>
 vi.mock('./CpuPracticeRoutes', () => ({ createCpuPracticeRouter: vi.fn(() => () => {}) }));
 vi.mock('./RankedRefundRoutes', () => ({ createRankedRefundRouter: vi.fn(() => () => {}) }));
 vi.mock('./StripeMembershipRoutes', () => ({ createStripeMembershipRouter: vi.fn(() => () => {}), createStripeWebhookRouter: vi.fn(() => () => {}) }));
+vi.mock('./AccountCurrentTermsRoutes', () => ({ createCurrentTermsRouter: vi.fn(() => () => {}) }));
 vi.mock('./AccountTermsRoutes', () => ({ createAccountTermsRouter: vi.fn(() => () => {}) }));
 
 function response() {
@@ -100,6 +101,7 @@ beforeEach(async () => {
     (h.service as any).restrictedAccounts = async()=>[];
     (h.service as any).accountProgressStore = () => ({});
     (h.service as any).dailyLoginStore = () => ({});
+    (h.service as any).currentTermsStore = () => ({});
     (h.service as any).accountTermsStore = () => ({});
     (h.service as any).serviceStatusLoader = () => async()=>({maintenance:false,minimumAndroidBuild:0,minimumProtocol:0,announcement:{},revision:''});
     await import('../index');

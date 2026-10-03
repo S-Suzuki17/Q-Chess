@@ -15,6 +15,7 @@ vi.mock('react', async original => {
     const useRef = () => ({ current: null });
     return { ...react, useState, useEffect, useRef, default: { ...react, useState, useEffect, useRef } };
 });
+vi.mock('../lib/currentAccountTerms', () => ({ CURRENT_TERMS_ACCEPTED_EVENT:'terms-accepted', acceptCurrentAccountTerms:vi.fn().mockResolvedValue(undefined) }));
 vi.mock('next/link', async () => { const react = await import('react'); return { default: ({href,children}: {href:string;children:ReactNode}) => react.createElement('a',{href},children) }; });
 vi.mock('@capacitor/core', () => ({ Capacitor: { isNativePlatform: () => harness.native } }));
 vi.mock('../hooks/useAppPlatform', () => ({ useAppPlatform: () => ({ webContent: harness.web }) }));
@@ -121,7 +122,20 @@ it('does not navigate to a stale Checkout response after the account screen unmo
     harness.states=panelStates({...status,active:false,canManageBilling:false,cancelAtPeriodEnd:false,periodEnd:null},true);
     const tree=StripeMembershipPanel({user,lang:'en'});
     const button=elements(tree).find(element=>element.type==='button') as ReactElement<{onClick:()=>void}>;
-    button.props.onClick(); harness.cleanups.forEach(cleanup=>cleanup());
+    button.props.onClick(); await Promise.resolve(); harness.cleanups.forEach(cleanup=>cleanup());
     complete('https://checkout.stripe.com/c/pay/stale'); await Promise.resolve(); await Promise.resolve();
     expect(window.location.assign).not.toHaveBeenCalled();
+});
+
+it('keeps Checkout and billing closed to consent side effects until explicit acceptance succeeds', async () => {
+    const { acceptCurrentAccountTerms }=await import('../lib/currentAccountTerms');
+    vi.mocked(acceptCurrentAccountTerms).mockRejectedValueOnce(new Error('TERMS_UNAVAILABLE'));
+    harness.states=panelStates({...status,active:false,canManageBilling:false,cancelAtPeriodEnd:false,periodEnd:null},true);
+    const button=elements(StripeMembershipPanel({user,lang:'en'})).find(element=>element.type==='button') as ReactElement<{onClick:()=>void}>;
+    button.props.onClick();await Promise.resolve();await Promise.resolve();expect(harness.prepare).not.toHaveBeenCalled();
+    const before=vi.mocked(acceptCurrentAccountTerms).mock.calls.length;
+    harness.cursor=0;harness.states=panelStates(status);harness.checkout=false;harness.ready=false;
+    const billingButton=elements(StripeMembershipPanel({user,lang:'en'})).find(element=>element.type==='button') as ReactElement<{onClick:()=>void}>;
+    harness.billing.mockResolvedValue('https://billing.stripe.com/p/session/owned');billingButton.props.onClick();await Promise.resolve();
+    expect(harness.billing).toHaveBeenCalled();expect(vi.mocked(acceptCurrentAccountTerms).mock.calls.length).toBe(before);
 });

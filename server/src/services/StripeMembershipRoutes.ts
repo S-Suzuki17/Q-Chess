@@ -175,6 +175,7 @@ export function createStripeMembershipRouter(
         let checkoutId: string | undefined;
         try {
             if (!(await recheck(res, userId))) { res.status(401).json({ code: 'AUTH_REQUIRED' }); return; }
+            if (!await store.hasCurrentTerms(userId)) { res.status(403).json({ code: 'CURRENT_TERMS_REQUIRED' }); return; }
             let preflight = await store.preflight(userId, api!.livemode);
             if (preflight.reason === 'checkout_pending' && preflight.checkoutId && preflight.expiresAt
                 && Date.parse(preflight.expiresAt) <= Date.now()) {
@@ -207,6 +208,7 @@ export function createStripeMembershipRouter(
         if (!release) { res.status(423).json({ code: 'ACCOUNT_DELETING' }); return; }
         try {
             if (!(await recheck(res, userId))) { res.status(401).json({ code: 'AUTH_REQUIRED' }); return; }
+            if (!await store.hasCurrentTerms(userId)) { res.status(403).json({ code: 'CURRENT_TERMS_REQUIRED' }); return; }
             res.json({ enabled: true, ...await store.claim(userId, api!.livemode) });
         } catch { res.status(503).json({ code: 'MEMBERSHIP_UNAVAILABLE' }); }
         finally { release(); }

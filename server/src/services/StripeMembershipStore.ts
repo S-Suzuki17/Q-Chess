@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { hasCurrentTicketTerms } from './AccountCurrentTerms';
 import type { StripeMembershipSnapshot } from './StripeMembership';
 
 export interface StripeMembershipStatus {
@@ -35,6 +36,7 @@ export interface StripePortalCustomer {
 export interface StripeMembershipStore {
     verifyUser(token: string): Promise<string | null>;
     blocked(userId: string): Promise<boolean>;
+    hasCurrentTerms(userId: string): Promise<boolean>;
     preflight(userId: string, livemode?: boolean): Promise<{ eligible: boolean; reason: string | null; checkoutId: string | null; expiresAt: string | null }>;
     closeExpiredIntent(userId: string, checkoutId: string, livemode?: boolean): Promise<void>;
     registerCheckoutIntent(userId: string, checkoutId: string, priceId: string, expiresAt: string, livemode?: boolean): Promise<void>;
@@ -76,6 +78,7 @@ export function createStripeMembershipStore(
     };
     return {
         verifyUser, blocked,
+        hasCurrentTerms: id => hasCurrentTicketTerms(client, id),
         async acquireReconciliation(subscriptionId, livemode) {
             const { data, error } = await client.rpc('acquire_stripe_reconciliation', {
                 p_subscription_id: subscriptionId, p_livemode: livemode,

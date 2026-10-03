@@ -115,3 +115,9 @@ it('reclaims after the next UTC day while open, without duplicate claims on the 
     await vi.advanceTimersByTimeAsync(5000);
     expect(harness.claim).toHaveBeenCalledTimes(2);
 });
+
+it('retries the current UTC day only for the newly consenting owner', async () => {
+    harness.allowed=true;render(account,true);await flush();expect(harness.claim).toHaveBeenCalledTimes(1);
+    window.dispatchEvent(new CustomEvent('qg-current-terms-accepted',{detail:{userId:'Bob'}}));await flush();expect(harness.claim).toHaveBeenCalledTimes(1);
+    window.dispatchEvent(new CustomEvent('qg-current-terms-accepted',{detail:{userId:'Alice'}}));await flush();expect(harness.claim).toHaveBeenCalledTimes(2);
+});

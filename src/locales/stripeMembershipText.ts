@@ -48,18 +48,18 @@ const scheduledEnd: Record<Language, string> = {
 };
 
 const purchaseReview: Record<Language, readonly [string, string, string]> = {
-    en: ['Mandatory legal rights are unaffected.', 'Terms of Use', 'I have read the monthly total, automatic renewal, cancellation, ticket cap and expiration, and the terms.'],
-    ja: ['適用法令上の権利は制限されません。', '利用規約', '月額総額・自動更新・解約・券の上限と失効・規約を確認しました。'],
-    zh: ['不限制法律赋予的权利。', '使用条款', '我已阅读每月总价、自动续订、取消、券上限与失效及条款。'],
-    ru: ['Обязательные права по закону не ограничиваются.', 'Условия использования', 'Я прочитал итоговую месячную цену, автопродление, отмену, лимит и срок действия билетов, а также условия.'],
-    fr: ['Les droits légaux impératifs restent applicables.', 'Conditions d’utilisation', 'J’ai lu le total mensuel, le renouvellement automatique, la résiliation, le plafond et l’expiration des tickets, ainsi que les conditions.'],
-    de: ['Zwingende gesetzliche Rechte bleiben unberührt.', 'Nutzungsbedingungen', 'Ich habe Gesamtpreis, automatische Verlängerung, Kündigung, Ticketlimit und Verfall sowie die Bedingungen gelesen.'],
-    es: ['Los derechos legales obligatorios no se ven afectados.', 'Términos de uso', 'He leído el total mensual, la renovación automática, cancelación, límite y vencimiento de boletos y los términos.'],
-    tr: ['Zorunlu yasal haklar etkilenmez.', 'Kullanım koşulları', 'Aylık toplamı, otomatik yenilemeyi, iptali, bilet sınırını ve sona ermesini ve koşulları okudum.'],
-    pl: ['Obowiązkowe prawa ustawowe pozostają bez zmian.', 'Warunki użytkowania', 'Przeczytałem łączną cenę miesięczną, automatyczne odnowienie, anulowanie, limit i wygaśnięcie biletów oraz warunki.'],
-    hi: ['कानून द्वारा दिए गए अधिकार अप्रभावित हैं।', 'उपयोग की शर्तें', 'मैंने कुल मासिक मूल्य, स्वतः नवीनीकरण, रद्दीकरण, टिकट सीमा और समाप्ति तथा शर्तें पढ़ी हैं।'],
-    pt: ['Os direitos legais obrigatórios não são afetados.', 'Termos de uso', 'Li o total mensal, a renovação automática, cancelamento, limite e expiração de bilhetes e os termos.'],
-    ta: ['கட்டாய சட்ட உரிமைகள் பாதிக்கப்படாது.', 'பயன்பாட்டு விதிமுறைகள்', 'மாத மொத்தம், தானியங்கி புதுப்பிப்பு, ரத்து, சீட்டு வரம்பு மற்றும் காலாவதி, விதிமுறைகளைப் படித்தேன்.'],
+    en: ['Mandatory legal rights are unaffected.', 'Terms of Use', 'I have read the monthly total, automatic renewal, cancellation, ticket cap and expiration, and I accept the full revised terms.'],
+    ja: ['適用法令上の権利は制限されません。', '利用規約', '月額総額・自動更新・解約・券の上限と失効を確認し、改定規約の全文に同意します。'],
+    zh: ['不限制法律赋予的权利。', '使用条款', '我已阅读每月总价、自动续订、取消、券上限与失效，并同意完整的修订条款。'],
+    ru: ['Обязательные права по закону не ограничиваются.', 'Условия использования', 'Я прочитал итоговую месячную цену, автопродление, отмену, лимит и срок действия билетов, и принимаю полный текст обновлённых условий.'],
+    fr: ['Les droits légaux impératifs restent applicables.', 'Conditions d’utilisation', 'J’ai lu le total mensuel, le renouvellement automatique, la résiliation, le plafond et l’expiration des tickets, et j’accepte l’intégralité des conditions révisées.'],
+    de: ['Zwingende gesetzliche Rechte bleiben unberührt.', 'Nutzungsbedingungen', 'Ich habe Gesamtpreis, automatische Verlängerung, Kündigung, Ticketlimit und Verfall gelesen und stimme den vollständigen überarbeiteten Bedingungen zu.'],
+    es: ['Los derechos legales obligatorios no se ven afectados.', 'Términos de uso', 'He leído el total mensual, la renovación automática, cancelación, límite y vencimiento de boletos y acepto todos los términos revisados.'],
+    tr: ['Zorunlu yasal haklar etkilenmez.', 'Kullanım koşulları', 'Aylık toplamı, otomatik yenilemeyi, iptali, bilet sınırını ve sona ermesini okudum ve güncellenmiş koşulların tamamını kabul ediyorum.'],
+    pl: ['Obowiązkowe prawa ustawowe pozostają bez zmian.', 'Warunki użytkowania', 'Przeczytałem łączną cenę miesięczną, automatyczne odnowienie, anulowanie, limit i wygaśnięcie biletów i akceptuję pełną treść zmienionych warunków.'],
+    hi: ['कानून द्वारा दिए गए अधिकार अप्रभावित हैं।', 'उपयोग की शर्तें', 'मैंने कुल मासिक मूल्य, स्वतः नवीनीकरण, रद्दीकरण, टिकट सीमा और समाप्ति पढ़ी है और पूरी संशोधित शर्तें स्वीकार करता/करती हूँ।'],
+    pt: ['Os direitos legais obrigatórios não são afetados.', 'Termos de uso', 'Li o total mensal, a renovação automática, cancelamento, limite e expiração de bilhetes e aceito a totalidade dos termos revistos.'],
+    ta: ['கட்டாய சட்ட உரிமைகள் பாதிக்கப்படாது.', 'பயன்பாட்டு விதிமுறைகள்', 'மாத மொத்தம், தானியங்கி புதுப்பிப்பு, ரத்து, சீட்டு வரம்பு மற்றும் காலாவதி, பற்றி படித்தேன்; திருத்தப்பட்ட விதிமுறைகளை முழுமையாக ஏற்கிறேன்.'],
 };
 
 export const stripeMembershipText = (lang: Language): Copy & { scheduledEnd: string; legalRights: string; terms: string; confirmPurchase: string } =>

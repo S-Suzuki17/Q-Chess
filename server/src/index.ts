@@ -22,6 +22,7 @@ import { createAccountSecurityRouter } from './services/AccountSecurityRoutes';
 import {createServiceOperations} from './services/ServiceOperations';
 import {createAccountProgressRouter} from './services/AccountProgressRoutes';
 import {createAccountTermsRouter} from './services/AccountTermsRoutes';
+import {createCurrentTermsRouter} from './services/AccountCurrentTermsRoutes';
 import {createSecurityAudit} from './services/SecurityAudit';
 import {createEngagementMetricsRouter} from './services/EngagementMetricsRoutes';
 import {createDailyLoginRouter} from './services/DailyLoginRoutes';
@@ -123,6 +124,7 @@ app.use(createAccountRecoveryRouter(rankedAuth,supabaseService.accountRecoverySt
 app.use(createAccountSecurityRouter(rankedAuth,supabaseService.accountSecurityStore(),accountGate,
     id=>{for(const socket of io.sockets.sockets.values())if(socket.data.userId===id){socket.emit('session_replaced');socket.disconnect(true);}},audit));
 app.use(accountRequestGuard(rankedAuth,deletionStore,accountGate));
+app.use(createCurrentTermsRouter(rankedAuth,supabaseService.currentTermsStore(),accountGate));
 app.use(createAccountTermsRouter(rankedAuth,supabaseService.accountTermsStore(),accountGate));
 app.use(createAccountProgressRouter(rankedAuth,supabaseService.accountProgressStore(),accountGate));
 app.use(createDailyLoginRouter(rankedAuth,supabaseService.dailyLoginStore(),accountGate));

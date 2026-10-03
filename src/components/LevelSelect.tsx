@@ -39,6 +39,7 @@ import { AccountSecurityPanel } from './AccountSecurityPanel';
 import { AccountRecoveryPanel } from './AccountRecoveryPanel';
 import { DailyLoginRewardsPanel } from './DailyLoginRewardsPanel';
 import { MemberTicketsPanel } from './MemberTicketsPanel';
+import { CurrentTermsConsentPanel } from './CurrentTermsConsentPanel';
 import { RankedRefundBalancePanel } from './RankedRefundBalancePanel';
 import { RANKED_REFUND_BALANCE_ENABLED } from '../lib/rankedRefundBalance';
 import { DAILY_LOGIN_REWARDS_ENABLED } from '../lib/dailyLoginRewards';
@@ -499,6 +500,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
                             </div>
 
                             <ProfileCosmetics lang={lang} name={userProfile?.name||user.name} url={displayAvatarUrl} frame={cosmetics.avatar} ratings={user.type==='registered'&&userProfile?.id===user.id?userProfile:undefined}/>
+                            {(DAILY_LOGIN_REWARDS_ENABLED || MEMBER_TICKET_USAGE_ENABLED) && user.type==='registered' && <CurrentTermsConsentPanel key={`current-terms-${user.id}`} user={user} lang={lang}/>}
                             {DAILY_LOGIN_REWARDS_ENABLED && user.type==='registered' && <DailyLoginRewardsPanel key={user.id} user={user} lang={lang}/>}
                             {MEMBER_TICKET_USAGE_ENABLED && user.type==='registered' && <MemberTicketsPanel key={`member-${user.id}`} user={user} lang={lang}/>}
                             {RANKED_REFUND_BALANCE_ENABLED && user.type==='registered' && <RankedRefundBalancePanel key={`refund-${user.id}`} user={user} lang={lang}/>}

@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { hasCurrentTicketTerms } from './AccountCurrentTerms';
 import { DEFAULT_DAILY_LOGIN_POLICY, type DailyLoginState, type TicketAmounts } from './DailyLoginStreak';
 
 export interface DailyLoginClaim extends DailyLoginState {
@@ -9,6 +10,7 @@ export interface DailyLoginClaim extends DailyLoginState {
 export interface DailyLoginStore {
     verifyUser(token: string): Promise<string | null>;
     blocked(userId: string): Promise<boolean>;
+    hasCurrentTerms(userId: string): Promise<boolean>;
     read(userId: string): Promise<DailyLoginState>;
     claim(userId: string): Promise<DailyLoginClaim>;
 }
@@ -70,6 +72,7 @@ export function createDailyLoginStore(
     }
     return {
         verifyUser, blocked,
+        hasCurrentTerms: id => hasCurrentTicketTerms(client, id),
         async read(userId) {
             const state = parseDailyLoginState(await call('daily_login_reward_status', userId));
             if (!state) throw new Error('REWARD_UNAVAILABLE');

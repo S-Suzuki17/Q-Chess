@@ -13,6 +13,7 @@ import { createAccountSecurityStore,verifiedTokenSessionId } from './AccountSecu
 import {createServiceStatusLoader} from './ServiceOperations';
 import {createAccountProgressStore} from './AccountProgress';
 import {createAccountTermsStore} from './AccountTerms';
+import {createCurrentTermsStore} from './AccountCurrentTerms';
 import {createEngagementMetricsStore} from './EngagementMetrics';
 import {createDailyLoginStore} from './DailyLoginStore';
 import {createStripeMembershipStore} from './StripeMembershipStore';
@@ -116,6 +117,7 @@ export class SupabaseService {
     }
     public serviceStatusLoader() {return createServiceStatusLoader(this.supabase);}
     public accountProgressStore(){return createAccountProgressStore(this.supabase,token=>this.verifyUser(token),id=>this.accountDeletionStore().blocked(id));}
+    public currentTermsStore(){return createCurrentTermsStore(this.supabase,token=>this.verifyUser(token),id=>this.accountDeletionStore().blocked(id),(id,mayCreate)=>this.accountProfileStore().ensure(id,'Player',mayCreate));}
     public accountTermsStore(){return createAccountTermsStore(this.supabase,token=>this.verifyUser(token),id=>this.accountDeletionStore().blocked(id),(id,mayCreate)=>this.accountProfileStore().ensure(id,'Player',mayCreate));}
 
     public async verifyLegacyPassword(userId:string,password:string):Promise<boolean> {

@@ -1,4 +1,5 @@
 'use client';
+import { requireCurrentAccountTerms } from './currentAccountTerms';
 
 import { Capacitor } from '@capacitor/core';
 import { ANDROID_BUILD, platformFeatures } from '../config/appPlatform';
@@ -113,6 +114,8 @@ async function request(userId: string, action: Action, signal?: AbortSignal, usa
         }
         signal?.throwIfAborted();
         if (!token) throw new StripeMembershipError('AUTH_REQUIRED');
+        if (action === 'daily-grant' || action === 'checkout') await requireCurrentAccountTerms(userId, signal);
+        signal?.throwIfAborted();
         const endpoint = new URL(`/membership/stripe/${action}`, gameServerUrl());
         if (endpoint.protocol !== 'https:' && !['localhost', '127.0.0.1', '[::1]'].includes(endpoint.hostname)) {
             throw new StripeMembershipError('UNAVAILABLE');

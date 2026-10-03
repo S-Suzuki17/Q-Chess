@@ -1,4 +1,5 @@
 'use client';
+import { requireCurrentAccountTerms } from './currentAccountTerms';
 
 import { supabase } from './supabaseClient';
 import { gameServerUrl, readRankedSession } from './rankedSession';
@@ -73,6 +74,8 @@ async function request(userId: string, claim: boolean, signal?: AbortSignal): Pr
         }
         signal?.throwIfAborted();
         if (!token) throw new DailyLoginRewardsError('AUTH_REQUIRED');
+        if (claim) await requireCurrentAccountTerms(userId, signal);
+        signal?.throwIfAborted();
         const endpoint = new URL(claim ? '/rewards/daily-login/claim' : '/rewards/daily-login', gameServerUrl());
         if (endpoint.protocol !== 'https:' && !['localhost', '127.0.0.1', '[::1]'].includes(endpoint.hostname)) {
             throw new DailyLoginRewardsError('UNAVAILABLE');

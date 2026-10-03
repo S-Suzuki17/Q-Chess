@@ -9,14 +9,14 @@ it('fails closed until the cap, reviewed release and new effective consent versi
     expect(webCommerceCheckoutReady(true, null, SALES_TERMS_DRAFT_VERSION)).toBe(false);
     expect(webCommerceCheckoutReady(true, {ranked:20,hint:20}, TERMS_VERSION)).toBe(false);
     expect(webCommerceCheckoutReady(false, {ranked:20,hint:20}, SALES_TERMS_DRAFT_VERSION)).toBe(false);
-    expect(webCommerceCheckoutReady(true, {ranked:20,hint:20}, SALES_TERMS_DRAFT_VERSION)).toBe(true);
+    expect(webCommerceCheckoutReady(true, {ranked:60,hint:60}, SALES_TERMS_DRAFT_VERSION, '2026-01-01')).toBe(true);
     expect(webCommerceCheckoutReady(true, {ranked:-1,hint:20}, SALES_TERMS_DRAFT_VERSION)).toBe(false);
 });
 it('keeps the sales terms as an unactivated draft and only purpose-limited seller fields', () => {
     expect(TERMS_VERSION).toBe('2026-09-25.1');
     expect(SALES_TERMS_DRAFT.version).toBe(SALES_TERMS_DRAFT_VERSION);
     expect(SALES_TERMS_DRAFT.effectiveDate).toBeNull();
-    expect(SALES_TERMS_DRAFT.ja[2][1]).toContain('本案は未発効');
-    expect(SALES_TERMS_DRAFT.en[2][1]).toContain('this draft is not effective');
+    expect(SALES_TERMS_DRAFT.ja[2][1]).toContain('各60枚まで');
+    expect(SALES_TERMS_DRAFT.en[2][1]).toContain('cannot be claimed retroactively');
     expect(Object.keys(COMMERCE_SELLER)).toEqual(['legalName','businessName','address','telephone','telephoneUri','email']);
 });

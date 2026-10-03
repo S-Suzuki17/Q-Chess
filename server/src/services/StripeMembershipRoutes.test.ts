@@ -32,7 +32,7 @@ describe('Stripe test-only membership HTTP boundary', () => {
             expireCheckout: vi.fn().mockResolvedValue(undefined),
             isCheckoutExpired: vi.fn().mockResolvedValue(false), eventSubscriptionId: vi.fn().mockReturnValue(null), snapshot: vi.fn().mockResolvedValue(null),
             resolveReversal: vi.fn().mockResolvedValue([]), reversalContext: vi.fn() };
-        store = { verifyUser: vi.fn().mockResolvedValue(null), blocked: vi.fn().mockResolvedValue(false),
+        store = { verifyUser: vi.fn().mockResolvedValue(null), blocked: vi.fn().mockResolvedValue(false), hasCurrentTerms: vi.fn().mockResolvedValue(true),
             preflight: vi.fn().mockResolvedValue({ eligible: true, reason: null, checkoutId: null, expiresAt: null }),
             closeExpiredIntent: vi.fn().mockResolvedValue(undefined),
             registerCheckoutIntent: vi.fn().mockResolvedValue(undefined), applySnapshot: vi.fn().mockResolvedValue(undefined),
@@ -53,6 +53,12 @@ describe('Stripe test-only membership HTTP boundary', () => {
         server?.closeAllConnections();
         if (server?.listening) await new Promise<void>(resolve => server.close(() => resolve()));
         vi.restoreAllMocks();
+    });
+    it('rejects checkout and grant for old consent before Stripe calls, preserving status', async () => {
+        store.hasCurrentTerms.mockResolvedValue(false);
+        for (const action of ['checkout','daily-grant']) expect((await fetch(base+'/membership/stripe/'+action,post(token))).status).toBe(403);
+        expect(store.claim).not.toHaveBeenCalled(); expect(store.preflight).not.toHaveBeenCalled(); expect(api.createCheckout).not.toHaveBeenCalled();
+        expect((await fetch(base+'/membership/stripe/status',{headers:{Authorization:'Bearer '+token}})).status).toBe(200);
     });
     it('defaults OFF when flag is false, with no Stripe or DB calls', async () => {
         enabled = false;
