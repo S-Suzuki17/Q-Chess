@@ -5,7 +5,7 @@ import {createRequire} from 'node:module';
 import {execFile,spawn,spawnSync} from 'node:child_process';
 import {promisify} from 'node:util';
 import {randomBytes,randomUUID,createHash,timingSafeEqual} from 'node:crypto';
-import {mkdir,mkdtemp,writeFile,access} from 'node:fs/promises';
+import {mkdir,mkdtemp,writeFile,access,realpath,statfs} from 'node:fs/promises';
 import {fileURLToPath} from 'node:url';
 import path from 'node:path';
 import http from 'node:http';
@@ -52,6 +52,13 @@ let queue=Promise.resolve(),lastSigned;
 const env={...process.env,PATH:path.dirname(pg_ctl)+';'+path.join(path.dirname(path.dirname(pg_ctl)),'lib')+';'+process.env.PATH};
 function command(exe,args){const r=spawnSync(exe,args,{windowsHide:true,stdio:'ignore',env,timeout:30000});must(!r.error&&r.status===0,'POSTGRES_COMMAND_FAILED');}
 async function listen(server){server.listen(0,'127.0.0.1');await once(server,'listening');return server.address().port;}
+async function connectReady(port,database){
+  for(let attempt=0;attempt<150;attempt++){
+    const connection=new Client({host:'127.0.0.1',port,user:'fixtureadmin',database,connectionTimeoutMillis:1500});
+    try{await connection.connect();return connection;}
+    catch(error){await connection.end().catch(()=>{});if(!['ECONNREFUSED','57P03','ECONNRESET'].includes(error.code))throw new Error('POSTGRES_CONNECT_FAILED');await delay(1000);}
+  }throw new Error('POSTGRES_RECOVERY_TIMEOUT');
+}
 async function identity(){
   let result;try{result=await execute(cli,['whoami','--format','json'],{encoding:'utf8',windowsHide:true,timeout:15000});}catch{throw new Error('CLI_AUTH_REQUIRED');}
   let data;try{data=JSON.parse(result.stdout);}catch{throw new Error('CLI_IDENTITY_INVALID');}
@@ -133,19 +140,39 @@ async function verifyPurchase(){
   report.phase='purchase_projection_grant_verified_consumption_blocked';report.purchaseProjectionGrantVerified=true;report.completed=false;await save();
 }
 async function prepare(){
-  cluster=await mkdtemp(path.join(root,'scratch/stripe-postgres/checkout-'));
+  const capacity=await statfs(task);must(capacity.bavail*capacity.bsize>=300*1024*1024,'DISK_HEADROOM_REQUIRED');
+  const reused=process.env.QG_QA_REUSE_CLUSTER;
+  if(reused){
+    cluster=await realpath(reused);const parent=await realpath(path.join(root,'scratch/stripe-postgres'));
+    must(cluster.startsWith(parent+path.sep)&&path.basename(cluster).startsWith('checkout-'),'OWN_CLUSTER_REQUIRED');
+    let running=false;try{await access(path.join(cluster,'postmaster.pid'));running=true;}catch{}
+    must(!running,'CLUSTER_ALREADY_RUNNING');
+  }else cluster=await mkdtemp(path.join(root,'scratch/stripe-postgres/checkout-'));
   const probe=http.createServer();const port=await listen(probe);await new Promise(r=>probe.close(r));
-  command(initdb,['-D',cluster,'--username=fixtureadmin','--auth=trust','--encoding=UTF8','--locale=C']);
-  command(pg_ctl,['-D',cluster,'-l',path.join(cluster,'server.log'),'-o','-h 127.0.0.1 -p '+port,'-w','start']);pgRunning=true;
-  admin=new Client({host:'127.0.0.1',port,user:'fixtureadmin',database:'postgres'});await admin.connect();await setupStripeFixture({exec:sql=>admin.query(sql)});
-  service=new Client({host:'127.0.0.1',port,user:'fixtureadmin',database:'postgres'});await service.connect();await service.query('set role service_role');
+  if(!reused)command(initdb,['-D',cluster,'--username=fixtureadmin','--auth=trust','--encoding=UTF8','--locale=C']);
+  // Logging inside PGDATA can block Windows crash-recovery fsync on its open log.
+  command(pg_ctl,['-D',cluster,'-l',path.join(root,'scratch/stripe-postgres','checkout-log-'+suffix+'.log'),'-o','-h 127.0.0.1 -p '+port,'-W','start']);pgRunning=true;
+  const database=reused?'qa_'+suffix:'postgres';
+  if(reused){
+    const maintenance=await connectReady(port,'postgres');
+    try{
+      const rows=(await maintenance.query("select rolname,rolcanlogin,rolbypassrls from pg_roles where rolname in ('anon','authenticated','service_role')")).rows;
+      must(rows.length===3&&rows.every(r=>!r.rolcanlogin&&r.rolbypassrls===(r.rolname==='service_role')),'FIXTURE_ROLES_REQUIRED');
+      must(/^qa_[a-z]{8}$/.test(database),'DATABASE_NAME_GUARD');await maintenance.query('create database '+database);
+    }finally{await maintenance.end();}
+  }
+  admin=await connectReady(port,database);
+  // Cluster-global fixture roles already exist when reusing a stopped cluster.
+  // The release's table setup and all migrations remain unchanged.
+  await setupStripeFixture({exec:sql=>admin.query(reused?sql.replace('create role anon; create role authenticated; create role service_role bypassrls;',''):sql)});
+  service=new Client({host:'127.0.0.1',port,user:'fixtureadmin',database});await service.connect();await service.query('set role service_role');
   const password=randomBytes(32).toString('hex'),digest=createHash('sha256').update(password).digest();
   await admin.query('insert into public.profiles(id) values($1)',[user]);await admin.query("insert into public.account_terms_consents values($1,'2026-09-25.1')",[user]);
   await admin.query('insert into public.ticket_wallets(user_id) values($1)',[user]);
   for(let i=0;i<3;i++)await admin.query("insert into public.ticket_spend_receipts(event_kind,event_id,user_id,pool) values('ranked_match_start',$1,$2,'quota')",[randomUUID(),user]);
   const auth=new RankedAuth(async(target,value)=>target===user&&timingSafeEqual(createHash('sha256').update(value).digest(),digest));
   token=(await auth.issueLegacySession(user,password))?.token;must(token,'LOCAL_AUTH_FIXTURE_FAILED');
-  report.database={engine:'native PostgreSQL 18',host:'127.0.0.1',port,cluster};
+  report.database={engine:'native PostgreSQL 18',host:'127.0.0.1',port,cluster,name:database,reusedCluster:!!reused};
   await mark('isolated_database_and_auth_fixture_ready',{migrationCount:stripeMigrations.length});
   if(process.argv.includes('--prepare-only')){report.phase='prepare_verified';await save();return false;}
   report.identity=await identity();must((await apiCall('get','/v1/account')).id===account,'SANDBOX_ACCOUNT_GUARD');
@@ -189,7 +216,7 @@ async function cleanup(){
     if(product){const p=await apiCall('get','/v1/products/'+product.id);must(p.livemode===false&&p.metadata?.qa_run===run,'CLEANUP_PRODUCT_OWNERSHIP');await apiCall('post','/v1/products/'+product.id,{active:false});report.cleanup.push('own product archived');}
   }catch(e){report.cleanupError=safeError(e);}
   await queue;if(listener)listener.kill();if(proxy)await new Promise(r=>proxy.close(r));if(appServer)await new Promise(r=>appServer.close(r));
-  await service?.end();await admin?.end();if(pgRunning)command(pg_ctl,['-D',cluster,'-w','stop','-m','immediate']);
+  await service?.end();await admin?.end();if(pgRunning)command(pg_ctl,['-D',cluster,'-w','stop','-m','fast']);
   report.stoppedAt=new Date().toISOString();report.cleanup.push('local PostgreSQL and HTTP listeners stopped');await save();
 }
 try{

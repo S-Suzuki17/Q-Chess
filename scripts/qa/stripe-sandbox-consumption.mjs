@@ -22,8 +22,7 @@ const require=createRequire(path.join(release,'server/package.json'));
 const pgRequire=createRequire(path.join(devRoot,'scratch/stripe-postgres/package.json'));
 const {Client,Pool}=pgRequire('pg');
 const {createRankedAdmissionStore}=require('./dist/services/RankedAdmissionStore');
-const {CpuPracticeService}=require('./dist/services/CpuPracticeService');
-const {createInitialState}=require('./dist/quantum-engine/initialState');
+const {CpuPracticeService,hashPracticeState}=require('./dist/services/CpuPracticeService');
 const {applyPracticeMove}=require('./dist/quantum-engine/practice');
 const must=(condition,reason)=>{if(!condition)throw new Error(reason);};
 async function requireDiskHeadroom(){const usage=await statfs(task);must(usage.bavail*usage.bsize>=300*1024*1024,'DISK_HEADROOM_REQUIRED');}
@@ -33,7 +32,9 @@ must(evidence.sourceCommit==='e77e2980c24d593b2e742a43e291aa2117e2305a'&&evidenc
 must(evidence.database.host==='127.0.0.1'&&Number.isInteger(evidence.database.port),'LOOPBACK_REQUIRED');
 const cluster=await realpath(evidence.database.cluster),allowedRoot=await realpath(path.join(release,'scratch/stripe-postgres'));
 must(cluster.startsWith(allowedRoot+path.sep),'OWN_CLUSTER_REQUIRED');
-const connection={host:'127.0.0.1',port:evidence.database.port,user:'fixtureadmin',database:'postgres'};
+const database=evidence.database.name??'postgres';
+must(database==='postgres'||/^qa_[a-z]{8}$/.test(database),'DATABASE_NAME_GUARD');
+const connection={host:'127.0.0.1',port:evidence.database.port,user:'fixtureadmin',database};
 const admin=new Client(connection),pool=new Pool({...connection,max:4});
 const functions={spend_game_tickets:'text,uuid,text[]',admit_ranked_match:'uuid,text,text,integer,uuid,text,integer,integer',buy_cpu_hint:'uuid,text,uuid,integer,text,jsonb,jsonb'};
 const publicAllowed=new Set(['ranked_admission_protocol_version','renew_ranked_server_lease','get_ranked_admission','ranked_account_busy',
@@ -141,11 +142,29 @@ try{
   assert.equal(allocation.pool,'paid');assert.equal(allocation.subscription_id,evidence.resources.subscriptionId);
   assert.equal((await wallet()).test_member_ranked_tickets,2);
   await mark('actual_ranked_admission_store_test_rpc_consumes_once_under_concurrency',{matchId,admissions:admits,allocation,billingMode:'test',wallet:await wallet()});
-  const practice=new CpuPracticeService(client,true),sessionId=randomUUID(),requestId=randomUUID();
-  const session=await practice.open(evidence.user,sessionId,'white',3,180);assert.equal(session.revision,0);
-  const hint=await practice.requestHint(requestId,evidence.user,sessionId,0);
+  const practice=new CpuPracticeService(client,true);let sessionId=randomUUID(),requestId=randomUUID();
+  let session=await practice.open(evidence.user,sessionId,'white',3,180);assert.equal(session.revision,0);
+  report.hintSearchPosition='initial_superposition';
+  let hint;
+  try{hint=await practice.requestHint(requestId,evidence.user,sessionId,0);}
+  catch(error){
+    assert.equal(error.message,'SEARCH_TIMEOUT');assert.equal((await wallet()).test_member_hint_tickets,3);
+    assert.equal(await practice.receipt(evidence.user,sessionId,0,requestId),null);
+    await mark('opening_worker_timeout_preserves_ticket_and_creates_no_receipt');
+    await practice.close(evidence.user,sessionId);
+    sessionId=randomUUID();requestId=randomUUID();session=await practice.open(evidence.user,sessionId,'white',3,180);
+    // Same explicit server-only concrete-position fixture as T2's existing QA.
+    // This changes only a dummy board, never billing identities or entitlement.
+    const backRank=[8,2,4,16,32,4,2,8];
+    const state={...session.state,pieces:session.state.pieces.map(piece=>({...piece,state:[1,6].includes(piece.origin.row)?1:backRank[piece.origin.col]}))};
+    report.hintSearchPosition='server_only_concrete_position_fixture';
+    await admin.query('update public.cpu_practice_sessions set state=$1,state_hash=$2 where session_id=$3',[state,hashPracticeState(state),sessionId]);
+    session=await practice.read(evidence.user,sessionId);
+    await mark('server_only_concrete_position_fixture_for_successful_search',{sessionId,stateHash:session.stateHash,origin:'existing T2 test-cpu-hint-sql fixture'});
+    hint=await practice.requestHint(requestId,evidence.user,sessionId,0);
+  }
   // The actual search worker generates a move; applying it proves it is legal.
-  const next=applyPracticeMove(createInitialState(),hint.move);assert.equal(next.ply,1);
+  const next=applyPracticeMove(session.state,hint.move);assert.equal(next.ply,1);
   const retry=await practice.requestHint(requestId,evidence.user,sessionId,0);assert.deepEqual(retry,hint);
   const alias=await practice.requestHint(randomUUID(),evidence.user,sessionId,0);assert.equal(alias.receiptId,hint.receiptId);
   const receipt=(await admin.query('select request_id,pool,subscription_id from public.cpu_hint_receipts where request_id=$1',[hint.receiptId])).rows[0];
@@ -159,7 +178,7 @@ try{
   await mark('production_functions_and_stripe_modes_unchanged',{publicFunctionHashesUnchanged:true,liveCheckoutIntents:0});
   await practice.close(evidence.user,sessionId);
   report.completed=true;report.completedAt=new Date().toISOString();report.finalWallet=after;
-  report.limits=['QA-only SQL mode variants are not installed in production','Ranked Store/DB admission verified; browser gameplay, socket gateway, ranked settlement/recovery/refunds and hosted Supabase transport are outside this run','CPU Practice Service/search and durable hint receipt verified; browser hint delivery not exercised'];
+  report.limits=['QA-only SQL mode variants are not installed in production','Ranked Store/DB admission verified; browser gameplay, socket gateway, ranked settlement/recovery/refunds and hosted Supabase transport are outside this run','CPU Practice Service/search and durable hint receipt verified; browser hint delivery not exercised','If the opening search times out, successful hint search uses the explicitly recorded server-only concrete-position fixture; opening hint performance is not claimed to pass'];
   await save();
 }catch(error){report.error={reason:/^[A-Z_]+$/.test(error.message??'')?error.message:'CONSUMPTION_CHECK_FAILED',code:error.code??null};await save();console.error(JSON.stringify(report.error));process.exitCode=1;}
 finally{await pool.end();await admin.end();}
