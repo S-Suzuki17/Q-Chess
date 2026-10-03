@@ -20,9 +20,10 @@ import { Token } from '../lib/GameEngine';
 import { filterPossibilities, onlineKingInCheck } from '../lib/onlineMovement';
 import { supabase } from '../lib/supabaseClient';
 import { isRatedPlayer, openingRating } from '../lib/onlineRatings';
-import { cpuOpponent, ratingSettlement, type RatingSettlement } from '../lib/rankedProtocol';
+import { cpuOpponent, ratingSettlement, matchCancellation, type RatingSettlement } from '../lib/rankedProtocol';
 import { RankedSettlement } from './RankedSettlement';
-import { rankedText, cancelledRankedText } from '../locales/rankedText';
+import { rankedText } from '../locales/rankedText';
+import { RankedCancellationNotice } from './RankedCancellationNotice';
 import { RankedLoginDialog } from './RankedLoginDialog';
 import { soundManager } from '../lib/SoundService';
 import { acceptsOnlineSnapshot, isNewOnlineMove } from '../lib/onlineSnapshot';
@@ -71,6 +72,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
     const [settledRating,setSettledRating]=useState<RatingSettlement|null>(null);
     const [showRankedLogin,setShowRankedLogin]=useState(false);
     const [cancelledMatch,setCancelledMatch]=useState<string|null>(null);
+    const [cancelledReason,setCancelledReason]=useState<string|null>(null);
     const cpu=cpuOpponent(gameState?.cpu);
     useEffect(()=>{
         if(!socket)return;
@@ -80,9 +82,11 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
     },[socket,roomId,user?.id]);
     useEffect(()=>{
         if(!socket)return;
-        const cancelled=(data:{matchId?:string})=>{
-            if(data?.matchId!==roomId)return;
-            setCancelledMatch(roomId??null);
+        const cancelled=(data:unknown)=>{
+            const cancellation=matchCancellation(data,roomId);
+            if(!cancellation)return;
+            setCancelledMatch(cancellation.matchId);
+            setCancelledReason(cancellation.reason);
             localStorage.removeItem('qg_active_online_match');
         };
         socket.on('match_cancelled',cancelled);
@@ -608,10 +612,8 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
         {showRankedLogin&&<RankedLoginDialog lang={lang} userId={user.id} onCancel={()=>setShowRankedLogin(false)} onVerified={()=>setShowRankedLogin(false)}/>}
     </div>:null;
 
-    if (cancelledMatch===roomId && settledRating?.matchId!==roomId) return <div role="alert" className="m-auto max-w-md rounded-xl border border-[#B39A62]/30 bg-[#161513] p-6 text-center text-[#E8E2D7]">
-        <p>{cancelledRankedText(lang)}</p>
-        <button className="mt-4 min-h-11 border border-[#B39A62]/40 px-6" onClick={onHome||(()=>window.location.reload())}>{t.home}</button>
-    </div>;
+    if (cancelledMatch===roomId && settledRating?.matchId!==roomId) return <RankedCancellationNotice
+        lang={lang} reason={cancelledReason} onHome={onHome||(()=>window.location.reload())}/>;
     if (settledRating && settledRating.matchId === roomId && !gameState?.gameOver) return <div role="status" className="m-auto max-w-md rounded-xl border border-[#B39A62]/30 bg-[#161513] p-6 text-center text-[#E8E2D7]">
         <p>{recoveryText.settled}</p><RankedSettlement lang={lang} settlement={settledRating}/>
         <button className="mt-4 min-h-11 border border-[#B39A62]/40 px-6" onClick={onHome||(()=>window.location.reload())}>{t.home}</button>

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { GameEngine, type Piece } from './GameEngine';
-import { attemptLegalMove, createInitialBoard, resolveEntanglement, PIECE_TYPES } from './quantumChess';
+import { attemptLegalMove, createInitialBoard, resolveEntanglement, PIECE_TYPES, PIECE_LIMITS } from './quantumChess';
 import { resolveQuantumState } from '../../../src/quantum-engine/quantum/candidateSolver';
 import type { QuantumPiece } from '../../../src/quantum-engine/types';
 import { replayPieceNumber } from './replayHistory';
@@ -8,6 +8,7 @@ import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { QuantumPieceUI } from '../../../src/components/QuantumPieceUI';
 import type { PieceType } from '../../../src/config/gameConfig';
+import { chooseCpuMove, cpuProfileForRating } from './RankCpuSearch';
 
 const bits = (types: string[]) => types.reduce((mask, type) => mask | (1 << PIECE_TYPES.indexOf(type)), 0);
 const blackFront = [16, 20, 24];
@@ -16,6 +17,63 @@ function reserve(ids = blackFront, types = ['R', 'Q']) {
 }
 
 describe('authoritative full-team candidate propagation', () => {
+    it.each([0, 1])('capture excludes King and confirms the last live King for team %s in snapshots and replay', team => {
+        const fixed = ['P','P','P','P','P','P','P','N','N','B','B','R','R','Q'];
+        const base = team * 16;
+        const pieces: Piece[] = fixed.map((type, i) => ({ id: base+i, team, x: -1, y: -1,
+            captured: true, possibilities: [type], hasMoved: true }));
+        pieces.push({ id: base+14, team, x: 0, y: 5, captured: false, possibilities: ['P','K'], hasMoved: true },
+            { id: base+15, team, x: 7, y: 7, captured: false, possibilities: ['P','K'], hasMoved: true },
+            { id: (1-team)*16, team: 1-team, x: 0, y: 3, captured: false, possibilities: ['R'], hasMoved: true },
+            { id: (1-team)*16+1, team: 1-team, x: 7, y: 0, captured: false, possibilities: ['K'], hasMoved: true });
+        const board = Array<number|null>(64).fill(null);
+        for (const p of pieces) if (!p.captured) board[p.y*8+p.x] = p.id;
+        const before = JSON.stringify({pieces,board});
+        const after = attemptLegalMove(pieces, board, (1-team)*16, 0, 5);
+        expect(after.success).toBe(true);
+        expect(after.pieces.find(p=>p.id===base+14)).toMatchObject({captured:true,possibilities:['P']});
+        expect(after.pieces.find(p=>p.id===base+15)!.possibilities).toEqual(['K']);
+        for (const [type, count] of Object.entries(PIECE_LIMITS)) {
+            expect(after.pieces.filter(p=>p.team===team&&p.possibilities.includes(type))).toHaveLength(count);
+        }
+        expect(JSON.stringify({pieces,board})).toBe(before);
+        if (team === 1) {
+            const engine = new GameEngine('last-king','human','cpu',{pieces,board});
+            engine.setMatchMetadata({mode:'ranked',cpu:{side:'joiner',rating:1000,level:3}});
+            expect(engine.processAction({actionId:'capture',version:0,playerId:'human',action:{type:'MOVE',payload:{pieceId:0,toX:0,toY:5}}}).success).toBe(true);
+            expect(engine.getPublicState('human').pieces).toEqual(after.pieces);
+            expect(engine.getPublicState('cpu').pieces).toEqual(after.pieces);
+            expect(engine.getHistory()[0].changes).toContainEqual(expect.arrayContaining([replayPieceNumber(base+15), expect.any(Number), bits(['K'])]));
+            const state = engine.getPublicState('cpu');
+            const move = chooseCpuMove(state,cpuProfileForRating(1000,600));
+            expect(move?.pieceId).toBe(base+15);
+            expect(engine.processAction({actionId:'cpu-reply',version:state.version,playerId:'cpu',action:{type:'MOVE',payload:move!}}).success).toBe(true);
+            expect(engine.getPublicState('human').pieces.find(p=>p.id===base+15)!.possibilities).toEqual(['K']);
+        }
+    });
+
+    it('never permits the mover to discard its own last possible King', () => {
+        const pieces: Piece[] = [
+            {id:0,team:0,x:0,y:1,captured:false,hasMoved:false,possibilities:['P','K']},
+            {id:16,team:1,x:7,y:7,captured:false,possibilities:['K']},
+        ];
+        const board = Array<number|null>(64).fill(null); board[8]=0; board[63]=16;
+        expect(attemptLegalMove(pieces,board,0,0,3).success).toBe(false);
+        expect(attemptLegalMove(pieces,board,0,0,2,'normal').success).toBe(false);
+    });
+
+    it('preserves exactly two original Knight slots, even when one was captured', () => {
+        const identities = ['P','P','P','P','P','P','P','P','N','N','B','B','R','R','Q','K'];
+        const pieces: Piece[] = createInitialBoard().pieces.map(p => p.team===1
+            ? {...p,possibilities:p.id===24||p.id===25?['P','N']:[identities[p.id-16]],captured:p.id===24} : p);
+        const resolved=resolveEntanglement(pieces,1);
+        expect(resolved.filter(p=>p.team===1&&p.possibilities.includes('N')).map(p=>p.id)).toEqual([24,25]);
+        expect(resolved.filter(p=>p.id===24||p.id===25).map(p=>p.possibilities)).toEqual([['N'],['N']]);
+        expect(()=>resolveEntanglement(pieces.map(p=>p.id===25?{...p,possibilities:['P']}:p),1)).toThrow();
+        const bothCaptured = resolved.map(p=>p.id===25?{...p,captured:true}:p);
+        expect(resolveEntanglement(bothCaptured,1).filter(p=>p.team===1&&!p.captured&&p.possibilities.includes('N'))).toHaveLength(0);
+    });
+
     it.each([0, 1])('propagates a saturated Rook/Queen group to every unmoved team %s piece', team => {
         const ids = team === 0 ? [1, 5, 9] : blackFront;
         const pieces = reserve(ids);

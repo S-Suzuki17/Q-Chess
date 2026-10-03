@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSocket } from '../lib/SocketContext';
 import type { User } from '../types/game';
-import { cpuOpponent, type MatchedRoom, type QueueMode } from '../lib/rankedProtocol';
+import { cpuOpponent, queueFailureCode, type MatchedRoom, type QueueMode } from '../lib/rankedProtocol';
 
 export function useMatchmaking(user:User|null) {
     const [isSearching,setIsSearching]=useState(false);
@@ -33,7 +33,7 @@ export function useMatchmaking(user:User|null) {
             if(!search||data.mode!==search.mode||data.timeControl!==search.timeControl)return;
             setCPUFallbackAt(search.mode==='ranked'&&typeof data.cpuFallbackAt==='number'&&Number.isFinite(data.cpuFallbackAt)?data.cpuFallbackAt:null);
         };
-        const failed=(data?:{code?:string;message?:string})=>{if(!active.current)return;stop();setMatchedRoom(null);setError(data?.code||'QUEUE_FAILED');setErrorMessage(typeof data?.message==='string'&&data.message!==data.code?data.message.slice(0,300):null);};
+        const failed=(data?:{code?:string;reason?:string;message?:string})=>{if(!active.current)return;stop();setMatchedRoom(null);setError(queueFailureCode(data));setErrorMessage(typeof data?.message==='string'&&data.message!==data.code?data.message.slice(0,300):null);};
         const disconnected=()=>{if(active.current)failed({code:'CONNECTION_FAILED'});};
         socket.on('match_found',found);socket.on('queue_joined',joined);socket.on('queue_error',failed);socket.on('match_cancelled',failed);socket.on('disconnect',disconnected);
         return()=>{socket.off('match_found',found);socket.off('queue_joined',joined);socket.off('queue_error',failed);socket.off('match_cancelled',failed);socket.off('disconnect',disconnected);};

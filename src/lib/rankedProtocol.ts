@@ -3,6 +3,18 @@ export type CPUOpponent = { side: 'host' | 'joiner'; rating: number; level?: num
 export type MatchedRoom = { id: string; myColor: 'white' | 'black'; timeControl: number; hostId: string; joinerId: string; mode: QueueMode; cpu?: CPUOpponent };
 export type RatingSettlement = { matchId: string; userId: string; before: number; after: number; delta: number; timeControl: number };
 
+export function queueFailureCode(value: unknown): string {
+    if (!value || typeof value !== 'object') return 'QUEUE_FAILED';
+    const data = value as Record<string, unknown>;
+    const code = data.code ?? data.reason;
+    return typeof code === 'string' && /^[a-zA-Z_]{1,64}$/.test(code) ? code : 'QUEUE_FAILED';
+}
+
+export function matchCancellation(value: unknown, matchId: string | undefined): {matchId:string;reason:string} | null {
+    if (!matchId || !value || typeof value !== 'object' || (value as {matchId?:unknown}).matchId !== matchId) return null;
+    return {matchId,reason:queueFailureCode(value)};
+}
+
 export function ratingSettlement(value: unknown, matchId: string | undefined, userId: string | undefined): RatingSettlement | null {
     if (!value || typeof value !== 'object') return null;
     const data = value as Record<string, unknown>;
