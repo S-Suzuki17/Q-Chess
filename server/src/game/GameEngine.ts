@@ -104,6 +104,18 @@ export interface ActionResult {
 }
 
 export class GameEngine {
+    private authority?: {canAdvance:()=>boolean;safeUntil:()=>number};
+    private frozenAt?:number;
+    public setAuthority(authority:NonNullable<GameEngine['authority']>) { this.authority=authority; }
+    private canAdvance() { return this.frozenAt===undefined&&(!this.authority||this.authority.canAdvance()); }
+    private clockNow() {
+        const now=Math.min(Date.now(),this.authority?.safeUntil()??Infinity);
+        if(this.authority&&this.frozenAt===undefined&&!this.authority.canAdvance())this.frozenAt=now;
+        return Math.min(now,this.frozenAt??Infinity);
+    }
+    public freeze() {
+        this.frozenAt??=this.clockNow();
+    }
     private state: InternalGameState;
     // Map of actionId -> ActionResult for idempotent recovery
     private processedActions = new Map<string, ActionResult>();
@@ -114,6 +126,7 @@ export class GameEngine {
     public setMatchMetadata(metadata: typeof this.metadata) { this.metadata = metadata; }
     public getHistory() { return this.replayHistory.slice(); }
     public forfeit(playerId: string) {
+        if(!this.canAdvance())return false;
         if (this.state.gameOver || ![this.state.players.host,this.state.players.joiner].includes(playerId)) return false;
         this.state.gameOver = playerId === this.state.players.host ? 'BLACK' : 'WHITE';
         this.state.gameOverReason = 'abandonment';
@@ -174,11 +187,13 @@ export class GameEngine {
     }
 
     public acknowledgeIntro(playerId:string):boolean {
+        if(!this.canAdvance())return false;
         if(playerId!==this.state.players.host&&playerId!==this.state.players.joiner)return false;
         this.introReady.add(playerId);
         return this.introReady.size===2?this.completeIntro():false;
     }
     public completeIntro():boolean {
+        if(!this.canAdvance())return false;
         if(!this.state.introPending||this.state.gameOver)return false;
         this.state.introPending=false;
         this.state.startsAt=Date.now()+250;
@@ -186,6 +201,7 @@ export class GameEngine {
         return true;
     }
     public checkTimeout(): boolean {
+        if(!this.canAdvance())return false;
         if (this.state.gameOver || this.state.introPending || Date.now() < (this.state.startsAt??0)) return false;
         
         const now = Date.now();
@@ -212,6 +228,7 @@ export class GameEngine {
     }
 
     public processAction(action: Action): ActionResult {
+        if(!this.canAdvance())return {success:false,message:'Ranked ownership unavailable'};
         if (action.playerId !== this.state.players.host && action.playerId !== this.state.players.joiner) {
             return { success: false, message: 'Not a participant' };
         }
@@ -244,11 +261,19 @@ export class GameEngine {
 
         let result = false;
         const turnBefore = this.state.turn;
+        // A synchronous search/rules calculation can outlive the lease while
+        // the event loop is stalled. Stage its state and roll back before exposing it.
+        const before=this.authority?structuredClone(this.state):undefined;
+        const replayLength=this.replayHistory.length;
 
         if (action.action.type === 'MOVE') {
             result = this.handleMove(action.playerId, action.action.payload);
         } else if (action.action.type === 'RESIGN') {
             result = this.handleResign(action.playerId);
+        }
+        if(before&&!this.canAdvance()) {
+            this.state=before;this.replayHistory.length=replayLength;
+            return {success:false,message:'Ranked ownership unavailable'};
         }
 
         let finalResult: ActionResult;
@@ -289,7 +314,7 @@ export class GameEngine {
         if (!this.state.pieces.some(p => p.id === pieceId && p.team === playerTeam && !p.captured)) return false;
         const result = attemptLegalMove(this.state.pieces, this.state.board, pieceId, toX, toY, intention, promotedTo);
         
-        if (result.success) {
+        if (result.success && this.canAdvance()) {
             // Persist the Web replay format, not socket action envelopes.
             const before=this.state.pieces.find(p=>p.id===pieceId)!;
             const moved=result.pieces.find(p=>p.id===pieceId)!;
@@ -332,6 +357,7 @@ export class GameEngine {
 
     // 2. Generate Public GameState with filtering
     public getPublicState(playerId: string): PublicGameState {
+        const clockNow=this.clockNow();
         const filteredPieces = this.state.pieces.map(p => ({
             ...p
         }));
@@ -353,8 +379,8 @@ export class GameEngine {
             lastAction: this.state.history.length > 0 ? this.state.history[this.state.history.length - 1] : null,
             introPending:this.state.introPending,startsAt:this.state.startsAt,serverNow:Date.now(),playerFrames:this.state.playerFrames,
             clock:{...this.state.clock,
-                white:Math.max(0,this.state.clock.white-(!this.state.introPending&&!this.state.gameOver&&this.state.turn===0?Math.max(0,Date.now()-this.state.clock.lastMoveAt):0)),
-                black:Math.max(0,this.state.clock.black-(!this.state.introPending&&!this.state.gameOver&&this.state.turn===1?Math.max(0,Date.now()-this.state.clock.lastMoveAt):0))}
+                white:Math.max(0,this.state.clock.white-(!this.state.introPending&&!this.state.gameOver&&this.state.turn===0?Math.max(0,clockNow-this.state.clock.lastMoveAt):0)),
+                black:Math.max(0,this.state.clock.black-(!this.state.introPending&&!this.state.gameOver&&this.state.turn===1?Math.max(0,clockNow-this.state.clock.lastMoveAt):0))}
         };
     }
 }

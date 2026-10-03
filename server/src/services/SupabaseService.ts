@@ -18,7 +18,8 @@ import {createDailyLoginStore} from './DailyLoginStore';
 import {createStripeMembershipStore} from './StripeMembershipStore';
 import {createStripeDeletionLinkSource} from './StripeCancellation';
 import { CpuPracticeService } from './CpuPracticeService';
-import { cpuHintTicketsEnabled, rankedTicketAdmissionEnabled } from './TicketFeatureGates';
+import { cpuHintTicketsEnabled, rankedTicketAdmissionEnabled, rankedAdmissionRecoveryEnabled } from './TicketFeatureGates';
+import { createRankedAdmissionStore } from './RankedAdmissionStore';
 import type {SecurityEvent,SecurityOutcome} from './SecurityAudit';
 
 dotenv.config();
@@ -74,21 +75,31 @@ export class SupabaseService {
     }
     public accountSecurityStore() {return createAccountSecurityStore(this.supabase,token=>this.verifyUser(token));}
     public cpuPracticeService() { return new CpuPracticeService(this.supabase, cpuHintTicketsEnabled()); }
-    public async admitRankedMatch(matchId: string, hostId: string, joinerId: string, timeControl: number) {
+    public rankedAdmissionStore() { return createRankedAdmissionStore(this.supabase,rankedAdmissionRecoveryEnabled,rankedTicketAdmissionEnabled); }
+    public async rankedRefundBalance(userId:string):Promise<{freeRankedRefunds:number;paidRankedRefunds:number}> {
+        if(!rankedAdmissionRecoveryEnabled())return {freeRankedRefunds:0,paidRankedRefunds:0};
+        const {data,error}=await this.supabase.rpc('get_ranked_refund_balance',{p_user_id:userId}).abortSignal(AbortSignal.timeout(5000));
+        if(error||!data||!['freeRankedRefunds','paidRankedRefunds'].every(key=>Number.isSafeInteger(data[key])&&data[key]>=0))
+            throw new Error('RANKED_REFUND_BALANCE_UNAVAILABLE');
+        return data;
+    }
+    public async admitRankedMatch(matchId: string, hostId: string, joinerId: string, timeControl: number, ownerId?:string,
+        cpu?:{id:string;rating:number;level:number}) {
         if (!rankedTicketAdmissionEnabled()) throw new Error('RANKED_TICKET_ADMISSION_DISABLED');
         const { data, error } = await this.supabase.rpc('admit_ranked_match', {
             p_match_id: matchId,
             p_host_id: hostId,
             p_joiner_id: joinerId,
-            p_time_control: timeControl
+            p_time_control: timeControl,
+            p_owner_id:ownerId,p_cpu_id:cpu?.id??null,p_cpu_rating:cpu?.rating??null,p_cpu_level:cpu?.level??null
         }).abortSignal(AbortSignal.timeout(5000));
         if (error) throw error;
         return data as { success: boolean; duplicate?: boolean; reason?: string };
     }
-    public async voidRankedAdmission(matchId: string) {
-        if (!rankedTicketAdmissionEnabled()) throw new Error('RANKED_TICKET_ADMISSION_DISABLED');
+    public async voidRankedAdmission(matchId: string,ownerId?:string,reason='server_recovery') {
+        if (!rankedAdmissionRecoveryEnabled()) throw new Error('RANKED_TICKET_ADMISSION_DISABLED');
         const { data, error } = await this.supabase.rpc('void_ranked_admission', {
-            p_match_id: matchId
+            p_match_id: matchId,p_owner_id:ownerId??null,p_reason:reason
         }).abortSignal(AbortSignal.timeout(5000));
         if (error) throw error;
         return data as { success: boolean; reason?: string };
@@ -161,6 +172,7 @@ export class SupabaseService {
                 p_match_id:match.matchId,p_white_id:match.players.host,p_black_id:match.players.joiner,
                 p_winner:state.gameOver,p_time_control:match.timeControl,
                 p_cpu_id:match.cpu?.id??null,p_cpu_rating:match.cpu?.profile.rating??null,p_cpu_level:match.cpu?.profile.level??null,
+                ...(match.admission?{p_owner_id:match.admission.ownerId}:{}),
                 p_history:match.engine!.getHistory()
             }).abortSignal(AbortSignal.timeout(5000));
             if(error||!data||typeof data!=='object')return null;

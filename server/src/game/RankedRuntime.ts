@@ -7,6 +7,7 @@ import type { RankedSettlement } from '../services/SupabaseService';
 import type { PublicGameState } from './GameEngine';
 import type { CpuProfile } from './RankCpuSearch';
 import type { RankCpuWorkerResponse } from './rankCpuWorker';
+import type { RankedAdmissionCoordinator } from '../services/RankedAdmissionCoordinator';
 
 export type CpuRunner=(state:PublicGameState,profile:CpuProfile)=>Promise<RankCpuWorkerResponse>;
 
@@ -34,7 +35,7 @@ export class RankedRuntime {
     private casualSaving=new Set<string>();
     constructor(private io:Server,private matchmaking:MatchmakingService,
         private settle:(match:MatchSession)=>Promise<RankedSettlement|null>,private runCpu:CpuRunner=runCpuWorker,
-        private recordCasual?:(match:MatchSession)=>Promise<void>) {
+        private recordCasual?:(match:MatchSession)=>Promise<void>, private admission?:RankedAdmissionCoordinator) {
         matchmaking.onForfeit=match=>this.afterAction(match);
     }
 
@@ -50,6 +51,7 @@ export class RankedRuntime {
     }
 
     public afterAction(match:MatchSession) {
+        if(match.admission&&!this.admission?.canAdvance(match))return;
         const alreadyFinished=match.state==='FINISHED';
         this.broadcast(match);
         if(match.engine?.getPublicState(match.players.host).gameOver) {
@@ -78,7 +80,9 @@ export class RankedRuntime {
         this.saving.add(match.matchId);
         try {
             const result=await this.settle(match);
+            if(match.admission&&['voided','rejected'].includes(match.admission.state))return;
             if(!result){this.retryAt.set(match.matchId,Date.now()+5000);this.io.to(match.matchId).emit('rating_pending',{matchId:match.matchId});return;}
+            if(match.admission)match.admission.state='settled';
             match.settlement='saved';this.saved.set(match.matchId,result);this.retryAt.delete(match.matchId);
             for(const id of Object.values(match.players)) {
                 const session=this.matchmaking.getPlayerSession(id);
@@ -91,7 +95,11 @@ export class RankedRuntime {
 
     /** Called every 250 ms. No network/AI work is awaited on the timer. */
     public tick() {
+        this.admission?.tick();
         for(const match of this.matchmaking.getMatches()) {
+            if(match.admission?.state==='active'&&!this.admission?.canAdvance(match)) {
+                void this.admission?.cancel(match,'owner_unavailable');continue;
+            }
             if(match.state==='FINISHED'&&match.settlement==='pending'){void this.persist(match);continue;}
             if(match.state!=='IN_GAME'||!match.engine)continue;
             if(match.engine.checkTimeout()){this.afterAction(match);continue;}
@@ -101,7 +109,7 @@ export class RankedRuntime {
             if(state.turn!==(match.cpu.side==='host'?0:1))continue;
             this.cpuBusy.add(match.matchId);
             void this.runCpu(state,match.cpu.profile).then(response=>{
-                if(match.state!=='IN_GAME'||!match.engine||!match.cpu)return;
+                if(match.state!=='IN_GAME'||!match.engine||!match.cpu||(match.admission&&!this.admission?.canAdvance(match)))return;
                 const current=match.engine.getPublicState(match.cpu.id);
                 if(current.gameOver||current.version!==state.version||current.turn!==state.turn)return;
                 if(response.error||response.version!==state.version||!response.move)throw new Error('CPU unavailable');
@@ -111,8 +119,11 @@ export class RankedRuntime {
             }).catch(()=>{
                 // Infrastructure failure is a void match, never a free rated win/loss.
                 if(match.state==='IN_GAME') {
-                    this.matchmaking.finishMatch(match,'CANCELLED');
-                    this.io.to(match.matchId).emit('match_cancelled',{matchId:match.matchId,reason:'cpu_unavailable'});
+                    if(match.admission&&this.admission)void this.admission.cancel(match,'cpu_unavailable');
+                    else {
+                        this.matchmaking.finishMatch(match,'CANCELLED');
+                        this.io.to(match.matchId).emit('match_cancelled',{matchId:match.matchId,reason:'cpu_unavailable'});
+                    }
                 }
             }).finally(()=>this.cpuBusy.delete(match.matchId));
         }

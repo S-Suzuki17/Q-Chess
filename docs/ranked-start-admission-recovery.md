@@ -1,8 +1,8 @@
 # Ranked start admission and recovery design
 
-Status: design and acceptance plan only. Ranked ticket spending remains disabled and is not connected to gameplay. Do not turn on the release gate from this document alone.
+Status: T1 implements this protocol locally on `fix/ranked-admission-recovery-20261003`, based on T0 commit `9102ad4a2230bf88379f53550362f70d1fd439c2`. Admission and recovery source gates remain OFF. See [T1 implementation and verification](t1-ranked-admission-verification-20261003.md) for the actual schema, lease bounds, tests, and remaining integration work. This document preserves the original design and acceptance requirements; it does not authorize release.
 
-## Why the existing receipt RPC cannot be connected yet
+## Original problem before T1
 
 `MatchmakingService.connectMatch()` synchronously changes a match to `IN_GAME` and constructs `GameEngine` when the second participant connects. The constructor sets `startsAt` and `clock.lastMoveAt` immediately. `server/src/index.ts` then sends `match_start`; `RankedRuntime.tick()` and `player_action` can advance the engine. `spend_game_tickets` has atomic, idempotent accounting for one or two participants, but it records only receipts. It has no durable match state or inverse operation. If the process dies after that RPC commits, the receipt survives and the engine disappears. If debit is placed after `connectMatch()` or its first emission, a clock or action can happen before debit. A CPU worker failure currently cancels the match in memory without accounting compensation.
 
@@ -67,4 +67,4 @@ Use a disposable PostgreSQL fixture for transaction tests and fault injection ar
 3. Wire connect/reconnect, CPU cancellation, settlement, and account deletion together; run the server unit/integration tests and complete migration chain on a development database.
 4. Only after those checks pass, review the release gate and user-facing quota disclosure. Keep spending OFF until then.
 
-Relevant current files: `server/src/matchmaking/MatchmakingService.ts`, `server/src/index.ts`, `server/src/game/GameEngine.ts`, `server/src/game/RankedRuntime.ts`, `server/src/services/TicketSpendStore.ts`, `server/src/services/SupabaseService.ts`, and `supabase/migrations/20260930133414_atomic_ticket_spending.sql`.
+Implementation files: `server/src/matchmaking/MatchmakingService.ts`, `server/src/index.ts`, `server/src/game/GameEngine.ts`, `server/src/game/RankedRuntime.ts`, `server/src/services/RankedAdmissionCoordinator.ts`, `server/src/services/RankedAdmissionStore.ts`, `server/src/services/SupabaseService.ts`, and the two `20261001000001/2` ranked migrations. The original receipt RPC in `20260930133414_atomic_ticket_spending.sql` remains the prerequisite for other ticket flows.

@@ -41,7 +41,7 @@ export class AccountWriteGate {
 export function createAccountDeletionStore(client: SupabaseClient, verifyUser: AccountDeletionStore['verifyUser']): AccountDeletionStore {
     const rpc = async (name: string, parameters?: Record<string, unknown>) => {
         const { data, error } = await client.rpc(name, parameters).abortSignal(AbortSignal.timeout(10000));
-        if (error) throw new DeletionError('UNAVAILABLE'); return data;
+        if (error) throw new DeletionError(error.code==='55006'?'ACCOUNT_BUSY':'UNAVAILABLE'); return data;
     };
     return {
         verifyUser,

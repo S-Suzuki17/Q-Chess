@@ -29,7 +29,9 @@ import {QG_LIVE_MONTHLY_PRICE_ID, StripeMembershipApi, type StripeMembershipMode
 import {createStripeMembershipRouter,createStripeWebhookRouter} from './services/StripeMembershipRoutes';
 import {createStripeCancellationGuard} from './services/StripeCancellation';
 import {StripePortalApi} from './services/StripePortal';
-import { cpuHintTicketsEnabled, rankedTicketAdmissionEnabled } from './services/TicketFeatureGates';
+import { cpuHintTicketsEnabled, rankedTicketAdmissionEnabled, rankedAdmissionRecoveryEnabled } from './services/TicketFeatureGates';
+import { RankedAdmissionCoordinator } from './services/RankedAdmissionCoordinator';
+import type { AdmissionOutcome } from './services/RankedAdmissionStore';
 
 const app = express();
 app.use(cors());
@@ -142,8 +144,34 @@ const io = new Server(server, {
   }
 });
 
-const matchmaking = new MatchmakingService(io);
-const runtime = new RankedRuntime(io,matchmaking,match=>supabaseService.settleRankedMatch(match),undefined,match=>supabaseService.recordUnratedMatch(match));
+const matchmaking = new MatchmakingService(io,rankedTicketAdmissionEnabled());
+function sendMatchStart(match:MatchSession) {
+    if(!match.engine||(match.admission&&!admission?.canAdvance(match)))return;
+    for(const id of Object.values(match.players)) {
+        const session=matchmaking.getPlayerSession(id),socket=session&&io.sockets.sockets.get(session.socketId);
+        if(!socket)continue;
+        socket.join(match.matchId);
+        const state=match.engine.getPublicState(id);
+        socket.emit('match_start',state);socket.emit('sync_state',state);
+    }
+    match.justStartedFlag=false;
+}
+function notifyAdmission(outcome:AdmissionOutcome) {
+    for(const id of outcome.humanIds??[]) {
+        const session=matchmaking.getPlayerSession(id),socket=session&&io.sockets.sockets.get(session.socketId);
+        if(!socket)continue;
+        if(outcome.state==='settled') {
+            const change=[outcome.result?.white,outcome.result?.black].find(x=>x?.userId===id);
+            if(change)socket.emit('rating_settled',{matchId:outcome.matchId,...change,timeControl:outcome.result?.timeControl});
+        } else if(['voided','rejected'].includes(outcome.state)) {
+            if(outcome.state==='rejected')socket.emit('queue_error',{code:outcome.reason,message:outcome.reason});
+            socket.emit('match_cancelled',{matchId:outcome.matchId,reason:outcome.reason??'server_recovery'});
+        }
+    }
+}
+const admission=rankedAdmissionRecoveryEnabled()
+    ? new RankedAdmissionCoordinator(matchmaking,supabaseService.rankedAdmissionStore(),sendMatchStart,notifyAdmission) : undefined;
+const runtime = new RankedRuntime(io,matchmaking,match=>supabaseService.settleRankedMatch(match),undefined,match=>supabaseService.recordUnratedMatch(match),admission);
 const loginAttempts=new Map<string,{count:number;until:number}>();
 let pendingLegacyLogins=0;
 app.post('/auth/ranked-session',async(req,res)=>{
@@ -310,7 +338,7 @@ io.on('connection', (socket: Socket) => {
   const existingSession = matchmaking.getPlayerSession(userId);
   if (existingSession && existingSession.currentMatchId && existingSession.state === 'IN_GAME') {
       const activeMatch = matchmaking.getMatch(existingSession.currentMatchId);
-      if (activeMatch && activeMatch.engine && activeMatch.state === 'IN_GAME') {
+      if (activeMatch && activeMatch.engine && activeMatch.state === 'IN_GAME'&&(!activeMatch.admission||admission?.canAdvance(activeMatch))) {
           socket.join(existingSession.currentMatchId);
           console.log('[RECONNECT] Active match restored');
           socket.emit('sync_state', activeMatch.engine.getPublicState(userId));
@@ -331,6 +359,10 @@ io.on('connection', (socket: Socket) => {
         const token=socket.handshake.auth.token;
         const identity=rankedAuth.verifySession(token)?.userId??(socket.data.verified?await supabaseService.verifyUser(token):null);
         if(identity!==userId)return fail('AUTH_REQUIRED');
+        if(admission) {
+            try{if(await admission.accountBusy(userId))return fail('ACCOUNT_BUSY');}
+            catch{return fail('RANKED_UNAVAILABLE');}
+        }
         if(!await supabaseService.rankedReady())return fail('RANKED_UNAVAILABLE');
         rating=await supabaseService.getMatchRating(userId,timeControl);
         if(rating===null)return fail('RATING_UNAVAILABLE');
@@ -354,6 +386,20 @@ io.on('connection', (socket: Socket) => {
     if(matchmaking.getPlayerSession(userId)?.socketId!==socket.id)return;
     if(typeof data?.matchId!=='string'||!data.matchId||data.matchId.length>128)return;
     if(data.userName!==undefined&&typeof data.userName!=='string')return;
+    const remembered=matchmaking.getMatch(data.matchId);
+    const durableMatchId=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(data.matchId);
+    if(admission&&durableMatchId&&(!remembered||['FINISHED','CANCELLED','VOIDING'].includes(remembered.state))) {
+        try {
+            const recovered=await admission.reconnect(data.matchId,userId);
+            if(recovered) {
+                if(recovered.state==='active')socket.emit('match_preparing',{matchId:data.matchId,reason:'owner_recovery'});
+                return;
+            }
+            // A crash before admission has no durable row or charge. Queue UUIDs
+            // must still terminate explicitly, never become ad-hoc private rooms.
+            if(!remembered) {socket.emit('match_cancelled',{matchId:data.matchId,reason:'match_not_found'});return;}
+        }catch{socket.emit('match_preparing',{matchId:data.matchId,reason:'recovery_unavailable'});return;}
+    }
     // Reconnection to a started game remains possible during maintenance.
     if(matchmaking.getMatch(data.matchId)?.state!=='IN_GAME'){
         const unavailable=await operations.admission(socket.handshake.auth.client);
@@ -375,32 +421,14 @@ io.on('connection', (socket: Socket) => {
 
     if(!result.success)return;
     socket.join(data.matchId);
+    if(result.match?.state==='ADMITTING') {
+        socket.emit('match_preparing',{matchId:data.matchId,reason:'admitting'});
+        await admission?.begin(result.match);
+        return;
+    }
 
     if (result.success && result.engine) {
       if (result.justStarted) {
-          // Free ranked PvP and CPU fallback remain playable without ticket RPCs.
-          // The dormant admission path cannot be released before T1 fixes start
-          // ordering, CPU identities, durable recovery, and ticket refunds.
-          if (result.match?.mode === 'ranked' && rankedTicketAdmissionEnabled()) {
-              try {
-                  const admission = await supabaseService.admitRankedMatch(
-                      data.matchId,
-                      result.match.players.host,
-                      result.match.players.joiner,
-                      result.match.timeControl
-                  );
-                  if (!admission.success) {
-                      io.to(data.matchId).emit('queue_error', { code: 'INSUFFICIENT_FUNDS', message: 'INSUFFICIENT_FUNDS' });
-                      matchmaking.removeSocket(socket.id); // forcefully disconnect them from match
-                      return;
-                  }
-              } catch (e) {
-                  console.error('Failed to admit match:', e);
-                  io.to(data.matchId).emit('queue_error', { code: 'ADMISSION_FAILED', message: 'ADMISSION_FAILED' });
-                  matchmaking.removeSocket(socket.id);
-                  return;
-              }
-          }
           const room = io.sockets.adapter.rooms.get(data.matchId);
           if (room) {
               for (const sid of room) {
@@ -459,6 +487,10 @@ io.on('connection', (socket: Socket) => {
       let match = session?.currentMatchId ? matchmaking.getMatch(session.currentMatchId) : null;
 
       if (!match || !match.engine || match.state!=='IN_GAME') return socket.emit('action_error', { message: 'No active match found' });
+      if(match.admission&&!admission?.canAdvance(match)) {
+          void admission?.cancel(match,'owner_unavailable');
+          return socket.emit('action_error',{message:'Ranked ownership unavailable'});
+      }
 
       const action: Action = {
           actionId: data.actionId,
@@ -473,10 +505,20 @@ io.on('connection', (socket: Socket) => {
     runtime.afterAction(match);
   });
 
-  socket.on('request_sync', (data: { matchId: string }) => {
+  socket.on('request_sync', async (data: { matchId: string }) => {
     if(typeof data?.matchId!=='string')return;
     if(matchmaking.getPlayerSession(userId)?.socketId!==socket.id)return;
     const match = matchmaking.getMatch(data.matchId);
+    if(!match&&admission&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(data.matchId)) {
+        try {
+            const recovered=await admission.reconnect(data.matchId,userId);
+            if(recovered) {
+                if(recovered.state==='active')socket.emit('match_preparing',{matchId:data.matchId,reason:'owner_recovery'});
+                return;
+            }
+            socket.emit('match_cancelled',{matchId:data.matchId,reason:'match_not_found'});return;
+        }catch{socket.emit('match_preparing',{matchId:data.matchId,reason:'recovery_unavailable'});return;}
+    }
     if (!match || (match.players.host !== userId && match.players.joiner !== userId)) {
         return socket.emit('error', { message: 'Unauthorized match sync request' });
     }
@@ -489,6 +531,15 @@ io.on('connection', (socket: Socket) => {
     }
 
     matchmaking.clearDisconnectTimer(userId);
+    if(match.state==='ADMITTING'||match.state==='VOIDING') {
+        socket.emit('match_preparing',{matchId:data.matchId,reason:match.state.toLowerCase()});
+        if(match.state==='ADMITTING')void admission?.begin(match);
+        return;
+    }
+    if(match.admission?.state==='active'&&!admission?.canAdvance(match)) {
+        void admission?.cancel(match,'owner_unavailable');
+        socket.emit('match_preparing',{matchId:data.matchId,reason:'owner_unavailable'});return;
+    }
 
     if (match.engine) {
       socket.join(data.matchId);
