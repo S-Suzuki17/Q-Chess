@@ -9,7 +9,7 @@ export const stripeMigrations = [
     '20261001000002_ranked_match_void.sql','20261003023533_stripe_canonical_reconciliation.sql',
     '20261003041000_member_ticket_cap_60.sql',
 ];
-export async function setupStripeFixture(db) {
+export async function setupStripeFixture(db, migrations = stripeMigrations) {
     await db.exec(`create role anon; create role authenticated; create role service_role bypassrls;
         create table public.profiles(id text primary key,name text,password_hash text,
             rating integer default 1000,rating_10s integer default 1000,rating_3m integer default 1000,rating_10m integer default 1000);
@@ -21,7 +21,7 @@ export async function setupStripeFixture(db) {
         create table public.account_terms_consents(user_id text,version text);
         grant usage on schema public to anon,authenticated,service_role;
         grant all on all tables in schema public to service_role;`);
-    for (const name of stripeMigrations) await db.exec(await readFile(new URL('../../supabase/migrations/'+name,import.meta.url),'utf8'));
+    for (const name of migrations) await db.exec(await readFile(new URL('../../supabase/migrations/'+name,import.meta.url),'utf8'));
 }
 export const snapshotSql = `select public.apply_stripe_canonical_membership_snapshot(
     $1,$2,'invoice.paid',$3,clock_timestamp(),$4,$5,'cus_'||$6,$6,'price_ABCDEFGH',

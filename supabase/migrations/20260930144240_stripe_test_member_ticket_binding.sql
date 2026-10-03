@@ -7,11 +7,14 @@ set local statement_timeout = '15s';
 alter table public.ticket_wallets add column test_member_ticket_subscription_id text
     check (test_member_ticket_subscription_id is null
         or test_member_ticket_subscription_id ~ '^sub_[A-Za-z0-9]+$');
--- Existing unbound test rewards have no provable subscription owner. Discard
--- only this test pool; free and live paid balances remain untouched.
-update public.ticket_wallets set test_member_ranked_tickets = 0,
-    test_member_hint_tickets = 0
-where test_member_ranked_tickets <> 0 or test_member_hint_tickets <> 0;
+-- Never discard an existing balance during deployment. An installation with
+-- unbound test rewards needs a separately reviewed reconciliation first.
+do $$ begin
+    if exists (select 1 from public.ticket_wallets
+        where test_member_ranked_tickets <> 0 or test_member_hint_tickets <> 0) then
+        raise exception 'Unbound test ticket balances require manual reconciliation';
+    end if;
+end $$;
 alter table public.ticket_wallets add constraint test_member_tickets_bound_check check (
     (test_member_ranked_tickets = 0 and test_member_hint_tickets = 0)
     or test_member_ticket_subscription_id is not null);
