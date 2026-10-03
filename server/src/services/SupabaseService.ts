@@ -13,7 +13,14 @@ import { createAccountSecurityStore,verifiedTokenSessionId } from './AccountSecu
 import {createServiceStatusLoader} from './ServiceOperations';
 import {createAccountProgressStore} from './AccountProgress';
 import {createAccountTermsStore} from './AccountTerms';
+import {createCurrentTermsStore} from './AccountCurrentTerms';
 import {createEngagementMetricsStore} from './EngagementMetrics';
+import {createDailyLoginStore} from './DailyLoginStore';
+import {createStripeMembershipStore} from './StripeMembershipStore';
+import {createStripeDeletionLinkSource, createStripeRetireSubscriptions} from './StripeCancellation';
+import { CpuPracticeService } from './CpuPracticeService';
+import { cpuHintTicketsEnabled, rankedTicketAdmissionEnabled, rankedAdmissionRecoveryEnabled } from './TicketFeatureGates';
+import { createRankedAdmissionStore } from './RankedAdmissionStore';
 import type {SecurityEvent,SecurityOutcome} from './SecurityAudit';
 
 dotenv.config();
@@ -45,6 +52,16 @@ export class SupabaseService {
     public adRewardStore() {
         return createAdRewardStore(this.supabase,token=>this.verifyUser(token));
     }
+    public dailyLoginStore() {
+        return createDailyLoginStore(this.supabase, token=>this.verifyUser(token),
+            id=>this.accountDeletionStore().blocked(id));
+    }
+    public stripeMembershipStore() {
+        return createStripeMembershipStore(this.supabase, token=>this.verifyUser(token),
+            id=>this.accountDeletionStore().blocked(id));
+    }
+    public stripeDeletionLinks() { return createStripeDeletionLinkSource(this.supabase); }
+    public stripeRetireSubscriptions() { return createStripeRetireSubscriptions(this.supabase); }
     public engagementMetricsStore() { return createEngagementMetricsStore(this.supabase); }
     public foundersStore() {return createFoundersStore(this.supabase,token=>this.verifyUser(token));}
     public accountDeletionStore() { return createAccountDeletionStore(this.supabase, token => this.verifyUser(token)); }
@@ -59,6 +76,36 @@ export class SupabaseService {
         return createAccountProfileStore(this.supabase, token => this.verifyUser(token), id => this.accountDeletionStore().blocked(id));
     }
     public accountSecurityStore() {return createAccountSecurityStore(this.supabase,token=>this.verifyUser(token));}
+    public cpuPracticeService() { return new CpuPracticeService(this.supabase, cpuHintTicketsEnabled); }
+    public rankedAdmissionStore() { return createRankedAdmissionStore(this.supabase,rankedAdmissionRecoveryEnabled,rankedTicketAdmissionEnabled); }
+    public async rankedRefundBalance(userId:string):Promise<{freeRankedRefunds:number;paidRankedRefunds:number}> {
+        if(!rankedAdmissionRecoveryEnabled())return {freeRankedRefunds:0,paidRankedRefunds:0};
+        const {data,error}=await this.supabase.rpc('get_ranked_refund_balance',{p_user_id:userId}).abortSignal(AbortSignal.timeout(5000));
+        if(error||!data||!['freeRankedRefunds','paidRankedRefunds'].every(key=>Number.isSafeInteger(data[key])&&data[key]>=0))
+            throw new Error('RANKED_REFUND_BALANCE_UNAVAILABLE');
+        return data;
+    }
+    public async admitRankedMatch(matchId: string, hostId: string, joinerId: string, timeControl: number, ownerId?:string,
+        cpu?:{id:string;rating:number;level:number}) {
+        if (!rankedTicketAdmissionEnabled()) throw new Error('RANKED_TICKET_ADMISSION_DISABLED');
+        const { data, error } = await this.supabase.rpc('admit_ranked_match', {
+            p_match_id: matchId,
+            p_host_id: hostId,
+            p_joiner_id: joinerId,
+            p_time_control: timeControl,
+            p_owner_id:ownerId,p_cpu_id:cpu?.id??null,p_cpu_rating:cpu?.rating??null,p_cpu_level:cpu?.level??null
+        }).abortSignal(AbortSignal.timeout(5000));
+        if (error) throw error;
+        return data as { success: boolean; duplicate?: boolean; reason?: string };
+    }
+    public async voidRankedAdmission(matchId: string,ownerId?:string,reason='server_recovery') {
+        if (!rankedAdmissionRecoveryEnabled()) throw new Error('RANKED_TICKET_ADMISSION_DISABLED');
+        const { data, error } = await this.supabase.rpc('void_ranked_admission', {
+            p_match_id: matchId,p_owner_id:ownerId??null,p_reason:reason
+        }).abortSignal(AbortSignal.timeout(5000));
+        if (error) throw error;
+        return data as { success: boolean; reason?: string };
+    }
     public async recordSecurityEvent(event:SecurityEvent,outcome:SecurityOutcome,userId?:string){
         const {error}=await this.supabase.rpc('record_security_event',{p_event:event,p_outcome:outcome,p_user_id:userId??null}).abortSignal(AbortSignal.timeout(2000));
         if(error)throw new Error('AUDIT_UNAVAILABLE');
@@ -70,6 +117,7 @@ export class SupabaseService {
     }
     public serviceStatusLoader() {return createServiceStatusLoader(this.supabase);}
     public accountProgressStore(){return createAccountProgressStore(this.supabase,token=>this.verifyUser(token),id=>this.accountDeletionStore().blocked(id));}
+    public currentTermsStore(){return createCurrentTermsStore(this.supabase,token=>this.verifyUser(token),id=>this.accountDeletionStore().blocked(id),(id,mayCreate)=>this.accountProfileStore().ensure(id,'Player',mayCreate));}
     public accountTermsStore(){return createAccountTermsStore(this.supabase,token=>this.verifyUser(token),id=>this.accountDeletionStore().blocked(id),(id,mayCreate)=>this.accountProfileStore().ensure(id,'Player',mayCreate));}
 
     public async verifyLegacyPassword(userId:string,password:string):Promise<boolean> {
@@ -127,6 +175,7 @@ export class SupabaseService {
                 p_match_id:match.matchId,p_white_id:match.players.host,p_black_id:match.players.joiner,
                 p_winner:state.gameOver,p_time_control:match.timeControl,
                 p_cpu_id:match.cpu?.id??null,p_cpu_rating:match.cpu?.profile.rating??null,p_cpu_level:match.cpu?.profile.level??null,
+                ...(match.admission?{p_owner_id:match.admission.ownerId}:{}),
                 p_history:match.engine!.getHistory()
             }).abortSignal(AbortSignal.timeout(5000));
             if(error||!data||typeof data!=='object')return null;
@@ -208,10 +257,10 @@ export class SupabaseService {
     }
 
     public async recordMatchResult(
-        matchId: string, 
-        whiteId: string, 
-        blackId: string, 
-        winner: 'WHITE' | 'BLACK' | 'DRAW', 
+        matchId: string,
+        whiteId: string,
+        blackId: string,
+        winner: 'WHITE' | 'BLACK' | 'DRAW',
         history: any[]
     ): Promise<boolean> {
         try {

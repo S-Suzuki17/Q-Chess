@@ -1,8 +1,2 @@
-export * from './random';
-export * from './greedy';
-export * from './eval';
-export * from './evalV2';
-export * from './mcts';
-export * from './tt';
-export * from './evalV3';
-export * from './evalQoppelia';
+// Canonical engine shared with the authoritative CPU practice service.
+export * from '../../../server/src/quantum-engine/ai/index';

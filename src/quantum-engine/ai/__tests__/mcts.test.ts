@@ -4,22 +4,22 @@ import { MCTSEngine } from '../mcts';
 import { Evaluator } from '../eval';
 
 // Mock everything MCTS relies on for state manipulation
-vi.mock('../random', () => ({
+vi.mock('../../../../server/src/quantum-engine/ai/random', () => ({
     getAllConcreteMoves: (state: GameState) => (state as any).mockMoves || []
 }));
 
-vi.mock('../../terminal', () => ({
+vi.mock('../../../../server/src/quantum-engine/terminal', () => ({
     getWinner: (state: GameState) => state.winner || null
 }));
 
-vi.mock('../../stateTransition', () => ({
+vi.mock('../../../../server/src/quantum-engine/stateTransition', () => ({
     applyMove: (state: GameState, move: Move) => {
         // Just return the pre-baked next state stored in the move
         return (move as any).nextState;
     }
 }));
 
-vi.mock('../../hash', () => ({
+vi.mock('../../../../server/src/quantum-engine/hash', () => ({
     hashState: (state: GameState) => (state as any).id || 'hash'
 }));
 

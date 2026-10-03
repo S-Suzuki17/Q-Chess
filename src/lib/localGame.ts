@@ -5,8 +5,7 @@ import type { MoveRecord } from './gameRecordService';
 import type { GameState } from '../quantum-engine/types';
 import { createInitialState } from '../quantum-engine/initialState';
 import { legacyToQuantumState, TYPE_TO_BIT } from '../quantum-engine/adapter';
-import { applyMove } from '../quantum-engine/stateTransition';
-import { getWinner } from '../quantum-engine/terminal';
+import { applyPracticeMove } from '../quantum-engine/practice';
 import type { PieceType } from '../config/gameConfig';
 
 export function positionForDisplay(state: GameState) {
@@ -35,12 +34,11 @@ export function createLocalPosition() {
 export function applyLocalMove(tokens: Token[], pool: IdentityPool, move: AIMove,
     player: 'white' | 'black', history: MoveRecord[]) {
     const before = legacyToQuantumState(tokens, pool, player, history.length, history.at(-1) ?? null);
-    let state = applyMove(before, {
+    const state = applyPracticeMove(before, {
         pieceId: move.tokenId, target: { row: move.targetRow, col: move.targetCol },
         chosenType: move.possibleTypes.reduce((mask, type) => mask | TYPE_TO_BIT[type], 0),
         promotionTarget: move.promotedTo ? TYPE_TO_BIT[move.promotedTo] : undefined
     });
-    state = { ...state, winner: state.winner ?? getWinner(state) };
     const changedIds = state.pieces.filter(piece =>
         piece.state !== before.pieces.find(p => p.id === piece.id)?.state).map(p => p.id);
     const captured = state.pieces.find(p => !p.alive && before.pieces.find(b => b.id === p.id)?.alive);

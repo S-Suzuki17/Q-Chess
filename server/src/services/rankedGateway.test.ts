@@ -8,23 +8,31 @@ const h = vi.hoisted(() => {
     const sockets = new Map<string, any>(), sessions = new Map<string, any>();
     const blocked=vi.fn(async()=>false);
     const service = { cleanupOldRecords: vi.fn(), verifyLegacyPassword: vi.fn(), verifyUser: vi.fn(),
-        rankedReady: vi.fn(), getMatchRating: vi.fn(), settleRankedMatch: vi.fn(), recordUnratedMatch: vi.fn(), profileAvatarStore: vi.fn(()=>({})), adRewardStore: vi.fn(()=>({})), engagementMetricsStore: vi.fn(()=>({})), foundersStore: vi.fn(()=>({})) };
+        rankedReady: vi.fn(), getMatchRating: vi.fn(), settleRankedMatch: vi.fn(), recordUnratedMatch: vi.fn(), profileAvatarStore: vi.fn(()=>({})), adRewardStore: vi.fn(()=>({})), engagementMetricsStore: vi.fn(()=>({})), foundersStore: vi.fn(()=>({})), stripeMembershipStore: vi.fn(()=>({})),
+        admitRankedMatch: vi.fn(), voidRankedAdmission: vi.fn(), cpuPracticeService: vi.fn() };
     const mm = { registerSocket: vi.fn((userId, socketId) => sessions.set(userId, { userId, socketId, state: 'IDLE' })),
         getPlayerSession: vi.fn(id => sessions.get(id)), clearDisconnectTimer: vi.fn(), getQueueStats: vi.fn(() => ({})),
-        takeCpuFallbacks: vi.fn(() => []), joinQueue: vi.fn(), leaveQueue: vi.fn(), removeSocket: vi.fn(), getMatch: vi.fn() };
+        takeCpuFallbacks: vi.fn(() => []), joinQueue: vi.fn(), leaveQueue: vi.fn(), removeSocket: vi.fn(), getMatch: vi.fn(),
+        reserveMatch: vi.fn(), connectMatch: vi.fn() };
     const app = { use: vi.fn(), get: vi.fn((path, handler) => routes.set(path, handler)), post: vi.fn((path, handler) => routes.set(path, handler)) };
-    const io = { use: vi.fn(), on: vi.fn((event, handler) => listeners.set(event, handler)),
+    const io = { emit: vi.fn(), use: vi.fn(), on: vi.fn((event, handler) => listeners.set(event, handler)),
         sockets: { sockets, adapter: { rooms: new Map() } }, to: vi.fn(() => ({ emit: vi.fn() })) };
-    return { routes, listeners, sockets, sessions, service, blocked, mm, app, io, json: vi.fn(), listen: vi.fn(), tick: vi.fn() };
+    return { routes, listeners, sockets, sessions, service, blocked, mm, app, io, json: vi.fn(), listen: vi.fn(), tick: vi.fn(),
+        engineClass: undefined as typeof import('../game/GameEngine').GameEngine | undefined };
 });
 vi.mock('express', () => ({ default: Object.assign(() => h.app, { json: h.json }) }));
 vi.mock('http', () => ({ default: { createServer: vi.fn(() => ({ listen: h.listen })) } }));
 vi.mock('cors', () => ({ default: vi.fn(() => () => {}) }));
 vi.mock('socket.io', () => ({ Server: class { constructor() { return h.io; } } }));
 vi.mock('./SupabaseService', () => ({ SupabaseService: class { constructor() { return h.service; } } }));
-vi.mock('../matchmaking/MatchmakingService', () => ({ MatchmakingService: class { constructor() { return h.mm; } } }));
+vi.mock('../matchmaking/MatchmakingService', async importOriginal => ({
+    CPU_FALLBACK_MS: (await importOriginal<typeof import('../matchmaking/MatchmakingService')>()).CPU_FALLBACK_MS,
+    MatchmakingService: class { constructor() { return h.mm; } },
+}));
 vi.mock('../game/RankedRuntime', () => ({ RankedRuntime: class { tick = h.tick; } }));
-vi.mock('../game/GameEngine', () => ({ GameEngine: class {} }));
+vi.mock('../game/GameEngine', () => ({ GameEngine: class {
+    constructor(...args: any[]) { if (h.engineClass) return new (h.engineClass as any)(...args); }
+} }));
 vi.mock('./PrivateGameRecordRoutes', () => ({ createPrivateGameRecordRouter: vi.fn(() => () => {}) }));
 vi.mock('./ProfileAvatarRoutes', () => ({ createProfileAvatarRouter: vi.fn(() => () => {}) }));
 vi.mock('./AdRewardRoutes', () => ({ createAdRewardRouter: vi.fn(() => () => {}) }));
@@ -35,6 +43,11 @@ vi.mock('./AccountRecoveryRoutes', () => ({ createAccountRecoveryRouter: vi.fn((
 vi.mock('./AccountProfileRoutes', () => ({ createAccountProfileRouter: vi.fn(() => () => {}) }));
 vi.mock('./AccountSecurityRoutes', () => ({ createAccountSecurityRouter: vi.fn(() => () => {}) }));
 vi.mock('./AccountProgressRoutes', () => ({ createAccountProgressRouter: vi.fn(() => () => {}) }));
+vi.mock('./DailyLoginRoutes', () => ({ createDailyLoginRouter: vi.fn(() => () => {}) }));
+vi.mock('./CpuPracticeRoutes', () => ({ createCpuPracticeRouter: vi.fn(() => () => {}) }));
+vi.mock('./RankedRefundRoutes', () => ({ createRankedRefundRouter: vi.fn(() => () => {}) }));
+vi.mock('./StripeMembershipRoutes', () => ({ createStripeMembershipRouter: vi.fn(() => () => {}), createStripeWebhookRouter: vi.fn(() => () => {}) }));
+vi.mock('./AccountCurrentTermsRoutes', () => ({ createCurrentTermsRouter: vi.fn(() => () => {}) }));
 vi.mock('./AccountTermsRoutes', () => ({ createAccountTermsRouter: vi.fn(() => () => {}) }));
 
 function response() {
@@ -52,7 +65,12 @@ async function login(username = 'Alice', password = 'correct', ip = '127.0.0.1')
 async function socket(token: unknown, id = 'socket-1') {
     const handlers = new Map<string, Function>();
     const s: any = { id, handshake: { auth: { token } }, data: {}, connected: true, rooms: new Set(),
-        on: vi.fn((event, handler) => handlers.set(event, handler)), use: vi.fn(), emit: vi.fn(), join: vi.fn(),
+        on: vi.fn((event, handler) => handlers.set(event, handler)), use: vi.fn(), emit: vi.fn(),
+        join: vi.fn((room: string) => {
+            s.rooms.add(room);
+            if (!h.io.sockets.adapter.rooms.has(room)) h.io.sockets.adapter.rooms.set(room, new Set());
+            h.io.sockets.adapter.rooms.get(room).add(id);
+        }),
         to: vi.fn(() => ({ emit: vi.fn() })), disconnect: vi.fn(() => { s.connected = false; handlers.get('disconnect')?.(); }) };
     const next = vi.fn(); await h.io.use.mock.calls[0][0](s, next);
     if (!next.mock.calls[0]?.[0]) { h.sockets.set(id, s); h.listeners.get('connection')!(s); }
@@ -64,31 +82,100 @@ async function socket(token: unknown, id = 'socket-1') {
     return { s, next, dispatch };
 }
 beforeEach(async () => {
+    vi.stubEnv('RANKED_TICKET_ADMISSION_ENABLED', 'false');
+    vi.stubEnv('RANKED_ADMISSION_RECOVERY_ENABLED', 'false');
     vi.resetModules(); vi.clearAllMocks(); vi.useFakeTimers(); vi.setSystemTime(1_000_000);
     vi.spyOn(console, 'log').mockImplementation(() => {});
     vi.spyOn(NetServer.prototype, 'listen').mockImplementation(() => { throw new Error('Real server startup forbidden in gateway tests'); });
     vi.stubGlobal('fetch', vi.fn(() => { throw new Error('Network forbidden in gateway tests'); }));
     h.routes.clear(); h.listeners.clear(); h.sockets.clear(); h.sessions.clear();
+    h.io.sockets.adapter.rooms.clear(); h.engineClass = undefined;
     h.service.verifyLegacyPassword.mockImplementation(async (id, password) => id === 'Alice' && password === 'correct');
     h.service.verifyUser.mockResolvedValue(null); h.service.rankedReady.mockResolvedValue(true);
     h.service.getMatchRating.mockResolvedValue(1000); h.mm.joinQueue.mockReturnValue({ success: true });
     h.blocked.mockReset().mockResolvedValue(false);
     (h.service as any).accountDeletionStore = () => ({ blocked: h.blocked });
+    (h.service as any).stripeDeletionLinks = () => vi.fn(async () => ({ intents: [], memberships: [] }));
+    (h.service as any).stripeRetireSubscriptions = () => vi.fn(async () => {});
     (h.service as any).accountRecoveryStore = () => ({});
     (h.service as any).accountProfileStore = () => ({});
     (h.service as any).accountSecurityStore = () => ({restricted:async()=>false});
     (h.service as any).recordSecurityEvent = async()=>{};
     (h.service as any).restrictedAccounts = async()=>[];
     (h.service as any).accountProgressStore = () => ({});
+    (h.service as any).dailyLoginStore = () => ({});
+    (h.service as any).currentTermsStore = () => ({});
     (h.service as any).accountTermsStore = () => ({});
     (h.service as any).serviceStatusLoader = () => async()=>({maintenance:false,minimumAndroidBuild:0,minimumProtocol:0,announcement:{},revision:''});
     await import('../index');
     expect(h.listen).toHaveBeenCalledTimes(1); expect(h.service.cleanupOldRecords).not.toHaveBeenCalled();
     expect(fetch).not.toHaveBeenCalled();
 });
-afterEach(() => { vi.clearAllTimers(); vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+afterEach(() => { vi.clearAllTimers(); vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
+
+async function realMatchmaking() {
+    const { MatchmakingService } = await vi.importActual<typeof import('../matchmaking/MatchmakingService')>('../matchmaking/MatchmakingService');
+    h.engineClass = (await vi.importActual<typeof import('../game/GameEngine')>('../game/GameEngine')).GameEngine;
+    const actual = new MatchmakingService(h.io as any);
+    for (const key of ['registerSocket', 'getPlayerSession', 'clearDisconnectTimer', 'getQueueStats',
+        'takeCpuFallbacks', 'joinQueue', 'leaveQueue', 'removeSocket', 'getMatch', 'reserveMatch', 'connectMatch']) {
+        vi.spyOn(h.mm as any, key).mockImplementation((...args: any[]) => (actual as any)[key](...args));
+    }
+    vi.stubEnv('RANKED_TICKET_ADMISSION_ENABLED', 'false');
+    h.service.admitRankedMatch.mockRejectedValue(new Error('Missing ticket migration'));
+    return actual;
+}
 
 describe('ranked gateway without network or database side effects', () => {
+    it('starts free ranked PvP through the real matchmaking and engine while ticket DB is unavailable', async () => {
+        const mm = await realMatchmaking();
+        h.service.verifyLegacyPassword.mockImplementation(async (id, password) => ['Alice', 'Bob'].includes(id) && password === 'correct');
+        const alice = await socket((await login()).body.token, 'alice');
+        const bob = await socket((await login('Bob')).body.token, 'bob');
+        await alice.dispatch('join_queue', { mode: 'ranked', timeControl: 600 });
+        await bob.dispatch('join_queue', { mode: 'ranked', timeControl: 600 });
+        const matchId = mm.getPlayerSession('Alice')!.currentMatchId!;
+        await alice.dispatch('connect_match', { matchId });
+        await bob.dispatch('connect_match', { matchId });
+        expect(mm.getMatch(matchId)!.state).toBe('IN_GAME');
+        expect(mm.getMatch(matchId)!.engine!.getPublicState('Alice').gameOver).toBeNull();
+        for (const player of [alice, bob]) {
+            expect(player.s.emit).toHaveBeenCalledWith('match_start', expect.objectContaining({ mode: 'ranked' }));
+            expect(player.s.emit.mock.calls.some(([event]: [string]) => event === 'queue_error')).toBe(false);
+        }
+        expect(h.service.admitRankedMatch).not.toHaveBeenCalled();
+        expect(h.service.voidRankedAdmission).not.toHaveBeenCalled();
+        expect(fetch).not.toHaveBeenCalled();
+    });
+
+    it.each([0.1, 0.9])('starts free ranked CPU fallback on either side while tickets are OFF (%s)', async random => {
+        const mm = await realMatchmaking();
+        vi.spyOn(Math, 'random').mockReturnValue(random);
+        const alice = await socket((await login()).body.token);
+        await alice.dispatch('join_queue', { mode: 'ranked', timeControl: 600 });
+        expect(alice.s.emit).toHaveBeenCalledWith('queue_joined', { mode: 'ranked', timeControl: 600, cpuFallbackAt: Date.now() + 10_000 });
+        vi.setSystemTime(Date.now() + 9_999);
+        expect(mm.takeCpuFallbacks()).toEqual([]);
+        vi.setSystemTime(Date.now() + 1);
+        const [match] = mm.takeCpuFallbacks();
+        expect(match.cpu!.id).toMatch(/^ai:/);
+        expect(match.cpu!.side).toBe(random < 0.5 ? 'host' : 'joiner');
+        await alice.dispatch('connect_match', { matchId: match.matchId });
+        expect(match.state).toBe('IN_GAME');
+        expect(alice.s.emit).toHaveBeenCalledWith('match_start', expect.objectContaining({ mode: 'ranked', cpu: expect.any(Object) }));
+        expect(alice.s.emit.mock.calls.some(([event]: [string]) => event === 'queue_error')).toBe(false);
+        expect(h.service.admitRankedMatch).not.toHaveBeenCalled();
+        expect(h.service.voidRankedAdmission).not.toHaveBeenCalled();
+    });
+
+    it.each(['false', 'true'])('rejects untrusted paid hint history without debiting tickets when enabled=%s', async enabled => {
+        vi.stubEnv('CPU_HINT_TICKETS_ENABLED', enabled);
+        const guest = await socket('GUEST-test');
+        await guest.dispatch('request_cpu_hint', { requestId: 'request', pool: 'white', moveHistory: ['forged'] });
+        expect(guest.s.emit).toHaveBeenCalledWith('cpu_hint_error', { requestId: 'request', error: enabled === 'true' ? 'USE_CPU_PRACTICE_API' : 'FEATURE_DISABLED' });
+        expect(h.service.cpuPracticeService).not.toHaveBeenCalled();
+        expect(fetch).not.toHaveBeenCalled();
+    });
     it('identifies the deployed candidate solver without exposing account data', () => {
         const res = response();
         h.routes.get('/health')!({}, res);

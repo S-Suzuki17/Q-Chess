@@ -41,7 +41,7 @@ export class AccountWriteGate {
 export function createAccountDeletionStore(client: SupabaseClient, verifyUser: AccountDeletionStore['verifyUser']): AccountDeletionStore {
     const rpc = async (name: string, parameters?: Record<string, unknown>) => {
         const { data, error } = await client.rpc(name, parameters).abortSignal(AbortSignal.timeout(10000));
-        if (error) throw new DeletionError('UNAVAILABLE'); return data;
+        if (error) throw new DeletionError(error.code==='55006'?'ACCOUNT_BUSY':'UNAVAILABLE'); return data;
     };
     return {
         verifyUser,
@@ -83,12 +83,17 @@ export function createAccountDeletionStore(client: SupabaseClient, verifyUser: A
 }
 
 /** Each successful phase is durable. No personal ID appears in the response. */
-export async function completeAccountDeletion(store: AccountDeletionStore, hash: string, beforeErase: (id: string) => void): Promise<'pending' | 'completed'> {
+export async function completeAccountDeletion(store: AccountDeletionStore, hash: string,
+    beforeErase: (id: string) => void, cancelStripeBeforeErase: (id: string) => Promise<void>): Promise<'pending' | 'completed'> {
     const job = await store.job(hash);
     if (!job) throw new DeletionError('AUTH_REQUIRED');
     if (job.phase === 'completed') return 'completed';
     if (!job.user_id) throw new DeletionError('UNAVAILABLE');
     beforeErase(job.user_id);
+    // A local cascade cannot stop recurring external billing. Never erase the
+    // billing IDs until all of this account's Stripe sessions/subscriptions
+    // have reached a verified terminal state. Retrying with the same ticket is safe.
+    await cancelStripeBeforeErase(job.user_id);
     // Bounded work per request. The client resumes with the same opaque ticket.
     if (!await store.removePhotoBatch(hash)) return 'pending';
     if (job.phase === 'pending') await store.eraseData(hash);

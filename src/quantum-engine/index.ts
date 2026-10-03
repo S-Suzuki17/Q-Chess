@@ -1,13 +1,2 @@
-export * from './constants';
-export * from './types';
-export * from './errors';
-export * from './board';
-export * from './initialState';
-export * from './move';
-export * from './moveGenerator';
-export * from './stateTransition';
-export * from './terminal';
-export * from './hash';
-export * from './quantum/quantumState';
-export * from './quantum/constraints';
-export * from './quantum/candidateSolver';
+// Canonical engine shared with the authoritative CPU practice service.
+export * from '../../server/src/quantum-engine/index';

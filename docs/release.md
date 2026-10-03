@@ -9,14 +9,14 @@ npm run release:status -- <web|android|itch> で作業場所、HEAD、変更状�
 
 ## Web
 npm run build で静的出力 out/ を生成する。
-依頼された公開先と .vercel のリンク先を照合してから、利用可能なVercelの手順で公開する。
-過去の別コピーのリンク先を流用しない。環境変数の値を資料・ログに転記しない。
+現在の公開先はCloudflare Pagesのq-gambit-web（q-gambit.com / www.q-gambit.com）。scripts/release/prepare-pages.mjsで検査済みの専用ディレクトリを作り、指定のPagesプロジェクトへDirect Uploadする。
+GitHubへのpushだけではCloudflareに反映されない。残っているVercel連携のデプロイは現行サイトの公開とは別。過去の別コピーのリンク先を流用せず、環境変数の値を資料・ログに転記しない。
 公開後は対象デプロイの状態と変更した画面/動作を確認する。AABは別途更新が必要。
 
 ## Android
 capacitor.config.json の webDir は out。
 作業用コピーに本番設定がない場合、`node scripts/release/build-android-web.cjs <本番設定済みプロジェクトのパス>` でWebを作成する。
-この処理は必要な公開用接続設定のみをプロセスへ読み込み、秘密キーを拒否し、広告・制限をOFFに固定する。環境ファイルを複写・ログ出力しない。
+この処理は許可した公開設定のみを読み込み、秘密キーを拒否する。広告とAndroidの販売・外部請求導線はOFFに固定。券利用は既定OFFの明示フラグで制御する（docs/t3-web-release-flags-20261003.md）。環境ファイルを複写・ログ出力しない。
 通常の設定なし `npm run build` の out/ を配布用アプリに使用しない。
 対象の設定でWebをビルドし、ローカルに導入済みのCapacitor CLIでAndroidへ同期する。
 Web専用／アプリ専用の境界は docs/platform-boundaries.md。Androidビルドでは `NEXT_PUBLIC_APP_TARGET=android` を明示する。

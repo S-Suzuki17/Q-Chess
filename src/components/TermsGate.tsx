@@ -50,7 +50,7 @@ export function TermsGate({user,lang,playing,children,onExit,onReady}:{user:User
         <h1 className="text-2xl font-semibold">{status==='needed'?text[0]:'Q-GAMBIT'}</h1>
         {status==='needed'&&<>
             <p>{text[7]}</p>
-            <TermsDocument initialLanguage={lang}/>
+            <TermsDocument initialLanguage={lang} legacy/>
             <a href="https://q-gambit.com/privacy/" target="_blank" rel="noopener noreferrer" className="inline-block underline">{dict[lang].privacyPolicy}</a>
         </>}
         {(status==='error'||status==='updated')&&<div role="alert"><p>{text[status==='updated'?8:5]}</p><button onClick={()=>setRetry(n=>n+1)} className="my-3 min-h-11 border p-3">{text[6]}</button></div>}
