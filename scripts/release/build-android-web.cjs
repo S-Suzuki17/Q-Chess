@@ -12,6 +12,8 @@ if(!androidBuild)throw new Error('Android versionCode is required');
 const sourceRoot = process.argv[2];
 if (!sourceRoot) throw new Error('Usage: node scripts/release/build-android-web.cjs <configured-project-directory>');
 const originalEnv = { ...process.env };
+const bundler = originalEnv.QG_BUILD_BUNDLER ?? 'turbopack';
+if (!['turbopack', 'webpack'].includes(bundler)) throw new Error('Invalid release build bundler');
 const { combinedEnv: configured } = loadEnvConfig(path.resolve(sourceRoot), false);
 const url = configured.NEXT_PUBLIC_SUPABASE_URL;
 const key = configured.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -25,7 +27,8 @@ if (!key || (!key.startsWith('sb_publishable_') && !anon)) {
 }
 const server = configured.NEXT_PUBLIC_SERVER_URL || 'https://q-chess.onrender.com';
 if (new URL(server).protocol !== 'https:') throw new Error('Release game server must use HTTPS');
-const result = spawnSync(process.execPath, [require.resolve('next/dist/bin/next'), 'build'], {
+const result = spawnSync(process.execPath, [require.resolve('next/dist/bin/next'), 'build',
+    ...(bundler === 'webpack' ? ['--webpack'] : [])], {
     cwd: process.cwd(), stdio: 'inherit',
     env: {
         ...originalEnv, NODE_ENV: 'production', QG_RELEASE_BUILD: '1',
