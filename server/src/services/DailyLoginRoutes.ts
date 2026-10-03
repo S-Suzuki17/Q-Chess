@@ -52,7 +52,7 @@ export function createDailyLoginRouter(
     router.get('/rewards/daily-login', authenticate, async (_req, res) => {
         try {
             const userId = res.locals.rewardUser as string;
-            res.json({ userId, enabled: true, ...await store.read(userId) });
+            res.json({ userId, enabled: true, ...await store.read(userId), currentUtcDay: new Date().toISOString().slice(0, 10) });
         } catch { res.status(503).json({ code: 'REWARD_UNAVAILABLE' }); }
     });
     router.post('/rewards/daily-login/claim', authenticate,
@@ -76,7 +76,7 @@ export function createDailyLoginRouter(
                     res.status(401).json({ code: 'AUTH_REQUIRED' }); return;
                 }
                 // Atomic same-day idempotency and server UTC time belong to the DB RPC.
-                res.json({ userId, enabled: true, ...await store.claim(userId) });
+                res.json({ userId, enabled: true, ...await store.claim(userId), currentUtcDay: new Date().toISOString().slice(0, 10) });
             } catch { res.status(503).json({ code: 'REWARD_UNAVAILABLE' }); }
             finally { release(); }
         });

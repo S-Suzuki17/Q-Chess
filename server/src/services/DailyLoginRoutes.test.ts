@@ -85,11 +85,11 @@ describe('authenticated daily login reward HTTP API', () => {
     it('uses the authenticated owner for status and claim; returns no-store responses', async () => {
         const status = await fetch(`${base}/rewards/daily-login`, get(token));
         expect(status.status).toBe(200);
-        expect(await status.json()).toEqual({ userId: 'Alice', enabled: true, ...state });
+        expect(await status.json()).toEqual({ userId: 'Alice', enabled: true, ...state, currentUtcDay: new Date().toISOString().slice(0, 10) });
         expect(status.headers.get('cache-control')).toBe('no-store');
         const result = await fetch(`${base}/rewards/daily-login/claim`, post(token));
         expect(result.status).toBe(200);
-        expect(await result.json()).toEqual({ userId: 'Alice', enabled: true, ...claim });
+        expect(await result.json()).toEqual({ userId: 'Alice', enabled: true, ...claim, currentUtcDay: new Date().toISOString().slice(0, 10) });
         expect(store.read).toHaveBeenCalledExactlyOnceWith('Alice');
         expect(store.claim).toHaveBeenCalledExactlyOnceWith('Alice');
     });
