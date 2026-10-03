@@ -11,25 +11,23 @@ export function searchCpuPracticeMove(state: GameState, level: number, signal: A
     const budget = level <= 1 ? { timeLimitMs: 1000, maxDepth: 0 }
         : level <= 3 ? { timeLimitMs: 1500, maxDepth: 2 } : { timeLimitMs: 4000, maxDepth: 6 };
     const suffix = existsSync(path.join(__dirname, '../quantum-engine/ai/search.js')) ? '.js' : '.ts';
+    const tsx = suffix === '.ts' ? require.resolve('tsx/cjs') : null;
     activeWorkers++;
     return new Promise((resolve, reject) => {
-        const worker = new Worker(`
+        let worker: Worker;
+        try { worker = new Worker(`
             const { parentPort, workerData } = require('node:worker_threads');
             if (workerData.tsx) require(workerData.tsx);
             try {
-                const { searchBestMove } = require(workerData.search);
-                const { EvalQoppelia } = require(workerData.evaluator);
-                const result = searchBestMove(workerData.state, new EvalQoppelia(), workerData.budget);
-                if (workerData.hint && result.depth === 0 && result.timeMs >= workerData.budget.timeLimitMs)
-                    parentPort.postMessage({ error: 'SEARCH_TIMEOUT' });
-                else parentPort.postMessage({ move: result.move });
+                const { searchCpuPracticePosition } = require(workerData.search);
+                parentPort.postMessage({ move: searchCpuPracticePosition(workerData.state, workerData.budget, workerData.hint) });
             } catch { parentPort.postMessage({ error: 'SEARCH_FAILED' }); }
         `, { eval: true, execArgv: [], workerData: {
-            search: path.join(__dirname, '../quantum-engine/ai/search' + suffix),
-            evaluator: path.join(__dirname, '../quantum-engine/ai/evalQoppelia' + suffix),
-            tsx: suffix === '.ts' ? require.resolve('tsx/cjs') : null,
-            state, budget, hint,
-        } });
+            search: path.join(__dirname, 'CpuPracticeSearchWorker' + suffix),
+            tsx, state, budget, hint,
+        } }); } catch {
+            activeWorkers--; reject(new Error('SEARCH_FAILED')); return;
+        }
         let ended = false;
         const finish = (error?: unknown, move?: Move | null) => {
             if (ended) return;
