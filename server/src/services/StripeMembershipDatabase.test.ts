@@ -211,6 +211,61 @@ describe('actual isolated PostgreSQL commerce migration chain', () => {
         expect((await paidPeriod(nextMonth, second.event)).credited).toBe(10);
         expect((await wallet()).subscription_hint_tickets).toBe(20);
     });
+    it('backfills a missed earlier paid period after the next period grants, then replays the earlier period without another credit', async () => {
+        await bind();
+        const firstMonth = await member();
+        const now = Date.now();
+        firstMonth.start = new Date(now - 45 * 86400000).toISOString();
+        firstMonth.end = new Date(now - 15 * 86400000).toISOString();
+        const first = await snapshot(firstMonth, 'evt_DELAYEDFIRST');
+        const secondMonth = { ...firstMonth, start: firstMonth.end, end: new Date(now + 15 * 86400000).toISOString() };
+        const second = await snapshot(secondMonth, 'evt_GRANTEDSECOND');
+        expect((await paidPeriod(secondMonth, second.event)).credited).toBe(10);
+        expect((await wallet()).subscription_hint_tickets).toBe(10);
+        expect((await paidPeriod(firstMonth, first.event)).credited).toBe(10);
+        expect((await wallet()).subscription_hint_tickets).toBe(20);
+        expect((await paidPeriod(firstMonth, first.event)).duplicate).toBe(true);
+        expect((await wallet()).subscription_hint_tickets).toBe(20);
+        expect(await scalar('select count(*)::integer as result from public.stripe_commerce_paid_periods')).toBe(2);
+    });
+    it('replays an already-granted earlier period after a later period without consulting current-period equality', async () => {
+        await bind();
+        const firstMonth = await member();
+        const now = Date.now();
+        firstMonth.start = new Date(now - 45 * 86400000).toISOString();
+        firstMonth.end = new Date(now - 15 * 86400000).toISOString();
+        const first = await snapshot(firstMonth, 'evt_EARLYGRANTEDFIRST');
+        await paidPeriod(firstMonth, first.event);
+        const secondMonth = { ...firstMonth, start: firstMonth.end, end: new Date(now + 15 * 86400000).toISOString() };
+        const second = await snapshot(secondMonth, 'evt_LATERGRANTEDSECOND');
+        await paidPeriod(secondMonth, second.event);
+        expect((await paidPeriod(firstMonth, first.event)).duplicate).toBe(true);
+        expect((await wallet()).subscription_hint_tickets).toBe(20);
+        expect(await scalar('select count(*)::integer as result from public.stripe_commerce_paid_periods')).toBe(2);
+    });
+    it.each(['missing_evidence', 'refund_blocked', 'deleted', 'retired', 'restricted', 'canceled', 'off_price'])(
+        'does not backfill an old period through a %s barrier', async barrier => {
+            await bind();
+            const firstMonth = await member();
+            const now = Date.now();
+            firstMonth.start = new Date(now - 45 * 86400000).toISOString();
+            firstMonth.end = new Date(now - 15 * 86400000).toISOString();
+            const first = await snapshot(firstMonth, 'evt_BLOCKEDFIRST', { paid: barrier !== 'missing_evidence' });
+            const secondMonth = { ...firstMonth, start: firstMonth.end, end: new Date(now + 15 * 86400000).toISOString() };
+            const second = await snapshot(secondMonth, 'evt_BLOCKEDSECOND');
+            await paidPeriod(secondMonth, second.event);
+            if (barrier === 'refund_blocked') await owner('update public.stripe_memberships set refund_blocked_until=$2 where subscription_id=$1', [firstMonth.subscription, secondMonth.end]);
+            if (barrier === 'deleted') await owner("delete from public.profiles where id='Alice'");
+            if (barrier === 'retired') await owner('insert into public.stripe_retired_subscriptions(subscription_id,livemode) values($1,true)', [firstMonth.subscription]);
+            if (barrier === 'restricted') await owner("insert into public.account_restrictions(user_id,blocked) values('Alice',true)");
+            if (barrier === 'canceled') await snapshot(secondMonth, 'evt_CANCELAFTERSECOND', { status: 'canceled', paid: false });
+            if (barrier === 'off_price') await snapshot(secondMonth, 'evt_OFFPRICEAFTERSECOND', { currentPrice: 'price_OTHER', paid: false });
+            if (barrier === 'retired') expect(await paidPeriod(firstMonth, first.event)).toMatchObject({ retired: true, credited: 0 });
+            else await denied(() => paidPeriod(firstMonth, first.event), /Canonical paid snapshot|Membership account unavailable/);
+            expect(await scalar('select count(*)::integer as result from public.stripe_commerce_paid_periods')).toBe(1);
+            if (barrier === 'deleted') expect(await wallet()).toBeUndefined();
+            else expect((await wallet()).subscription_hint_tickets).toBe(10);
+        });
     it('rejects period tampering, hash collisions and missing canonical evidence without changing balances', async () => {
         await bind();
         const m = await member();

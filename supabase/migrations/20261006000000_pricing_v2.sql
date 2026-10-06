@@ -256,13 +256,15 @@ begin
     end if;
     select * into v_catalog from public.stripe_commerce_catalog where sku=p_sku and mode='subscription';
     if not found then raise exception 'Invalid monthly SKU' using errcode='22023'; end if;
+    -- Immutable ownership and the signed paid evidence remain valid when a
+    -- newer canonical period has already replaced the projection. Validate
+    -- them before deduplicating an already-granted historical period.
     perform 1 from public.stripe_memberships m
         join public.stripe_checkout_intents i on i.checkout_id=m.checkout_id
         join public.stripe_customer_links l on l.customer_id=m.customer_id
         where m.subscription_id=p_subscription_id and m.checkout_id=p_checkout_id
             and m.user_id=p_user_id and i.user_id=p_user_id and l.user_id=p_user_id
-            and i.livemode=p_livemode and m.current_price_id=p_price_id and i.price_id=p_price_id
-            and m.status='active' and m.refund_blocked_until is null and m.period_end=p_period_end;
+            and i.livemode=p_livemode and i.price_id=p_price_id;
     if not found or not exists(select 1 from public.stripe_webhook_receipts
         where event_id=p_event_id and user_id=p_user_id and payload_hash=p_event_payload_hash)
         or not exists(select 1 from public.stripe_commerce_paid_evidence
@@ -286,6 +288,15 @@ begin
             values(p_event_id,p_event_payload_hash,'paid_period',v_key) on conflict do nothing;
         return jsonb_build_object('applied',false,'duplicate',true,'credited',0);
     end if;
+    -- Only a still-active same-price subscription with no refund barrier may
+    -- receive a missed historical grant. A later canonical period is valid;
+    -- cancellation, price changes and refunds do not authorize backfilling.
+    perform 1 from public.stripe_memberships m
+        where m.subscription_id=p_subscription_id and m.checkout_id=p_checkout_id
+            and m.user_id=p_user_id and m.current_price_id=p_price_id
+            and m.status='active' and m.refund_blocked_until is null
+            and m.period_end>=p_period_end;
+    if not found then raise exception 'Canonical paid snapshot required' using errcode='42501'; end if;
     if v_receipt.event_id is not null or exists(select 1 from public.stripe_commerce_paid_periods
         where subscription_id=p_subscription_id and livemode=p_livemode
             and period_start<p_period_end and period_end>p_period_start) then
