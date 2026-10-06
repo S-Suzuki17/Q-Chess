@@ -33,6 +33,7 @@ export function StripeMembershipPanel({ user, lang }: { user: User; lang: Langua
     const [loaded, setLoaded] = React.useState<{ revision: number; status: StripeMembershipStatus } | null>(null);
     const [failedRevision, setFailedRevision] = React.useState<number | null>(null);
     const [preparing, setPreparing] = React.useState(false);
+    const [selectedPrice, setSelectedPrice] = React.useState<string | undefined>(undefined);
     const [acceptedPurchaseTerms, setAcceptedPurchaseTerms] = React.useState(false);
     const actionRequest = React.useRef<AbortController | null>(null);
     const [actionFailed, setActionFailed] = React.useState(false);
@@ -59,7 +60,7 @@ export function StripeMembershipPanel({ user, lang }: { user: User; lang: Langua
     const hub = rewardsHubText(lang);
     const status = loaded?.revision === revision && loaded.status.userId === user.id ? loaded.status : null;
 
-    const startCheckout = async () => {
+    const startCheckout = async (priceId?: string) => {
         if (!STRIPE_WEB_CHECKOUT_ENABLED || !webCommerceCheckoutReady() || !acceptedPurchaseTerms || preparing || status?.active || !stripeWebMembershipAllowed(webContent, Capacitor.isNativePlatform())) return;
         if (actionRequest.current && !actionRequest.current.signal.aborted) return;
         const controller = new AbortController(); actionRequest.current = controller;
@@ -67,7 +68,7 @@ export function StripeMembershipPanel({ user, lang }: { user: User; lang: Langua
         try {
             await acceptCurrentAccountTerms(user.id, controller.signal);
             controller.signal.throwIfAborted();
-            const url = await prepareStripeCheckout(user.id, controller.signal);
+            const url = await prepareStripeCheckout(user.id, priceId, controller.signal);
             if (!controller.signal.aborted && circuitAccess.canPlay(user) && stripeWebMembershipAllowed(webContent, Capacitor.isNativePlatform())) window.location.assign(url);
         } catch { if (!controller.signal.aborted) { setActionFailed(true); setPreparing(false); actionRequest.current = null; } }
     };
@@ -85,10 +86,38 @@ export function StripeMembershipPanel({ user, lang }: { user: User; lang: Langua
 
     return <section aria-label={copy.title} className="reward-card reward-membership text-sm">
         {!status?.active && <p className="reward-caption mb-2">{hub.optional}</p>}
-        <h4 className="reward-title">Q-Gambit Plus <span className="reward-caption">· {copy.title}</span></h4>
+        <h4 className="reward-title">Q-Gambit Store <span className="reward-caption">・ {copy.title}</span></h4>
         {!STRIPE_WEB_CHECKOUT_ENABLED && !status?.active
             ? <p className="mt-2 font-mono text-[#E8E2D7]">{copy.planned}</p> : null}
-        <p className="reward-price"><span>{hub.monthly}</span>$2.99</p>
+        
+        <div className="mt-4 space-y-2">
+            <h5 className="font-bold text-[#E8E2D7]">Memberships</h5>
+            <label className="flex items-center gap-2 cursor-pointer">
+                <input type="radio" name="store_item" value="" checked={!selectedPrice} onChange={() => setSelectedPrice(undefined)} className="mt-1 shrink-0"/>
+                <span>Q-Gambit Standard ($3.00/mo) - Unlimited Online Matches, No Ads</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+                <input type="radio" name="store_item" value="price_1UNTrJQWzwYDIuXWtdNlAMnV" checked={selectedPrice === "price_1UNTrJQWzwYDIuXWtdNlAMnV"} onChange={() => setSelectedPrice("price_1UNTrJQWzwYDIuXWtdNlAMnV")} className="mt-1 shrink-0"/>
+                <span>Q-Gambit Plus ($6.00/mo) - Unlimited Matches, No Ads + 10 Hint Tickets Monthly</span>
+            </label>
+
+            <h5 className="font-bold text-[#E8E2D7] mt-4">Hint Tickets (One-Time)</h5>
+            <div className="grid grid-cols-2 gap-2">
+                {[
+                    { id: "price_1UNTrQQWzwYDIuXWcVtcwG4E", label: "1 Ticket ($1.00)" },
+                    { id: "price_1UNTrQQWzwYDIuXWIV6hySm7", label: "13 Tickets ($10.00)" },
+                    { id: "price_1UNTrWQWzwYDIuXWw5V6sXJ7", label: "27 Tickets ($20.00)" },
+                    { id: "price_1UNTrWQWzwYDIuXWkZ8dH9QB", label: "44 Tickets ($30.00)" },
+                    { id: "price_1UNTrbQWzwYDIuXWzhEumZF2", label: "77 Tickets ($50.00)" },
+                    { id: "price_1UNTrcQWzwYDIuXWuZzJ38iY", label: "166 Tickets ($100.00)" }
+                ].map(item => (
+                    <label key={item.id} className="flex items-center gap-2 cursor-pointer">
+                        <input type="radio" name="store_item" value={item.id} checked={selectedPrice === item.id} onChange={() => setSelectedPrice(item.id)} className="mt-1 shrink-0"/>
+                        <span>{item.label}</span>
+                    </label>
+                ))}
+            </div>
+        </div>
         <p className="mt-1 text-[#D8D0C1]">{copy.benefits}</p>
         {actionFailed && <p role="status" className="mt-3 text-[#A89C86]">{copy.unavailable}</p>}
         {failedRevision === revision
@@ -116,7 +145,7 @@ export function StripeMembershipPanel({ user, lang }: { user: User; lang: Langua
                 <details><summary className="min-h-11 cursor-pointer underline">{copy.terms}</summary><TermsDocument initialLanguage={lang}/></details>
                 <label className="flex gap-3"><input type="checkbox" checked={acceptedPurchaseTerms} disabled={preparing}
                     onChange={event => setAcceptedPurchaseTerms(event.target.checked)} className="mt-1 h-5 w-5 shrink-0"/><span>{copy.confirmPurchase}</span></label>
-                <button type="button" disabled={preparing || !acceptedPurchaseTerms} onClick={() => void startCheckout()}
+                <button type="button" disabled={preparing || !acceptedPurchaseTerms} onClick={() => void startCheckout(selectedPrice)}
                 className="mt-3 min-h-11 w-full border border-[#B39A62] px-4 py-2 text-[#E8E2D7] disabled:opacity-50">
                 {preparing ? copy.preparing : copy.purchase}
                 </button>

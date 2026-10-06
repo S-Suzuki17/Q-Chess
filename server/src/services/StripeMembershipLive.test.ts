@@ -13,7 +13,7 @@ const config = {
 };
 const price = {
     id: QG_LIVE_MONTHLY_PRICE_ID, livemode: true, active: true,
-    currency: 'usd', unit_amount: 299, type: 'recurring', tax_behavior: 'inclusive',
+    currency: 'usd', unit_amount: 300, type: 'recurring', tax_behavior: 'inclusive',
     recurring: { interval: 'month', interval_count: 1 },
 };
 
@@ -32,7 +32,7 @@ describe('Stripe live-mode boundary (mocked; never contacts Stripe)', () => {
                     id: 'cs_live_ABCDEFGH', livemode: true, mode: 'subscription',
                     client_reference_id: 'Alice', expires_at: Math.floor(Date.now() / 1000) + 3600,
                     url: 'https://checkout.stripe.com/c/pay/cs_live_ABCDEFGH',
-                    currency: 'usd', amount_total: 299, status: 'open',
+                    currency: 'usd', amount_total: 300, status: 'open',
                     automatic_tax: { enabled: false },
                 } : { data: [{ price: { id: QG_LIVE_MONTHLY_PRICE_ID }, quantity: 1 }], has_more: false },
         ));
@@ -74,7 +74,7 @@ describe('Stripe live-mode boundary (mocked; never contacts Stripe)', () => {
         const invoice = { ...invoiceFixture(true),
             id: 'in_ABCDEFGH', livemode: true, subscription: subscription.id,
             customer: subscription.customer, currency: 'usd', collection_method: 'charge_automatically',
-            status: 'paid', amount_paid: 299,
+            status: 'paid', amount_paid: 300,
             automatic_tax: { enabled: false },
         };
         let invoiceCustomer = invoice.customer;

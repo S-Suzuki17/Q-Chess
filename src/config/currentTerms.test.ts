@@ -28,6 +28,6 @@ it('shows complete approved conditions with publication date and a separate unch
  const html=renderToStaticMarkup(createElement(TermsDocument));
  for(const text of ['各60枚','無料券は各20枚','受け取らなかった日','返還分','購読解約','必要最小限','2026-10-03']) expect(html).toContain(text);
  expect(html).not.toContain('未発効');
- const en=CURRENT_TERMS_ENGLISH.map(s=>s[1]).join(' ');expect(en).toContain('USD 2.99');expect(en).toContain('cannot be claimed retroactively');expect(en).toContain('retained separately');
+ const en=CURRENT_TERMS_ENGLISH.map(s=>s[1]).join(' ');expect(en).toContain('USD 3.00');expect(en).toContain('cannot be claimed retroactively');expect(en).toContain('retained separately');
  const legacy=renderToStaticMarkup(createElement(TermsDocument,{legacy:true}));expect(legacy).toContain('2026-09-25.1');expect(legacy).not.toContain('2026-10-03.1');
 });

@@ -20,7 +20,7 @@ export function CommerceDisclosureDocument({ lang }: { lang: Language }) {
             <dt>{text.address}</dt><dd>{COMMERCE_SELLER.address}</dd>
             <dt>{text.phone}</dt><dd><a className="underline" href={`tel:${COMMERCE_SELLER.telephoneUri}`}>{COMMERCE_SELLER.telephone}</a></dd>
             <dt>{text.support}</dt><dd><a className="break-all underline" href={`mailto:${COMMERCE_SELLER.email}`}>{COMMERCE_SELLER.email}</a></dd>
-            <dt>{text.price}</dt><dd>{salesOpen ? 'USD 2.99' : member.planned}</dd>
+            <dt>{text.price}</dt><dd>{salesOpen ? 'USD 3.00' : member.planned}</dd>
             {MEMBER_TICKET_CAP && <><dt>{text.cap}</dt><dd>{tickets.rankedTickets}: {MEMBER_TICKET_CAP.ranked} · {tickets.hintTickets}: {MEMBER_TICKET_CAP.hint}</dd></>}
         </dl>
         <p>{member.benefits}</p><p>{member.billingTerms}</p><p>{wallet.expiry} {member.legalRights}</p>

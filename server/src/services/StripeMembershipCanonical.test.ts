@@ -50,11 +50,11 @@ describe('current-schema payment evidence and asynchronous Checkout',()=>{
     });
     for(const [name,transform] of [
         ['discounted total',(d:any,url:string)=>url.includes('/invoices/')?{...d,total:298}:d],
-        ['outside-Stripe payment',(d:any,url:string)=>url.includes('/invoices/')?{...d,amount_paid_off_stripe:299}:d],
+        ['outside-Stripe payment',(d:any,url:string)=>url.includes('/invoices/')?{...d,amount_paid_off_stripe:300}:d],
         ['unpaid invoice',(d:any,url:string)=>url.includes('/invoices/')?{...d,status:'open'}:d],
         ['extra InvoicePayment',(d:any,url:string)=>url.includes('/invoice_payments?')?{...d,data:[...d.data,...d.data]}:d],
         ['foreign PaymentIntent customer',(d:any,url:string)=>url.includes('/payment_intents/')?{...d,customer:'cus_ATTACKER1'}:d],
-        ['refunded Charge',(d:any,url:string)=>url.includes('/charges/')?{...d,amount_refunded:299}:d],
+        ['refunded Charge',(d:any,url:string)=>url.includes('/charges/')?{...d,amount_refunded:300}:d],
         ['disputed Charge',(d:any,url:string)=>url.includes('/charges/')?{...d,disputed:true}:d],
     ] as const) it(`withholds paid rights for ${name}`,async()=>{
         expect(await fixture({transform}).api.snapshot(event)).toMatchObject({status:'unpaid',paidNewPeriod:false});

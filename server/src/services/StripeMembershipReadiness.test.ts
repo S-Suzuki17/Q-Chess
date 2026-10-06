@@ -19,7 +19,7 @@ const config = {
     priceId: QG_LIVE_MONTHLY_PRICE_ID, successUrl: 'https://q-gambit.com/', cancelUrl: 'https://q-gambit.com/',
 };
 const price = {
-    id: config.priceId, livemode: true, active: true, currency: 'usd', unit_amount: 299,
+    id: config.priceId, livemode: true, active: true, currency: 'usd', unit_amount: 300,
     type: 'recurring', tax_behavior: 'inclusive', recurring: { interval: 'month', interval_count: 1 },
 };
 const features = {
@@ -99,7 +99,7 @@ describe('read-only Stripe Checkout startup readiness (mocked HTTP only)', () =>
 
     it.each([
         { id: 'price_OTHER123' }, { livemode: false }, { active: false }, { currency: 'jpy' },
-        { unit_amount: 300 }, { tax_behavior: 'exclusive' }, { type: 'one_time' },
+        { unit_amount: 99999 }, { tax_behavior: 'exclusive' }, { type: 'one_time' },
         { recurring: { interval: 'year', interval_count: 1 } },
         { recurring: { interval: 'month', interval_count: 2 } },
     ])('keeps purchases closed for an unsafe price: %j', async patch => {

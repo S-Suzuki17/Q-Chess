@@ -258,7 +258,7 @@ describe('Stripe canonical test-mode snapshot', () => {
         const request = vi.fn(async (url: string) => {
             const value = paymentFixture(url) ?? (url.includes('/subscriptions/') ? subscription
                 : url.includes('/checkout/sessions?') ? sessionList
-                : { ...invoiceFixture(), status: paid ? 'paid' : 'open', amount_paid: paid ? 299 : 0 });
+                : { ...invoiceFixture(), status: paid ? 'paid' : 'open', amount_paid: paid ? 300 : 0 });
             return Response.json(value);
         });
         const api = new StripeTestMembershipApi({ secretKey: 'sk_test_ABCDEFGH', webhookSecret: secret,
