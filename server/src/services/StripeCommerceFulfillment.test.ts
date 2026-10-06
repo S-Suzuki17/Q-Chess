@@ -175,11 +175,12 @@ describe('dormant new commerce canonical provider boundary (synthetic Stripe res
             paidPeriod: { invoiceId: old.id, periodStart: new Date((f.start - 30 * 86400) * 1000).toISOString(), periodEnd: new Date(f.start * 1000).toISOString() },
         }));
     });
-    it('requires a DB intent and consent before fetching pack evidence', async () => {
+    it('requires a DB intent but delegates original-consent proof to atomic fulfillment', async () => {
         const f = commerceEvidenceFixture('hints_13'); vi.mocked(f.store.checkoutIntent).mockResolvedValue(null);
         await expect(run(f)).rejects.toThrow('COMMERCE_CHECKOUT_UNBOUND'); expect(f.request).not.toHaveBeenCalled(); noGrant(f);
         vi.mocked(f.store.checkoutIntent).mockResolvedValue(f.intent); vi.mocked(f.store.hasCurrentTerms).mockResolvedValue(false);
-        await expect(run(f)).rejects.toThrow('CURRENT_TERMS_REQUIRED'); expect(f.request).not.toHaveBeenCalled(); noGrant(f);
+        await expect(run(f)).resolves.toMatchObject({ credited: 13 });
+        expect(f.store.hasCurrentTerms).not.toHaveBeenCalled();
     });
     it.each([undefined, null, 'setup', 'unknown'])('rejects malformed recognized checkout mode %j', async mode => {
         const f = commerceEvidenceFixture('hints_13');

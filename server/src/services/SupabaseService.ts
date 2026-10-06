@@ -21,6 +21,8 @@ import {createCurrentTermsStore} from './AccountCurrentTerms';
 import {createEngagementMetricsStore} from './EngagementMetrics';
 import {createDailyLoginStore} from './DailyLoginStore';
 import {createStripeMembershipStore} from './StripeMembershipStore';
+import { createStripeCommerceStore } from './StripeCommerceStore';
+import { createStripeCommerceStatusStore } from './StripeCommerceStatus';
 import {createStripeDeletionLinkSource, createStripeRetireSubscriptions} from './StripeCancellation';
 import { CpuPracticeService } from './CpuPracticeService';
 import { cpuHintTicketsEnabled, rankedTicketAdmissionEnabled, rankedAdmissionRecoveryEnabled } from './TicketFeatureGates';
@@ -66,6 +68,8 @@ export class SupabaseService {
         return createStripeMembershipStore(this.supabase, token=>this.verifyUser(token),
             id=>this.accountDeletionStore().blocked(id));
     }
+    public stripeCommerceStore() { return createStripeCommerceStore(this.supabase, this.stripeMembershipStore()); }
+    public stripeCommerceStatusStore() { return createStripeCommerceStatusStore(this.supabase); }
     public stripeDeletionLinks() { return createStripeDeletionLinkSource(this.supabase); }
     public stripeRetireSubscriptions() { return createStripeRetireSubscriptions(this.supabase); }
     public engagementMetricsStore() { return createEngagementMetricsStore(this.supabase); }

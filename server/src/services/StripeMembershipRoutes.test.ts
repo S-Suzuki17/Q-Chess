@@ -25,6 +25,7 @@ describe('Stripe test-only membership HTTP boundary', () => {
     let server: http.Server, base: string, token: string, enabled: boolean;
     let api: { [key: string]: ReturnType<typeof vi.fn> | string | boolean };
     let store: { [K in keyof StripeMembershipStore]: ReturnType<typeof vi.fn> };
+    let commerceStore: { registerCheckoutIntent: ReturnType<typeof vi.fn> };
     beforeEach(async () => {
         enabled = true;
         const auth = new RankedAuth(async (id, password) => id === 'Alice' && password === 'right');
@@ -42,10 +43,11 @@ describe('Stripe test-only membership HTTP boundary', () => {
             releaseReconciliation: vi.fn().mockResolvedValue(undefined),
             portalCustomer: vi.fn().mockResolvedValue(null),
             status: vi.fn().mockResolvedValue(status), claim: vi.fn().mockResolvedValue(claim) };
+        commerceStore = { registerCheckoutIntent: vi.fn().mockResolvedValue(undefined) };
         const app = express();
         app.use(createStripeWebhookRouter(api as unknown as StripeTestMembershipApi, store, secret, () => enabled));
         app.use(createStripeMembershipRouter(auth, api as unknown as StripeTestMembershipApi,
-            store, new AccountWriteGate(), () => enabled));
+            store, new AccountWriteGate(), () => enabled, null, () => false, () => enabled, commerceStore));
         server = http.createServer(app);
         await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
         base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
@@ -106,15 +108,24 @@ describe('Stripe test-only membership HTTP boundary', () => {
         expect(result.status).toBe(200);
         expect(await result.json()).toEqual({ url: checkout.url });
         expect(api.createCheckout).toHaveBeenCalledExactlyOnceWith('Alice', 'standard_monthly');
-        expect(store.registerCheckoutIntent).toHaveBeenCalledExactlyOnceWith('Alice', checkout.id,
-            'price_ABCDEFGH', checkout.expiresAt, false);
+        expect(commerceStore.registerCheckoutIntent).toHaveBeenCalledExactlyOnceWith({ userId: 'Alice', checkoutId: checkout.id,
+            sku: 'standard_monthly', priceId: 'price_ABCDEFGH', amountTotal: 300, currency: 'usd', livemode: false }, checkout.expiresAt);
+        expect(store.registerCheckoutIntent).not.toHaveBeenCalled();
     });
     it('expires an unregistered session when atomic DB registration fails', async () => {
-        store.registerCheckoutIntent.mockRejectedValue(new Error('another pending checkout'));
+        commerceStore.registerCheckoutIntent.mockRejectedValue(new Error('another pending checkout'));
         const result = await fetch(`${base}/membership/stripe/checkout`, post(token, '{"sku":"standard_monthly"}'));
         expect(result.status).toBe(503);
         expect(await result.text()).not.toContain('another pending checkout');
         expect(api.expireCheckout).toHaveBeenCalledWith(checkout.id);
+    });
+    it('permits a one-time pack for a member without treating it as another subscription', async () => {
+        (api.availableCheckoutSkus as ReturnType<typeof vi.fn>).mockReturnValue(['hints_13']);
+        store.preflight.mockResolvedValue({ eligible: false, reason: 'subscription_unresolved', checkoutId: null, expiresAt: null });
+        const response = await fetch(`${base}/membership/stripe/checkout`, post(token, '{"sku":"hints_13"}'));
+        expect(response.status).toBe(200); expect(store.preflight).not.toHaveBeenCalled();
+        expect(commerceStore.registerCheckoutIntent).toHaveBeenCalledWith(expect.objectContaining({ sku: 'hints_13', amountTotal: 1000 }), checkout.expiresAt);
+        expect(store.registerCheckoutIntent).not.toHaveBeenCalled();
     });
     it('blocks a stale intent until Stripe confirms expiration, then permits one replacement', async () => {
         const stale = { eligible: false, reason: 'checkout_pending',

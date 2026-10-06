@@ -35,11 +35,11 @@ test('native shared online/ranked start, consent, refund and entitlement', {time
     };
     const used=(c,user)=>scalar(c,"select count(*)::integer as result from public.shared_match_allocations a join public.ranked_match_admissions m using(match_id) where user_id=$1 and utc_day=(clock_timestamp() at time zone 'UTC')::date and m.state in ('active','settled')",[user]);
     const exhausted=()=>account(admin,{quota:3,ranked:2});
-    await check('all nine pending raw files apply over the explicit public baseline',async()=>{
+    await check('all ten pending raw files apply over the explicit public baseline',async()=>{
         await setupBaseline(admin);await applyPending(admin);a=await open('service_role');b=await open('service_role');
         assert.notEqual(a.fixturePid,b.fixturePid);await bind(admin);
         assert.equal(await scalar(a,'select public.shared_match_admission_protocol_version() as result'),1);
-        assert.equal(baselineEvidence.pending.length,9);
+        assert.equal(baselineEvidence.pending.length,10);
     });
     await check('three combined random and ranked STARTED matches then explicit choice without automatic ticket spend',async()=>{
         const user=await account(admin,{ranked:7}),epoch=await owner();

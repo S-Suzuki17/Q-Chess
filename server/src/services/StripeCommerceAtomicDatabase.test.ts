@@ -131,22 +131,48 @@ describe('atomic new-SKU commerce RPCs in actual isolated PostgreSQL', () => {
         expect(await count('stripe_commerce_event_receipts')).toBe(0);
         expect(await count('ticket_wallets')).toBe(0);
     });
-    it('enforces current effective terms on initial fulfillment and duplicates', async () => {
+    it('fulfills an originally consented paid Checkout and deduplicates after current policy changes', async () => {
         const e = await payment();
-        await owner("delete from public.account_terms_consents where user_id='Alice'");
-        await denied(() => fulfillPayment(e), /current terms/);
-        await db.exec("select public.accept_current_account_terms('Alice','2026-10-03.1')");
-        await fulfillPayment(e);
+        const consent = await scalar('select to_jsonb(i) as result from public.stripe_commerce_checkout_intents i where checkout_id=$1', [e.checkoutId]);
+        expect(consent).toMatchObject({ terms_version: '2026-10-03.1', terms_effective_date: '2026-10-03' });
+        expect(Date.parse(consent.terms_accepted_at)).toBeLessThanOrEqual(Date.parse(consent.created_at));
         await owner('update public.current_terms_policy set effective_date=null');
-        await denied(() => fulfillPayment(e), /current terms/);
+        expect(await scalar("select public.has_current_ticket_terms('Alice') as result")).toBe(false);
+        expect(await fulfillPayment(e)).toMatchObject({ applied: true, credited: 13 });
+        expect(await fulfillPayment(e)).toMatchObject({ duplicate: true, credited: 0 });
+        expect(await fulfillPayment({ ...e, eventId: 'evt_PolicyReplay' })).toMatchObject({ duplicate: true, credited: 0 });
+        await denied(() => register('hints_1'), /Checkout account unavailable/);
+        await denied(() => scalar("select public.claim_daily_login_reward('Alice') as result"), /Reward account unavailable/);
         expect((await wallet()).test_purchased_hint_tickets).toBe(13);
-        expect(await count('stripe_commerce_event_receipts')).toBe(1);
+        expect(await count('stripe_commerce_event_receipts')).toBe(2);
+        expect(await scalar('select to_jsonb(i) as result from public.stripe_commerce_checkout_intents i where checkout_id=$1', [e.checkoutId])).toEqual(consent);
+    });
+    it('API roles cannot mutate the stored original Checkout consent', async () => {
+        const e = await payment();
+        await denied(() => db.query('update public.stripe_commerce_checkout_intents set terms_version=null,terms_accepted_at=null,terms_effective_date=null where checkout_id=$1', [e.checkoutId]), /permission denied/);
+        expect(await fulfillPayment(e)).toMatchObject({ credited: 13 });
+    });
+    it.each(['missing', 'before-publication', 'after-creation'])('refuses incoherent %s snapshots without consuming paid evidence', async kind => {
+        const e = await payment();
+        if (kind === 'missing') {
+            await owner('update public.stripe_commerce_checkout_intents set terms_version=null,terms_accepted_at=null,terms_effective_date=null where checkout_id=$1', [e.checkoutId]);
+            await denied(() => fulfillPayment(e), /COMMERCE_RECONCILIATION_REVIEW_REQUIRED/);
+        } else {
+            await db.exec('reset role');
+            await denied(() => db.query(kind === 'before-publication'
+                ? "update public.stripe_commerce_checkout_intents set terms_accepted_at=terms_effective_date::timestamp at time zone 'Asia/Tokyo'-interval '1 second' where checkout_id=$1"
+                : "update public.stripe_commerce_checkout_intents set terms_accepted_at=created_at+interval '1 second' where checkout_id=$1", [e.checkoutId]), /consent_snapshot_check/);
+            await db.exec('set role service_role');
+        }
+        expect(await count('stripe_commerce_event_receipts')).toBe(0);
+        expect(await count('stripe_commerce_consumed_checkouts')).toBe(0);
+        expect(await count('stripe_one_time_purchases')).toBe(0);
     });
     it.each(['restriction', 'deletion'])('denies fulfillment while account has an active %s', async kind => {
         const e = await payment();
         if (kind === 'restriction') await db.exec("insert into public.account_restrictions values('Alice',true)");
         else await db.exec("insert into public.account_deletion_jobs values('Alice','queued')");
-        await denied(() => fulfillPayment(e), /account or current terms/);
+        await denied(() => fulfillPayment(e), /Commerce account unavailable/);
         expect(await count('stripe_commerce_event_receipts')).toBe(0);
     });
     it.each(SPECS.filter(s => s[0].endsWith('monthly')))('atomically records paid %s with %i cents and %i monthly hints', async (sku, _amount, quantity) => {
@@ -170,6 +196,33 @@ describe('atomic new-SKU commerce RPCs in actual isolated PostgreSQL', () => {
         expect(await count('stripe_commerce_paid_periods')).toBe(0);
         expect(await count('ticket_wallets')).toBe(0);
         await denied(() => fulfillSubscription({ ...e, eventType: 'customer.subscription.updated' }), /paid monthly evidence/);
+    });
+    it.each(['standard_monthly', 'plus_monthly'])('never projects %s as legacy test membership before or after invoice payment', async sku => {
+        const e = await subscription(sku);
+        await fulfillSubscription({ ...e, eventId: e.eventId + 'Observed', eventType: 'customer.subscription.updated',
+            paidNewPeriod: false, paidPeriod: null });
+        expect(await count('stripe_commerce_paid_periods')).toBe(0);
+        const status = () => scalar("select public.stripe_member_status_with_schedule('Alice') as result");
+        expect(await status()).toMatchObject({ active: false, periodEnd: null, cancelAtPeriodEnd: false,
+            tickets: { ranked: 0, hint: 0 } });
+        await fulfillSubscription(e);
+        expect(await status()).toMatchObject({ active: false, periodEnd: null, cancelAtPeriodEnd: false,
+            tickets: { ranked: 0, hint: 0 } });
+        expect((await wallet()).test_subscription_hint_tickets).toBe(sku === 'plus_monthly' ? 10 : 0);
+    });
+    it('preserves genuine legacy test membership status and its daily ticket grant', async () => {
+        await db.query("select public.register_stripe_checkout_intent('Alice','cs_test_LegacyConsent','price_Legacy299',false,clock_timestamp()+interval '1 hour')");
+        const lease = await scalar("select public.acquire_stripe_reconciliation('sub_LegacyConsent',false) as result");
+        await db.query(`select public.apply_stripe_canonical_membership_snapshot('evt_LegacyConsent',$1,'invoice.paid',100,
+            clock_timestamp(),'sub_LegacyConsent','cs_test_LegacyConsent','cus_LegacyConsent','Alice','price_Legacy299',
+            'active',clock_timestamp()+interval '29 days',false,true,false,$2)`, [HASH, lease.token]);
+        const grant = await scalar("select public.claim_stripe_member_daily_grant('Alice') as result");
+        expect(grant).toMatchObject({ active: true, credited: { ranked: 3, hint: 3 } });
+        const before = await wallet();
+        expect(await scalar("select public.stripe_member_status_with_schedule('Alice') as result")).toMatchObject({
+            active: true, cancelAtPeriodEnd: false, tickets: { ranked: 3, hint: 3 },
+        });
+        expect(await wallet()).toEqual(before);
     });
     it('rolls snapshot, owner link, paid evidence and receipts back if the paid grant fails, then retries cleanly', async () => {
         const e = await subscription();
@@ -275,14 +328,33 @@ describe('atomic new-SKU commerce RPCs in actual isolated PostgreSQL', () => {
         expect(await count('stripe_webhook_receipts')).toBe(0);
         expect(await count('stripe_memberships')).toBe(0);
     });
-    it('requires current terms, stored owner and the live reconciliation lease for subscriptions', async () => {
+    it('requires stored consent, stored owner and the live reconciliation lease for subscriptions', async () => {
         const e = await subscription();
         await denied(() => fulfillSubscription({ ...e, userId: 'Bob' }), /Unbound paid membership/);
         await denied(() => fulfillSubscription({ ...e, token: '00000000-0000-0000-0000-000000000000' }), /superseded reconciliation/);
-        await owner("delete from public.account_terms_consents where user_id='Alice'");
-        await denied(() => fulfillSubscription(e), /current terms/);
+        await owner('update public.stripe_commerce_checkout_intents set terms_version=null,terms_accepted_at=null,terms_effective_date=null where checkout_id=$1', [e.checkoutId]);
+        await denied(() => fulfillSubscription(e), /COMMERCE_RECONCILIATION_REVIEW_REQUIRED/);
         expect(await count('stripe_webhook_receipts')).toBe(0);
         expect(await count('stripe_memberships')).toBe(0);
+    });
+    it('fulfills the first paid invoice using original consent when policy changes before its webhook', async () => {
+        const e = await subscription();
+        await owner('update public.current_terms_policy set effective_date=null');
+        expect(await scalar("select public.has_current_ticket_terms('Alice') as result")).toBe(false);
+        expect(await fulfillSubscription(e)).toMatchObject({ applied: true, credited: 10 });
+        expect(await fulfillSubscription(e)).toMatchObject({ duplicate: true, credited: 0 });
+        expect(await fulfillSubscription({ ...e, eventId: 'evt_PolicyInvoiceReplay' })).toMatchObject({ duplicate: true, credited: 0 });
+        expect((await wallet()).test_subscription_hint_tickets).toBe(10);
+        expect(await count('stripe_commerce_paid_periods')).toBe(1);
+    });
+    it.each(['restriction', 'deletion'])('preserves the subscription %s guard after original consent is captured', async kind => {
+        const e = await subscription();
+        if (kind === 'restriction') await db.exec("insert into public.account_restrictions values('Alice',true)");
+        else await db.exec("insert into public.account_deletion_jobs values('Alice','queued')");
+        await denied(() => fulfillSubscription(e), /Commerce account unavailable/);
+        expect(await count('stripe_webhook_receipts')).toBe(0);
+        expect(await count('stripe_commerce_paid_evidence')).toBe(0);
+        expect(await count('stripe_commerce_paid_periods')).toBe(0);
     });
     it('rejects an expired reconciliation lease before writing canonical or paid evidence', async () => {
         const e = await subscription();
@@ -307,8 +379,8 @@ describe('atomic new-SKU commerce RPCs in actual isolated PostgreSQL', () => {
         await fulfillSubscription(e);
         await denied(() => fulfillSubscription({ ...e, customerId: 'cus_AtomicDifferent' }), /Subscription ownership changed/);
         await denied(() => fulfillSubscription({ ...e, payloadHash: 'b'.repeat(64) }), /ownership collision/);
-        await owner("delete from public.account_terms_consents where user_id='Alice'");
-        await denied(() => fulfillSubscription(e), /current terms/);
+        await owner('update public.current_terms_policy set effective_date=null');
+        expect(await fulfillSubscription(e)).toMatchObject({ duplicate: true, credited: 0 });
         expect((await wallet()).test_subscription_hint_tickets).toBe(10);
         expect(await count('stripe_commerce_paid_periods')).toBe(1);
     });

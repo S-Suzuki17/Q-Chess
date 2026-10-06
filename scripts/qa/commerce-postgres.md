@@ -29,6 +29,9 @@ pending commerce/auth chain verbatim, in order:
 5. `20261006154443_dormant_legacy_session_runtime.sql`
 6. `20261006155010_atomic_commerce_fulfillment.sql`
 7. `20261006171022_dormant_hint_origin_consumption.sql`
+8. `20261006171148_shared_match_admission.sql`
+9. `20261006172232_dormant_crown_first_attempt.sql`
+10. `20261006192347_durable_commerce_checkout_consent.sql`
 
 An additional pending file causes a hard failure until the reviewed chain is
 explicitly extended. The 22 historical dependencies are an explicit, bounded
@@ -36,7 +39,7 @@ public fixture, not an all-files installation or a claim about hosted migration
 history. No applied history is rewritten. Unrelated historical features are not
 silently counted as verified by this commerce fixture.
 
-The 35 commerce scenarios therefore run with the new authentication
+The 43 commerce scenarios therefore run with the new authentication
 triggers installed. A separate mandatory native job runs 45 session/runtime scenarios
 on the same combined schema. Both suites reject missing scenarios and use fresh
 fixed-name loopback databases; neither accepts a hosted connection URL. See
@@ -44,10 +47,21 @@ fixed-name loopback databases; neither accepts a hosted connection URL. See
 
 ## Coverage
 
-35 bounded scenarios (36 Node tests including the parent test) cover:
+43 bounded scenarios (44 Node tests including the parent test) cover:
 
 - Existing balances and subscription provenance across the full pending upgrade
 - Closed database protocol, initially empty price bindings, and immutable catalog
+- Immutable server-captured Checkout consent, first paid delivery and duplicate
+  receipt reconciliation after current policy changes, and continued current
+  consent requirements for new checkout/reward operations
+- Explicit review errors with no receipts/grants for ambiguous missing consent
+  snapshots, coherent snapshot constraints, forbidden API mutation, and retained
+  account restriction/deletion guards for both paid RPCs
+- New Standard/Plus test subscriptions excluded from the legacy test status
+  projection before and after invoice payment, while genuine legacy test
+  membership and its daily ticket balance remain intact
+- Actual stale REPEATABLE READ/SERIALIZABLE publication and restriction
+  snapshots rejected before Checkout registration or either paid RPC writes
 - Atomic one-time and paid-period RPC contention, complete rollback/retry, and
   reordered invoice application while retaining refund barriers
 - Actual independent backend PIDs and observed PostgreSQL lock waits for daily

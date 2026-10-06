@@ -33,7 +33,7 @@ import {createDailyLoginRouter} from './services/DailyLoginRoutes';
 import { createRankedRefundRouter } from './services/RankedRefundRoutes';
 import { createRankedSessionInspectionRouter } from './services/RankedSessionInspectionRoutes';
 import {QG_LIVE_MONTHLY_PRICE_ID, StripeMembershipApi, type StripeMembershipMode} from './services/StripeMembership';
-import {createStripeMembershipRouter,createStripeWebhookRouter} from './services/StripeMembershipRoutes';
+import { createStripeBillingRouters } from './services/StripeBillingRuntime';
 import {createStripeCancellationGuard} from './services/StripeCancellation';
 import {StripePortalApi} from './services/StripePortal';
 import {createStripeCheckoutReadiness} from './services/StripeMembershipReadiness';
@@ -105,6 +105,17 @@ const stripeCheckoutReadiness = createStripeCheckoutReadiness({
     processingEnabled: stripeBillingProcessingEnabled, portalEnabled: stripePortalEnabled,
 });
 const stripeCheckoutEnabled = () => STRIPE_CHECKOUT_RELEASE_READY && stripeCheckoutReadiness.enabled();
+const stripeBillingRouters = createStripeBillingRouters({
+    auth: rankedAuth, api: stripeMembershipApi, store: stripeMembershipStore, gate: accountGate,
+    webhookSecret: stripeWebhookSecret ?? '', processingEnabled: stripeBillingProcessingEnabled,
+    portalApi: stripePortalApi, portalEnabled: stripePortalEnabled, checkoutEnabled: stripeCheckoutEnabled,
+    commerce: {
+        config: { secretKey: stripeSecretKey ?? '', livemode: stripeMode === 'live',
+            automaticTaxEnabled: process.env.STRIPE_AUTOMATIC_TAX_ENABLED === 'true' },
+        createStore: () => supabaseService.stripeCommerceStore(),
+        createStatusStore: () => supabaseService.stripeCommerceStatusStore(),
+    },
+});
 void stripeCheckoutReadiness.check().then(result => {
     console.info(`[stripe] checkout_preflight=${result}`);
 });
@@ -113,8 +124,7 @@ const cancelStripeBeforeErase = STRIPE_ACCOUNT_DELETION_GUARD_READY
         test: process.env.STRIPE_TEST_SECRET_KEY, live: process.env.STRIPE_LIVE_SECRET_KEY,
     }, fetch, supabaseService.stripeRetireSubscriptions())
     : async (_userId: string) => { /* Billing remains hard OFF; no Stripe records can originate here. */ };
-app.use(createStripeWebhookRouter(stripeMembershipApi,stripeMembershipStore,
-    stripeWebhookSecret ?? '',stripeBillingProcessingEnabled));
+app.use(stripeBillingRouters.webhook);
 const operations=createServiceOperations(supabaseService.serviceStatusLoader());
 app.use(operations.loginGuard);
 app.get('/service/status',async(_req,res)=>{
@@ -153,8 +163,7 @@ app.use(createRankedRefundRouter(rankedAuth, {
     blocked: id => deletionStore.blocked(id),
     read: id => supabaseService.rankedRefundBalance(id),
 }, accountGate,()=>rankedAdmissionRecoveryEnabled()||sharedMatchAdmissionRecoveryEnabled()));
-app.use(createStripeMembershipRouter(rankedAuth,stripeMembershipApi,stripeMembershipStore,accountGate,
-    stripeBillingProcessingEnabled,stripePortalApi,stripePortalEnabled,stripeCheckoutEnabled));
+app.use(stripeBillingRouters.membership);
 app.use(createAccountProfileRouter(rankedAuth,supabaseService.accountProfileStore(),accountGate));
 app.use(createPrivateGameRecordRouter(rankedAuth,supabaseService));
 app.use(createProfileAvatarRouter(rankedAuth,supabaseService.profileAvatarStore(),accountGate));

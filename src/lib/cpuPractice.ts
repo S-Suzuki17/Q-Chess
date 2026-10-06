@@ -10,7 +10,7 @@ import { applyLocalMove, positionForDisplay } from './localGame';
 import { recordReplayMove } from './replayHistory';
 import type { Move } from '../quantum-engine/types';
 import type { MoveRecord } from './gameRecordService';
-import type { HintMove } from '../components/boardPresentation';
+import { isValidHintMove, type HintMove } from '../components/boardPresentation';
 
 /** Explicit public build opt-in; server enforcement is independent. */
 export const CPU_HINT_TICKETS_ENABLED = process.env.NEXT_PUBLIC_QG_CPU_HINT_TICKETS_ENABLED === 'true';
@@ -94,17 +94,20 @@ export class CpuPracticeClient {
     async hint(revision: number, signal?: AbortSignal): Promise<HintMove> {
         const requestId = this.id(`hint:${revision}`);
         const receipt = await this.send(this.userId,`/cpu-practice/sessions/${this.sessionId}/hints`,{requestId,revision},signal) as CpuHintReceipt;
+        signal?.throwIfAborted();
         if (receipt?.sessionId !== this.sessionId || receipt.revision !== revision || receipt.rulesVersion !== CPU_PRACTICE_RULES_VERSION
-            || receipt.deliveryState !== 'paid_retrievable') throw new CpuPracticeClientError('CPU_PRACTICE_UNAVAILABLE');
-        if(typeof window!=='undefined')window.dispatchEvent(new Event(DAILY_LOGIN_REWARD_CHANGED_EVENT));
+            || receipt.deliveryState !== 'paid_retrievable' || !isValidHintMove(receipt.hint)) throw new CpuPracticeClientError('CPU_PRACTICE_UNAVAILABLE');
+        if(typeof window!=='undefined')window.dispatchEvent(new CustomEvent(DAILY_LOGIN_REWARD_CHANGED_EVENT, { detail: { userId: this.userId } }));
         return receipt.hint;
     }
     async recover(revision: number, signal?: AbortSignal): Promise<HintMove|null> {
         const requestId=this.id(`hint:${revision}`);
         const receipt=await this.send(this.userId,`/cpu-practice/sessions/${this.sessionId}/hints/${revision}/${requestId}`,undefined,signal) as CpuHintReceipt|null;
+        signal?.throwIfAborted();
         if(!receipt)return null;
         if(receipt.sessionId!==this.sessionId||receipt.revision!==revision||receipt.rulesVersion!==CPU_PRACTICE_RULES_VERSION
-            ||receipt.deliveryState!=='paid_retrievable')throw new CpuPracticeClientError('CPU_PRACTICE_UNAVAILABLE');
+            ||receipt.deliveryState!=='paid_retrievable'||!isValidHintMove(receipt.hint))throw new CpuPracticeClientError('CPU_PRACTICE_UNAVAILABLE');
+        if(typeof window!=='undefined')window.dispatchEvent(new CustomEvent(DAILY_LOGIN_REWARD_CHANGED_EVENT, { detail: { userId: this.userId } }));
         return receipt.hint;
     }
     async close() {

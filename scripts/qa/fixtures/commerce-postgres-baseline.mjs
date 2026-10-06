@@ -3,12 +3,12 @@ import {
     setupSessionBaseline, applySessionPending,
 } from './session-postgres-baseline.mjs';
 
-// The 35 commerce scenarios now exercise the SAME combined public
-// baseline and raw nine-file upgrade as the durable-session scenarios. Real
+// The 43 commerce scenarios now exercise the SAME combined public
+// baseline and raw ten-file upgrade as the durable-session scenarios. Real
 // public deletion/recovery/restriction tables and the new session triggers are
 // present during billing, rollback and profile erasure. The shared helper
 // compares commerce lists against the public TS fixture and asserts every
-// discovered pending file before executing all nine. No private schema import.
+// discovered pending file before executing all ten. No private schema import.
 export const historical = combinedHistoricalMigrations;
 export const pending = combinedPendingMigrations;
 export const baselineEvidence = Object.freeze({

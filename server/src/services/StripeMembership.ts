@@ -5,7 +5,8 @@ import type { StripeReversalTarget } from './StripeReversal';
 import { QG_STRIPE_API_VERSION } from './StripeApiVersion';
 import { createStripeClient, stripeRequest } from './StripeClient';
 import { COMMERCE_CATALOG, LEGACY_MEMBERSHIP_PRODUCT, commerceCheckoutForm,
-    isCommerceSku, matchesCommercePrice, readyCommerceSkus, type CommerceProduct, type CommerceSku } from './CommerceCatalog';
+    isCommerceSku, matchesCommercePrice, readyCommerceSkus, snapshotCommerceAuthority,
+    type CommerceCheckoutAuthority, type CommerceProduct, type CommerceSku } from './CommerceCatalog';
 
 const STRIPE_ID = /^(?:cs_(?:test|live)_|sub_|cus_|price_|evt_|in_)[A-Za-z0-9]{8,200}$/;
 export const QG_LIVE_STANDARD_PRICE_ID = COMMERCE_CATALOG.standard_monthly.priceId;
@@ -114,10 +115,13 @@ export class StripeMembershipApi {
     get livemode() { return this.mode === 'live'; }
     readonly mode: StripeMembershipMode;
     private readonly client: Stripe;
+    private readonly checkoutAuthority: CommerceCheckoutAuthority | null;
     private get legacyProduct(): CommerceProduct {
         return { ...LEGACY_MEMBERSHIP_PRODUCT, priceId: this.config.priceId };
     }
-    availableCheckoutSkus(): readonly CommerceSku[] { return readyCommerceSkus(); }
+    availableCheckoutSkus(): readonly CommerceSku[] {
+        return this.checkoutAuthority ? Object.keys(this.checkoutAuthority.products) as CommerceSku[] : readyCommerceSkus();
+    }
 
     private checkoutProduct(sku?: CommerceSku): CommerceProduct {
         // The optional argument exists solely for legacy internal/sandbox callers.
@@ -125,15 +129,18 @@ export class StripeMembershipApi {
         if (sku === undefined) return this.legacyProduct;
         if (!isCommerceSku(sku)) throw new StripeMembershipError('INVALID_SKU');
         if (!this.availableCheckoutSkus().includes(sku)) throw new StripeMembershipError('SKU_NOT_READY');
-        // Test prices require an independently reviewed catalog before test sales.
+        if (this.checkoutAuthority) return this.checkoutAuthority.products[sku]!;
+        // Test prices require an independently reviewed, mode-specific authority.
         if (!this.livemode) throw new StripeMembershipError('SKU_NOT_READY');
         return COMMERCE_CATALOG[sku];
     }
     constructor(
         private readonly config: StripeMembershipConfig,
         private readonly request: typeof fetch = fetch,
+        checkoutAuthority: CommerceCheckoutAuthority | null = null,
     ) {
         this.mode = config.mode ?? 'test';
+        this.checkoutAuthority = checkoutAuthority ? snapshotCommerceAuthority(checkoutAuthority, this.livemode) : null;
         if (!['test', 'live'].includes(this.mode)
             || !new RegExp(`^(?:sk|rk)_${this.mode}_[A-Za-z0-9_]{8,}$`).test(config.secretKey)
             || !/^whsec_[A-Za-z0-9_-]{8,}$/.test(config.webhookSecret)

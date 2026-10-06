@@ -1,11 +1,43 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { COMMERCE_CATALOG, COMMERCE_SKUS, LEGACY_MEMBERSHIP_PRODUCT, commerceCheckoutForm,
-    isCommerceSku, matchesCommercePrice, readyCommerceSkus } from './CommerceCatalog';
+    isCommerceSku, matchesCommercePrice, readyCommerceSkus, snapshotCommerceAuthority } from './CommerceCatalog';
 import { StripeMembershipApi } from './StripeMembership';
+import { commerceEvidenceFixture } from './fixtures/stripeCommerceEvidenceFixture.test';
 
 afterEach(() => vi.unstubAllEnvs());
 
 describe('server-owned commerce catalog (no real Stripe operations)', () => {
+    it.each([false, true])('accepts an immutable reviewed catalog only for its exact mode (%s)', async livemode => {
+        const f = commerceEvidenceFixture('hints_13', livemode, 0);
+        const supplied = { ...COMMERCE_CATALOG.hints_13, priceId: f.intent.priceId };
+        const request = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+            const url = new URL(String(input));
+            if (url.pathname === '/v1/checkout/sessions' && init?.method === 'POST') {
+                expect(new URLSearchParams(String(init.body)).get('line_items[0][price]')).toBe(f.intent.priceId);
+                return new Response(JSON.stringify({ ...f.checkout, status: 'open',
+                    expires_at: Math.floor(Date.now() / 1000) + 3600,
+                    url: `https://checkout.stripe.com/c/pay/${f.intent.checkoutId}` }), { status: 200 });
+            }
+            return f.request(input, init);
+        });
+        const config = { mode: livemode ? 'live' as const : 'test' as const, secretKey: f.config.secretKey,
+            webhookSecret: f.secret, priceId: livemode ? LEGACY_MEMBERSHIP_PRODUCT.priceId : 'price_FIXTURELEGACY',
+            successUrl: 'https://q-gambit.com/', cancelUrl: 'https://q-gambit.com/',
+            automaticTaxEnabled: true, taxRegistrationConfirmed: true };
+        const api = new StripeMembershipApi(config, request, { livemode, products: { hints_13: supplied } });
+        supplied.priceId = 'price_MUTATEDAFTER';
+        expect(api.availableCheckoutSkus()).toEqual(['hints_13']);
+        expect(await api.createCheckout('Alice', 'hints_13')).toMatchObject({ priceId: f.intent.priceId });
+        await expect(api.createCheckout('Alice', 'plus_monthly')).rejects.toThrow('SKU_NOT_READY');
+        expect(() => new StripeMembershipApi(config, request, { livemode: !livemode, products: {} })).toThrow('COMMERCE_CATALOG_INVALID');
+        expect(readyCommerceSkus()).toEqual([]);
+    });
+    it.each([{ amount: 999 }, { currency: 'eur' }, { hintTickets: 99 }, { taxBehavior: 'exclusive' },
+        { interval: 'year' }, { checkoutMode: 'payment' }, { sku: 'plus_monthly' }, { priceId: LEGACY_MEMBERSHIP_PRODUCT.priceId }])(
+        'rejects a reviewed-catalog injection that changes approved terms: %j', patch => {
+            expect(() => snapshotCommerceAuthority({ livemode: false,
+                products: { standard_monthly: { ...COMMERCE_CATALOG.standard_monthly, ...patch } as never } }, false)).toThrow();
+        });
     it('binds each public SKU to one exact price, amount, mode and quantity', () => {
         expect(COMMERCE_SKUS).toEqual(['standard_monthly', 'plus_monthly', 'hints_1', 'hints_13',
             'hints_27', 'hints_44', 'hints_77', 'hints_166']);
