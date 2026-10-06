@@ -6,6 +6,8 @@ const STORAGE_LOCATIONS = ['session', 'local'] as const;
 type StorageLocation = typeof STORAGE_LOCATIONS[number];
 let generation = 0;
 let revoked = false;
+// A blocked storage removal must not make a server-revoked proof usable in this tab.
+const revokedTokens = new Set<string>();
 const MAX_LIFETIME_MS = 30 * 24 * 60 * 60 * 1000;
 // Never persisted: reload must verify with the server again.
 let verifiedClock: { token: string; expiresAt: number; deadline: number; observed: number; wallDeadline: number; observedWall: number } | null = null;
@@ -63,7 +65,7 @@ export function readRankedSessionCandidate(userId?: string): RankedSession | nul
     if (typeof window === 'undefined' || revoked) return null;
     for (const location of STORAGE_LOCATIONS) {
         const candidate = readStoredSession(location);
-        if (candidate && (userId === undefined || candidate.userId === userId)) return candidate;
+        if (candidate && (userId === undefined || candidate.userId === userId)) return revokedTokens.has(candidate.token) ? null : candidate;
     }
     return null;
 }
@@ -72,7 +74,7 @@ export function readRankedSession(userId: string): RankedSession | null {
     if (typeof window === 'undefined' || revoked) return null;
     for (const location of STORAGE_LOCATIONS) {
         const proof = readStoredSession(location);
-        if (proof?.userId === userId && rankedSessionRemainingMs(proof) > 0) return proof;
+        if (proof?.userId === userId && !revokedTokens.has(proof.token) && rankedSessionRemainingMs(proof) > 0) return proof;
     }
     return null;
 }
@@ -116,6 +118,25 @@ export function clearRankedSession(): void {
     invalidateStoredSessions();
 }
 
+/** A server notice owns only the saved proof used by that socket, never logout.
+ * A newer login attempt does not protect the old proof from revocation, but
+ * its generation must remain intact so that a pending fresh proof can still win.
+ * The server already revoked this token; do not revoke other saved/device tokens. */
+export function forgetRevokedRankedSession(proof: RankedSession, expectedRevision: number): boolean {
+    if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 0 || expectedRevision > generation) return false;
+    const candidate = readRankedSessionCandidate();
+    if (candidate?.token !== proof.token || candidate.userId !== proof.userId || candidate.expiresAt !== proof.expiresAt) return false;
+    if (expectedRevision === generation) generation++;
+    revokedTokens.add(proof.token);
+    if (verifiedClock?.token === proof.token) verifiedClock = null;
+    for (const location of STORAGE_LOCATIONS) {
+        if (readStoredSession(location)?.token !== proof.token) continue;
+        try { browserStorage(location).removeItem(STORAGE_KEY); } catch { /* Rejected in this tab regardless. */ }
+    }
+    window.dispatchEvent(new Event(RANKED_SESSION_EVENT));
+    return true;
+}
+
 /** Credentials are sent once over HTTPS and never written to browser storage. */
 export async function requestRankedSession(username: string, password: string, keepLoggedIn: boolean, signal?: AbortSignal): Promise<RankedSession> {
     const attempt = ++generation;
@@ -133,7 +154,7 @@ export async function requestRankedSession(username: string, password: string, k
     const payload: unknown = await response.json();
     const proof = parseRankedSessionCandidate(payload);
     const serverNow = (payload as {serverNow?: unknown} | null)?.serverNow;
-    if (!proof || proof.userId !== username || signal?.aborted || attempt !== generation ||
+    if (!proof || revokedTokens.has(proof.token) || proof.userId !== username || signal?.aborted || attempt !== generation ||
         (serverNow === undefined ? !parseRankedSession(proof) :
             typeof serverNow !== 'number' || !acceptVerifiedRankedSession(proof, serverNow, started))) {
         throw new Error('Ranked login could not be verified');

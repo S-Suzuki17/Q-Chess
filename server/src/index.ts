@@ -1,3 +1,5 @@
+import { createRankedSessionAuthority } from './services/RankedSessionRuntime';
+import { LegacySocketAuthority, LEGACY_SOCKET_POLL_MS } from './services/LegacySocketAuthority';
 import express from 'express';
 import http from 'http';
 import { Server, Socket } from 'socket.io';
@@ -6,7 +8,7 @@ import { GameEngine, Action, ActionPayload } from './game/GameEngine';
 import { ENTANGLEMENT_VERSION } from './game/quantumChess';
 import { CPU_FALLBACK_MS, MatchmakingService } from './matchmaking/MatchmakingService';
 import { SupabaseService } from './services/SupabaseService';
-import { RankedAuth, type RankedSessionAuthority, type RankedSession, isRankedUserId } from './services/RankedAuth';
+import { type RankedSessionAuthority, type RankedSession, isRankedUserId } from './services/RankedAuth';
 import { RankedRuntime } from './game/RankedRuntime';
 import { createPrivateGameRecordRouter } from './services/PrivateGameRecordRoutes';
 import { createProfileAvatarRouter } from './services/ProfileAvatarRoutes';
@@ -43,7 +45,7 @@ const app = express();
 app.use(cors());
 const supabaseService = new SupabaseService();
 const audit=createSecurityAudit((event,outcome,id)=>supabaseService.recordSecurityEvent(event,outcome,id));
-const rankedAuth: RankedSessionAuthority = new RankedAuth((id,password)=>supabaseService.verifyLegacyPassword(id,password));
+const rankedAuth: RankedSessionAuthority = createRankedSessionAuthority(supabaseService);
 const accountGate = new AccountWriteGate();
 let cpuPractice:ReturnType<SupabaseService['cpuPracticeService']>|undefined;
 const getCpuPractice=()=>cpuPractice??=supabaseService.cpuPracticeService();
@@ -122,17 +124,17 @@ app.use(createAccountDeletionRouter(rankedAuth,deletionStore,accountGate,
     id=>matchmaking.accountBusy(id)||runtime.isSavingAccount(id),
     id=>{
         runtime.forgetReceipts(matchmaking.forgetAccount(id));
-        for(const socket of io.sockets.sockets.values())if(socket.data.userId===id)socket.disconnect(true);
+        for(const socket of io.sockets.sockets.values())if(socket.data.userId===id){socket.emit('session_revoked',{reason:'revoked'});socket.disconnect(true);}
     },cancelStripeBeforeErase));
 app.use(createAccountRecoveryRouter(rankedAuth,supabaseService.accountRecoveryStore(),accountGate,
     id=>matchmaking.accountBusy(id)||runtime.isSavingAccount(id),
-    id=>{ for(const socket of io.sockets.sockets.values())if(socket.data.userId===id)socket.disconnect(true); },
+    id=>{ for(const socket of io.sockets.sockets.values())if(socket.data.userId===id){socket.emit('session_revoked',{reason:'revoked'});socket.disconnect(true);} },
     process.env.ACCOUNT_RECOVERY_ENABLED==='true'));
 // Identity restoration must remain available to restricted users for recovery
 // and deletion. This router enforces its own deletion guard and token recheck.
 app.use(createRankedSessionInspectionRouter(rankedAuth,deletionStore,accountGate));
 app.use(createAccountSecurityRouter(rankedAuth,supabaseService.accountSecurityStore(),accountGate,
-    id=>{for(const socket of io.sockets.sockets.values())if(socket.data.userId===id){socket.emit('session_replaced');socket.disconnect(true);}},audit));
+    id=>{for(const socket of io.sockets.sockets.values())if(socket.data.userId===id){socket.emit('session_revoked',{reason:'revoked'});socket.disconnect(true);}},audit));
 app.use(accountRequestGuard(rankedAuth,deletionStore,accountGate));
 app.use(createCurrentTermsRouter(rankedAuth,supabaseService.currentTermsStore(),accountGate));
 app.use(createAccountTermsRouter(rankedAuth,supabaseService.accountTermsStore(),accountGate));
@@ -197,6 +199,9 @@ function notifyAdmission(outcome:AdmissionOutcome) {
 }
 const admission=rankedAdmissionRecoveryEnabled()
     ? new RankedAdmissionCoordinator(matchmaking,supabaseService.rankedAdmissionStore(),sendMatchStart,notifyAdmission) : undefined;
+const legacySockets=new LegacySocketAuthority(rankedAuth,io,(id,socketId)=>matchmaking.getPlayerSession(id)?.socketId===socketId,id=>matchmaking.leaveQueue(id));
+matchmaking.canAdmitPlayer=id=>{const socketId=matchmaking.getPlayerSession(id)?.socketId;const socket=socketId?io.sockets.sockets.get(socketId):undefined;return !!socket&&legacySockets.canAdmit(socket);};
+setInterval(()=>void legacySockets.poll(),LEGACY_SOCKET_POLL_MS).unref();
 const runtime = new RankedRuntime(io,matchmaking,match=>supabaseService.settleRankedMatch(match),undefined,match=>supabaseService.recordUnratedMatch(match),admission);
 const loginAttempts=new Map<string,{count:number;until:number}>();
 let pendingLegacyLogins=0;
@@ -234,7 +239,7 @@ app.post('/auth/ranked-session',async(req,res)=>{
         }
         if(!session){await audit('login','denied',username);return res.status(401).json({code:'AUTH_FAILED'});}
         await audit('login','success',username);
-        return res.json({...session,serverNow:Date.now()});
+        return res.json({token:session.token,userId:session.userId,expiresAt:session.expiresAt,serverNow:session.serverNow??Date.now()});
     } catch {
         // An unavailable check must not revoke unrelated devices. Only the
         // unreturned proof from this attempt needs cleanup; confirmed deletion
@@ -250,7 +255,7 @@ app.post('/auth/ranked-session/revoke',async(req,res)=>{
     const token=req.headers.authorization?.replace(/^Bearer /,'');
     try {
         await rankedAuth.revokeSession(token);
-        for(const socket of io.sockets.sockets.values())if(token&&socket.handshake.auth.token===token)socket.disconnect(true);
+        for(const socket of io.sockets.sockets.values())if(token&&socket.handshake.auth.token===token){socket.emit('session_revoked',{reason:'revoked'});socket.disconnect(true);}
         res.status(204).end();
     } catch {
         res.setHeader('Retry-After','5');res.status(503).json({code:'UNAVAILABLE'});
@@ -275,11 +280,14 @@ let checkingRestrictions=false;
 setInterval(()=>{
     if(checkingRestrictions)return;checkingRestrictions=true;
     void(async()=>{
-        const ids=[...new Set<string>([...io.sockets.sockets.values()].filter(s=>s.data.verified).map(s=>s.data.userId))];
+        const snapshots=[...io.sockets.sockets.values()].filter(s=>s.data.verified).map(socket=>({socket,userId:socket.data.userId,token:socket.handshake.auth.token}));
+        const ids=[...new Set<string>(snapshots.map(s=>s.userId))];
         for(let offset=0;offset<ids.length;offset+=200){
             const blocked=new Set(await supabaseService.restrictedAccounts(ids.slice(offset,offset+200)));
-            for(const socket of io.sockets.sockets.values())if(blocked.has(socket.data.userId)){
-                await rankedAuth.revokeUserSessions(socket.data.userId);socket.emit('session_replaced');socket.disconnect(true);
+            for(const {socket,userId,token} of snapshots)if(blocked.has(userId)&&socket.connected
+                &&socket.data.userId===userId&&socket.handshake.auth.token===token
+                &&matchmaking.getPlayerSession(userId)?.socketId===socket.id){
+                socket.emit('account_restricted');socket.disconnect(true);
             }
         }
     })().catch(()=>{/* A transient admin check failure must not forfeit existing games. */}).finally(()=>{checkingRestrictions=false;});
@@ -311,7 +319,10 @@ io.use(async (socket, next) => {
       if(accountGate.blocked(userId)||(!guest&&(await deletionStore.blocked(userId)||await supabaseService.accountSecurityStore().restricted(userId))))return next(new Error('Authentication Error: Account unavailable'));
       // Logout cannot disconnect a handshake which has not connected yet.
       // Recheck the legacy proof after the asynchronous account guards.
-      if(proof&&!(await rankedAuth.verifySession(token,userId)))return next(new Error('Authentication Error: Invalid token'));
+      const currentProof=proof?await rankedAuth.verifySession(token,userId):null;
+      if(proof&&!currentProof)return next(new Error('Authentication Error: Invalid token'));
+      socket.data.legacy=!!currentProof;
+      if(currentProof)socket.data.legacyProof=currentProof;
 
       socket.data.userId = userId;
       socket.data.verified=!guest;
@@ -321,6 +332,13 @@ io.use(async (socket, next) => {
 
 io.on('connection', (socket: Socket) => {
   const userId = socket.data.userId;
+  // Only connected sockets enter the polling registry; abandoned handshakes
+  // must not retain a token/fence or create unbounded batch work.
+  if(socket.data.legacyProof){
+      legacySockets.capture(socket,socket.handshake.auth.token,socket.data.legacyProof);
+      delete socket.data.legacyProof;
+  }
+  socket.on('disconnect',()=>legacySockets.forget(socket));
   console.log('[socket] connected');
 
   // Initialize Rate Limiter State for this socket
@@ -386,6 +404,16 @@ io.on('connection', (socket: Socket) => {
       }
   }
 
+  const currentOwner=()=>socket.connected&&matchmaking.getPlayerSession(userId)?.socketId===socket.id;
+  const verifyAdmission=async()=>{
+      const token=socket.handshake.auth.token;
+      if(!socket.data.verified)return currentOwner();
+      const proof=await rankedAuth.verifySession(token,userId);
+      const identity=proof?.userId??(!socket.data.legacy?await supabaseService.verifyUser(token):null);
+      if(!currentOwner()||socket.handshake.auth.token!==token||identity!==userId)return false;
+      if(proof)legacySockets.capture(socket,token,proof);
+      return legacySockets.canAdmit(socket);
+  };
   let queueAttempt=0;
   socket.on('join_queue', async (data: { timeControl: number, userName?: string, mode?:QueueMode }) => {
     if(accountGate.blocked(userId))return;
@@ -398,11 +426,7 @@ io.on('connection', (socket: Socket) => {
     if(unavailable)return fail(unavailable);
     let rating:number|null=null;
     if(mode==='ranked') {
-        const token=socket.handshake.auth.token;
-        try {
-            const identity=(await rankedAuth.verifySession(token))?.userId??(socket.data.verified?await supabaseService.verifyUser(token):null);
-            if(identity!==userId)return fail('AUTH_REQUIRED');
-        } catch { return fail('RANKED_UNAVAILABLE'); }
+        if(!socket.data.verified)return fail('AUTH_REQUIRED');
         if(admission) {
             try{if(await admission.accountBusy(userId))return fail('ACCOUNT_BUSY');}
             catch{return fail('RANKED_UNAVAILABLE');}
@@ -411,7 +435,9 @@ io.on('connection', (socket: Socket) => {
         rating=await supabaseService.getMatchRating(userId,timeControl);
         if(rating===null)return fail('RATING_UNAVAILABLE');
     }
-    if(attempt!==queueAttempt||!socket.connected||matchmaking.getPlayerSession(userId)?.socketId!==socket.id)return;
+    try {if(!await verifyAdmission())return fail('AUTH_REQUIRED');}
+    catch{return fail(mode==='ranked'?'RANKED_UNAVAILABLE':'AUTH_UNAVAILABLE');}
+    if(attempt!==queueAttempt||!currentOwner())return;
     if(cpuPractice?.isBusy(userId))return fail('CPU_PRACTICE_PENDING');
     const name=typeof data?.userName==='string'?data.userName.slice(0,80):undefined;
     const result=matchmaking.joinQueue(userId,timeControl,name,mode,rating??undefined);
@@ -454,6 +480,11 @@ io.on('connection', (socket: Socket) => {
     }
     if(data.userName)data.userName=data.userName.slice(0,80);
     if(cpuPractice?.isBusy(userId)){socket.emit('queue_error',{code:'CPU_PRACTICE_PENDING'});return;}
+    const existingGame=matchmaking.getMatch(data.matchId)?.state==='IN_GAME';
+    if(!existingGame){
+        try{if(!await verifyAdmission()){socket.emit('queue_error',{code:'AUTH_REQUIRED'});return;}}
+        catch{if(currentOwner())socket.emit('queue_error',{code:'AUTH_UNAVAILABLE'});return;}
+    }
     const reserved=matchmaking.reserveMatch(userId,data.matchId,data.userName);
     if(!reserved)return;
     const role=reserved.players.host===userId?'host':'joiner';
@@ -464,6 +495,10 @@ io.on('connection', (socket: Socket) => {
       catch{data.avatarFrame='standard';}
     }
     if(!socket.connected||matchmaking.getPlayerSession(userId)?.socketId!==socket.id)return;
+    if(!existingGame){
+        try{if(!await verifyAdmission()){socket.emit('queue_error',{code:'AUTH_REQUIRED'});return;}}
+        catch{if(currentOwner())socket.emit('queue_error',{code:'AUTH_UNAVAILABLE'});return;}
+    }
     const result = matchmaking.connectMatch(userId, data.matchId, data.userName, data.avatarUrl, data.avatarFrame,data.introVersion,rating);
 
     if(!result.success)return;

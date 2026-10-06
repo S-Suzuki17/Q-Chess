@@ -12,6 +12,11 @@ export interface RankedIdentity {
     userId: string;
     /** Unix time in milliseconds. */
     expiresAt: number;
+    /** Authority clock used with expiry; never substitute a host clock for DB time. */
+    serverNow?: number;
+    /** Internal socket fence. Explicit response projection must omit this. */
+    fence?: { incarnation: string; generation: string };
+    admissionDeadline?: number;
 }
 
 export interface RankedSession extends RankedIdentity {
