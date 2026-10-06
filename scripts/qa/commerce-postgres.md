@@ -7,11 +7,11 @@ The only repository dependency added is locked `pg@8.16.3`.
 ## Public baseline and pending boundary
 
 The native baseline is reconstructed exclusively from the already-public
-`server/src/services/fixtures/commerceDatabaseFixture.ts` and repository SQL.
-It creates the same minimal pre-migration profiles, game records, deletion jobs
-and restrictions tables and the same three API roles. It then executes all 17
-raw historical dependency migrations listed in that public fixture. The native
-list is checked against the public fixture on every run to prevent divergence.
+commerce fixture and repository SQL. It now shares the combined fixture in
+`scripts/qa/fixtures/session-postgres-baseline.mjs`: 22 raw historical commerce
+and authentication dependencies, with explicit synthetic pre-migration account,
+Auth and Storage scaffolding. The 17 commerce dependencies are still checked
+against the public TypeScript fixture on every run. Real pgcrypto is required.
 
 No private schema capture, private function definition, hosted ACL snapshot,
 private fingerprint, hosted project identifier or real account row is needed or
@@ -20,17 +20,24 @@ Any separately authorized private local verification remains separate evidence.
 
 Synthetic profiles, balances and an in-flight legacy $2.99 Checkout are inserted
 before the release upgrade. The native test then executes the complete reviewed
-pending commerce chain verbatim, in order:
+pending commerce/auth chain verbatim, in order:
 
 1. `20261004040000_monetization_update.sql`
 2. `20261004050000_hint_tickets_store.sql`
 3. `20261006000000_pricing_v2.sql`
+4. `20261006142305_dormant_durable_legacy_sessions.sql`
 
 An additional pending file causes a hard failure until the reviewed chain is
-explicitly extended. The 17 historical dependencies are an explicit, bounded
+explicitly extended. The 22 historical dependencies are an explicit, bounded
 public fixture, not an all-files installation or a claim about hosted migration
 history. No applied history is rewritten. Unrelated historical features are not
 silently counted as verified by this commerce fixture.
+
+The unchanged 31 commerce scenarios therefore run with the new authentication
+triggers installed. A separate mandatory native job runs 35 session scenarios
+on the same combined schema. Both suites reject missing scenarios and use fresh
+fixed-name loopback databases; neither accepts a hosted connection URL. See
+[session fixture and limitations](../../docs/durable-legacy-sessions.md).
 
 ## Coverage
 
