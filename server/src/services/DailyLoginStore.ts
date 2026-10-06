@@ -34,20 +34,22 @@ function amounts(value: unknown, cap: TicketAmounts): TicketAmounts | null {
 /** Validate the service-only RPC response before exposing it to an account. */
 export function parseDailyLoginState(value: unknown): DailyLoginState | null {
     if (!record(value)) return null;
-    const tickets = amounts(value.tickets, DEFAULT_DAILY_LOGIN_POLICY.ticketCaps);
+    if (value.rewardPolicyVersion !== undefined && value.rewardPolicyVersion !== 1 && value.rewardPolicyVersion !== 2) return null;
+    const tickets = amounts(value.tickets, value.rewardPolicyVersion === 2 ? {ranked:Number.MAX_SAFE_INTEGER,hint:Number.MAX_SAFE_INTEGER} : DEFAULT_DAILY_LOGIN_POLICY.ticketCaps);
     let lastClaimUtcDay: string | null;
     if (value.lastClaimUtcDay === null) lastClaimUtcDay = null;
     else if (validUtcDay(value.lastClaimUtcDay)) lastClaimUtcDay = value.lastClaimUtcDay;
     else return null;
     if (!tickets || !integer(value.streakDays) || value.streakDays > DEFAULT_DAILY_LOGIN_POLICY.maxStreakDays
         || (lastClaimUtcDay === null ? value.streakDays !== 0 : value.streakDays < 1)) return null;
-    return { lastClaimUtcDay, streakDays: value.streakDays, tickets };
+    return { lastClaimUtcDay, streakDays: value.streakDays, tickets,
+        ...(value.rewardPolicyVersion === undefined ? {} : {rewardPolicyVersion:value.rewardPolicyVersion as 1 | 2}) };
 }
 
 export function parseDailyLoginClaim(value: unknown): DailyLoginClaim | null {
     const state = parseDailyLoginState(value);
     if (!state || !record(value) || typeof value.claimed !== 'boolean') return null;
-    const credited = amounts(value.credited, DEFAULT_DAILY_LOGIN_POLICY.ticketCaps);
+    const credited = amounts(value.credited, state.rewardPolicyVersion === 2 ? {ranked:3,hint:1} : DEFAULT_DAILY_LOGIN_POLICY.ticketCaps);
     if (!credited || (!value.claimed && (credited.ranked !== 0 || credited.hint !== 0))) return null;
     return { ...state, claimed: value.claimed, credited };
 }

@@ -1,3 +1,4 @@
+import { priceFixture, checkoutLineFixture, checkoutEvidenceFixture } from './StripeTestFixtures';
 import { invoiceFixture, paymentFixture, reconciliationToken } from './StripeTestFixtures';
 import { describe, expect, it, vi } from 'vitest';
 import { QG_LIVE_MONTHLY_PRICE_ID, StripeMembershipApi, type StripeEvent } from './StripeMembership';
@@ -13,7 +14,7 @@ const config = {
 };
 const price = {
     id: QG_LIVE_MONTHLY_PRICE_ID, livemode: true, active: true,
-    currency: 'usd', unit_amount: 300, type: 'recurring', tax_behavior: 'inclusive',
+    currency: 'usd', unit_amount: 299, type: 'recurring', tax_behavior: 'inclusive',
     recurring: { interval: 'month', interval_count: 1 },
 };
 
@@ -32,9 +33,9 @@ describe('Stripe live-mode boundary (mocked; never contacts Stripe)', () => {
                     id: 'cs_live_ABCDEFGH', livemode: true, mode: 'subscription',
                     client_reference_id: 'Alice', expires_at: Math.floor(Date.now() / 1000) + 3600,
                     url: 'https://checkout.stripe.com/c/pay/cs_live_ABCDEFGH',
-                    currency: 'usd', amount_total: 300, status: 'open',
+                    currency: 'usd', amount_total: 299, status: 'open',
                     automatic_tax: { enabled: false },
-                } : { data: [{ price: { id: QG_LIVE_MONTHLY_PRICE_ID }, quantity: 1 }], has_more: false },
+                } : checkoutLineFixture(true),
         ));
         const api = new StripeMembershipApi(config, request as unknown as typeof fetch);
         const checkout = await api.createCheckout('Alice');
@@ -57,6 +58,29 @@ describe('Stripe live-mode boundary (mocked; never contacts Stripe)', () => {
         await expect(api.createCheckout('Alice')).rejects.toThrow('STRIPE_LIVE_PRICE_MISMATCH');
         expect(request).toHaveBeenCalledOnce();
     });
+    it.each([300, 600])('never substitutes a %d-cent Price for the legacy299 contract', async amount => {
+        const request = vi.fn(async () => Response.json({ ...price, unit_amount: amount }));
+        await expect(new StripeMembershipApi(config, request as unknown as typeof fetch)
+            .createCheckout('Alice')).rejects.toThrow('STRIPE_LIVE_PRICE_MISMATCH');
+        expect(request).toHaveBeenCalledOnce();
+    });
+    it.each([
+        { quantity: 2 }, { currency: 'jpy' }, { amount_total: 300 }, { amount_discount: 1 },
+        { price: { ...priceFixture(true), id: 'price_OTHER123' } },
+        { price: { ...priceFixture(true), unit_amount: 600 } },
+        { price: { ...priceFixture(true), tax_behavior: 'exclusive' } },
+        { price: { ...priceFixture(true), livemode: false } },
+        { price: { ...priceFixture(true), recurring: { interval: 'year', interval_count: 1 } } },
+    ])('expires only the just-created session when exact line-item validation fails: %j', async patch => {
+        const request = vi.fn(async (url: string) => Response.json(url.includes('/prices/') ? price
+            : url.includes('/line_items?') ? { has_more: false, data: [{ ...checkoutLineFixture(true).data[0], ...patch }] }
+            : { id: 'cs_live_NEWONLY1', livemode: true, mode: 'subscription', client_reference_id: 'Alice',
+                expires_at: Math.floor(Date.now() / 1000) + 3600,
+                url: 'https://checkout.stripe.com/c/pay/cs_live_NEWONLY1', status: 'open', ...checkoutEvidenceFixture() }));
+        await expect(new StripeMembershipApi(config, request as unknown as typeof fetch).createCheckout('Alice')).rejects.toThrow();
+        expect(request.mock.calls.map(([url]) => url).filter(url => url.includes('/expire')))
+            .toEqual(['https://api.stripe.com/v1/checkout/sessions/cs_live_NEWONLY1/expire']);
+    });
 
     it('projects paid membership only from matching live subscription, owner, price and paid invoice', async () => {
         const subscription = {
@@ -64,22 +88,22 @@ describe('Stripe live-mode boundary (mocked; never contacts Stripe)', () => {
             latest_invoice: 'in_ABCDEFGH', current_period_end: 1790000000,
             cancel_at_period_end: true,
             automatic_tax: { enabled: false },
-            items: { data: [{ price: { id: QG_LIVE_MONTHLY_PRICE_ID }, quantity: 1 }], has_more: false },
+            items: checkoutLineFixture(true),
         };
         const checkout = {
             id: 'cs_live_ABCDEFGH', livemode: true, subscription: subscription.id,
             customer: subscription.customer, mode: 'subscription', client_reference_id: 'Alice',
-            status: 'complete', payment_status: 'paid',
+            status: 'complete', payment_status: 'paid', ...checkoutEvidenceFixture(),
         };
-        const invoice = { ...invoiceFixture(true),
+        const invoice = { ...invoiceFixture(true, QG_LIVE_MONTHLY_PRICE_ID, 299, 1790000000),
             id: 'in_ABCDEFGH', livemode: true, subscription: subscription.id,
             customer: subscription.customer, currency: 'usd', collection_method: 'charge_automatically',
-            status: 'paid', amount_paid: 300,
+            status: 'paid', amount_paid: 299,
             automatic_tax: { enabled: false },
         };
         let invoiceCustomer = invoice.customer;
         const request = vi.fn(async (url: string) => Response.json(
-            paymentFixture(url, true) ?? (url.includes('/subscriptions/') ? subscription
+            (url.includes('/line_items?') ? checkoutLineFixture(true) : null) ?? paymentFixture(url, true) ?? (url.includes('/subscriptions/') ? subscription
                 : url.includes('/checkout/sessions?') ? { data: [checkout], has_more: false }
                     : { ...invoice, customer: invoiceCustomer }),
         ));

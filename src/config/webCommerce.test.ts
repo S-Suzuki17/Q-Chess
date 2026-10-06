@@ -6,10 +6,11 @@ import { TERMS_VERSION } from './terms';
 it('fails closed until the cap, reviewed release and new effective consent version are all configured', () => {
     expect(MEMBER_TICKET_CAP).toEqual({ ranked: 60, hint: 60 });
     expect(webCommerceCheckoutReady()).toBe(false);
+    expect(webCommerceCheckoutReady(true, {ranked:60,hint:60}, SALES_TERMS_DRAFT_VERSION, '2026-01-01')).toBe(false);
     expect(webCommerceCheckoutReady(true, null, SALES_TERMS_DRAFT_VERSION)).toBe(false);
     expect(webCommerceCheckoutReady(true, {ranked:20,hint:20}, TERMS_VERSION)).toBe(false);
     expect(webCommerceCheckoutReady(false, {ranked:20,hint:20}, SALES_TERMS_DRAFT_VERSION)).toBe(false);
-    expect(webCommerceCheckoutReady(true, {ranked:60,hint:60}, SALES_TERMS_DRAFT_VERSION, '2026-01-01')).toBe(true);
+    expect(webCommerceCheckoutReady(true, {ranked:60,hint:60}, SALES_TERMS_DRAFT_VERSION, '2026-01-01', true)).toBe(true);
     expect(webCommerceCheckoutReady(true, {ranked:-1,hint:20}, SALES_TERMS_DRAFT_VERSION)).toBe(false);
 });
 it('aligns approved sales terms with the release date and keeps seller fields purpose-limited', () => {

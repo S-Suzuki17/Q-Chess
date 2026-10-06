@@ -41,8 +41,8 @@ import { LANGUAGES } from '../locales/dict';
 
 const user = { id:'Alice', name:'Alice', type:'registered' as const };
 const status: StripeMembershipStatus = { userId:'Alice', enabled:true, active:true, canManageBilling:true, cancelAtPeriodEnd:true,
-    periodEnd:'2026-11-03T12:00:00Z', lastGrantUtcDay:'2026-10-03', tickets:{ranked:4,hint:5} };
-const panelStates = (member = status, accepted = false) => [true,{revision:1,status:member},null,false,accepted,false];
+    availableCheckoutSkus:['standard_monthly','plus_monthly','hints_1'], periodEnd:'2026-11-03T12:00:00Z', lastGrantUtcDay:'2026-10-03', tickets:{ranked:4,hint:5} };
+const panelStates = (member = status, accepted = false, sku: string | null = 'standard_monthly') => [true,{revision:1,status:member},null,false,sku,accepted,false];
 const html = (element: ReactElement|null) => element ? renderToStaticMarkup(element) : '';
 const elements = (node: ReactNode): ReactElement[] => {
     if (!node || typeof node !== 'object') return [];
@@ -91,7 +91,7 @@ it('keeps billing management visible after new Checkout and membership offers ar
     expect(markup).not.toContain(stripeMembershipText('en').purchase);
     expect(markup).toContain('UTC');
 });
-it.skip('requires explicit pre-purchase acknowledgement and reviewed disclosure before preparing Checkout', async () => {
+it('requires explicit pre-purchase acknowledgement and reviewed disclosure before preparing Checkout', async () => {
     const inactive={...status,active:false,canManageBilling:false,cancelAtPeriodEnd:false,periodEnd:null};
     harness.states=panelStates(inactive);
     let tree=StripeMembershipPanel({user,lang:'en'});
@@ -102,7 +102,7 @@ it.skip('requires explicit pre-purchase acknowledgement and reviewed disclosure 
     harness.cursor=0; harness.states=panelStates(inactive,true); tree=StripeMembershipPanel({user,lang:'en'});
     button=elements(tree).find(element=>element.type==='button') as typeof button;
     expect(button.props.disabled).toBe(false); button.props.onClick(); await Promise.resolve();
-    expect(harness.prepare).toHaveBeenCalledWith('Alice',expect.any(AbortSignal));
+    expect(harness.prepare).toHaveBeenCalledWith('Alice','standard_monthly',expect.any(AbortSignal));
     harness.cursor=0; harness.ready=false; harness.states=panelStates(inactive,true);
     expect(html(StripeMembershipPanel({user,lang:'en'}))).not.toContain('/commerce/');
 });
@@ -142,20 +142,20 @@ it('keeps Checkout and billing closed to consent side effects until explicit acc
     expect(harness.billing).toHaveBeenCalled();expect(vi.mocked(acceptCurrentAccountTerms).mock.calls.length).toBe(before);
 });
 
-it.skip('makes the offer a closed disclosure without preparing a purchase or preselecting consent', () => {
-    harness.states=panelStates({...status,active:false,canManageBilling:false,periodEnd:null},false);
+it('makes the offer a closed disclosure without preparing a purchase or preselecting consent', () => {
+    harness.states=panelStates({...status,active:false,canManageBilling:false,periodEnd:null},false,null);
     const tree=StripeMembershipPanel({user,lang:'ja'});
     const disclosure=elements(tree).find(element=>element.type==='details') as ReactElement<{open?:boolean}>;
-    const checkbox=elements(tree).find(element=>element.type==='input') as ReactElement<{checked:boolean}>;
-    expect(disclosure.props.open).toBeUndefined(); expect(checkbox.props.checked).toBe(false);
+    const checkbox=elements(tree).find(element=>element.type==='input' && (element.props as {type?:string}).type==='checkbox') as ReactElement<{checked:boolean}>;
+    expect(disclosure.props.open).toBeUndefined(); expect(checkbox).toBeUndefined();
     const markup=html(tree);
     expect(markup).toContain(rewardsHubText('ja').optional);
     expect(markup).toContain(rewardsHubText('ja').review);
-    expect(markup).toContain('$3.00'); expect(markup).toContain(stripeMembershipText('ja').billingTerms);
+    expect(markup).toContain('$3.00'); expect(markup).not.toContain('$2.99');
     expect(harness.prepare).not.toHaveBeenCalled(); expect(harness.billing).not.toHaveBeenCalled();
 });
 
-it.skip('labels capped rewards as zero credit, not a reward the account cannot receive', () => {
+it('labels capped rewards as zero credit, not a reward the account cannot receive', () => {
     const reward={userId:'Alice',enabled:true,streakDays:7,tickets:{ranked:20,hint:20},lastClaimUtcDay:'2026-10-03',currentUtcDay:'2026-10-03'};
     harness.rewardRead.mockResolvedValue(reward); harness.states=[{revision:1,status:reward},null,null];
     const markup=html(DailyLoginRewardsPanel({user,lang:'ja'}));
@@ -179,4 +179,22 @@ it('provides the navigation and disclosure copy for all twelve supported languag
         for (const value of Object.values(rewardsHubText(code))) expect(value.trim()).toBeTruthy();
     }
     expect(new Set(LANGUAGES.map(({code})=>rewardsHubText(code).title)).size).toBe(12);
+});
+it('keeps planned products unavailable when the authenticated server advertises no released SKUs', () => {
+    harness.states=panelStates({...status,active:false,canManageBilling:false,periodEnd:null,availableCheckoutSkus:[]},true);
+    const tree=StripeMembershipPanel({user,lang:'en'});
+    expect(html(tree)).toContain('cannot be purchased yet');
+    expect(elements(tree).filter(element=>element.type==='button')).toHaveLength(0);
+    expect(harness.prepare).not.toHaveBeenCalled();
+    const products=elements(tree).filter(element=>element.type==='input');
+    expect(products).toHaveLength(8);
+    for(const product of products) expect((product.props as {disabled:boolean}).disabled).toBe(true);
+});
+it('resets explicit purchase consent when the selected product changes', () => {
+    harness.states=panelStates({...status,active:false,canManageBilling:false,periodEnd:null},true);
+    const tree=StripeMembershipPanel({user,lang:'en'});
+    const product=elements(tree).find(element=>element.type==='input' && (element.props as {value?:string}).value==='plus_monthly') as ReactElement<{onChange:()=>void}>;
+    product.props.onChange();
+    expect(harness.states[4]).toBe('plus_monthly');expect(harness.states[5]).toBe(false);
+    expect(harness.prepare).not.toHaveBeenCalled();
 });

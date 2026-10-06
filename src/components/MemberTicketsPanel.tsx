@@ -8,7 +8,6 @@ import { circuitAccess } from '../lib/circuitAccess';
 import { dailyLoginText } from '../locales/dailyLoginText';
 import { ticketWalletText } from '../locales/ticketWalletText';
 import { rewardsHubText } from '../locales/rewardsHubText';
-import { MEMBER_TICKET_CAP } from '../config/webCommerce';
 import { MEMBER_TICKET_USAGE_ENABLED, readMemberTicketStatus, claimMemberTickets, type StripeMembershipStatus } from '../lib/stripeMembership';
 
 const MEMBER_TICKETS_CHANGED = 'qg-member-tickets-changed';
@@ -41,8 +40,8 @@ export function MemberTicketsPanel({ user, lang }: { user: User; lang: Language 
         <h4 className="reward-title">{wallet.member}</h4>
         {failed === revision ? <p role="status">{text.unavailable}</p> : !status ? <p role="status">{text.loading}</p> : <>
             <dl className="reward-balances">
-                <div className="reward-balance"><dt>{text.rankedTickets}</dt><dd>{status.tickets.ranked}<small>No Limit</small></dd></div>
-                <div className="reward-balance"><dt>{text.hintTickets} · CPU</dt><dd>{status.tickets.hint}<small>No Limit</small></dd></div>
+                <div className="reward-balance"><dt>{text.rankedTickets}</dt><dd>{status.tickets.ranked}</dd></div>
+                <div className="reward-balance"><dt>{text.hintTickets} · CPU</dt><dd>{status.tickets.hint}</dd></div>
             </dl>
             <details className="reward-details"><summary>{hub.rules}</summary><div className="reward-details__body">
                 <p>{text.lastClaimUtcDay}: {status.lastGrantUtcDay ?? text.notClaimed}</p><p>{wallet.expiry}</p>

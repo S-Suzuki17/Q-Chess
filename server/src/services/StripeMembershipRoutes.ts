@@ -4,6 +4,7 @@ import { AccountWriteGate } from './AccountDeletion';
 import { StripeMembershipError, StripeMembershipApi, verifyStripeWebhook } from './StripeMembership';
 import type { StripeMembershipStore } from './StripeMembershipStore';
 import type { StripePortalApi } from './StripePortal';
+import { isCommerceSku } from './CommerceCatalog';
 
 type Enabled = () => boolean;
 const REVERSAL_EVENTS = new Set([
@@ -150,6 +151,20 @@ export function createStripeMembershipRouter(
             next();
         },
     ];
+    const checkoutJson: RequestHandler[] = [
+        (req, res, next) => {
+            if (!req.is('application/json')) { res.status(415).json({ code: 'JSON_REQUIRED' }); return; }
+            next();
+        },
+        express.json({ limit: '128b', inflate: false }),
+        (req, res, next) => {
+            if (!req.body || typeof req.body !== 'object' || Array.isArray(req.body)
+                || Object.keys(req.body).length !== 1 || !isCommerceSku(req.body.sku)) {
+                res.status(400).json({ code: 'INVALID_REQUEST' }); return;
+            }
+            next();
+        },
+    ];
     const recheck = async (res: express.Response, userId: string) => {
         if (await store.blocked(userId)) return false;
         const token = res.locals.memberToken as string;
@@ -164,11 +179,16 @@ export function createStripeMembershipRouter(
             const owner = portalEnabled() && portalApi
                 ? await store.portalCustomer(userId, portalApi.livemode) : null;
             res.json({ enabled: true, ...status,
+                availableCheckoutSkus: checkoutEnabled() ? api!.availableCheckoutSkus() : [],
                 canManageBilling: !!owner && owner.livemode === portalApi?.livemode });
         }
         catch { res.status(503).json({ code: 'MEMBERSHIP_UNAVAILABLE' }); }
     });
-    router.post('/membership/stripe/checkout', authenticateCheckout, ...emptyJson, async (_req, res) => {
+    router.post('/membership/stripe/checkout', authenticateCheckout, ...checkoutJson, async (req, res) => {
+        const sku = req.body.sku;
+        if (!api!.availableCheckoutSkus().includes(sku)) {
+            res.status(503).json({ code: 'SKU_NOT_READY' }); return;
+        }
         const userId = res.locals.memberUser as string;
         const release = gate.enter(userId);
         if (!release) { res.status(423).json({ code: 'ACCOUNT_DELETING' }); return; }
@@ -188,10 +208,10 @@ export function createStripeMembershipRouter(
                 }
             }
             if (!preflight.eligible) { res.status(409).json({ code: 'CHECKOUT_ALREADY_PENDING' }); return; }
-            const checkout = await api!.createCheckout(userId);
+            const checkout = await api!.createCheckout(userId, sku);
             checkoutId = checkout.id;
             // Atomic DB registration rejects concurrent requests/active membership.
-            await store.registerCheckoutIntent(userId, checkout.id, api!.priceId, checkout.expiresAt, api!.livemode);
+            await store.registerCheckoutIntent(userId, checkout.id, checkout.priceId, checkout.expiresAt, api!.livemode);
             if (!(await recheck(res, userId))) {
                 await api!.expireCheckout(checkout.id);
                 res.status(401).json({ code: 'AUTH_REQUIRED' }); return;

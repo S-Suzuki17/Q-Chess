@@ -1,0 +1,10 @@
+import { readFile } from 'node:fs/promises';
+import assert from 'node:assert/strict';
+const report = JSON.parse(await readFile(process.argv[2] ?? 'test-results.json', 'utf8'));
+assert.equal(report.success, true, 'The test run must succeed');
+assert.ok(report.numTotalTests > 0, 'No tests were executed');
+assert.equal(report.numFailedTests, 0, 'Failed tests cannot pass CI');
+assert.equal(report.numPendingTests ?? 0, 0, 'Skipped tests cannot pass the release gate');
+assert.equal(report.numTodoTests ?? 0, 0, 'Todo tests cannot pass the release gate');
+assert.equal(report.numPassedTests, report.numTotalTests, 'Every discovered test must pass');
+console.log(`Verified ${report.numPassedTests} tests passed, none skipped`);

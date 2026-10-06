@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { createStripeMembershipStore } from './StripeMembershipStore';
 
 describe('Stripe service-role adapter', () => {
-    it('accepts member balances up to 60 but grants no more than 3 per day', async () => {
+    it('accepts safe uncapped member balances but grants no more than 3 per day', async () => {
         let data = { userId: 'Alice', active: true, cancelAtPeriodEnd: false,
             periodEnd: '2026-11-03T00:00:00Z', lastGrantUtcDay: '2026-10-03',
             tickets: { ranked: 60, hint: 60 }, claimed: true, credited: { ranked: 1, hint: 2 } };
@@ -16,8 +16,15 @@ describe('Stripe service-role adapter', () => {
             expect((await store.status('Alice', live)).tickets).toEqual({ ranked: 60, hint: 60 });
             expect((await store.claim('Alice', live)).credited).toEqual({ ranked: 1, hint: 2 });
         }
-        data = { ...data, tickets: { ranked: 61, hint: 60 } };
-        await expect(store.status('Alice', true)).rejects.toThrow('MEMBERSHIP_UNAVAILABLE');
+        for (const count of [61, 100_000, Number.MAX_SAFE_INTEGER]) {
+            data = { ...data, tickets: { ranked: count, hint: count } };
+            for (const live of [false, true]) expect((await store.status('Alice', live)).tickets)
+                .toEqual({ ranked: count, hint: count });
+        }
+        for (const count of [-1, 1.5, Number.MAX_SAFE_INTEGER + 1, Infinity, NaN]) {
+            data = { ...data, tickets: { ranked: count, hint: 60 } };
+            await expect(store.status('Alice', true)).rejects.toThrow('MEMBERSHIP_UNAVAILABLE');
+        }
         data = { ...data, tickets: { ranked: 60, hint: 60 }, credited: { ranked: 4, hint: 0 } };
         await expect(store.claim('Alice', true)).rejects.toThrow('MEMBERSHIP_UNAVAILABLE');
     });

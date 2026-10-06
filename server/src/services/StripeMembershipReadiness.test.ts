@@ -1,3 +1,4 @@
+import { priceFixture, checkoutLineFixture, checkoutEvidenceFixture } from './StripeTestFixtures';
 import { createHmac } from 'node:crypto';
 import http from 'node:http';
 import type { AddressInfo } from 'node:net';
@@ -19,7 +20,7 @@ const config = {
     priceId: QG_LIVE_MONTHLY_PRICE_ID, successUrl: 'https://q-gambit.com/', cancelUrl: 'https://q-gambit.com/',
 };
 const price = {
-    id: config.priceId, livemode: true, active: true, currency: 'usd', unit_amount: 300,
+    id: config.priceId, livemode: true, active: true, currency: 'usd', unit_amount: 299,
     type: 'recurring', tax_behavior: 'inclusive', recurring: { interval: 'month', interval_count: 1 },
 };
 const features = {

@@ -32,7 +32,7 @@ it('keeps every Web purchase surface hard-off and makes no network request', asy
     expect(STRIPE_WEB_PORTAL_ENABLED).toBe(false);
     expect(MEMBER_TICKET_USAGE_ENABLED).toBe(false);
     await expect(readStripeMembershipStatus('Alice')).rejects.toThrow('DISABLED');
-    await expect(prepareStripeCheckout('Alice')).rejects.toThrow('DISABLED');
+    await expect(prepareStripeCheckout('Alice', 'standard_monthly')).rejects.toThrow('DISABLED');
     await expect(prepareStripeBillingPortal('Alice')).rejects.toThrow('DISABLED');
     await expect(readMemberTicketStatus('Alice')).rejects.toThrow('DISABLED');
     await expect(claimMemberTickets('Alice')).rejects.toThrow('DISABLED');
@@ -67,16 +67,16 @@ it('only accepts same-account membership state with bounded ticket balances', ()
         { ...status, cancelAtPeriodEnd: 'yes' },
         { ...status, cancelAtPeriodEnd: true },
         { ...status, active: true },
-        { ...status, active: 'yes' }, { ...status, tickets: { ranked: 61, hint: 0 } },
-        { ...status, tickets: { ranked: 0, hint: 61 } },
+        { ...status, active: 'yes' }, { ...status, tickets: { ranked: Number.MAX_SAFE_INTEGER + 1, hint: 0 } },
+        { ...status, tickets: { ranked: 0, hint: 0.5 } },
         { ...status, tickets: { ranked: -1, hint: 0 } },
         { ...status, lastGrantUtcDay: '2026-02-30' },
         { ...status, periodEnd: 'tomorrow' },
     ]) expect(() => parseStripeMembershipStatus(value, 'Alice')).toThrow('UNAVAILABLE');
 });
 
-it('accepts the approved separate member pools through 60 tickets', () => {
-    for (const count of [20, 21, 59, 60]) {
+it('accepts separate member pools above historical product caps without unsafe integers', () => {
+    for (const count of [20, 21, 59, 60, 61, 100000, Number.MAX_SAFE_INTEGER]) {
         const value = { ...status, tickets: { ranked: count, hint: count } };
         expect(parseStripeMembershipStatus(value, 'Alice').tickets).toEqual(value.tickets);
     }
@@ -106,4 +106,11 @@ it('accepts only HTTPS Stripe-hosted checkout URLs', () => {
         'https://checkout.stripe.com/anything',
         'javascript:alert(1)',
     ]) expect(() => parseStripeCheckoutUrl({ url })).toThrow('UNAVAILABLE');
+});
+it('validates server checkout availability and rejects unknown or duplicate SKUs', () => {
+    expect(parseStripeMembershipStatus({...status,availableCheckoutSkus:[]},'Alice').availableCheckoutSkus).toEqual([]);
+    expect(parseStripeMembershipStatus({...status,availableCheckoutSkus:['standard_monthly','hints_13']},'Alice').availableCheckoutSkus).toEqual(['standard_monthly','hints_13']);
+    for(const availableCheckoutSkus of [['price_1UNTrJQWzwYDIuXWtdNlAMnV'],['hints_13','hints_13'],['unknown'],{},null]) {
+        expect(()=>parseStripeMembershipStatus({...status,availableCheckoutSkus},'Alice')).toThrow('UNAVAILABLE');
+    }
 });

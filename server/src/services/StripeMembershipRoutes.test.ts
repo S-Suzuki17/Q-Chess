@@ -1,3 +1,4 @@
+import { priceFixture, checkoutLineFixture, checkoutEvidenceFixture } from './StripeTestFixtures';
 import { invoiceFixture, paymentFixture, reconciliationToken } from './StripeTestFixtures';
 import { createHmac } from 'node:crypto';
 import http from 'node:http';
@@ -13,7 +14,7 @@ import { QG_STRIPE_API_VERSION } from './StripeApiVersion';
 
 const secret = 'whsec_testsecret123456';
 const checkout = { id: 'cs_test_ABCDEFGH', url: 'https://checkout.stripe.com/c/pay/cs_test_ABCDEFGH',
-    expiresAt: '2026-10-01T00:00:00.000Z' };
+    expiresAt: '2026-10-01T00:00:00.000Z', priceId: 'price_ABCDEFGH' };
 const status = { userId: 'Alice', active: false, periodEnd: null, lastGrantUtcDay: null,
     tickets: { ranked: 0, hint: 0 } };
 const claim = { ...status, claimed: false, credited: { ranked: 0, hint: 0 } };
@@ -28,7 +29,7 @@ describe('Stripe test-only membership HTTP boundary', () => {
         enabled = true;
         const auth = new RankedAuth(async (id, password) => id === 'Alice' && password === 'right');
         token = (await auth.issueLegacySession('Alice', 'right'))!.token;
-        api = { priceId: 'price_ABCDEFGH', livemode: false, createCheckout: vi.fn().mockResolvedValue(checkout),
+        api = { priceId: 'price_ABCDEFGH', livemode: false, availableCheckoutSkus: vi.fn().mockReturnValue(['standard_monthly']), createCheckout: vi.fn().mockResolvedValue(checkout),
             expireCheckout: vi.fn().mockResolvedValue(undefined),
             isCheckoutExpired: vi.fn().mockResolvedValue(false), eventSubscriptionId: vi.fn().mockReturnValue(null), snapshot: vi.fn().mockResolvedValue(null),
             resolveReversal: vi.fn().mockResolvedValue([]), reversalContext: vi.fn() };
@@ -56,7 +57,7 @@ describe('Stripe test-only membership HTTP boundary', () => {
     });
     it('rejects checkout and grant for old consent before Stripe calls, preserving status', async () => {
         store.hasCurrentTerms.mockResolvedValue(false);
-        for (const action of ['checkout','daily-grant']) expect((await fetch(base+'/membership/stripe/'+action,post(token))).status).toBe(403);
+        for (const action of ['checkout','daily-grant']) expect((await fetch(base+'/membership/stripe/'+action,post(token,action === 'checkout' ? '{"sku":"standard_monthly"}' : '{}'))).status).toBe(403);
         expect(store.claim).not.toHaveBeenCalled(); expect(store.preflight).not.toHaveBeenCalled(); expect(api.createCheckout).not.toHaveBeenCalled();
         expect((await fetch(base+'/membership/stripe/status',{headers:{Authorization:'Bearer '+token}})).status).toBe(200);
     });
@@ -66,7 +67,7 @@ describe('Stripe test-only membership HTTP boundary', () => {
         expect(result.status).toBe(503);
         expect(await result.json()).toEqual({ code: 'FEATURE_DISABLED', enabled: false });
         expect(result.headers.get('cache-control')).toBe('no-store');
-        expect((await fetch(`${base}/membership/stripe/checkout`, post(token))).status).toBe(503);
+        expect((await fetch(`${base}/membership/stripe/checkout`, post(token, '{"sku":"standard_monthly"}'))).status).toBe(503);
         expect(api.createCheckout).not.toHaveBeenCalled();
         expect(store.status).not.toHaveBeenCalled();
     });
@@ -77,20 +78,40 @@ describe('Stripe test-only membership HTTP boundary', () => {
             { headers: { Authorization: `Bearer ${token}` } })).status).toBe(400);
         expect(api.createCheckout).not.toHaveBeenCalled();
     });
+    it.each(['{}', '{"sku":"legacy_monthly"}', '{"sku":"constructor"}', '{"sku":null}',
+        '{"sku":"standard_monthly","priceId":"price_ATTACKER1"}', '{"sku":"hints_1","quantity":100}',
+        '{"sku":"plus_monthly","userId":"Bob"}'])('rejects checkout bodies outside the exact SKU contract: %s', async body => {
+        expect((await fetch(`${base}/membership/stripe/checkout`, post(token, body))).status).toBe(400);
+        expect(api.createCheckout).not.toHaveBeenCalled();
+        expect(store.preflight).not.toHaveBeenCalled();
+    });
+    it.each(['standard_monthly', 'plus_monthly', 'hints_1', 'hints_13', 'hints_27', 'hints_44', 'hints_77', 'hints_166'])
+        ('returns SKU_NOT_READY without creating a charge path for %s', async sku => {
+            (api.availableCheckoutSkus as ReturnType<typeof vi.fn>).mockReturnValue([]);
+            const result = await fetch(`${base}/membership/stripe/checkout`, post(token, JSON.stringify({ sku })));
+            expect(result.status).toBe(503);
+            expect(await result.json()).toEqual({ code: 'SKU_NOT_READY' });
+            expect(api.createCheckout).not.toHaveBeenCalled();
+            expect(store.preflight).not.toHaveBeenCalled();
+            const current = await fetch(`${base}/membership/stripe/status`, { headers: { Authorization: `Bearer ${token}` } });
+            expect(current.status).toBe(200);
+            expect(await current.json()).toMatchObject({ enabled: true, availableCheckoutSkus: [] });
+        });
     it('checks eligibility and registers the user-bound intent before revealing URL', async () => {
         store.preflight.mockResolvedValueOnce({ eligible: false, reason: 'checkout_pending',
             checkoutId: checkout.id, expiresAt: '2099-01-01T00:00:00Z' });
-        expect((await fetch(`${base}/membership/stripe/checkout`, post(token))).status).toBe(409);
+        expect((await fetch(`${base}/membership/stripe/checkout`, post(token, '{"sku":"standard_monthly"}'))).status).toBe(409);
         expect(api.createCheckout).not.toHaveBeenCalled();
-        const result = await fetch(`${base}/membership/stripe/checkout`, post(token));
+        const result = await fetch(`${base}/membership/stripe/checkout`, post(token, '{"sku":"standard_monthly"}'));
         expect(result.status).toBe(200);
         expect(await result.json()).toEqual({ url: checkout.url });
+        expect(api.createCheckout).toHaveBeenCalledExactlyOnceWith('Alice', 'standard_monthly');
         expect(store.registerCheckoutIntent).toHaveBeenCalledExactlyOnceWith('Alice', checkout.id,
             'price_ABCDEFGH', checkout.expiresAt, false);
     });
     it('expires an unregistered session when atomic DB registration fails', async () => {
         store.registerCheckoutIntent.mockRejectedValue(new Error('another pending checkout'));
-        const result = await fetch(`${base}/membership/stripe/checkout`, post(token));
+        const result = await fetch(`${base}/membership/stripe/checkout`, post(token, '{"sku":"standard_monthly"}'));
         expect(result.status).toBe(503);
         expect(await result.text()).not.toContain('another pending checkout');
         expect(api.expireCheckout).toHaveBeenCalledWith(checkout.id);
@@ -99,14 +120,14 @@ describe('Stripe test-only membership HTTP boundary', () => {
         const stale = { eligible: false, reason: 'checkout_pending',
             checkoutId: checkout.id, expiresAt: '2020-01-01T00:00:00Z' };
         store.preflight.mockResolvedValueOnce(stale);
-        expect((await fetch(`${base}/membership/stripe/checkout`, post(token))).status).toBe(409);
+        expect((await fetch(`${base}/membership/stripe/checkout`, post(token, '{"sku":"standard_monthly"}'))).status).toBe(409);
         expect(api.isCheckoutExpired).toHaveBeenCalledWith(checkout.id);
         expect(api.createCheckout).not.toHaveBeenCalled();
         expect(store.closeExpiredIntent).not.toHaveBeenCalled();
 
         store.preflight.mockResolvedValueOnce(stale);
         (api.isCheckoutExpired as ReturnType<typeof vi.fn>).mockResolvedValueOnce(true);
-        expect((await fetch(`${base}/membership/stripe/checkout`, post(token))).status).toBe(200);
+        expect((await fetch(`${base}/membership/stripe/checkout`, post(token, '{"sku":"standard_monthly"}'))).status).toBe(200);
         expect(store.closeExpiredIntent).toHaveBeenCalledExactlyOnceWith('Alice', checkout.id, false);
         expect(store.preflight).toHaveBeenCalledTimes(3);
         expect(api.createCheckout).toHaveBeenCalledTimes(1);
@@ -195,6 +216,37 @@ describe('Stripe test-only membership HTTP boundary', () => {
         store.acquireReconciliation.mockResolvedValueOnce({retired:true,token:null});
         expect((await send()).status).toBe(200); expect(api.snapshot).toHaveBeenCalledOnce();
     });
+    it('retries canonical database or lease-release failures and never acknowledges uncommitted state', async () => {
+        api.eventSubscriptionId = vi.fn().mockReturnValue('sub_ABCDEFGH');
+        api.snapshot = vi.fn().mockResolvedValue({ subscriptionId: 'sub_ABCDEFGH', eventId: 'evt_DBFAIL12', livemode: false });
+        const t = Math.floor(Date.now() / 1000);
+        const body = JSON.stringify({ id: 'evt_DBFAIL12', type: 'customer.subscription.updated', created: t,
+            api_version: QG_STRIPE_API_VERSION, livemode: false, data: { object: { id: 'sub_ABCDEFGH' } } });
+        const signature = createHmac('sha256', secret).update(`${t}.${body}`).digest('hex');
+        const send = () => fetch(`${base}/membership/stripe/webhook`, { method: 'POST', body,
+            headers: { 'Content-Type': 'application/json', 'Stripe-Signature': `t=${t},v1=${signature}` } });
+        store.applySnapshot.mockRejectedValueOnce(new Error('database unavailable'));
+        const failed = await send();
+        expect(failed.status).toBe(503);
+        expect(failed.headers.get('retry-after')).toBe('60');
+        expect(store.releaseReconciliation).toHaveBeenCalledOnce();
+        store.releaseReconciliation.mockRejectedValueOnce(new Error('release unavailable'));
+        expect((await send()).status).toBe(503);
+        expect((await send()).status).toBe(200);
+        expect(store.applySnapshot).toHaveBeenCalledTimes(3);
+    });
+    it('requests retry for a signed Q-Gambit one-time payment instead of silently dropping fulfillment', async () => {
+        api.eventSubscriptionId = vi.fn(StripeTestMembershipApi.prototype.eventSubscriptionId);
+        const t = Math.floor(Date.now() / 1000);
+        const body = JSON.stringify({ id: 'evt_HINTPACK1', type: 'checkout.session.completed', created: t,
+            api_version: QG_STRIPE_API_VERSION, livemode: false, data: { object: {
+                id: 'cs_test_ABCDEFGH', mode: 'payment', metadata: { qgambit_sku: 'hints_1' } } } });
+        const signature = createHmac('sha256', secret).update(`${t}.${body}`).digest('hex');
+        const result = await fetch(`${base}/membership/stripe/webhook`, { method: 'POST', body,
+            headers: { 'Content-Type': 'application/json', 'Stripe-Signature': `t=${t},v1=${signature}` } });
+        expect(result.status).toBe(503);
+        expect(store.applySnapshot).not.toHaveBeenCalled();
+    });
     it('records an old-invoice dispute without presenting it as the current invoice', async () => {
         const risk = { id: 'evt_DISPUTE12', type: 'charge.dispute.created', created: Math.floor(Date.now() / 1000), api_version: QG_STRIPE_API_VERSION,
             livemode: false, data: { object: { charge: 'ch_ABCDEFGH' } } };
@@ -248,17 +300,17 @@ describe('Stripe canonical test-mode snapshot', () => {
     const subscription = { id: 'sub_ABCDEFGH', livemode: false, customer: 'cus_ABCDEFGH', status: 'active',
         latest_invoice: 'in_ABCDEFGH', current_period_end: 1800000000,
         cancel_at_period_end: false, automatic_tax: { enabled: false },
-        items: { data: [{ price: { id: 'price_ABCDEFGH' }, quantity: 1 }], has_more: false } };
+        items: { data: [{ price: priceFixture(), quantity: 1 }], has_more: false } };
     const sessionList = { data: [{ id: 'cs_test_ABCDEFGH', livemode: false, mode: 'subscription',
-        subscription: 'sub_ABCDEFGH', customer: 'cus_ABCDEFGH', client_reference_id: 'Alice', status: 'complete', payment_status: 'paid' }], has_more: false };
+        subscription: 'sub_ABCDEFGH', customer: 'cus_ABCDEFGH', client_reference_id: 'Alice', status: 'complete', payment_status: 'paid', ...checkoutEvidenceFixture() }], has_more: false };
     const event = { id: 'evt_ABCDEFGH', type: 'customer.subscription.updated', created: 1790000000, api_version: QG_STRIPE_API_VERSION,
         livemode: false, data: { object: { id: 'sub_ABCDEFGH' } }, payloadHash: 'a'.repeat(64) };
     it('projects unpaid unless the canonical latest invoice is paid in USD', async () => {
         let paid = false;
         const request = vi.fn(async (url: string) => {
-            const value = paymentFixture(url) ?? (url.includes('/subscriptions/') ? subscription
+            const value = (url.includes('/line_items?') ? checkoutLineFixture() : null) ?? paymentFixture(url) ?? (url.includes('/subscriptions/') ? subscription
                 : url.includes('/checkout/sessions?') ? sessionList
-                : { ...invoiceFixture(), status: paid ? 'paid' : 'open', amount_paid: paid ? 300 : 0 });
+                : { ...invoiceFixture(), status: paid ? 'paid' : 'open', amount_paid: paid ? 299 : 0 });
             return Response.json(value);
         });
         const api = new StripeTestMembershipApi({ secretKey: 'sk_test_ABCDEFGH', webhookSecret: secret,

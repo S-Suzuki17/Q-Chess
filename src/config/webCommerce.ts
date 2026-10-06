@@ -14,6 +14,8 @@ export const COMMERCE_SELLER = {
 
 /** Owner approved on 2026-10-03; separate from each free pool's cap of 20. */
 export const MEMBER_TICKET_CAP: Readonly<{ ranked: number; hint: number }> = { ranked: 60, hint: 60 };
+/** Closed in source until new SKU fulfillment, reversals, disclosure and sandbox verification ship together. */
+export const NEW_SKU_RELEASE_VERIFIED = false;
 export const WEB_COMMERCE_SALES_RELEASE_READY = !ANDROID_BUILD && process.env.NEXT_PUBLIC_QG_WEB_COMMERCE_SALES_RELEASE_READY === 'true';
 
 export function webCommerceCheckoutReady(
@@ -21,8 +23,9 @@ export function webCommerceCheckoutReady(
     cap: Readonly<{ ranked: number; hint: number }> | null = MEMBER_TICKET_CAP,
     termsVersion = CURRENT_TERMS_VERSION,
     effectiveDate: string | null = CURRENT_TERMS_EFFECTIVE_DATE,
+    skuReleaseVerified: boolean = NEW_SKU_RELEASE_VERIFIED,
 ): boolean {
-    return !ANDROID_BUILD && releaseReady && currentTermsEffective(effectiveDate) && termsVersion === CURRENT_TERMS_VERSION && !!cap &&
+    return !ANDROID_BUILD && skuReleaseVerified && releaseReady && currentTermsEffective(effectiveDate) && termsVersion === CURRENT_TERMS_VERSION && !!cap &&
         Number.isSafeInteger(cap.ranked) && cap.ranked > 0 &&
         Number.isSafeInteger(cap.hint) && cap.hint > 0;
 }
