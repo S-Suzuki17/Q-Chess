@@ -295,7 +295,13 @@ begin
         where m.subscription_id=p_subscription_id and m.checkout_id=p_checkout_id
             and m.user_id=p_user_id and m.current_price_id=p_price_id
             and m.status='active' and m.refund_blocked_until is null
-            and m.period_end>=p_period_end;
+            and m.period_end>=p_period_end
+            -- A renewal clears the current refund barrier, not historical
+            -- risk. Until per-invoice risk lineage is implemented, any prior
+            -- reversal blocks NEW older-period backfills for this subscription.
+            -- Existing period duplicates returned above without granting.
+            and not exists(select 1 from public.stripe_reversal_receipts r
+                where r.subscription_id=m.subscription_id and m.period_end>p_period_end);
     if not found then raise exception 'Canonical paid snapshot required' using errcode='42501'; end if;
     if v_receipt.event_id is not null or exists(select 1 from public.stripe_commerce_paid_periods
         where subscription_id=p_subscription_id and livemode=p_livemode

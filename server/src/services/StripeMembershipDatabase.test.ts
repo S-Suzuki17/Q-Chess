@@ -243,6 +243,37 @@ describe('actual isolated PostgreSQL commerce migration chain', () => {
         expect((await wallet()).subscription_hint_tickets).toBe(20);
         expect(await scalar('select count(*)::integer as result from public.stripe_commerce_paid_periods')).toBe(2);
     });
+    it.each([
+        ['before_renewal', false], ['before_renewal', true],
+        ['after_renewal', false], ['after_renewal', true],
+    ] as const)('honors durable %s reversal history when an earlier period was granted=%s', async (timing, alreadyGranted) => {
+        await bind(false);
+        const firstMonth = await member('plus_monthly', false);
+        const now = Date.now();
+        firstMonth.start = new Date(now - 45 * 86400000).toISOString();
+        firstMonth.end = new Date(now - 15 * 86400000).toISOString();
+        const first = await snapshot(firstMonth, 'evt_RISKFIRST');
+        if (alreadyGranted) await paidPeriod(firstMonth, first.event);
+        const secondMonth = { ...firstMonth, start: firstMonth.end, end: new Date(now + 15 * 86400000).toISOString() };
+        const reverse = (currentInvoice: string, periodEnd: string) => scalar(`select public.apply_stripe_canonical_membership_reversal(
+            'evt_REVERSEDMONTHA',$1,'charge.refunded',$2,'in_MONTHA',$3,$4,$5,$6,$7,false,$8) as result`,
+            [HASH, firstMonth.subscription, currentInvoice, firstMonth.checkout, `cus_${firstMonth.user}`, firstMonth.user, periodEnd, firstMonth.token]);
+        if (timing === 'before_renewal') {
+            expect((await reverse('in_MONTHA', firstMonth.end)).blocked).toBe(true);
+            expect(await scalar('select refund_blocked_until is not null as result from public.stripe_memberships where subscription_id=$1', [firstMonth.subscription])).toBe(true);
+        }
+        const second = await snapshot(secondMonth, 'evt_RISKSECOND');
+        expect(await scalar('select refund_blocked_until as result from public.stripe_memberships where subscription_id=$1', [firstMonth.subscription])).toBeNull();
+        expect((await paidPeriod(secondMonth, second.event)).credited).toBe(10);
+        if (timing === 'after_renewal') expect((await reverse('in_MONTHB', secondMonth.end)).blocked).toBe(false);
+        expect(await scalar('select count(*)::integer as result from public.stripe_reversal_receipts where subscription_id=$1', [firstMonth.subscription])).toBe(1);
+        const balance = alreadyGranted ? 20 : 10;
+        expect((await wallet()).test_subscription_hint_tickets).toBe(balance);
+        if (alreadyGranted) expect(await paidPeriod(firstMonth, first.event)).toMatchObject({ duplicate: true, credited: 0 });
+        else await denied(() => paidPeriod(firstMonth, first.event), /Canonical paid snapshot|Historical paid period requires risk review/);
+        expect((await wallet()).test_subscription_hint_tickets).toBe(balance);
+        expect(await scalar('select count(*)::integer as result from public.stripe_commerce_paid_periods')).toBe(alreadyGranted ? 2 : 1);
+    });
     it.each(['missing_evidence', 'refund_blocked', 'deleted', 'retired', 'restricted', 'canceled', 'off_price'])(
         'does not backfill an old period through a %s barrier', async barrier => {
             await bind();
