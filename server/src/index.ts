@@ -1,4 +1,4 @@
-import { sharedMatchAdmissionEnabled, sharedMatchAdmissionRecoveryEnabled } from './services/SharedMatchFeatureGates';
+import { sharedMatchAdmissionEnabled, sharedMatchAdmissionRecoveryEnabled, sharedMatchEntitlementEnabled } from './services/SharedMatchFeatureGates';
 import { parseSharedMatchChoice } from './protocol/SharedMatchAdmission';
 import { createRankedSessionAuthority } from './services/RankedSessionRuntime';
 import { LegacySocketAuthority, LEGACY_SOCKET_POLL_MS } from './services/LegacySocketAuthority';
@@ -494,7 +494,7 @@ io.on('connection', (socket: Socket) => {
     entitlementRequest=true;
     try {
         if(!await verifyAdmission())return;
-        const entitlement=await supabaseService.sharedMatchEntitlement(userId);
+        const entitlement=sharedMatchEntitlementEnabled() ? await supabaseService.sharedMatchEntitlement(userId) : null;
         if(currentOwner())socket.emit('shared_entitlement',{userId,entitlement});
     } catch { if(currentOwner())socket.emit('shared_entitlement',{userId,entitlement:null}); }
     finally { entitlementRequest=false; }

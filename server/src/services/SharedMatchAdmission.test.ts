@@ -2,7 +2,7 @@ import {afterEach,beforeEach,describe,expect,it,vi} from 'vitest';
 import {MatchmakingService} from '../matchmaking/MatchmakingService';
 import {RankedAdmissionCoordinator} from './RankedAdmissionCoordinator';
 import {createRankedAdmissionStore,type RankedAdmissionStore,type AdmissionOutcome} from './RankedAdmissionStore';
-import {sharedMatchAdmissionEnabled,verifiedMatchAdProviderEnabled} from './SharedMatchFeatureGates';
+import {sharedMatchAdmissionEnabled,verifiedMatchAdProviderEnabled,sharedMatchEntitlementEnabled} from './SharedMatchFeatureGates';
 import {parseSharedMatchChoice,parseSharedMatchEntitlement} from '../protocol/SharedMatchAdmission';
 import {RankedRuntime} from '../game/RankedRuntime';
 const flush=async()=>{for(let i=0;i<30;i++)await Promise.resolve();};
@@ -25,6 +25,10 @@ beforeEach(()=>{vi.useFakeTimers();vi.setSystemTime(1_000_000);});
 afterEach(()=>{vi.clearAllTimers();vi.useRealTimers();vi.unstubAllEnvs();});
 describe('dormant shared online/ranked admission',()=>{
     it('cannot be enabled by environment flags',()=>{vi.stubEnv('SHARED_MATCH_ADMISSION_ENABLED','true');vi.stubEnv('VERIFIED_MATCH_AD_PROVIDER_ENABLED','true');expect(sharedMatchAdmissionEnabled()).toBe(false);expect(verifiedMatchAdProviderEnabled()).toBe(false);});
+    it.each(['false','true'])('keeps pending-schema entitlement reads off for environment value %s',value=>{
+        vi.stubEnv('SHARED_MATCH_ENTITLEMENT_ENABLED',value);
+        expect(sharedMatchEntitlementEnabled()).toBe(false);
+    });
     it.each(['random','ranked'] as const)('%s has no engine before durable admission',async mode=>{
         const f=fixture(mode),db=deferred<AdmissionOutcome>();vi.mocked(f.store.admit).mockReturnValue(db.promise);
         const pending=f.coordinator.begin(f.match);await flush();expect(f.match.engine).toBeUndefined();

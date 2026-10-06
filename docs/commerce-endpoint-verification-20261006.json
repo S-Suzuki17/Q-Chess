@@ -149,7 +149,7 @@
     "scripts/qa/hint-origin-postgres.test.mjs": "9a9ac885cbbcce46bc48c531d600b87bacb34eb81d8bf31426b994f5c86cff61",
     "scripts/qa/session-postgres.test.mjs": "f7d2ded26bbd7e55a0d74ddd290da74abec0914d0821ab6bd1eb74987fcf1f00",
     "scripts/qa/shared-match-admission-postgres.test.mjs": "5e29764f212bdbdc7ba06ebf70db898b986ff51b9b9f7313241846e3bf6c0235",
-    "server/src/index.ts": "3893c9ed6e50667956bc6eb1ef618328ea36ce962d1f3eb4cd254b52ab6870c6",
+    "server/src/index.ts": "32ea8cf9b80be4b95d14524c90f5cd1197f72b490c92b1de8f996a298bf8c90c",
     "server/src/services/CommerceCatalog.test.ts": "f50c4148ed2dd7a582ef818e7466d1607ebaf42478f2bcec849628fe277b00b0",
     "server/src/services/CommerceCatalog.ts": "edd4f44dbc2954c1ecad74c27ecb38c3ec172ce4d9fd621d7656f86598c69d3d",
     "server/src/services/StripeBillingRuntime.ts": "99be18204fc045d5478c5e5e12f20c212f880db6b3e4d37c620d808125561938",
@@ -182,7 +182,11 @@
     "src/lib/stripeMembership.test.ts": "22dde6d525562a00f8627f79498f6daefcf92e203c462340df4cdc6bba704b18",
     "src/lib/stripeMembership.ts": "972cb86068fb0fde7324d77bf46a58b02212a69161925bb20bc9aaf66d5700c6",
     "src/locales/commerceStatusText.ts": "b54c5ae728ab3129b60d318688058f5b2cef4843135da51bad787fb3e33106af",
-    "supabase/migrations/20261006192347_durable_commerce_checkout_consent.sql": "9483853bd1799c783bcad29cd42cfae1cec16a58affb10667ec4b9c5372e90e8"
+    "supabase/migrations/20261006192347_durable_commerce_checkout_consent.sql": "9483853bd1799c783bcad29cd42cfae1cec16a58affb10667ec4b9c5372e90e8",
+    "server/src/services/SharedMatchFeatureGates.ts": "0b3878828588ca3eb6d256da24d1ddb14b0507d19ae4369a286c340f107fead8",
+    "server/src/services/SharedMatchAdmission.test.ts": "b2417cf53b1e0b05f080c189f5ec9b251e2dd170b5a498efdf37f7295f42edc0",
+    "server/src/services/RankedAdmissionGateway.test.ts": "49b8501afe26dd6d65cf42543ea9f81380b5f95f84ce3bf20565e6edbddb1a74",
+    "server/src/services/LegacyRuntimeIntegration.test.ts": "24dc8defa8f552fa2dd4e5f57b561b71f436a00f5b835705a0f9059c6e940dab"
   },
   "knownEarlierFailure": "First aggregate: 2151 passed/1 failed; focused commerce fixture count expected22 instead of23. Explicit inventory assertion corrected; no migration omitted or rewritten.",
   "limits": [
@@ -202,7 +206,28 @@
       "firstRemoteHead": "8b7113b0102a4c4bfa1a6f47915d125fedeae7fb",
       "firstRemoteRun": 37523843008,
       "firstRemoteResult": "aggregate/types/builds/native/prior browser suites passed; new Android Japanese status assertion failed",
-      "correctedBrowserResult": "exact-head CI pending"
+      "correctedBrowserResult": "All48 cases passed on remote61b565f31cf556d84de52ed82ebc8734d86b6cc7; all3 workflows/six jobs green"
+    },
+    {
+      "files": [
+        "server/src/index.ts",
+        "server/src/services/SharedMatchFeatureGates.ts",
+        "server/src/services/SharedMatchAdmission.test.ts",
+        "server/src/services/RankedAdmissionGateway.test.ts",
+        "server/src/services/LegacyRuntimeIntegration.test.ts"
+      ],
+      "scope": "Independent default-OFF socket entitlement read gate; preserves identity/account guards and separates future paid status from shared admission activation",
+      "checks": {
+        "affectedTests": 77,
+        "testFiles": 9,
+        "clientTypecheck": "passed",
+        "serverBuild": "passed",
+        "actualIndexZeroPendingCalls": "passed for both env values and repeated refresh",
+        "legacyCompatibility": "passed",
+        "exactHeadCi": "pending"
+      },
+      "sqlChanged": false,
+      "activationValuesChanged": false
     }
   ]
 }

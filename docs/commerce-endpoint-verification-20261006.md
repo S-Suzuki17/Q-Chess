@@ -35,9 +35,10 @@ was performed.
 
 ## Combined local verification
 
-The application implementation source is
-`16617f0652617fd359e8cacd196835e841a91a1d`; subsequent changes are evidence
-documents and the browser-test assertion correction described below.
+The original integrated application source is
+`16617f0652617fd359e8cacd196835e841a91a1d`. Subsequent changes are evidence
+documents, the browser-test assertion correction and the dormant entitlement-read
+gate described below.
 
 - Full default Vitest: **198 files / 2,183 tests passed**, zero skipped/todo,
   plus the repository completeness guard. Tests ran serially with their
@@ -77,6 +78,25 @@ The fixture now rejects purchase prompts, prices, provider references, links,
 purchase controls and catalog/review surfaces, while permitting that existing
 consumption-only rule. Fixture syntax/compilation passed; exact-head browser CI
 must verify the correction before this checkpoint is called green.
+
+The corrected CI head `61b565f31cf556d84de52ed82ebc8734d86b6cc7` passed all three
+workflows/six jobs, including all 48 status-browser cases. A later rollout audit
+found that the socket entitlement refresh still queried a pending RPC even with
+shared admission disabled. That missing-schema error was caught, but a code-only
+release should not make the new query at all. The follow-up adds an independent
+hard-false `SHARED_MATCH_ENTITLEMENT_RELEASE_READY` gate. Both environment values
+return unknown entitlement without touching pending schema; existing identity
+and account checks remain. Future paid no-ad status can be released independently
+of free-match quota/ad enforcement.
+
+This follow-up passed 77 affected tests across nine files, root typecheck and
+server build. Actual `index.ts`/Socket.IO tests prove zero new entitlement calls
+for initial and repeated refreshes with the environment switch both on and off.
+Separate released-path transport coverage retains Standard no-ad/unlimited
+status while shared admissions stay disabled. Legacy admission, original hint
+RPC selection, billing portal/cancellation and closed-commerce index regressions
+also pass. SQL and activation values are unchanged. The new exact-head CI must
+pass before calling the updated candidate green.
 
 ## Required release follow-through
 

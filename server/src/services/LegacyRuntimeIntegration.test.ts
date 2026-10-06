@@ -1,13 +1,14 @@
 import http from 'node:http';
 import { io, type Socket } from 'socket.io-client';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-const h=vi.hoisted(()=>({io:null as any,mm:null as any,auth:null as any,sessions:new Map<string,any>(),verify:vi.fn(),outage:false}));
+const h=vi.hoisted(()=>({io:null as any,mm:null as any,auth:null as any,sessions:new Map<string,any>(),verify:vi.fn(),outage:false,
+    entitlementRead:vi.fn(async()=>{throw Error('Pending entitlement schema unavailable');})}));
 vi.mock('./RankedSessionRuntime',()=>({createRankedSessionAuthority:()=>h.auth}));
 vi.mock('socket.io',async original=>{const actual=await original<any>();return{...actual,Server:class extends actual.Server{constructor(...args:any[]){super(...args);h.io=this;}}};});
 vi.mock('../matchmaking/MatchmakingService',async original=>{const actual=await original<any>();return{...actual,MatchmakingService:class extends actual.MatchmakingService{constructor(...args:any[]){super(...args);h.mm=this;}}};});
 vi.mock('./SupabaseService',()=>({SupabaseService:class{
     constructor(){return new Proxy(this,{get:(_target,key)=>({
-        verifyUser:async()=>null,rankedReady:async()=>true,getMatchRating:async()=>1000,
+        verifyUser:async()=>null,rankedReady:async()=>true,getMatchRating:async()=>1000,sharedMatchEntitlement:h.entitlementRead,
         recordUnratedMatch:async()=>{},settleRankedMatch:async()=>null,recordSecurityEvent:async()=>{},restrictedAccounts:async()=>[],
         accountDeletionStore:()=>({blocked:async()=>false}),accountSecurityStore:()=>({restricted:async()=>false}),
         serviceStatusLoader:()=>async()=>({maintenance:false,minimumAndroidBuild:0,minimumProtocol:0,announcement:{},revision:''}),
@@ -33,9 +34,18 @@ beforeAll(async()=>{
     vi.spyOn(console,'log').mockImplementation(()=>{});vi.stubGlobal('fetch',()=>{throw Error('Provider traffic forbidden');});
     await import('../index');if(!server.listening)await new Promise<void>(resolve=>server.once('listening',resolve));endpoint='http://127.0.0.1:'+(server.address() as any).port;
 });
-afterEach(()=>{h.outage=false;});
+afterEach(()=>{h.outage=false;vi.unstubAllEnvs();});
 afterAll(async()=>{h.outage=false;for(const client of clients)client.disconnect();if(h.io)await new Promise<void>(resolve=>h.io.close(resolve));server?.closeAllConnections();for(const timer of timers){clearTimeout(timer);clearInterval(timer);}vi.restoreAllMocks();vi.unstubAllGlobals();});
 describe('actual server admission entrypoints on loopback sockets',()=>{
+    it.each(['false','true'])('does not query pending entitlement schema with environment request %s',async value=>{
+        vi.stubEnv('SHARED_MATCH_ENTITLEMENT_ENABLED',value);
+        const id='Entitlement-gate-'+value,{client}=await connect(id);
+        for(let request=0;request<2;request++){
+            const reply=event(client,'shared_entitlement');client.emit('request_shared_entitlement',{});
+            expect(await reply).toEqual({userId:id,entitlement:null});
+        }
+        expect(h.entitlementRead).not.toHaveBeenCalled();client.disconnect();
+    });
     it('mounts the Crown endpoint with its independent release gate closed',async()=>{
         const {client,token}=await connect('Crown-route-mount');
         const reply=await new Promise<{status:number;body:any}>((resolve,reject)=>{
