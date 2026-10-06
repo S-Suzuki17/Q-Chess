@@ -1,6 +1,8 @@
 import {clientReleaseHeaders} from './clientRelease';
 export const RANKED_SESSION_EVENT = 'qg-ranked-session-change';
 const STORAGE_KEY = 'qg_ranked_session_v1';
+const STORAGE_LOCATIONS = ['session', 'local'] as const;
+type StorageLocation = typeof STORAGE_LOCATIONS[number];
 let generation = 0;
 let revoked = false;
 
@@ -19,21 +21,38 @@ export function parseRankedSession(value: unknown, now = Date.now()): RankedSess
 
 export function readRankedSession(userId: string): RankedSession | null {
     if (typeof window === 'undefined' || revoked) return null;
+    // Older clients could leave both records behind. Prefer the tab's matching
+    // proof, but do not let an invalid/unreadable/different-user record mask one.
+    for (const location of STORAGE_LOCATIONS) {
+        const proof = readStoredSession(location);
+        if (proof?.userId === userId) return proof;
+    }
+    return null;
+}
+
+function browserStorage(location: StorageLocation): Storage {
+    return location === 'local' ? localStorage : sessionStorage;
+}
+
+function readStoredSession(location: StorageLocation): RankedSession | null {
     try {
-        const proof = parseRankedSession(JSON.parse(localStorage.getItem(STORAGE_KEY) || sessionStorage.getItem(STORAGE_KEY) || 'null'));
-        return proof?.userId === userId ? proof : null;
+        return parseRankedSession(JSON.parse(browserStorage(location).getItem(STORAGE_KEY) || 'null'));
     } catch { return null; }
 }
 
-export function clearRankedSession(): void {
+function invalidateStoredSessions(issuedToken?: string): void {
     generation++;
     revoked = true;
     if (typeof window === 'undefined') return;
-    let token:string|undefined;
-    try { token=parseRankedSession(JSON.parse(localStorage.getItem(STORAGE_KEY)||sessionStorage.getItem(STORAGE_KEY)||'null'))?.token; } catch { /* No readable proof. */ }
-    try { sessionStorage.removeItem(STORAGE_KEY); localStorage.removeItem(STORAGE_KEY); } catch { /* Access is revoked in this tab regardless. */ }
+    const tokens = new Set<string>(issuedToken ? [issuedToken] : []);
+    for (const location of STORAGE_LOCATIONS) {
+        const proof = readStoredSession(location);
+        if (proof) tokens.add(proof.token);
+        // A failure in one store must not prevent cleanup of the other.
+        try { browserStorage(location).removeItem(STORAGE_KEY); } catch { /* Revoked in this tab regardless. */ }
+    }
     window.dispatchEvent(new Event(RANKED_SESSION_EVENT));
-    if(token){
+    for (const token of tokens) {
         try {
             const endpoint=new URL('/auth/ranked-session/revoke',gameServerUrl());
             if(endpoint.protocol==='https:'||['localhost','127.0.0.1','[::1]'].includes(endpoint.hostname)){
@@ -41,6 +60,10 @@ export function clearRankedSession(): void {
             }
         } catch { /* Local logout is complete even when the server is unavailable. */ }
     }
+}
+
+export function clearRankedSession(): void {
+    invalidateStoredSessions();
 }
 
 /** Credentials are sent once over HTTPS and never written to browser storage. */
@@ -60,11 +83,15 @@ export async function requestRankedSession(username: string, password: string, k
     if (!proof || proof.userId !== username || signal?.aborted || attempt !== generation) {
         throw new Error('Ranked login could not be verified');
     }
-    // A blocked storage must not report successful authorization.
-    if (keepLoggedIn) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(proof));
-    } else {
-        sessionStorage.setItem(STORAGE_KEY, JSON.stringify(proof));
+    // A successful explicit choice owns exactly one store. Clear the opposite
+    // store first, especially an old persistent token when persistence is OFF.
+    // Do not fall back to a different lifetime if storage access is blocked.
+    try {
+        browserStorage(keepLoggedIn ? 'session' : 'local').removeItem(STORAGE_KEY);
+        browserStorage(keepLoggedIn ? 'local' : 'session').setItem(STORAGE_KEY, JSON.stringify(proof));
+    } catch {
+        invalidateStoredSessions(proof.token);
+        throw new Error('Ranked login could not be stored');
     }
     revoked = false;
     window.dispatchEvent(new Event(RANKED_SESSION_EVENT));
