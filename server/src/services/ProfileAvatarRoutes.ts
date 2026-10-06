@@ -1,10 +1,10 @@
 import express,{type RequestHandler,type ErrorRequestHandler} from 'express';
-import { RankedAuth,isRankedUserId } from './RankedAuth';
+import { type RankedSessionAuthority,isRankedUserId } from './RankedAuth';
 import type { AccountWriteGate } from './AccountDeletion';
 import { AVATAR_CONTENT_TYPES, AVATAR_MAX_BYTES, InvalidAvatarPhoto, knownCircuitIcon, normalizeAvatarPhoto, type ProfileAvatarStore } from './ProfileAvatars';
 
 /** Mount before the global JSON parser. Body bytes are accepted only after auth. */
-export function createProfileAvatarRouter(auth: RankedAuth, store: ProfileAvatarStore, gate?: AccountWriteGate) {
+export function createProfileAvatarRouter(auth: RankedSessionAuthority, store: ProfileAvatarStore, gate?: AccountWriteGate) {
     const router=express.Router();
     const attempts=new Map<string,{count:number;until:number}>();
     let activePhotos=0;
@@ -19,8 +19,10 @@ export function createProfileAvatarRouter(auth: RankedAuth, store: ProfileAvatar
         if(!allow(`ip:${req.socket.remoteAddress??'unknown'}`,60)){res.setHeader('Retry-After','60');res.status(429).json({code:'TRY_LATER'});return;}
         const header=req.headers.authorization;
         const token=typeof header==='string'?/^Bearer ([-\w.]{1,8192})$/i.exec(header)?.[1]:undefined;
-        let userId=auth.verifySession(token)?.userId;
-        try{if(!userId&&token&&/^[-\w]+\.[-\w]+\.[-\w]+$/.test(token))userId=await store.verifyUser(token)??undefined;}catch{/* Fail closed. */}
+        let userId:string|undefined;
+        try{userId=(await auth.verifySession(token))?.userId;}
+        catch { res.setHeader('Retry-After', '5'); res.status(503).json({ code: 'AVATAR_UNAVAILABLE' }); return; }
+        try{if(!userId&&token&&/^[-\w]+\.[-\w]+\.[-\w]+$/.test(token))userId=await store.verifyUser(token)??undefined;}catch{/* Failed OAuth identity checks never authorize. */}
         if(!userId||!isRankedUserId(userId)){res.status(401).json({code:'AUTH_REQUIRED'});return;}
         if(!allow(`user:${userId}`,6)){res.setHeader('Retry-After','60');res.status(429).json({code:'TRY_LATER'});return;}
         if(Object.keys(req.query).length){res.status(400).json({code:'INVALID_QUERY'});return;}

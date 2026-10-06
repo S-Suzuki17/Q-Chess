@@ -84,12 +84,12 @@ export function createAccountDeletionStore(client: SupabaseClient, verifyUser: A
 
 /** Each successful phase is durable. No personal ID appears in the response. */
 export async function completeAccountDeletion(store: AccountDeletionStore, hash: string,
-    beforeErase: (id: string) => void, cancelStripeBeforeErase: (id: string) => Promise<void>): Promise<'pending' | 'completed'> {
+    beforeErase: (id: string) => Promise<void>, cancelStripeBeforeErase: (id: string) => Promise<void>): Promise<'pending' | 'completed'> {
     const job = await store.job(hash);
     if (!job) throw new DeletionError('AUTH_REQUIRED');
     if (job.phase === 'completed') return 'completed';
     if (!job.user_id) throw new DeletionError('UNAVAILABLE');
-    beforeErase(job.user_id);
+    await beforeErase(job.user_id);
     // A local cascade cannot stop recurring external billing. Never erase the
     // billing IDs until all of this account's Stripe sessions/subscriptions
     // have reached a verified terminal state. Retrying with the same ticket is safe.

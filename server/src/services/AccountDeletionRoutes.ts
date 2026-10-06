@@ -1,17 +1,17 @@
 import express, { type RequestHandler, type ErrorRequestHandler } from 'express';
-import { RankedAuth, isRankedUserId } from './RankedAuth';
+import { type RankedSessionAuthority, isRankedUserId } from './RankedAuth';
 import { AccountWriteGate, completeAccountDeletion, DeletionError, deletionTicketHash, type AccountDeletionStore } from './AccountDeletion';
 
 type Identity = { id: string; authId: string | null };
-async function identity(header: unknown, auth: RankedAuth, store: AccountDeletionStore): Promise<Identity | null> {
+async function identity(header: unknown, auth: RankedSessionAuthority, store: AccountDeletionStore): Promise<Identity | null> {
     const token = typeof header === 'string' ? /^Bearer ([-\w.]{1,8192})$/i.exec(header)?.[1] : undefined;
     if (!token) return null;
-    const proof = auth.verifySession(token);
+    const proof = await auth.verifySession(token);
     if (proof) return { id: proof.userId, authId: null };
     const id = /^[-\w]+\.[-\w]+\.[-\w]+$/.test(token) ? await store.verifyUser(token) : null;
     return id && isRankedUserId(id) ? { id, authId: id } : null;
 }
-export function createAccountDeletionRouter(auth: RankedAuth, store: AccountDeletionStore, gate: AccountWriteGate,
+export function createAccountDeletionRouter(auth: RankedSessionAuthority, store: AccountDeletionStore, gate: AccountWriteGate,
     isBusy: (id: string) => boolean, disconnect: (id: string) => void,
     cancelStripeBeforeErase: (id: string) => Promise<void>) {
     const router = express.Router();
@@ -44,7 +44,7 @@ export function createAccountDeletionRouter(auth: RankedAuth, store: AccountDele
             gate.reserve(actor.id, isBusy(actor.id)); reservedId = actor.id;
             await store.begin(actor.id, hash, actor.authId);
             // Durable intent now exists. Revoke every device proof, not just this browser.
-            reservedId = undefined; auth.revokeUserSessions(actor.id); disconnect(actor.id);
+            reservedId = undefined; await auth.revokeUserSessions(actor.id); disconnect(actor.id);
             res.status(202).json({ phase: 'pending' });
         } catch (error) {
             if (reservedId) {
@@ -53,7 +53,11 @@ export function createAccountDeletionRouter(auth: RankedAuth, store: AccountDele
                 let blocked = true;
                 try { blocked = await store.blocked(reservedId); } catch { /* Keep the barrier closed. */ }
                 if (!blocked) gate.release(reservedId);
-                else { auth.revokeUserSessions(reservedId); try { disconnect(reservedId); } catch { /* Retry completes cleanup. */ } }
+                else {
+                    // Keep the durable/local barriers closed if revocation is unavailable.
+                    try { await auth.revokeUserSessions(reservedId); } catch { /* Completion retries before erase. */ }
+                    try { disconnect(reservedId); } catch { /* Retry completes cleanup. */ }
+                }
             }
             fail(error, res);
         }
@@ -67,8 +71,8 @@ export function createAccountDeletionRouter(auth: RankedAuth, store: AccountDele
         running.add(hash);
         let deletedId: string | undefined;
         try {
-            const phase = await completeAccountDeletion(store, hash, id => {
-                gate.reserve(id, isBusy(id)); deletedId = id; auth.revokeUserSessions(id); disconnect(id);
+            const phase = await completeAccountDeletion(store, hash, async id => {
+                gate.reserve(id, isBusy(id)); deletedId = id; await auth.revokeUserSessions(id); disconnect(id);
             }, cancelStripeBeforeErase);
             if (phase === 'completed' && deletedId) gate.release(deletedId);
             res.status(phase === 'completed' ? 200 : 202).json({ phase });
@@ -82,7 +86,7 @@ export function createAccountDeletionRouter(auth: RankedAuth, store: AccountDele
 }
 
 /** Mount after deletion routes, before avatar/history/native-reward routes. */
-export function accountRequestGuard(auth: RankedAuth, store: AccountDeletionStore, gate: AccountWriteGate): RequestHandler {
+export function accountRequestGuard(auth: RankedSessionAuthority, store: AccountDeletionStore, gate: AccountWriteGate): RequestHandler {
     return async (req, res, next) => {
         if (!req.headers.authorization || !['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) { next(); return; }
         try {

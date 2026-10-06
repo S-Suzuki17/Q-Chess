@@ -71,8 +71,8 @@ describe('self-service deletion on an isolated HTTP server', () => {
         const f = await fixture();
         expect((await f.send('/account/deletion')).status).toBe(202);
         expect(f.store.begin).toHaveBeenCalledWith('Alice', hash, null);
-        expect(f.auth.verifySession(f.alice)).toBeNull(); expect(f.auth.verifySession(f.second)).toBeNull();
-        expect(f.auth.verifySession(f.bob)?.userId).toBe('Bob'); expect(f.disconnect).toHaveBeenCalledWith('Alice');
+        expect(await f.auth.verifySession(f.alice)).toBeNull(); expect(await f.auth.verifySession(f.second)).toBeNull();
+        expect((await f.auth.verifySession(f.bob))?.userId).toBe('Bob'); expect(f.disconnect).toHaveBeenCalledWith('Alice');
         const done = await f.send('/account/deletion/complete', ticket, { confirmation: 'DELETE' });
         expect(done.status).toBe(200); expect(await done.json()).toEqual({ phase: 'completed' });
         expect(f.gate.blocked('Alice')).toBe(false); expect(f.store.eraseAuth).not.toHaveBeenCalled();
@@ -92,7 +92,7 @@ describe('self-service deletion on an isolated HTTP server', () => {
         expect((await f.send('/account/deletion')).status).toBe(409);
         f.busy.mockReturnValue(false); const release = f.gate.enter('Alice')!;
         expect((await f.send('/account/deletion')).status).toBe(409); release();
-        expect(f.store.begin).not.toHaveBeenCalled(); expect(f.auth.verifySession(f.alice)).not.toBeNull();
+        expect(f.store.begin).not.toHaveBeenCalled(); expect(await f.auth.verifySession(f.alice)).not.toBeNull();
     });
     it.each([true, false])('handles an uncertain begin response without reopening a committed intent (%s)', async committed => {
         const f = await fixture();
@@ -107,7 +107,7 @@ describe('self-service deletion on an isolated HTTP server', () => {
     it('keeps the barrier closed when both begin and its outcome check time out', async () => {
         const f = await fixture(); f.store.begin.mockRejectedValue(new Error('timeout')); f.store.blocked.mockRejectedValue(new Error('timeout'));
         expect((await f.send('/account/deletion')).status).toBe(503);
-        expect(f.gate.blocked('Alice')).toBe(true); expect(f.auth.verifySession(f.alice)).toBeNull();
+        expect(f.gate.blocked('Alice')).toBe(true); expect(await f.auth.verifySession(f.alice)).toBeNull();
     });
     it('retries Storage and Auth failures without reporting premature completion', async () => {
         const f = await fixture(); const id = '00000000-0000-4000-8000-000000000001';
@@ -155,4 +155,38 @@ describe('self-service deletion on an isolated HTTP server', () => {
         expect(f.avatars.setIcon).not.toHaveBeenCalled();
         expect((await f.send('/profile/avatar/icon', f.bob, { iconId: 'circuit-01' })).status).toBe(200);
     });
+});
+
+it.each([false, true])('awaits revocation before acknowledging deletion intent (reject=%s)', async rejected => {
+    const f = await fixture(); let finish!: (count: number) => void, reject!: (error: Error) => void;
+    const revoke = vi.spyOn(f.auth, 'revokeUserSessions').mockImplementationOnce(() => new Promise((yes, no) => { finish = yes; reject = no; }));
+    let settled = false;
+    const pending = f.send('/account/deletion').then(response => { settled = true; return response; });
+    await vi.waitFor(() => expect(revoke).toHaveBeenCalledOnce());
+    expect(settled).toBe(false); expect(f.gate.blocked('Alice')).toBe(true); expect(f.disconnect).not.toHaveBeenCalled();
+    if (rejected) reject(new Error('private-password-and-token')); else finish(2);
+    const response = await pending;
+    expect(response.status).toBe(rejected ? 503 : 202); expect(await response.text()).not.toContain('private-password-and-token');
+    expect(f.gate.blocked('Alice')).toBe(true);
+});
+
+it.each([false, true])('awaits beforeErase revocation before billing or erasure and keeps retries safe (reject=%s)', async rejected => {
+    const f = await fixture(); expect((await f.send('/account/deletion')).status).toBe(202); f.disconnect.mockClear();
+    let finish!: (count: number) => void, reject!: (error: Error) => void;
+    const revoke = vi.spyOn(f.auth, 'revokeUserSessions').mockImplementationOnce(() => new Promise((yes, no) => { finish = yes; reject = no; }));
+    let settled = false;
+    const pending = f.send('/account/deletion/complete', ticket, { confirmation: 'DELETE' }).then(response => { settled = true; return response; });
+    await vi.waitFor(() => expect(revoke).toHaveBeenCalledOnce());
+    expect(settled).toBe(false); expect(f.gate.blocked('Alice')).toBe(true);
+    expect(f.disconnect).not.toHaveBeenCalled(); expect(f.cancelStripeBeforeErase).not.toHaveBeenCalled();
+    expect(f.store.removePhotoBatch).not.toHaveBeenCalled(); expect(f.store.eraseData).not.toHaveBeenCalled();
+    if (rejected) reject(new Error('private-password-and-token')); else finish(0);
+    const response = await pending;
+    expect(response.status).toBe(rejected ? 503 : 200); expect(await response.text()).not.toContain('private-password-and-token');
+    if (rejected) {
+        expect(f.gate.blocked('Alice')).toBe(true); expect(f.cancelStripeBeforeErase).not.toHaveBeenCalled();
+        expect(f.store.eraseData).not.toHaveBeenCalled(); expect(f.store.finish).not.toHaveBeenCalled();
+        expect((await f.send('/account/deletion/complete', ticket, { confirmation: 'DELETE' })).status).toBe(200);
+    }
+    expect(f.gate.blocked('Alice')).toBe(false); expect(f.store.eraseData).toHaveBeenCalledOnce();
 });

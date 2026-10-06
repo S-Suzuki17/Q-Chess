@@ -1,10 +1,10 @@
 import express, { type ErrorRequestHandler, type RequestHandler } from 'express';
-import { RankedAuth, isRankedUserId } from './RankedAuth';
+import { type RankedSessionAuthority, isRankedUserId } from './RankedAuth';
 import { AccountWriteGate } from './AccountDeletion';
 import { CpuPracticeService, CpuPracticeError, type PracticeContext } from './CpuPracticeService';
 import { cpuHintTicketsEnabled } from './TicketFeatureGates';
 
-export function createCpuPracticeRouter(auth: RankedAuth, service: CpuPracticeService|(()=>CpuPracticeService),
+export function createCpuPracticeRouter(auth: RankedSessionAuthority, service: CpuPracticeService|(()=>CpuPracticeService),
     verifyUser: (token: string) => Promise<string | null>, gate: AccountWriteGate,
     matchBusy: (userId: string) => boolean, enabled = cpuHintTicketsEnabled) {
     const router = express.Router();
@@ -25,7 +25,7 @@ export function createCpuPracticeRouter(auth: RankedAuth, service: CpuPracticeSe
         }
         const token = /^Bearer ([-\w.]{1,8192})$/i.exec(req.headers.authorization ?? '')?.[1];
         try {
-            const legacy = auth.verifySession(token);
+            const legacy = await auth.verifySession(token);
             const userId = legacy?.userId ?? (token ? await verifyUser(token) : null);
             if (!userId || !isRankedUserId(userId)) { res.status(401).json({ code: 'AUTH_REQUIRED' }); return; }
             if (!allow('user:' + userId, 90)) { res.status(429).json({ code: 'TRY_LATER' }); return; }
@@ -37,7 +37,7 @@ export function createCpuPracticeRouter(auth: RankedAuth, service: CpuPracticeSe
             const context: PracticeContext = { signal: controller.signal, async check() {
                 if (gate.blocked(userId)) throw new CpuPracticeError('ACCOUNT_UNAVAILABLE');
                 if (matchBusy(userId)) throw new CpuPracticeError('HINT_UNAVAILABLE_IN_MATCH');
-                if (legacy ? !auth.verifySession(token, userId) : !token || await verifyUser(token) !== userId) {
+                if (legacy ? !(await auth.verifySession(token, userId)) : !token || await verifyUser(token) !== userId) {
                     throw new CpuPracticeError('AUTH_REQUIRED');
                 }
             } };

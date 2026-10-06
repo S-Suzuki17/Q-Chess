@@ -33,7 +33,7 @@ it('requires a fresh acceptance when no current-version record exists',async()=>
 it('blocks deletion races and revoked tokens; never reports failed storage as success',async()=>{
     gate.reserve('Alice',false);expect((await fetch(base+'/account/terms',options(valid()))).status).toBe(423);gate.release('Alice');
     store.accept.mockRejectedValue(new Error('private detail'));const failure=await fetch(base+'/account/terms',options(valid()));expect(failure.status).toBe(503);expect(await failure.text()).not.toContain('private detail');expect(gate.blocked('Alice')).toBe(false);
-    auth.revokeUserSessions('Alice');expect((await fetch(base+'/account/terms',options(valid()))).status).toBe(401);
+    await auth.revokeUserSessions('Alice');expect((await fetch(base+'/account/terms',options(valid()))).status).toBe(401);
 });
 it('bounds the request body and consent rate',async()=>{
     expect((await fetch(base+'/account/terms',options({...valid(),junk:'x'.repeat(2000)}))).status).toBe(413);
@@ -53,7 +53,7 @@ it('reads the saved consent after acceptance and again on a fresh login, without
     expect((await read()).consent).toBeNull();
     expect((await fetch(base+'/account/terms',options(valid()))).status).toBe(200);
     expect((await read()).consent).toEqual(consent);
-    auth.revokeUserSessions('Alice');
+    await auth.revokeUserSessions('Alice');
     token=(await auth.issueLegacySession('Alice','correct'))!.token;
     expect((await read()).consent).toEqual(consent);
     expect(store.accept).toHaveBeenCalledTimes(1);

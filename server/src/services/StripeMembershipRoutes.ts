@@ -1,5 +1,5 @@
 import express, { type ErrorRequestHandler, type RequestHandler } from 'express';
-import { RankedAuth, isRankedUserId } from './RankedAuth';
+import { type RankedSessionAuthority, isRankedUserId } from './RankedAuth';
 import { AccountWriteGate } from './AccountDeletion';
 import { StripeMembershipError, StripeMembershipApi, verifyStripeWebhook } from './StripeMembership';
 import type { StripeMembershipStore } from './StripeMembershipStore';
@@ -89,7 +89,7 @@ export function createStripeWebhookRouter(
 
 /** Authenticated checkout. No billing URL is returned before DB intent registration. */
 export function createStripeMembershipRouter(
-    auth: RankedAuth,
+    auth: RankedSessionAuthority,
     api: StripeMembershipApi | null,
     store: StripeMembershipStore,
     gate: AccountWriteGate,
@@ -114,9 +114,9 @@ export function createStripeMembershipRouter(
             res.setHeader('Retry-After', '60'); res.status(429).json({ code: 'TRY_LATER' }); return;
         }
         const token = /^Bearer ([-\w.]{1,8192})$/i.exec(req.headers.authorization ?? '')?.[1];
-        const proof = auth.verifySession(token);
-        let userId = proof?.userId;
         try {
+            const proof = await auth.verifySession(token);
+            let userId = proof?.userId;
             if (!userId && token && /^[-\w]+\.[-\w]+\.[-\w]+$/.test(token))
                 userId = await store.verifyUser(token) ?? undefined;
             if (!userId || !isRankedUserId(userId)) { res.status(401).json({ code: 'AUTH_REQUIRED' }); return; }
@@ -127,7 +127,7 @@ export function createStripeMembershipRouter(
             if (gate.blocked(userId) || await store.blocked(userId)) {
                 res.status(423).json({ code: 'ACCOUNT_DELETING' }); return;
             }
-            if (proof && !auth.verifySession(token)) { res.status(401).json({ code: 'AUTH_REQUIRED' }); return; }
+            if (proof && !(await auth.verifySession(token))) { res.status(401).json({ code: 'AUTH_REQUIRED' }); return; }
             res.locals.memberUser = userId;
             res.locals.memberToken = token;
             res.locals.memberLegacy = !!proof;
@@ -169,7 +169,7 @@ export function createStripeMembershipRouter(
         if (await store.blocked(userId)) return false;
         const token = res.locals.memberToken as string;
         return res.locals.memberLegacy
-            ? !!auth.verifySession(token, userId)
+            ? !!(await auth.verifySession(token, userId))
             : await store.verifyUser(token) === userId;
     };
     router.get('/membership/stripe/status', authenticate, async (_req, res) => {

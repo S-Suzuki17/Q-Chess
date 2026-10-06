@@ -1,10 +1,10 @@
 import express, { type RequestHandler, type ErrorRequestHandler } from 'express';
-import { RankedAuth, isRankedUserId } from './RankedAuth';
+import { type RankedSessionAuthority, isRankedUserId } from './RankedAuth';
 import { AccountWriteGate } from './AccountDeletion';
 import { AccountProfileError, parseDisplayName, validAccountFriendId, type AccountProfileStore } from './AccountProfiles';
 
 /** Additive rollout: older clients keep their DB path until the Play update is available. */
-export function createAccountProfileRouter(auth: RankedAuth, store: AccountProfileStore, gate: AccountWriteGate) {
+export function createAccountProfileRouter(auth: RankedSessionAuthority, store: AccountProfileStore, gate: AccountWriteGate) {
     const router = express.Router();
     const attempts = new Map<string, { count: number; until: number }>();
     const pairs = new Set<string>();
@@ -19,15 +19,15 @@ export function createAccountProfileRouter(auth: RankedAuth, store: AccountProfi
         res.setHeader('Cache-Control', 'no-store'); res.setHeader('Vary', 'Authorization');
         if (!allow(`ip:${req.socket.remoteAddress ?? 'unknown'}`, 180)) { rateError(res); return; }
         const token = /^Bearer ([-\w.]{1,8192})$/i.exec(req.headers.authorization ?? '')?.[1];
-        const proof = auth.verifySession(token);
-        let userId = proof?.userId;
         try {
+            const proof = await auth.verifySession(token);
+            let userId = proof?.userId;
             if (!userId && token && /^[-\w]+\.[-\w]+\.[-\w]+$/.test(token)) userId = await store.verifyUser(token) ?? undefined;
             if (!userId || !isRankedUserId(userId)) { res.status(401).json({ code: 'AUTH_REQUIRED' }); return; }
             if (!allow(`user:${userId}:${req.method}`, req.method === 'GET' ? 90 : 20)) { rateError(res); return; }
             if (Object.keys(req.query).length) { res.status(400).json({ code: 'INVALID_REQUEST' }); return; }
             if (gate.blocked(userId) || await store.blocked(userId)) { res.status(423).json({ code: 'ACCOUNT_DELETING' }); return; }
-            if (proof && !auth.verifySession(token)) { res.status(401).json({ code: 'AUTH_REQUIRED' }); return; }
+            if (proof && !(await auth.verifySession(token))) { res.status(401).json({ code: 'AUTH_REQUIRED' }); return; }
             res.locals.profileOwner = userId; res.locals.profileMayCreate = !proof; next();
         } catch { res.status(503).json({ code: 'UNAVAILABLE' }); }
     };

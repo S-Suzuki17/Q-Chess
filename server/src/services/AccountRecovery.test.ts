@@ -49,8 +49,8 @@ describe('verified legacy account recovery',()=>{
         const f=await fixture(),ticket=await f.start();
         const response=await f.post('/auth/recovery/complete',{ticket,code:'123456',password:'new-password-123'});
         expect(response.status).toBe(200);expect(await response.json()).toEqual({completed:true});
-        expect(f.store.reset).toHaveBeenCalledWith(f.binding,'new-password-123');expect(f.auth.verifySession(f.alice.token)).toBeNull();
-        expect(f.auth.verifySession(f.bob.token)?.userId).toBe('Bob');expect(f.disconnect).toHaveBeenCalledWith('Alice');expect(f.gate.blocked('Alice')).toBe(false);
+        expect(f.store.reset).toHaveBeenCalledWith(f.binding,'new-password-123');expect(await f.auth.verifySession(f.alice.token)).toBeNull();
+        expect((await f.auth.verifySession(f.bob.token))?.userId).toBe('Bob');expect(f.disconnect).toHaveBeenCalledWith('Alice');expect(f.gate.blocked('Alice')).toBe(false);
         expect((await f.post('/auth/recovery/complete',{ticket,code:'123456',password:'other-password'})).status).toBe(400);expect(f.store.reset).toHaveBeenCalledOnce();
     });
     it('rejects a verified but different Auth identity',async()=>{
@@ -79,7 +79,7 @@ describe('verified legacy account recovery',()=>{
         f.store.verifyPassword.mockResolvedValue(persisted);
         const result=await f.post('/auth/recovery/complete',{ticket,code:'123456',password:'new-password-123'});
         expect(result.status).toBe(persisted?200:503);expect(f.gate.blocked('Alice')).toBe(!persisted);
-        expect(f.auth.verifySession(f.alice.token)).toBeNull();expect(JSON.stringify(await result.json())).not.toContain('private upstream');
+        expect(await f.auth.verifySession(f.alice.token)).toBeNull();expect(JSON.stringify(await result.json())).not.toContain('private upstream');
     });
     it('rejects oversized JSON, owner overrides and query injection',async()=>{
         const f=await fixture();
@@ -100,10 +100,44 @@ describe('verified legacy account recovery',()=>{
         vi.useFakeTimers();const tickets=new RecoveryChallenges(),ticket=tickets.create('reset','Alice','a@example.test',null);
         vi.advanceTimersByTime(600001);expect(()=>tickets.take(ticket)).toThrow('INVALID_CODE');
         let resolve!:(ok:boolean)=>void;const auth=new RankedAuth(()=>new Promise(done=>{resolve=done;}));
-        const pending=auth.issueLegacySession('Alice','old-password');auth.revokeUserSessions('Alice');resolve(true);expect(await pending).toBeNull();
+        const pending=auth.issueLegacySession('Alice','old-password');await auth.revokeUserSessions('Alice');resolve(true);expect(await pending).toBeNull();
     });
     it('normalizes email and enforces bcrypt byte limits without trimming passwords',()=>{
         expect(recoveryEmail(' Alice@Example.test ')).toBe('alice@example.test');expect(recoveryEmail('a\r\nb@example.test')).toBeNull();
         expect(recoveryPassword('a'.repeat(72))).toBe(true);expect(recoveryPassword('あ'.repeat(24))).toBe(true);expect(recoveryPassword('あ'.repeat(25))).toBe(false);
     });
+});
+
+it.each([1, 2])('does not complete recovery until revocation %s settles and never hides rejection', async blockedCall => {
+    const f = await fixture(), ticket = await f.start();
+    const revoke = vi.spyOn(f.auth, 'revokeUserSessions'); let reject!: (error: Error) => void;
+    if (blockedCall === 2) revoke.mockResolvedValueOnce(1);
+    revoke.mockImplementationOnce(() => new Promise((_resolve, no) => { reject = no; }));
+    let settled = false;
+    const pending = f.post('/auth/recovery/complete', { ticket, code: '123456', password: 'new-password-123' })
+        .then(response => { settled = true; return response; });
+    await vi.waitFor(() => expect(revoke).toHaveBeenCalledTimes(blockedCall));
+    expect(settled).toBe(false); expect(f.gate.blocked('Alice')).toBe(true); expect(f.store.reset).toHaveBeenCalledTimes(blockedCall - 1);
+    reject(new Error('private-password-and-token')); const response = await pending;
+    expect(response.status).toBe(503); expect(await response.text()).not.toContain('private-password-and-token');
+    expect(f.store.reset).toHaveBeenCalledTimes(blockedCall - 1);
+});
+
+it.each([false, true])('claims enrollment completion before awaiting identity and releases it on rejection (reject=%s)', async rejected => {
+    const f = await fixture();
+    const start = await f.post('/account/recovery/start', { userId: 'Alice', email: 'alice@example.test', password: 'old-password' }, f.alice.token);
+    const { ticket } = await start.json(); const identity = await f.auth.verifySession(f.alice.token);
+    let finish!: (value: typeof identity) => void, reject!: (error: Error) => void;
+    const verify = vi.spyOn(f.auth, 'verifySession').mockImplementationOnce(() => new Promise((yes, no) => { finish = yes; reject = no; }));
+    const body = { ticket, code: '123456' }; const first = f.post('/account/recovery/complete', body, f.alice.token);
+    await vi.waitFor(() => expect(verify).toHaveBeenCalledOnce());
+    expect((await f.post('/account/recovery/complete', body, f.alice.token)).status).toBe(429);
+    expect(verify).toHaveBeenCalledOnce(); expect(f.store.verifyCode).not.toHaveBeenCalled();
+    if (rejected) reject(new Error('private-password-and-token')); else finish(identity);
+    const response = await first; expect(response.status).toBe(rejected ? 503 : 200);
+    if (rejected) {
+        expect(f.store.enroll).not.toHaveBeenCalled();
+        expect((await f.post('/account/recovery/complete', body, f.alice.token)).status).toBe(200);
+    }
+    expect(f.store.verifyCode).toHaveBeenCalledOnce(); expect(f.store.enroll).toHaveBeenCalledOnce();
 });
