@@ -2,7 +2,7 @@ name: Verify game and server
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, fix/commerce-safety-20261006]
   push:
     branches: [main]
 
