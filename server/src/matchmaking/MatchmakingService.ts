@@ -49,6 +49,7 @@ export interface MatchSession {
 }
 
 export class MatchmakingService {
+    public canAdmitPlayer?: (userId: string) => boolean;
     public onForfeit?: (match:MatchSession)=>void;
     public onAdmissionCancel?: (match:MatchSession,reason:string)=>void;
     private players = new Map<string, PlayerSession>(); // userId -> PlayerSession
@@ -143,6 +144,7 @@ export class MatchmakingService {
 
     public joinQueue(userId: string, timeControl: number, userName?: string, mode:QueueMode='random', rating?:number): { success: boolean, match?: MatchSession } {
         const session = this.players.get(userId);
+        if(this.canAdmitPlayer&&!this.canAdmitPlayer(userId))return {success:false};
         if (!session || ![10,180,600].includes(timeControl) || !['ranked','random'].includes(mode)) return { success: false };
         if (mode==='ranked' && (!Number.isFinite(rating) || rating! < 0)) return {success:false};
 
@@ -178,6 +180,7 @@ export class MatchmakingService {
     }
 
     private tryMatch(timeControl: number, mode:QueueMode='random'): { success: boolean, match?: MatchSession } {
+        for(const id of this.waitingQueue)if(this.canAdmitPlayer&&!this.canAdmitPlayer(id))this.leaveQueue(id);
         const candidates = Array.from(this.waitingQueue).filter(uid => this.players.get(uid)?.timeControl === timeControl && (this.players.get(uid)?.mode??'random')===mode);
         
         if (candidates.length >= 2) {
@@ -348,6 +351,11 @@ export class MatchmakingService {
 
     /** Only admission acknowledgement, or the free release path, may call this. */
     public activateMatch(match:MatchSession, authority?:{canAdvance:()=>boolean;safeUntil:()=>number}):boolean {
+        if(!match.engine&&this.canAdmitPlayer&&Object.values(match.players).some(id=>id!==match.cpu?.id&&!this.canAdmitPlayer!(id))){
+            if(match.mode==='ranked'&&this.requireRankedAdmission)this.onAdmissionCancel?.(match,'authentication_required');
+            else {this.finishMatch(match,'CANCELLED');this.io.to(match.matchId).emit('match_cancelled',{matchId:match.matchId,reason:'authentication_required'});}
+            return false;
+        }
         if(match.engine||!['CONNECTING','WAITING_FOR_JOINER','ADMITTING'].includes(match.state))return false;
         if(!match.connected.host||!match.connected.joiner)return false;
         if(match.mode==='ranked'&&this.requireRankedAdmission&&(!authority||match.admission?.state!=='active'||!authority.canAdvance()))return false;
@@ -401,6 +409,7 @@ export class MatchmakingService {
         const created:MatchSession[]=[];
         let cpuActive=[...this.matches.values()].filter(m=>m.cpu&&['CONNECTING','ADMITTING','VOIDING','IN_GAME'].includes(m.state)).length;
         for(const id of [...this.waitingQueue]) {
+            if(this.canAdmitPlayer&&!this.canAdmitPlayer(id)){this.leaveQueue(id);continue;}
             const session=this.players.get(id);
             if(!session||session.state!=='WAITING'||session.mode!=='ranked'||!Number.isFinite(session.rating)||now-(session.queuedAt??now)<CPU_FALLBACK_MS)continue;
             // Always prefer another queued human at the same time control.

@@ -117,3 +117,27 @@ describe('ranked matchmaking fallback', () => {
         expect(mm.getPlayerSession('human4')?.state).toBe('CONNECTING');
     });
 });
+
+describe('absolute expiry between queue admission and game start',()=>{
+    it('removes expired waiting players before human pairing or CPU fallback',()=>{
+        const {mm,register}=fixture();register('expired');register('new');let expired=false;
+        mm.canAdmitPlayer=id=>id!=='expired'||!expired;
+        expect(mm.joinQueue('expired',600,undefined,'ranked',1000).success).toBe(true);expired=true;
+        expect(mm.joinQueue('new',600,undefined,'ranked',1000).match).toBeUndefined();
+        expect(mm.getPlayerSession('expired')?.state).toBe('IDLE');
+        vi.advanceTimersByTime(CPU_FALLBACK_MS);expect(mm.takeCpuFallbacks().every(m=>Object.values(m.players).includes('new'))).toBe(true);
+    });
+    it('cancels a private room before start when its waiting host expires, without creating a game or forfeit',()=>{
+        const {mm,register}=fixture();register('host');register('joiner');let expired=false;mm.canAdmitPlayer=id=>id!=='host'||!expired;
+        mm.connectMatch('host','private-room');expired=true;mm.connectMatch('joiner','private-room');
+        expect(mm.getMatch('private-room')?.state).toBe('CANCELLED');expect(mm.getMatch('private-room')?.engine).toBeUndefined();
+    });
+    it('requests the existing ranked void path if proof expires during durable admission',()=>{
+        const io={emit:vi.fn(),to:()=>({emit:vi.fn()}),sockets:{sockets:new Map()}};
+        const mm=new MatchmakingService(io as any,true);mm.registerSocket('a','a');mm.registerSocket('b','b');mm.canAdmitPlayer=()=>true;
+        mm.joinQueue('a',600,undefined,'ranked',1000);const match=mm.joinQueue('b',600,undefined,'ranked',1000).match!;
+        mm.connectMatch('a',match.matchId);mm.connectMatch('b',match.matchId);expect(match.state).toBe('ADMITTING');
+        mm.onAdmissionCancel=vi.fn();mm.canAdmitPlayer=()=>false;expect(mm.activateMatch(match)).toBe(false);
+        expect(mm.onAdmissionCancel).toHaveBeenCalledWith(match,'authentication_required');expect(match.engine).toBeUndefined();
+    });
+});

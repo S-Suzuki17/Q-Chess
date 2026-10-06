@@ -29,7 +29,7 @@ export function createRankedSessionInspectionRouter(authority: SessionInspector,
             // A logout/deletion may complete while the deletion lookup yields.
             const current = await authority.verifySession(token, identity.userId);
             if (!current || current.userId !== identity.userId || gate.blocked(identity.userId)) { invalid(); return; }
-            const serverNow = Date.now();
+            const serverNow = current.serverNow ?? Date.now();
             if (!Number.isSafeInteger(current.expiresAt) || current.expiresAt <= serverNow) { invalid(); return; }
             res.json({ userId: current.userId, expiresAt: current.expiresAt, serverNow });
         } catch {

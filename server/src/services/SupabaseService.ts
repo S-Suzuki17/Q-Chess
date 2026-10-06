@@ -1,3 +1,4 @@
+import { createDurableRankedAuth } from './DurableRankedAuth';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
 import {v5 as uuidv5} from 'uuid';
@@ -44,6 +45,8 @@ export class SupabaseService {
             global:{fetch:(input,init)=>fetch(input,{...init,signal:AbortSignal.any([...(init?.signal?[init.signal]:[]),AbortSignal.timeout(5000)])})}
         });
     }
+
+    public durableSessionAuthority() { return createDurableRankedAuth(this.supabase); }
 
     public profileAvatarStore() {
         return createProfileAvatarStore(this.supabase,token=>this.verifyUser(token));

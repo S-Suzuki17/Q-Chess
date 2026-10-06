@@ -377,18 +377,24 @@ describe('awaited authority at the socket/login boundary', () => {
         expect((await login()).code).toBe(409);
         expect((await socket(original)).next).toHaveBeenCalledWith(expect.any(Error));
     });
-    it.each([false, true])('awaits restriction revocation and preserves existing connections on outage (reject=%s)', async rejected => {
-        const connected = await socket((await login()).body.token);
-        const { RankedAuth } = await import('./RankedAuth');
-        let finish!: (value: number) => void, reject!: (error: Error) => void;
-        const revoke = vi.spyOn(RankedAuth.prototype, 'revokeUserSessions').mockImplementationOnce(() => new Promise((yes, no) => { finish = yes; reject = no; }));
-        (h.service as any).restrictedAccounts = vi.fn().mockResolvedValue(['Alice']);
+    it.each([false, true])('awaits restriction lookup without revoking recovery identity; preserves connections on outage (reject=%s)', async rejected => {
+        const proof=(await login()).body.token,connected=await socket(proof);
+        const {RankedAuth}=await import('./RankedAuth');
+        const revoke=vi.spyOn(RankedAuth.prototype,'revokeUserSessions');
+        let finish!:(value:string[])=>void,reject!:(error:Error)=>void;
+        const restricted=vi.fn().mockImplementationOnce(()=>new Promise((yes,no)=>{finish=yes;reject=no;}));
+        (h.service as any).restrictedAccounts=restricted;
         await vi.advanceTimersByTimeAsync(15000);
-        expect(revoke).toHaveBeenCalledExactlyOnceWith('Alice'); expect(connected.s.disconnect).not.toHaveBeenCalled();
-        if (rejected) reject(new Error('private-password-and-token')); else finish(1);
+        expect(restricted).toHaveBeenCalledExactlyOnceWith(['Alice']);expect(connected.s.disconnect).not.toHaveBeenCalled();
+        if(rejected)reject(new Error('private-password-and-token'));else finish(['Alice']);
         await vi.advanceTimersByTimeAsync(0);
-        if (rejected) expect(connected.s.disconnect).not.toHaveBeenCalled();
-        else expect(connected.s.disconnect).toHaveBeenCalledExactlyOnceWith(true);
+        expect(revoke).not.toHaveBeenCalled();
+        if(rejected)expect(connected.s.disconnect).not.toHaveBeenCalled();
+        else {expect(connected.s.emit).toHaveBeenCalledWith('account_restricted');expect(connected.s.disconnect).toHaveBeenCalledExactlyOnceWith(true);}
+        // A restriction denies game admission, not recovery/deletion identity.
+        const {createRankedSessionInspectionRouter}=await import('./RankedSessionInspectionRoutes');
+        const authority=vi.mocked(createRankedSessionInspectionRouter).mock.calls[0][0];
+        expect(await authority.verifySession(proof)).toMatchObject({userId:'Alice'});
     });
 });
 

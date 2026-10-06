@@ -2,7 +2,7 @@ name: Verify game and server
 
 on:
   pull_request:
-    branches: [main, fix/commerce-safety-20261006, prep/awaited-session-authority-20261006]
+    branches: [main, fix/commerce-safety-20261006, prep/awaited-session-authority-20261006, fix/verified-legacy-restoration-20261006]
   push:
     branches: [main]
 
@@ -84,5 +84,47 @@ jobs:
         with:
           name: commerce-postgres-results
           path: /tmp/commerce-postgres-results.json
+          if-no-files-found: warn
+          retention-days: 7
+
+  session-postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17.11-bookworm
+        env:
+          POSTGRES_DB: legacy_session_upgrade
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: qgambit-ephemeral-only
+          POSTGRES_INITDB_ARGS: --locale=C --encoding=UTF8
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d legacy_session_upgrade"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - run: npm ci --prefix server
+      - name: Build actual TypeScript session adapter
+        run: npm run build --prefix server
+      - name: Native PostgreSQL combined migrations and session races
+        run: node --test --test-timeout=180000 scripts/qa/session-postgres.test.mjs
+      - name: Retain synthetic session verification report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: session-postgres-results
+          path: /tmp/session-postgres-results.json
           if-no-files-found: warn
           retention-days: 7
