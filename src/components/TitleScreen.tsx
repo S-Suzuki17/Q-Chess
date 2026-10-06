@@ -14,6 +14,7 @@ import Link from 'next/link';
 import './title-screen.css';
 import { ArrowUpRight, ChevronRight } from 'lucide-react';
 
+import { CommunityFeed } from './CommunityFeed';
 import { Capacitor } from '@capacitor/core';
 import { useAppPlatform } from '../hooks/useAppPlatform';
 import { Browser } from '@capacitor/browser';
@@ -251,6 +252,8 @@ export function TitleScreen({ lang, onLogin, initialMode='select' }: TitleScreen
                     </Link>}
                 </div>
             </div>
+
+            <CommunityFeed lang={lang} />
 
             {webContent && <div className="title-badge relative w-full z-10 flex flex-col items-center pointer-events-none">
                 <div className="mb-2 opacity-20 hover:opacity-100 grayscale hover:grayscale-0 transition-all duration-300 pointer-events-auto">
