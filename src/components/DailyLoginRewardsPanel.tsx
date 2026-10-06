@@ -60,47 +60,23 @@ export function DailyLoginRewardsPanel({ user, lang }: { user: User; lang: Langu
             : !status
                 ? <p role="status" className="mt-2 text-sm text-[#A89C86]">{text.loading}</p>
                 : <dl className="reward-balances">
-                    <div className="reward-balance"><dt>{text.rankedTickets}</dt><dd>{status.tickets.ranked}<small>No Limit</small></dd></div>
-                    <div className="reward-balance"><dt>{text.hintTickets} · CPU</dt><dd>{status.tickets.hint}<small>No Limit</small></dd></div>
+                    <div className="reward-balance"><dt>{text.rankedTickets}</dt><dd>{status.tickets.ranked}<small>{hub.limit} 20</small></dd></div>
+                    <div className="reward-balance"><dt>{text.hintTickets} · CPU</dt><dd>{status.tickets.hint}<small>{hub.limit} 20</small></dd></div>
                 </dl>}
-        {status?.enabled && preview && <div className="mt-4 border border-[#B39A62]/30 rounded-lg p-4 bg-[#1A1814]">
-            <div className="flex justify-between items-center mb-3">
-                <p className="font-bold text-[#E8E2D7]">{preview.claimedToday ? wallet.next : hub.today}</p>
-                <p className="text-xs text-[#A89C86]"><time dateTime={preview.day}>{preview.day}</time> UTC</p>
-            </div>
-            {preview.claimedToday && <p className="text-sm text-[#D4B872] font-bold mb-2">✓ {wallet.claimed}</p>}
-            
-            <p className="text-sm text-[#E8E2D7] mb-2">{lang === 'ja' ? '連続ログインボーナス (毎日UTC 0時にリセット)' : '7-Day Login Bonus (Resets at 00:00 UTC)'}</p>
-            
-            <div className="grid grid-cols-7 gap-1 mb-3">
-                {[
-                    { day: 1, text: "1 Ticket" },
-                    { day: 2, text: "1 Ticket" },
-                    { day: 3, text: "2 Tickets" },
-                    { day: 4, text: "2 Tickets" },
-                    { day: 5, text: "3 Tickets" },
-                    { day: 6, text: "3 Tickets" },
-                    { day: 7, text: "3+1 Hint" }
-                ].map(item => {
-                    const isPast = item.day < preview.streakDays || (preview.claimedToday && item.day <= status.streakDays);
-                    const isCurrent = item.day === preview.streakDays && !preview.claimedToday;
-                    return (
-                        <div key={item.day} className={`flex flex-col items-center justify-center rounded p-1 text-center border transition-colors ${isPast ? 'bg-[#D4B872]/20 border-[#D4B872]/50 text-[#E8E2D7]' : isCurrent ? 'bg-[#B39A62]/40 border-[#D4B872] text-[#E8E2D7] shadow-[0_0_10px_rgba(212,184,114,0.3)]' : 'bg-transparent border-[#B39A62]/20 text-[#A89C86]'}`}>
-                            <span className="text-[10px] font-bold mb-0.5">Day {item.day}</span>
-                            {item.day === 7 ? <span className="text-[14px]">🎁</span> : <span className="text-[10px] leading-tight">{item.text.replace(' Tickets', '').replace(' Ticket', 'T')}</span>}
-                            {isPast && <span className="absolute text-[#D4B872] font-bold">✓</span>}
-                        </div>
-                    );
-                })}
-            </div>
-            <div className="flex justify-between items-center bg-[#D4B872]/10 border border-[#D4B872]/20 rounded p-2 text-sm">
-                <span className="text-[#A89C86]">{lang === 'ja' ? '次回の報酬:' : 'Next Reward:'}</span>
-                <span className="font-bold text-[#D4B872]">{text.rankedTickets} +{preview.credit.ranked} {preview.credit.hint > 0 && `| ${text.hintTickets} +${preview.credit.hint}`}</span>
-            </div>
-            {!preview.claimedToday && <p className="text-[10px] text-[#A89C86] mt-2 text-center">{hub.automatic}</p>}
+        {status?.enabled && preview && <div className="reward-next">
+            {preview.claimedToday && <p className="reward-caption">✓ {wallet.claimed}</p>}
+            <p className="reward-title">{preview.claimedToday ? wallet.next : hub.today}</p>
+            <p className="reward-caption"><time dateTime={preview.day}>{preview.day}</time> · UTC · {text.streakDays} {preview.streakDays}/7</p>
+            <ol className="reward-streak" aria-label={text.streakDays}>
+                {[1,2,3,4,5,6,7].map(day => <li key={day} data-next={day === preview.streakDays} aria-current={day === preview.streakDays ? 'step' : undefined}
+                    data-complete={day < preview.streakDays || (preview.claimedToday && day <= status.streakDays)}>{day}</li>)}
+            </ol>
+            <div className="reward-next__amounts"><span>{text.rankedTickets} +{preview.credit.ranked}</span><span>{text.hintTickets} +{preview.credit.hint}</span></div>
+            {(status.tickets.ranked === 20 || status.tickets.hint === 20) && <p className="reward-caption">{hub.full}</p>}
+            {!preview.claimedToday && <p className="reward-caption">{hub.automatic}</p>}
         </div>}
         <details className="reward-details"><summary>{hub.rules}</summary><div className="reward-details__body">
-            <p>{wallet.streak}</p>
+            <p>{wallet.cap}</p><p>{wallet.streak}</p>
             {status && <p>{text.lastClaimUtcDay}: {status.lastClaimUtcDay ?? text.notClaimed}</p>}
         </div></details>
     </section>;

@@ -98,7 +98,7 @@ export function parseStripePortalUrl(value: unknown): string {
     } catch { throw new StripeMembershipError('UNAVAILABLE'); }
 }
 
-async function request(userId: string, action: Action, signal?: AbortSignal, usageOnly = false, payload?: unknown): Promise<unknown> {
+async function request(userId: string, action: Action, signal?: AbortSignal, usageOnly = false): Promise<unknown> {
     if (usageOnly) {
         if (!MEMBER_TICKET_USAGE_ENABLED || !['status','daily-grant'].includes(action)) throw new StripeMembershipError('DISABLED');
     } else assertWebOnly(action);
@@ -124,7 +124,7 @@ async function request(userId: string, action: Action, signal?: AbortSignal, usa
             method: action === 'status' ? 'GET' : 'POST',
             headers: { Authorization: `Bearer ${token}`,
                 ...(action === 'status' ? {} : { 'Content-Type': 'application/json' }) },
-            ...(action === 'status' ? {} : { body: payload ? JSON.stringify(payload) : '{}' }),
+            ...(action === 'status' ? {} : { body: '{}' }),
             signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(15000)]) : AbortSignal.timeout(15000),
             credentials: 'omit', cache: 'no-store', redirect: 'error', referrerPolicy: 'no-referrer',
         });
@@ -152,8 +152,8 @@ export async function claimMemberTickets(userId: string, signal?: AbortSignal): 
 }
 
 /** Returns a validated URL; the caller must decide whether to navigate. Never called while checkout flag is off. */
-export async function prepareStripeCheckout(userId: string, priceId?: string, signal?: AbortSignal): Promise<string> {
-    return parseStripeCheckoutUrl(await request(userId, 'checkout', signal, false, priceId ? { priceId } : undefined));
+export async function prepareStripeCheckout(userId: string, signal?: AbortSignal): Promise<string> {
+    return parseStripeCheckoutUrl(await request(userId, 'checkout', signal));
 }
 
 /** A short-lived, server-created customer portal URL; never accepts a client-supplied Stripe Customer ID. */

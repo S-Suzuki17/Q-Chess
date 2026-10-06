@@ -643,22 +643,9 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
                     </div>
 
 
-
-                    {rewardsAvailable && (
-                        <div className="flex gap-2 mb-4">
-                            <button type="button" onClick={onOpenRewards} className="reward-entry flex-1 !mb-0" data-rewards-entry="lobby">
-                                <span>{rewardCopy.title}<small>{rewardCopy.description}</small></span><span aria-hidden="true">🎫</span>
-                            </button>
-                            <button type="button" onClick={onOpenRewards} className="flex-1 rounded-xl bg-gradient-to-br from-[#D4B872]/20 to-[#B39A62]/10 border border-[#D4B872]/50 hover:bg-[#D4B872]/30 transition-colors p-3 flex flex-col justify-center relative overflow-hidden group">
-                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#E8E2D7]/10 to-transparent -translate-x-[150%] group-hover:animate-[shimmer_1.5s_infinite]"></div>
-                                <span className="font-bold text-[#E8E2D7] flex items-center gap-2">
-                                    <span className="text-xl">👑</span> {lang === 'ja' ? 'ストア / Q-Gambit Plus' : 'Store / Premium'}
-                                </span>
-                                <span className="text-xs text-[#D4B872] mt-1">{lang === 'ja' ? '広告非表示・無制限プレイ' : 'No Ads & Unlimited Play'}</span>
-                            </button>
-                        </div>
-                    )}
-
+                    {rewardsAvailable && <button type="button" onClick={onOpenRewards} className="reward-entry" data-rewards-entry="lobby">
+                        <span>{rewardCopy.title}<small>{rewardCopy.description}</small></span><span aria-hidden="true">→</span>
+                    </button>}
                     <div className="lobby-shortcuts flex gap-2">
                         <button onClick={handleVsCpuClick} className="flex-1 py-4 bg-transparent border border-[#A89C86]/20 hover:bg-[#24211D] text-xs tracking-[0.2em] transition-colors text-[#A89C86] hover:text-[#E8E2D7] uppercase">
                             {(t as any).practice}
