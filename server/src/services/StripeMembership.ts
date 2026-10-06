@@ -7,6 +7,8 @@ import { createStripeClient, stripeRequest } from './StripeClient';
 
 const STRIPE_ID = /^(?:cs_(?:test|live)_|sub_|cus_|price_|evt_|in_)[A-Za-z0-9]{8,200}$/;
 export const QG_LIVE_MONTHLY_PRICE_ID = 'price_1ULM9fQWzwYDIuXWgs5Uj3yt';
+export const QG_LIVE_PLUS_PRICE_ID = 'price_1UNSv6QWzwYDIuXWvdUjE9Tm';
+export const QG_HINT_PRICES = { 'price_1UNSvDQWzwYDIuXWU7fp0Wsh': 1, 'price_1UNSvDQWzwYDIuXWwK9Ga77y': 13, 'price_1UNSvEQWzwYDIuXW07Qwl0ks': 27, 'price_1UNSvJQWzwYDIuXWrnwLdR09': 44, 'price_1UNSvKQWzwYDIuXWXZCkc3gE': 77, 'price_1UNSvKQWzwYDIuXWrd0LCY9c': 166 };
 // A canonical Stripe Subscription with malformed/multiple line items is never
 // an eligible $2.99 membership, even if one item happens to use our Price.
 const INELIGIBLE_PRICE_ID = 'price_INELIGIBLE000000';
@@ -140,31 +142,30 @@ export class StripeMembershipApi {
     }
 
     /** Read-only startup preflight, also repeated immediately before each purchase. */
-    async verifyCheckoutPrice(): Promise<void> {
-        const price = await this.call(`prices/${encodeURIComponent(this.config.priceId)}`);
-        const recurring = object(price.recurring) ? price.recurring : null;
-        if (price.id !== this.config.priceId || price.active !== true
+    async verifyCheckoutPrice(priceId = this.config.priceId): Promise<void> {
+        const price = await this.call(`prices/${encodeURIComponent(priceId)}`);
+        if (price.id !== priceId || price.active !== true
             || price.livemode !== (this.mode === 'live')
-            || price.currency !== 'usd' || price.unit_amount !== 299 || price.type !== 'recurring'
-            || recurring?.interval !== 'month' || recurring?.interval_count !== 1
-            || price.tax_behavior !== 'inclusive') {
+            || price.currency !== 'usd') {
             throw new StripeMembershipError(this.mode === 'test' ? 'STRIPE_TEST_PRICE_MISMATCH' : 'STRIPE_LIVE_PRICE_MISMATCH');
         }
     }
 
-    async createCheckout(userId: string): Promise<StripeCheckout> {
+    async createCheckout(userId: string, priceId?: string): Promise<StripeCheckout> {
         if (typeof userId !== 'string' || !userId || userId.length > 256 || /[\u0000-\u001f\u007f]/.test(userId)) {
             throw new StripeMembershipError('INVALID_ACCOUNT');
         }
-        await this.verifyCheckoutPrice();
+        const targetPriceId = priceId || this.config.priceId;
+        await this.verifyCheckoutPrice(targetPriceId);
+        const isSub = targetPriceId === this.config.priceId || targetPriceId === QG_LIVE_PLUS_PRICE_ID;
         const form = new URLSearchParams({
-            mode: 'subscription',
-            'line_items[0][price]': this.config.priceId,
+            mode: isSub ? 'subscription' : 'payment',
+            'line_items[0][price]': targetPriceId,
             'line_items[0][quantity]': '1',
             client_reference_id: userId,
             success_url: this.config.successUrl,
             cancel_url: this.config.cancelUrl,
-            'subscription_data[metadata][qgambit_user_id]': userId,
+            ...(isSub ? { 'subscription_data[metadata][qgambit_user_id]': userId } : { 'payment_intent_data[metadata][qgambit_user_id]': userId }),
         });
         form.set('automatic_tax[enabled]', String(this.config.automaticTaxEnabled === true));
         // Managed Payments enables tax by default in some accounts. Tax policy
@@ -377,3 +378,4 @@ export class StripeTestMembershipApi extends StripeMembershipApi {
         super({ ...config, mode: 'test' }, request);
     }
 }
+

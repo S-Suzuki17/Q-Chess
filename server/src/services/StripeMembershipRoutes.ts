@@ -27,6 +27,37 @@ export function createStripeWebhookRouter(
         try {
             const event = verifyStripeWebhook(req.body, req.headers, webhookSecret);
             if (event.livemode !== api!.livemode) throw new StripeMembershipError('EVENT_MODE_MISMATCH');
+            if (event.type === 'checkout.session.completed') {
+                const checkout = event.data?.object as any;
+                if (checkout && checkout.mode === 'payment') {
+                    // One-time purchase!
+                    const userId = checkout.client_reference_id || checkout.metadata?.qgambit_user_id;
+                    const amountTotal = checkout.amount_total;
+                    let hintAmount = 0;
+                    if (amountTotal === 100) hintAmount = 1;
+                    else if (amountTotal === 1000) hintAmount = 13;
+                    else if (amountTotal === 2000) hintAmount = 27;
+                    else if (amountTotal === 3000) hintAmount = 44;
+                    else if (amountTotal === 5000) hintAmount = 77;
+                    else if (amountTotal === 10000) hintAmount = 166;
+                    
+                    if (userId && hintAmount > 0) {
+                        const { createClient } = require('@supabase/supabase-js');
+                        const adminClient = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+                        await adminClient.rpc('apply_stripe_one_time_purchase', {
+                            p_checkout_id: checkout.id,
+                            p_user_id: userId,
+                            p_price_id: checkout.metadata?.priceId || 'unknown',
+                            p_amount_total: amountTotal,
+                            p_livemode: event.livemode,
+                            p_hint_tickets: hintAmount
+                        });
+                        res.json({ received: true });
+                        return;
+                    }
+                }
+            }
+
             if (REVERSAL_EVENTS.has(event.type)) {
                 const targets = await api!.resolveReversal(event);
                 for (const target of targets) {
@@ -168,7 +199,7 @@ export function createStripeMembershipRouter(
         }
         catch { res.status(503).json({ code: 'MEMBERSHIP_UNAVAILABLE' }); }
     });
-    router.post('/membership/stripe/checkout', authenticateCheckout, ...emptyJson, async (_req, res) => {
+    router.post('/membership/stripe/checkout', authenticateCheckout, express.json({ limit: '4kb' }), async (req, res) => {
         const userId = res.locals.memberUser as string;
         const release = gate.enter(userId);
         if (!release) { res.status(423).json({ code: 'ACCOUNT_DELETING' }); return; }
@@ -188,10 +219,10 @@ export function createStripeMembershipRouter(
                 }
             }
             if (!preflight.eligible) { res.status(409).json({ code: 'CHECKOUT_ALREADY_PENDING' }); return; }
-            const checkout = await api!.createCheckout(userId);
+            const checkout = await api!.createCheckout(userId, req.body?.priceId);
             checkoutId = checkout.id;
             // Atomic DB registration rejects concurrent requests/active membership.
-            await store.registerCheckoutIntent(userId, checkout.id, api!.priceId, checkout.expiresAt, api!.livemode);
+            await store.registerCheckoutIntent(userId, checkout.id, req.body?.priceId || api!.priceId, checkout.expiresAt, api!.livemode);
             if (!(await recheck(res, userId))) {
                 await api!.expireCheckout(checkout.id);
                 res.status(401).json({ code: 'AUTH_REQUIRED' }); return;
