@@ -4,7 +4,10 @@ import { AccountWriteGate } from './AccountDeletion';
 import { StripeMembershipError, StripeMembershipApi, verifyStripeWebhook } from './StripeMembership';
 import type { StripeMembershipStore } from './StripeMembershipStore';
 import type { StripePortalApi } from './StripePortal';
-import { isCommerceSku } from './CommerceCatalog';
+import { COMMERCE_CATALOG, isCommerceSku } from './CommerceCatalog';
+import type { StripeCommerceCheckoutStore } from './StripeCommerceStore';
+import type { StripeCommerceFulfillment } from './StripeCommerceFulfillment';
+import type { StripeCommerceStatusStore } from './StripeCommerceStatus';
 
 type Enabled = () => boolean;
 const REVERSAL_EVENTS = new Set([
@@ -17,6 +20,7 @@ export function createStripeWebhookRouter(
     store: StripeMembershipStore,
     webhookSecret: string,
     enabled: Enabled = () => process.env.STRIPE_MEMBERSHIP_TEST_ENABLED === 'true',
+    commerce: Pick<StripeCommerceFulfillment, 'dispatchWebhook'> | null = null,
 ) {
     const router = express.Router();
     router.post('/membership/stripe/webhook', (req, res, next) => {
@@ -28,6 +32,9 @@ export function createStripeWebhookRouter(
         try {
             const event = verifyStripeWebhook(req.body, req.headers, webhookSecret);
             if (event.livemode !== api!.livemode) throw new StripeMembershipError('EVENT_MODE_MISMATCH');
+            if (commerce && await commerce.dispatchWebhook(req.body, req.headers)) {
+                res.status(200).json({ received: true }); return;
+            }
             if (REVERSAL_EVENTS.has(event.type)) {
                 const targets = await api!.resolveReversal(event);
                 for (const target of targets) {
@@ -74,6 +81,10 @@ export function createStripeWebhookRouter(
                 res.status(400).json({ code: 'INVALID_WEBHOOK' }); return;
             }
             res.setHeader('Retry-After', '60');
+            if (error instanceof Error && ['COMMERCE_RECONCILIATION_REVIEW_REQUIRED',
+                'COMMERCE_CHECKOUT_UNBOUND', 'COMMERCE_RISK_POLICY_REQUIRED', 'COMMERCE_EVENT_UNSUPPORTED'].includes(error.message)) {
+                res.status(503).json({ code: error.message }); return;
+            }
             res.status(503).json({ code: 'MEMBERSHIP_UNAVAILABLE' });
         }
     });
@@ -97,6 +108,8 @@ export function createStripeMembershipRouter(
     portalApi: StripePortalApi | null = null,
     portalEnabled: Enabled = () => process.env.STRIPE_MEMBERSHIP_PORTAL_ENABLED === 'true',
     checkoutEnabled: Enabled = enabled,
+    commerceStore: StripeCommerceCheckoutStore | null = null,
+    commerceStatusStore: StripeCommerceStatusStore | null = null,
 ) {
     const router = express.Router();
     const attempts = new Map<string, { count: number; until: number }>();
@@ -176,17 +189,19 @@ export function createStripeMembershipRouter(
         try {
             const userId = res.locals.memberUser as string;
             const status = await store.status(userId, api!.livemode);
+            const commerce = commerceStatusStore ? await commerceStatusStore.status(userId, api!.livemode) : null;
             const owner = portalEnabled() && portalApi
                 ? await store.portalCustomer(userId, portalApi.livemode) : null;
             res.json({ enabled: true, ...status,
-                availableCheckoutSkus: checkoutEnabled() ? api!.availableCheckoutSkus() : [],
+                ...(commerce ? { commerce } : {}),
+                availableCheckoutSkus: checkoutEnabled() && commerceStore ? api!.availableCheckoutSkus() : [],
                 canManageBilling: !!owner && owner.livemode === portalApi?.livemode });
         }
         catch { res.status(503).json({ code: 'MEMBERSHIP_UNAVAILABLE' }); }
     });
     router.post('/membership/stripe/checkout', authenticateCheckout, ...checkoutJson, async (req, res) => {
         const sku = req.body.sku;
-        if (!api!.availableCheckoutSkus().includes(sku)) {
+        if (!commerceStore || !api!.availableCheckoutSkus().includes(sku)) {
             res.status(503).json({ code: 'SKU_NOT_READY' }); return;
         }
         const userId = res.locals.memberUser as string;
@@ -196,22 +211,27 @@ export function createStripeMembershipRouter(
         try {
             if (!(await recheck(res, userId))) { res.status(401).json({ code: 'AUTH_REQUIRED' }); return; }
             if (!await store.hasCurrentTerms(userId)) { res.status(403).json({ code: 'CURRENT_TERMS_REQUIRED' }); return; }
-            let preflight = await store.preflight(userId, api!.livemode);
-            if (preflight.reason === 'checkout_pending' && preflight.checkoutId && preflight.expiresAt
-                && Date.parse(preflight.expiresAt) <= Date.now()) {
-                // An elapsed deadline does not prove non-payment. Stripe's
-                // terminal expired status does; a completed session remains
-                // blocked until its signed webhook has been reconciled.
-                if (await api!.isCheckoutExpired(preflight.checkoutId)) {
-                    await store.closeExpiredIntent(userId, preflight.checkoutId, api!.livemode);
-                    preflight = await store.preflight(userId, api!.livemode);
+            const product = COMMERCE_CATALOG[sku as keyof typeof COMMERCE_CATALOG];
+            if (product.checkoutMode === 'subscription') {
+                let preflight = await store.preflight(userId, api!.livemode);
+                if (preflight.reason === 'checkout_pending' && preflight.checkoutId && preflight.expiresAt
+                    && Date.parse(preflight.expiresAt) <= Date.now()) {
+                    // An elapsed deadline does not prove non-payment. Stripe's
+                    // terminal expired status does; a completed session remains
+                    // blocked until its signed webhook has been reconciled.
+                    if (await api!.isCheckoutExpired(preflight.checkoutId)) {
+                        await store.closeExpiredIntent(userId, preflight.checkoutId, api!.livemode);
+                        preflight = await store.preflight(userId, api!.livemode);
+                    }
                 }
+                if (!preflight.eligible) { res.status(409).json({ code: 'CHECKOUT_ALREADY_PENDING' }); return; }
             }
-            if (!preflight.eligible) { res.status(409).json({ code: 'CHECKOUT_ALREADY_PENDING' }); return; }
             const checkout = await api!.createCheckout(userId, sku);
             checkoutId = checkout.id;
             // Atomic DB registration rejects concurrent requests/active membership.
-            await store.registerCheckoutIntent(userId, checkout.id, checkout.priceId, checkout.expiresAt, api!.livemode);
+            await commerceStore.registerCheckoutIntent({ userId, checkoutId: checkout.id, sku,
+                priceId: checkout.priceId, amountTotal: product.amount, currency: product.currency,
+                livemode: api!.livemode }, checkout.expiresAt);
             if (!(await recheck(res, userId))) {
                 await api!.expireCheckout(checkout.id);
                 res.status(401).json({ code: 'AUTH_REQUIRED' }); return;

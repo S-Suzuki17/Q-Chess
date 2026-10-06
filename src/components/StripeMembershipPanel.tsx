@@ -15,6 +15,8 @@ import { stripeMembershipText } from '../locales/stripeMembershipText';
 import { ticketWalletText } from '../locales/ticketWalletText';
 import { rewardsHubText } from '../locales/rewardsHubText';
 import { commerceText } from '../locales/commerceText';
+import { commerceStatusText } from '../locales/commerceStatusText';
+import { CommerceEntitlements } from './CommerceEntitlements';
 import { webCommerceCheckoutReady } from '../config/webCommerce';
 import {
     STRIPE_WEB_CHECKOUT_ENABLED,
@@ -39,7 +41,7 @@ export function StripeMembershipPanel({ user, lang }: { user: User; lang: Langua
     const actionRequest = React.useRef<AbortController | null>(null);
     const [actionFailed, setActionFailed] = React.useState(false);
     React.useEffect(() => setMounted(true), []);
-    React.useEffect(() => () => actionRequest.current?.abort(), [allowed, revision, user.id]);
+    React.useEffect(() => () => actionRequest.current?.abort(), [allowed, revision, user.id, user.type, webContent]);
 
     const visible = mounted && user.type === 'registered' && allowed &&
         stripeWebMembershipAllowed(webContent, Capacitor.isNativePlatform());
@@ -59,40 +61,45 @@ export function StripeMembershipPanel({ user, lang }: { user: User; lang: Langua
     const copy = stripeMembershipText(lang);
     const wallet = ticketWalletText(lang), commerce = commerceText(lang);
     const hub = rewardsHubText(lang);
-    const status = loaded?.revision === revision && loaded.status.userId === user.id ? loaded.status : null;
+    const status = failedRevision !== revision && loaded?.revision === revision && loaded.status.userId === user.id ? loaded.status : null;
+    const hasSubscription = !!(status?.active || status?.commerce?.active);
+    const checkoutReady = STRIPE_WEB_CHECKOUT_ENABLED && webCommerceCheckoutReady();
 
     const selectedProduct = COMMERCE_PRODUCTS.find(product => product.sku === selectedSku);
+    const ownedProduct = status?.commerce?.active ? COMMERCE_PRODUCTS.find(product => product.sku === status.commerce?.sku) : null;
     const availableSkus = status?.availableCheckoutSkus ?? [];
-    const selectionReady = !!selectedProduct && availableSkus.includes(selectedProduct.sku) &&
-        !(status?.active && selectedProduct.kind === 'subscription');
+    const selectionReady = checkoutReady && !!selectedProduct && availableSkus.includes(selectedProduct.sku) &&
+        !(hasSubscription && selectedProduct.kind === 'subscription');
+    const currentAccess = () => circuitAccess.canPlay(user) && circuitAccess.getSnapshot().revision === revision;
     const startCheckout = async () => {
-        if (!STRIPE_WEB_CHECKOUT_ENABLED || !webCommerceCheckoutReady() || !acceptedPurchaseTerms || !selectionReady || !selectedProduct || preparing || !stripeWebMembershipAllowed(webContent, Capacitor.isNativePlatform())) return;
+        if (!currentAccess() || !STRIPE_WEB_CHECKOUT_ENABLED || !webCommerceCheckoutReady() || !acceptedPurchaseTerms || !selectionReady || !selectedProduct || preparing || !stripeWebMembershipAllowed(webContent, Capacitor.isNativePlatform())) return;
         if (actionRequest.current && !actionRequest.current.signal.aborted) return;
         const controller = new AbortController(); actionRequest.current = controller;
         setPreparing(true); setActionFailed(false);
         try {
             await acceptCurrentAccountTerms(user.id, controller.signal);
             controller.signal.throwIfAborted();
+            if (!currentAccess() || !stripeWebMembershipAllowed(webContent, Capacitor.isNativePlatform())) return;
             const url = await prepareStripeCheckout(user.id, selectedProduct.sku, controller.signal);
-            if (!controller.signal.aborted && circuitAccess.canPlay(user) && stripeWebMembershipAllowed(webContent, Capacitor.isNativePlatform())) window.location.assign(url);
+            if (!controller.signal.aborted && currentAccess() && stripeWebMembershipAllowed(webContent, Capacitor.isNativePlatform())) window.location.assign(url);
         } catch { if (!controller.signal.aborted) { setActionFailed(true); setPreparing(false); actionRequest.current = null; } }
     };
     const openBilling = async () => {
-        if (!STRIPE_WEB_PORTAL_ENABLED || preparing || !status?.canManageBilling
+        if (!currentAccess() || !STRIPE_WEB_PORTAL_ENABLED || preparing || !status?.canManageBilling
             || !stripeWebMembershipAllowed(webContent, Capacitor.isNativePlatform())) return;
         if (actionRequest.current && !actionRequest.current.signal.aborted) return;
         const controller = new AbortController(); actionRequest.current = controller;
         setPreparing(true); setActionFailed(false);
         try {
             const url = await prepareStripeBillingPortal(user.id, controller.signal);
-            if (!controller.signal.aborted && circuitAccess.canPlay(user) && stripeWebMembershipAllowed(webContent, Capacitor.isNativePlatform())) window.location.assign(url);
+            if (!controller.signal.aborted && currentAccess() && stripeWebMembershipAllowed(webContent, Capacitor.isNativePlatform())) window.location.assign(url);
         } catch { if (!controller.signal.aborted) { setActionFailed(true); setPreparing(false); actionRequest.current = null; } }
     };
 
     return <section aria-label={copy.title} className="reward-card reward-membership text-sm">
-        {!status?.active && <p className="reward-caption mb-2">{hub.optional}</p>}
+        {!hasSubscription && <p className="reward-caption mb-2">{hub.optional}</p>}
         <h4 className="reward-title">Q-Gambit Store <span className="reward-caption">・ {copy.title}</span></h4>
-        {!STRIPE_WEB_CHECKOUT_ENABLED && !status?.active
+        {!STRIPE_WEB_CHECKOUT_ENABLED && !hasSubscription
             ? <p className="mt-2 font-mono text-[#E8E2D7]">{lang === 'ja' ? '新商品の販売準備中' : 'New products are not on sale yet'}</p> : null}
         
         <details className="reward-details" data-product-catalog>
@@ -100,7 +107,7 @@ export function StripeMembershipPanel({ user, lang }: { user: User; lang: Langua
             <div className="reward-details__body">
                 {availableSkus.length === 0 && <p role="status">{lang === 'ja' ? '新商品の販売準備中です。現在は購入できません。' : 'New products are being prepared and cannot be purchased yet.'}</p>}
                 {COMMERCE_PRODUCTS.map(product => {
-                    const enabled = availableSkus.includes(product.sku) && !(status?.active && product.kind === 'subscription');
+                    const enabled = checkoutReady && availableSkus.includes(product.sku) && !(hasSubscription && product.kind === 'subscription');
                     return <label key={product.sku} className="block py-2">
                         <input type="radio" name="store_item" value={product.sku} checked={selectedSku === product.sku}
                             disabled={!enabled || preparing} onChange={() => { setSelectedSku(product.sku); setAcceptedPurchaseTerms(false); }} />
@@ -115,18 +122,19 @@ export function StripeMembershipPanel({ user, lang }: { user: User; lang: Langua
             ? <p role="status" className="mt-3 text-[#A89C86]">{copy.unavailable}</p>
             : !status
                 ? <p role="status" className="mt-3 text-[#A89C86]">{copy.checking}</p>
-                : <p role="status" className="reward-membership-status">
-                    {status.active ? copy.active : copy.inactive}
+                : (!status.commerce?.active || status.active) && <p role="status" className="reward-membership-status">
+                    {status.active ? `${commerceStatusText(lang).legacy} · ${copy.active}` : copy.inactive}
                     {status.active && status.periodEnd
                         ? ` · ${status.cancelAtPeriodEnd ? copy.scheduledEnd : copy.periodEnd}: ${new Date(status.periodEnd).toISOString().slice(0, 10)} UTC`
                         : ''}
                 </p>}
-        <details className="reward-details" key={`${user.id}-${revision}-${status?.active ?? 'loading'}`}>
-            <summary>{status?.active ? hub.rules : hub.review}</summary>
+        {status?.commerce && <CommerceEntitlements status={status.commerce} lang={lang} />}
+        <details className="reward-details" key={`${user.id}-${revision}-${hasSubscription}`}>
+            <summary>{hasSubscription ? hub.rules : hub.review}</summary>
             <div className="reward-details__body">
-                {status?.active && <p>{copy.billingTerms}</p>}
-                <p>{wallet.expiry} {copy.legalRights}</p>
-                <p>{copy.webOnly}</p>
+                {status?.active && <div data-legacy-membership-terms><p>{copy.billingTerms}</p><p>{wallet.expiry} {copy.legalRights}</p></div>}
+                {ownedProduct && <p data-current-commerce-product>{commerceProductText(ownedProduct, lang === 'ja')}</p>}
+                {status?.active && <p>{copy.webOnly}</p>}
         {STRIPE_WEB_CHECKOUT_ENABLED && webCommerceCheckoutReady() && status && selectionReady && failedRevision !== revision
             ? <div className="mt-3 space-y-3" data-purchase-review>
                 <p>{commerce.start}</p><p>{commerce.methods}</p>

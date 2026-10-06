@@ -7,6 +7,9 @@ export interface CommerceCheckoutIntent {
     checkoutId: string; userId: string; sku: CommerceSku; priceId: string;
     amountTotal: number; currency: 'usd'; livemode: boolean;
 }
+export interface StripeCommerceCheckoutStore {
+    registerCheckoutIntent(intent: CommerceCheckoutIntent, expiresAt: string): Promise<void>;
+}
 export interface CommerceOneTimeEvidence extends CommerceCheckoutIntent {
     eventId: string; payloadHash: string; paymentStatus: 'paid';
 }
@@ -56,15 +59,35 @@ function result(data: unknown, expectedCredit: number): CommerceFulfillmentResul
     return data as unknown as CommerceFulfillmentResult;
 }
 
-/** Additive adapter; never registers a Checkout, creates a binding, or opens sales. */
+/** Server-owned registration and fulfillment. Never creates a price binding or opens sales. */
 export function createStripeCommerceStore(client: SupabaseClient,
-    reconciliation: Pick<StripeMembershipStore, 'acquireReconciliation' | 'releaseReconciliation'>): StripeCommerceStore {
+    reconciliation: Pick<StripeMembershipStore, 'acquireReconciliation' | 'releaseReconciliation'>): StripeCommerceStore & StripeCommerceCheckoutStore {
     const apply = async (name: string, evidence: CommerceOneTimeEvidence | CommerceSubscriptionEvidence, expectedCredit: number) => {
         const { data, error } = await client.rpc(name, { p_evidence: evidence }).abortSignal(AbortSignal.timeout(5000));
-        if (error) throw unavailable();
+        if (error) {
+            if (typeof error.message === 'string' && error.message.includes('COMMERCE_RECONCILIATION_REVIEW_REQUIRED')) {
+                throw new Error('COMMERCE_RECONCILIATION_REVIEW_REQUIRED');
+            }
+            throw unavailable();
+        }
         return result(data, expectedCredit);
     };
     return {
+        async registerCheckoutIntent(intent, expiresAt) {
+            parseCommerceCheckoutIntent({ checkout_id: intent.checkoutId, user_id: intent.userId,
+                sku: intent.sku, price_id: intent.priceId, amount_total: intent.amountTotal,
+                currency: intent.currency, livemode: intent.livemode }, intent.checkoutId, intent.livemode);
+            const expiry = Date.parse(expiresAt);
+            if (!Number.isFinite(expiry) || expiry <= Date.now() || expiry > Date.now() + 2 * 86400_000) throw unavailable();
+            // The RPC checks reviewed mode/price binding, account/consent, and
+            // serializes subscription ownership under the profile row lock.
+            const { error } = await client.rpc('register_stripe_commerce_checkout_intent', {
+                p_user_id: intent.userId, p_checkout_id: intent.checkoutId, p_sku: intent.sku,
+                p_price_id: intent.priceId, p_amount_total: intent.amountTotal, p_currency: intent.currency,
+                p_livemode: intent.livemode, p_expires_at: expiresAt,
+            }).abortSignal(AbortSignal.timeout(5000));
+            if (error) throw unavailable();
+        },
         acquireReconciliation: (...args) => reconciliation.acquireReconciliation(...args),
         releaseReconciliation: (...args) => reconciliation.releaseReconciliation(...args),
         hasCurrentTerms: userId => hasCurrentTicketTerms(client, userId),

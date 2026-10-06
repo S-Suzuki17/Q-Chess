@@ -15,9 +15,23 @@ export const STRIPE_WEB_PORTAL_ENABLED = !ANDROID_BUILD && process.env.NEXT_PUBL
 /** Use of existing entitlements is separate from new purchases and allowed on Android. */
 export const MEMBER_TICKET_USAGE_ENABLED = process.env.NEXT_PUBLIC_QG_MEMBER_TICKET_USAGE_ENABLED === 'true';
 
+/** Separate mode-specific stock and billing state; never legacy daily tickets. */
+export type StripeCommerceStatus = Readonly<{
+    userId: string;
+    livemode: boolean;
+    active: boolean;
+    sku: 'standard_monthly' | 'plus_monthly' | null;
+    periodEnd: string | null;
+    cancelAtPeriodEnd: boolean;
+    unlimitedRanked: boolean;
+    adFree: boolean;
+    balances: Readonly<{ purchased: number; subscription: number }>;
+}>;
+
 export type StripeMembershipStatus = Readonly<{
     userId: string;
     availableCheckoutSkus?: readonly CommerceSku[];
+    commerce?: StripeCommerceStatus;
     enabled: true;
     active: boolean;
     canManageBilling: boolean;
@@ -49,6 +63,33 @@ const validUserId = (id: string) => typeof id === 'string' && !!id && id.length 
 const validDay = (value: unknown): value is string => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) &&
     !Number.isNaN(Date.parse(`${value}T00:00:00Z`)) && new Date(`${value}T00:00:00Z`).toISOString().slice(0, 10) === value;
 
+const validPeriodEnd = (value: unknown): value is string => typeof value === 'string' &&
+    /^\d{4}-\d{2}-\d{2}T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})$/.test(value) &&
+    validDay(value.slice(0, 10)) && Number.isFinite(Date.parse(value));
+
+function parseCommerceStatus(value: unknown, userId: string): StripeCommerceStatus {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) throw new StripeMembershipError('UNAVAILABLE');
+    const row = value as Record<string, unknown>;
+    const balances = row.balances as Record<string, unknown> | null;
+    if (row.userId !== userId || typeof row.livemode !== 'boolean' || typeof row.active !== 'boolean' ||
+        typeof row.cancelAtPeriodEnd !== 'boolean' || typeof row.unlimitedRanked !== 'boolean' || typeof row.adFree !== 'boolean' ||
+        !balances || Array.isArray(balances) || typeof balances !== 'object' ||
+        !Number.isSafeInteger(balances.purchased) || (balances.purchased as number) < 0 ||
+        !Number.isSafeInteger(balances.subscription) || (balances.subscription as number) < 0 ||
+        (row.active
+            ? !['standard_monthly', 'plus_monthly'].includes(row.sku as string) || !validPeriodEnd(row.periodEnd)
+            : row.sku !== null || row.periodEnd !== null || row.cancelAtPeriodEnd !== false) ||
+        row.unlimitedRanked !== (row.active && row.livemode) || row.adFree !== (row.active && row.livemode)) {
+        throw new StripeMembershipError('UNAVAILABLE');
+    }
+    return {
+        userId, livemode: row.livemode, active: row.active,
+        sku: row.sku as StripeCommerceStatus['sku'], periodEnd: row.periodEnd as string | null,
+        cancelAtPeriodEnd: row.cancelAtPeriodEnd, unlimitedRanked: row.unlimitedRanked, adFree: row.adFree,
+        balances: { purchased: balances.purchased as number, subscription: balances.subscription as number },
+    };
+}
+
 export function parseStripeMembershipStatus(value: unknown, userId: string): StripeMembershipStatus {
     if (!value || typeof value !== 'object' || Array.isArray(value)) throw new StripeMembershipError('UNAVAILABLE');
     const row = value as Record<string, unknown>;
@@ -70,6 +111,7 @@ export function parseStripeMembershipStatus(value: unknown, userId: string): Str
     return {
         userId, enabled: true, active: row.active as boolean,
         ...(row.availableCheckoutSkus === undefined ? {} : { availableCheckoutSkus: row.availableCheckoutSkus as CommerceSku[] }),
+        ...(row.commerce === undefined ? {} : { commerce: parseCommerceStatus(row.commerce, userId) }),
         canManageBilling: row.canManageBilling as boolean,
         cancelAtPeriodEnd: row.cancelAtPeriodEnd as boolean,
         periodEnd: row.periodEnd as string | null,

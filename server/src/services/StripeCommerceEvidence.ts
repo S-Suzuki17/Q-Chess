@@ -1,5 +1,5 @@
 import type Stripe from 'stripe';
-import { COMMERCE_CATALOG, matchesCommercePrice, type CommerceProduct } from './CommerceCatalog';
+import { COMMERCE_CATALOG, isCommerceSku, matchesCommercePrice, type CommerceProduct } from './CommerceCatalog';
 import { createStripeClient, stripeRequest } from './StripeClient';
 import type { StripeEvent } from './StripeMembership';
 import type { CommerceCheckoutIntent, CommerceOneTimeEvidence, CommercePaidPeriod,
@@ -76,6 +76,56 @@ export class StripeCommerceEvidence {
         const value = await this.call(`checkout/sessions/${encodeURIComponent(checkoutId)}`);
         if (value.id !== checkoutId || value.livemode !== this.config.livemode) return fail();
         return value;
+    }
+    /** Routing aid only; fulfillment always re-reads and validates the full graph. */
+    async riskCheckouts(event: StripeEvent): Promise<RecordValue[]> {
+        const risk = event.data.object;
+        if (event.type.startsWith('credit_note.')) {
+            if (!id(risk.id, 'cn_')) return fail();
+            const note = await this.call(`credit_notes/${encodeURIComponent(risk.id)}`);
+            if (note.id !== risk.id || note.livemode !== this.config.livemode || !id(note.invoice, 'in_')) return fail();
+            return this.invoiceCheckouts(note.invoice);
+        }
+        const chargeId = event.type === 'charge.refunded' ? risk.id : risk.charge;
+        if (!id(chargeId, 'ch_')) return fail();
+        const charge = await this.call(`charges/${encodeURIComponent(chargeId)}`);
+        if (charge.id !== chargeId || charge.livemode !== this.config.livemode) return fail();
+        if (charge.payment_intent === null) return [];
+        if (!id(charge.payment_intent, 'pi_')) return fail();
+        const paymentId = charge.payment_intent;
+        const intent = await this.call(`payment_intents/${encodeURIComponent(paymentId)}`);
+        if (intent.id !== paymentId || intent.livemode !== this.config.livemode) return fail();
+        const sessions = await this.call(`checkout/sessions?payment_intent=${encodeURIComponent(paymentId)}&limit=100`);
+        if (sessions.has_more !== false || !Array.isArray(sessions.data)) return fail();
+        const checkouts: RecordValue[] = [];
+        for (const session of sessions.data) {
+            if (!object(session) || !id(session.id, this.config.livemode ? 'cs_live_' : 'cs_test_')) return fail();
+            const checkout = await this.checkout(session.id);
+            if (checkout.payment_intent !== paymentId) return fail();
+            checkouts.push(checkout);
+        }
+        const query = new URLSearchParams({ 'payment[type]': 'payment_intent',
+            'payment[payment_intent]': paymentId, status: 'paid', limit: '100' });
+        const payments = await this.call(`invoice_payments?${query}`);
+        if (payments.has_more !== false || !Array.isArray(payments.data)) return fail();
+        for (const payment of payments.data) {
+            if (!object(payment) || payment.livemode !== this.config.livemode || payment.status !== 'paid'
+                || !object(payment.payment) || payment.payment.type !== 'payment_intent'
+                || payment.payment.payment_intent !== paymentId || !id(payment.invoice, 'in_')) return fail();
+            checkouts.push(...await this.invoiceCheckouts(payment.invoice));
+        }
+        if (!checkouts.length && object(intent.metadata) && isCommerceSku(intent.metadata.qgambit_sku)) return fail('COMMERCE_CHECKOUT_UNBOUND');
+        return checkouts;
+    }
+    private async invoiceCheckouts(invoiceId: string): Promise<RecordValue[]> {
+        const invoice = await this.call(`invoices/${encodeURIComponent(invoiceId)}`);
+        if (invoice.id !== invoiceId || invoice.livemode !== this.config.livemode) return fail();
+        const parent = object(invoice.parent) ? invoice.parent : null;
+        const details = parent?.type === 'subscription_details' && object(parent.subscription_details)
+            ? parent.subscription_details : null;
+        if (!details) return [];
+        if (!id(details.subscription, 'sub_')) return fail();
+        return [(await this.subscriptionContext(details.subscription)).checkout];
     }
     /** Must run after acquiring the subscription reconciliation lease. */
     async subscriptionContext(subscriptionId: string): Promise<CommerceSubscriptionContext> {

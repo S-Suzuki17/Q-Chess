@@ -86,6 +86,134 @@ test('native PostgreSQL public-baseline upgrade and concurrent commerce', { time
             latestInvoiceId: 'in_ATOMICCURRENT', paidPeriod: { invoiceId: 'in_ATOMICCURRENT', periodStart: m.start, periodEnd: m.end },
             ...changes,
         })]);
+    await check('paid pack fulfillment preserves original consent after policy changes while new checkout and spend fail closed', async () => {
+        const user = await account(admin), intent = await register(a, user), event = unique('evt_CONSENT');
+        const before = await scalar(a, 'select to_jsonb(i) as result from public.stripe_commerce_checkout_intents i where checkout_id=$1', [intent.checkout]);
+        assert.equal(before.terms_version, '2026-10-03.1');
+        const policyDate = await scalar(admin, 'select effective_date::text as result from public.current_terms_policy');
+        try {
+            await admin.query('update public.current_terms_policy set effective_date=null');
+            assert.equal(await scalar(a, 'select public.has_current_ticket_terms($1) as result', [user]), false);
+            assert.equal((await atomicOneTime(a, intent, event)).credited, 13);
+            assert.equal((await atomicOneTime(a, intent, event)).credited, 0);
+            assert.equal((await atomicOneTime(a, intent, unique('evt_CONSENT'))).duplicate, true);
+            await assert.rejects(register(a, user), /Checkout account unavailable/);
+            await assert.rejects(claim(a, user), /Reward account unavailable/);
+            assert.equal((await wallet(a, user)).test_purchased_hint_tickets, 13);
+            assert.deepEqual(await scalar(a, 'select to_jsonb(i) as result from public.stripe_commerce_checkout_intents i where checkout_id=$1', [intent.checkout]), before);
+        } finally { await admin.query('update public.current_terms_policy set effective_date=$1::date', [policyDate]); }
+    });
+    await check('first paid monthly webhook and duplicate invoice deliveries use immutable Checkout consent after policy changes', async () => {
+        const user = await account(admin), m = await member(a, user), event = unique('evt_CONSENT');
+        const policyDate = await scalar(admin, 'select effective_date::text as result from public.current_terms_policy');
+        try {
+            await admin.query('update public.current_terms_policy set effective_date=null');
+            assert.equal(await scalar(a, 'select public.has_current_ticket_terms($1) as result', [user]), false);
+            assert.equal((await atomicSubscription(a, m, event)).credited, 10);
+            assert.equal((await atomicSubscription(a, m, event)).credited, 0);
+            assert.equal((await atomicSubscription(a, m, unique('evt_CONSENT'))).duplicate, true);
+            assert.equal((await wallet(a, user)).test_subscription_hint_tickets, 10);
+            assert.equal(await scalar(a, 'select count(*)::integer as result from public.stripe_commerce_paid_periods where subscription_id=$1', [m.subscription]), 1);
+        } finally { await admin.query('update public.current_terms_policy set effective_date=$1::date', [policyDate]); }
+    });
+    await check('missing consent snapshots surface explicit review without writing any paid receipt or grant', async () => {
+        for (const subscription of [false, true]) {
+            const user = await account(admin), intent = subscription ? await member(a, user) : await register(a, user);
+            const event = unique('evt_CONSENT');
+            await assert.rejects(a.query('update public.stripe_commerce_checkout_intents set terms_version=null where checkout_id=$1', [intent.checkout]), { code: '42501' });
+            await assert.rejects(admin.query("update public.stripe_commerce_checkout_intents set terms_accepted_at=created_at+interval '1 second' where checkout_id=$1", [intent.checkout]), { code: '23514' });
+            await assert.rejects(admin.query("update public.stripe_commerce_checkout_intents set terms_accepted_at=(terms_effective_date::timestamp at time zone 'Asia/Tokyo')-interval '1 second' where checkout_id=$1", [intent.checkout]), { code: '23514' });
+            await admin.query('update public.stripe_commerce_checkout_intents set terms_version=null,terms_accepted_at=null,terms_effective_date=null where checkout_id=$1', [intent.checkout]);
+            const before = await wallet(a, user);
+            await assert.rejects(subscription ? atomicSubscription(a, intent, event) : atomicOneTime(a, intent, event), /COMMERCE_RECONCILIATION_REVIEW_REQUIRED/);
+            assert.deepEqual(await wallet(a, user), before);
+            for (const table of ['stripe_webhook_receipts', 'stripe_commerce_event_receipts', 'stripe_commerce_paid_evidence']) {
+                assert.equal(await scalar(a, `select count(*)::integer as result from public.${table} where event_id=$1`, [event]), 0);
+            }
+            assert.equal(await scalar(a, 'select count(*)::integer as result from public.stripe_commerce_consumed_checkouts where checkout_id=$1', [intent.checkout]), 0);
+            assert.equal(await scalar(a, 'select count(*)::integer as result from public.stripe_one_time_purchases where checkout_id=$1', [intent.checkout]), 0);
+            if (subscription) assert.equal(await scalar(a, 'select count(*)::integer as result from public.stripe_commerce_paid_periods where subscription_id=$1', [intent.subscription]), 0);
+        }
+    });
+    await check('captured consent never bypasses active account restrictions or deletion for either paid RPC', async () => {
+        for (const subscription of [false, true]) for (const deleting of [false, true]) {
+            const user = await account(admin), intent = subscription ? await member(a, user) : await register(a, user);
+            const event = unique('evt_CONSENT');
+            if (deleting) await admin.query('insert into public.account_deletion_jobs(ticket_hash,user_id) values($1,$2)', [createHash('sha256').update(user).digest('hex'), user]);
+            else await admin.query('insert into public.account_restrictions(user_id,blocked) values($1,true)', [user]);
+            await assert.rejects(subscription ? atomicSubscription(a, intent, event) : atomicOneTime(a, intent, event), /Commerce account unavailable/);
+            assert.equal(await scalar(a, 'select count(*)::integer as result from public.stripe_commerce_event_receipts where event_id=$1', [event]), 0);
+            assert.equal(await scalar(a, 'select count(*)::integer as result from public.stripe_webhook_receipts where event_id=$1', [event]), 0);
+        }
+    });
+
+    await check('new Standard and Plus test projections never acquire legacy status before or after a paid invoice', async () => {
+        for (const sku of ['standard_monthly', 'plus_monthly']) {
+            const user = await account(admin), m = await member(a, user, sku);
+            await atomicSubscription(a, m, unique('evt_PROJECTION'), { eventType: 'customer.subscription.updated', paidNewPeriod: false, paidPeriod: null });
+            const status = () => scalar(a, 'select public.stripe_member_status_with_schedule($1) as result', [user]);
+            assert.equal((await status()).active, false);
+            assert.deepEqual((await status()).tickets, { ranked: 0, hint: 0 });
+            assert.equal(await scalar(a, 'select count(*)::integer as result from public.stripe_commerce_paid_periods where subscription_id=$1', [m.subscription]), 0);
+            await atomicSubscription(a, m, unique('evt_PROJECTION'));
+            assert.equal((await status()).active, false);
+            assert.deepEqual((await status()).tickets, { ranked: 0, hint: 0 });
+            assert.equal((await wallet(a, user)).test_subscription_hint_tickets, sku === 'plus_monthly' ? 10 : 0);
+        }
+    });
+    await check('genuine legacy test membership retains status and daily ticket balances after commerce projection exclusion', async () => {
+        const user = await account(admin), checkout = unique('cs_test_LEGACY'), subscription = unique('sub_LEGACY');
+        await a.query("select public.register_stripe_checkout_intent($1,$2,'price_Legacy299',false,clock_timestamp()+interval '1 hour')", [user, checkout]);
+        const lease = await scalar(a, 'select public.acquire_stripe_reconciliation($1,false) as result', [subscription]);
+        const m = { user, checkout, subscription, price: 'price_Legacy299', live: false, token: lease.token,
+            end: new Date(Date.now()+29*86400000).toISOString() };
+        await snapshot(a, m);
+        const grant = await scalar(a, 'select public.claim_stripe_member_daily_grant($1) as result', [user]);
+        assert.deepEqual(grant.credited, { ranked: 3, hint: 3 });
+        const before = await wallet(a, user);
+        const status = await scalar(a, 'select public.stripe_member_status_with_schedule($1) as result', [user]);
+        assert.equal(status.active, true); assert.deepEqual(status.tickets, { ranked: 3, hint: 3 });
+        assert.deepEqual(await wallet(a, user), before);
+    });
+
+    await check('stale transaction policy cannot register a new Checkout after current publication changes', async () => {
+        const user = await account(admin);
+        const policyDate = await scalar(admin, 'select effective_date::text as result from public.current_terms_policy');
+        for (const isolation of ['repeatable read', 'serializable']) {
+            await a.query(`begin isolation level ${isolation}`);
+            try {
+                assert.equal(await scalar(a, 'select public.has_current_ticket_terms($1) as result', [user]), true);
+                await admin.query('update public.current_terms_policy set effective_date=null');
+                assert.equal(await scalar(a, 'select public.has_current_ticket_terms($1) as result', [user]), true,
+                    'test must actually retain a stale publication snapshot');
+                await assert.rejects(register(a, user), { code: '40001' });
+            } finally { await a.query('rollback'); }
+            try {
+                await assert.rejects(register(a, user), /Checkout account unavailable/);
+                assert.equal(await scalar(a, 'select count(*)::integer as result from public.stripe_commerce_checkout_intents where user_id=$1', [user]), 0);
+            } finally { await admin.query('update public.current_terms_policy set effective_date=$1::date', [policyDate]); }
+        }
+    });
+    await check('both paid RPCs reject stale transaction snapshots after a concurrent account restriction', async () => {
+        for (const subscription of [false, true]) for (const isolation of ['repeatable read', 'serializable']) {
+            const user = await account(admin), intent = subscription ? await member(a, user) : await register(a, user);
+            const event = unique('evt_STALE');
+            await a.query(`begin isolation level ${isolation}`);
+            try {
+                assert.equal(await scalar(a, 'select count(*)::integer as result from public.account_restrictions where user_id=$1 and blocked', [user]), 0);
+                await admin.query('insert into public.account_restrictions(user_id,blocked) values($1,true)', [user]);
+                assert.equal(await scalar(a, 'select count(*)::integer as result from public.account_restrictions where user_id=$1 and blocked', [user]), 0,
+                    'test must actually retain a stale restriction snapshot');
+                await assert.rejects(subscription ? atomicSubscription(a, intent, event) : atomicOneTime(a, intent, event), { code: '40001' });
+            } finally { await a.query('rollback'); }
+            await assert.rejects(subscription ? atomicSubscription(a, intent, event) : atomicOneTime(a, intent, event), /Commerce account unavailable/);
+            assert.equal(await scalar(a, 'select count(*)::integer as result from public.stripe_commerce_event_receipts where event_id=$1', [event]), 0);
+            assert.equal(await scalar(a, 'select count(*)::integer as result from public.stripe_webhook_receipts where event_id=$1', [event]), 0);
+            assert.equal((await wallet(a, user)).test_purchased_hint_tickets, 0);
+            assert.equal((await wallet(a, user)).test_subscription_hint_tickets, 0);
+        }
+    });
+
     await check('atomic pack RPC deduplicates real concurrent deliveries on independent backends', async () => {
         const user = await account(admin); const intent = await register(a, user);
         const result = await contended(admin, a, b,
@@ -430,7 +558,7 @@ test('native PostgreSQL public-baseline upgrade and concurrent commerce', { time
     ])) {
         sourceSha256[source] = createHash('sha256').update(await readFile(new URL(`../../${source}`, import.meta.url))).digest('hex');
     }
-    const report = { completed: failures === 0 && results.length === 35, verifiedAt: new Date().toISOString(), sourceSha256,
+    const report = { completed: failures === 0 && results.length === 43, verifiedAt: new Date().toISOString(), sourceSha256,
         nativePostgreSQL: true, nativeVersion, independentBackends: true,
         productionData: false, providerHttpVerified: false, freshInstallVerified: false,
         baseline: baselineEvidence, passed: results.length, failed: failures, tests: results,
@@ -441,7 +569,7 @@ test('native PostgreSQL public-baseline upgrade and concurrent commerce', { time
     await writeFile(join(tmpdir(), 'commerce-postgres-results.json'), JSON.stringify(report, null, 2) + '\n');
     console.log(JSON.stringify(report));
     assert.equal(failures, 0, 'Native PostgreSQL verification contains failed checks');
-    assert.equal(results.length, 35, 'Native PostgreSQL verification contains omitted checks');
+    assert.equal(results.length, 43, 'Native PostgreSQL verification contains omitted checks');
 });
 
 async function protectedDefinitions(client) {

@@ -4,6 +4,11 @@ export const COMMERCE_SKUS = Object.freeze([
     'hints_44', 'hints_77', 'hints_166',
 ] as const);
 export type CommerceSku = typeof COMMERCE_SKUS[number];
+/** Reviewed server configuration only. Never deserialize this from a checkout request. */
+export interface CommerceCheckoutAuthority {
+    readonly livemode: boolean;
+    readonly products: Readonly<Partial<Record<CommerceSku, CommerceProduct>>>;
+}
 export interface CommerceProduct {
     readonly sku: CommerceSku | 'legacy_monthly';
     readonly priceId: string;
@@ -48,6 +53,26 @@ export function isCommerceSku(value: unknown): value is CommerceSku {
  * purchase-to-consumption evidence must all be complete before changing this.
  */
 export function readyCommerceSkus(): readonly CommerceSku[] { return []; }
+
+/** Take an immutable mode-specific snapshot; an authority cannot change product terms. */
+export function snapshotCommerceAuthority(authority: CommerceCheckoutAuthority, livemode: boolean): CommerceCheckoutAuthority {
+    if (!authority || authority.livemode !== livemode || !authority.products || typeof authority.products !== 'object'
+        || Array.isArray(authority.products)) throw new Error('COMMERCE_CATALOG_INVALID');
+    const products: Partial<Record<CommerceSku, CommerceProduct>> = {};
+    const prices = new Set<string>();
+    for (const [sku, value] of Object.entries(authority.products)) {
+        if (!isCommerceSku(sku) || !value || typeof value !== 'object'
+            || typeof value.priceId !== 'string' || !/^price_[A-Za-z0-9]{8,200}$/.test(value.priceId)
+            || value.priceId === LEGACY_MEMBERSHIP_PRODUCT.priceId || prices.has(value.priceId)) throw new Error('COMMERCE_CATALOG_INVALID');
+        const expected = COMMERCE_CATALOG[sku];
+        for (const key of ['sku','amount','currency','taxBehavior','checkoutMode','interval','intervalCount','hintTickets'] as const) {
+            if (value[key] !== expected[key]) throw new Error('COMMERCE_CATALOG_INVALID');
+        }
+        products[sku] = Object.freeze({ ...expected, priceId: value.priceId });
+        prices.add(value.priceId);
+    }
+    return Object.freeze({ livemode, products: Object.freeze(products) });
+}
 
 const object = (value: unknown): value is Record<string, unknown> =>
     value !== null && typeof value === 'object' && !Array.isArray(value);

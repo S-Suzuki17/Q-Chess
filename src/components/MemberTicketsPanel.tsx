@@ -8,6 +8,9 @@ import { circuitAccess } from '../lib/circuitAccess';
 import { dailyLoginText } from '../locales/dailyLoginText';
 import { ticketWalletText } from '../locales/ticketWalletText';
 import { rewardsHubText } from '../locales/rewardsHubText';
+import { commerceStatusText } from '../locales/commerceStatusText';
+import { CommerceEntitlements } from './CommerceEntitlements';
+import { DAILY_LOGIN_REWARD_CHANGED_EVENT } from '../lib/dailyLoginRewards';
 import { MEMBER_TICKET_USAGE_ENABLED, readMemberTicketStatus, claimMemberTickets, type StripeMembershipStatus } from '../lib/stripeMembership';
 
 const MEMBER_TICKETS_CHANGED = 'qg-member-tickets-changed';
@@ -28,17 +31,26 @@ export function MemberTicketsPanel({ user, lang }: { user: User; lang: Language 
                 .catch(() => { if (!request.signal.aborted) { setLoaded(null); setFailed(revision); } });
         };
         const changed = (event: Event) => { if ((event as CustomEvent<{userId: string}>).detail?.userId === user.id) refresh(); };
-        window.addEventListener(MEMBER_TICKETS_CHANGED, changed); refresh();
-        return () => { controller?.abort(); window.removeEventListener(MEMBER_TICKETS_CHANGED, changed); };
+        window.addEventListener(MEMBER_TICKETS_CHANGED, changed);
+        window.addEventListener(DAILY_LOGIN_REWARD_CHANGED_EVENT, changed); refresh();
+        return () => {
+            controller?.abort(); window.removeEventListener(MEMBER_TICKETS_CHANGED, changed);
+            window.removeEventListener(DAILY_LOGIN_REWARD_CHANGED_EVENT, changed);
+        };
     }, [allowed, revision, user.id, user.type]);
     if (!MEMBER_TICKET_USAGE_ENABLED || !allowed || user.type !== 'registered') return null;
-    const status = loaded?.revision === revision && loaded.userId === user.id ? loaded.status : null;
+    const status = loaded?.revision === revision && loaded.userId === user.id && loaded.status.userId === user.id ? loaded.status : null;
     const wallet = ticketWalletText(lang), text = dailyLoginText(lang), hub = rewardsHubText(lang);
+    const hasCommerce = !!status?.commerce && (status.commerce.active || status.commerce.balances.purchased > 0 || status.commerce.balances.subscription > 0);
+    const title = hasCommerce ? commerceStatusText(lang).title : wallet.member;
     // An account with no entitlement sees no offer or purchase invitation.
-    if (status && !status.active) return null;
-    return <section aria-label={wallet.member} className="reward-card text-sm" data-member-ticket-usage>
-        <h4 className="reward-title">{wallet.member}</h4>
+    if (status && !status.active && !hasCommerce) return null;
+    return <section aria-label={title} className="reward-card text-sm" data-member-ticket-usage>
+        <h4 className="reward-title">{title}</h4>
         {failed === revision ? <p role="status">{text.unavailable}</p> : !status ? <p role="status">{text.loading}</p> : <>
+            {status.commerce && <CommerceEntitlements status={status.commerce} lang={lang} />}
+            {status.active && <div data-legacy-member-tickets>
+            {hasCommerce && <h5 className="reward-title">{commerceStatusText(lang).legacy}</h5>}
             <dl className="reward-balances">
                 <div className="reward-balance"><dt>{text.rankedTickets}</dt><dd>{status.tickets.ranked}</dd></div>
                 <div className="reward-balance"><dt>{text.hintTickets} · CPU</dt><dd>{status.tickets.hint}</dd></div>
@@ -46,6 +58,7 @@ export function MemberTicketsPanel({ user, lang }: { user: User; lang: Language 
             <details className="reward-details"><summary>{hub.rules}</summary><div className="reward-details__body">
                 <p>{text.lastClaimUtcDay}: {status.lastGrantUtcDay ?? text.notClaimed}</p><p>{wallet.expiry}</p>
             </div></details>
+            </div>}
         </>}
     </section>;
 }

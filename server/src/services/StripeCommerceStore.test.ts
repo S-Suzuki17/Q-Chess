@@ -17,6 +17,24 @@ function fixture() {
     return { ...f, row, results, from, rpc, eq, abortSignal, subject: store };
 }
 describe('new commerce DB adapter fails closed', () => {
+    it('registers the complete server-owned SKU contract with the atomic commerce RPC', async () => {
+        const f = fixture(); const expiresAt = new Date(Date.now() + 3600_000).toISOString();
+        f.results.push({ data: null, error: null });
+        await f.subject.registerCheckoutIntent(f.intent, expiresAt);
+        expect(f.rpc).toHaveBeenCalledExactlyOnceWith('register_stripe_commerce_checkout_intent', {
+            p_user_id: 'Alice', p_checkout_id: f.intent.checkoutId, p_sku: 'hints_13',
+            p_price_id: f.intent.priceId, p_amount_total: 1000, p_currency: 'usd',
+            p_livemode: false, p_expires_at: expiresAt,
+        });
+        f.results.push({ data: null, error: new Error('ownership collision') });
+        await expect(f.subject.registerCheckoutIntent(f.intent, expiresAt)).rejects.toThrow('COMMERCE_STORE_UNAVAILABLE');
+    });
+    it('rejects malformed registration without touching the database', async () => {
+        const f = fixture(); const expiry = new Date(Date.now() + 3600_000).toISOString();
+        await expect(f.subject.registerCheckoutIntent({ ...f.intent, amountTotal: 1 }, expiry)).rejects.toThrow();
+        await expect(f.subject.registerCheckoutIntent(f.intent, '2000-01-01')).rejects.toThrow();
+        expect(f.rpc).not.toHaveBeenCalled();
+    });
     it('reads and validates stored intent and its mode-specific reviewed binding', async () => {
         const f = fixture(); f.results.push({ data: f.row, error: null },
             { data: { sku: f.sku, price_id: f.intent.priceId, livemode: false }, error: null });

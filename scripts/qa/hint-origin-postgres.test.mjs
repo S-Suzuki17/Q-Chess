@@ -46,13 +46,13 @@ test('native PostgreSQL hint origins, upgrade and races', { timeout: 180_000 }, 
     });
     t.after(async () => { await Promise.allSettled(clients.map(c => c.end())); });
 
-    await check('all nine pending raw files upgrade public-only baseline without changing legacy purchase or receipt constraints', async () => {
+    await check('all ten pending raw files upgrade public-only baseline without changing legacy purchase or receipt constraints', async () => {
         await setupBaseline(admin);
         nativeVersion = await scalar(admin, "select current_setting('server_version_num')::integer as result");
         const before = await definitions(admin);
         const user = await account(admin);
         await admin.query('update public.ticket_wallets set hint_tickets=20 where user_id=$1', [user]);
-        assert.equal(pending.length, 9, 'Review the full additive migration union when integrating another slice');
+        assert.equal(pending.length, 10, 'Review the full additive migration union when integrating another slice');
         await applyPending(admin);
         assert.deepEqual(await definitions(admin), before);
         assert.equal((await wallet(admin, user)).hint_tickets, 20);

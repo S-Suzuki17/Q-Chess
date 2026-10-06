@@ -18,10 +18,12 @@ const h = vi.hoisted(() => {
     const app = { use: vi.fn(), get: vi.fn((path, handler) => routes.set(path, handler)), post: vi.fn((path, handler) => routes.set(path, handler)) };
     const io = { emit: vi.fn(), use: vi.fn(), on: vi.fn((event, handler) => listeners.set(event, handler)),
         sockets: { sockets, adapter: { rooms: new Map() } }, to: vi.fn(() => ({ emit: vi.fn() })) };
-    return { admissionStore,routes, listeners, sockets, sessions, service, blocked, mm, app, io, json: vi.fn(), listen: vi.fn(), tick: vi.fn(),
+    return { entitlementReadsEnabled:false,admissionStore,routes, listeners, sockets, sessions, service, blocked, mm, app, io, json: vi.fn(), listen: vi.fn(), tick: vi.fn(),
         engineClass: undefined as typeof import('../game/GameEngine').GameEngine | undefined };
 });
 vi.mock('./TicketFeatureGates',()=>({cpuHintTicketsEnabled:()=>false,rankedTicketAdmissionEnabled:()=>true,rankedAdmissionRecoveryEnabled:()=>true}));
+vi.mock('./SharedMatchFeatureGates',async original=>({...await original<typeof import('./SharedMatchFeatureGates')>(),
+    sharedMatchEntitlementEnabled:()=>h.entitlementReadsEnabled}));
 vi.mock('express', () => ({ default: Object.assign(() => h.app, { json: h.json }) }));
 vi.mock('http', () => ({ default: { createServer: vi.fn(() => ({ listen: h.listen })) } }));
 vi.mock('cors', () => ({ default: vi.fn(() => () => {}) }));
@@ -88,6 +90,7 @@ async function socket(token: unknown, id = 'socket-1') {
     return { s, next, dispatch };
 }
 beforeEach(async () => {
+    h.entitlementReadsEnabled=false;
     h.admissionStore.renew.mockReset().mockResolvedValue(true);h.admissionStore.admit.mockReset().mockResolvedValue({state:'active'});
     h.admissionStore.void.mockReset().mockResolvedValue({state:'voided'});h.admissionStore.recover.mockReset().mockResolvedValue([]);h.admissionStore.read.mockReset().mockResolvedValue(null);h.admissionStore.busy.mockReset().mockResolvedValue(false);
     vi.resetModules(); vi.clearAllMocks(); vi.useFakeTimers(); vi.setSystemTime(1_000_000);
@@ -137,6 +140,8 @@ async function microtasks() {for(let i=0;i<30;i++)await Promise.resolve();}
 function responsePending<T>() {let resolve!:(value:T)=>void;const promise=new Promise<T>(yes=>{resolve=yes;});return {promise,resolve};}
 describe('shared protocol socket middleware',()=>{
     it('admits object-shaped initial and refreshed entitlement requests through the actual packet guard',async()=>{
+        h.entitlementReadsEnabled=true;
+        expect((await import('./SharedMatchFeatureGates')).sharedMatchAdmissionEnabled()).toBe(false);
         const entitlement={plan:'standard',noAds:true,unlimitedOnlineRanked:true,periodEnd:'2099-01-01T00:00:00.000Z'};
         const read=vi.fn(async()=>entitlement);(h.service as any).sharedMatchEntitlement=read;
         const alice=await socket((await login()).body.token,'alice');
@@ -150,6 +155,7 @@ describe('shared protocol socket middleware',()=>{
         expect(read).toHaveBeenCalledTimes(2);
     });
     it('delivers initial and repeated entitlement responses over loopback Socket.IO through the index middleware',async()=>{
+        h.entitlementReadsEnabled=true;
         vi.useRealTimers();vi.mocked(NetServer.prototype.listen).mockRestore();
         const {createServer}=await vi.importActual<typeof import('node:http')>('node:http');
         const {Server}=await vi.importActual<typeof import('socket.io')>('socket.io');
