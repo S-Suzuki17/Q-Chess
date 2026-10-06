@@ -51,7 +51,7 @@ describe('owner-scoped account profile HTTP API', () => {
         store.profile.mockResolvedValue(null); expect((await fetch(`${base}/account/friends`,options(token))).status).toBe(404);
     });
     it('blocks revoked and expired proofs, including revocation during auth await', async () => {
-        store.blocked.mockImplementation(async () => { auth.revokeSession(token); return false; });
+        store.blocked.mockImplementation(async () => { await auth.revokeSession(token); return false; });
         expect((await fetch(`${base}/account/profile/name`,options(token,{name:'Name'}))).status).toBe(401);
         expect(store.rename).not.toHaveBeenCalled();
         token=(await auth.issueLegacySession('Alice','right'))!.token; vi.spyOn(Date,'now').mockReturnValue(Date.now()+3600001);

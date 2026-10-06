@@ -37,7 +37,7 @@ describe('authenticated private history HTTP routes',()=>{
         store.verifyUser.mockResolvedValue('Bob');
         expect((await fetch(`${base}/game-records`,options('valid.jwt.signature'))).status).toBe(200);
         expect(store.getPrivateGameRecords).toHaveBeenCalledWith('Bob',10);
-        auth.revokeSession(token);
+        await auth.revokeSession(token);
         expect((await fetch(`${base}/game-stats`,options(token))).status).toBe(401);
     });
     it('rejects expired proof on every private read and write route',async()=>{

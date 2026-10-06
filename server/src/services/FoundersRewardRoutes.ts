@@ -1,16 +1,18 @@
 import express,{type RequestHandler,type ErrorRequestHandler} from 'express';
-import {RankedAuth,isRankedUserId} from './RankedAuth';
+import {type RankedSessionAuthority,isRankedUserId} from './RankedAuth';
 import {claimFounders,FoundersError,validPurchaseToken,type FoundersStore,type PlayRewardVerifier} from './FoundersRewards';
 
-export function createFoundersRewardRouter(auth:RankedAuth,store:FoundersStore,play:PlayRewardVerifier|null,allowTest=false){
+export function createFoundersRewardRouter(auth:RankedSessionAuthority,store:FoundersStore,play:PlayRewardVerifier|null,allowTest=false){
     const router=express.Router(),attempts=new Map<string,{count:number;until:number}>();let inFlight=0;
     const allow=(key:string,max:number)=>{const now=Date.now();for(const [id,value]of attempts)if(value.until<=now)attempts.delete(id);const row=attempts.get(key)??{count:0,until:now+60000};if(attempts.size>=4000||row.count>=max)return false;row.count++;attempts.set(key,row);return true;};
     const authenticate:RequestHandler=async(req,res,next)=>{
         res.setHeader('Cache-Control','no-store');res.setHeader('Vary','Authorization');
         if(!allow(`ip:${req.socket.remoteAddress??'unknown'}`,120)){res.status(429).json({code:'TRY_LATER'});return;}
         const token=/^Bearer ([-\w.]{1,8192})$/i.exec(req.headers.authorization??'')?.[1];
-        let userId=auth.verifySession(token)?.userId;
-        try{if(!userId&&token&&/^[-\w]+\.[-\w]+\.[-\w]+$/.test(token))userId=await store.verifyUser(token)??undefined;}catch{/* Fail closed. */}
+        let userId:string|undefined;
+        try{userId=(await auth.verifySession(token))?.userId;}
+        catch { res.setHeader('Retry-After', '5'); res.status(503).json({ code: 'UNAVAILABLE' }); return; }
+        try{if(!userId&&token&&/^[-\w]+\.[-\w]+\.[-\w]+$/.test(token))userId=await store.verifyUser(token)??undefined;}catch{/* Failed OAuth identity checks never authorize. */}
         if(!userId||!isRankedUserId(userId)){res.status(401).json({code:'AUTH_REQUIRED'});return;}
         if(!allow(`user:${userId}`,15)){res.status(429).json({code:'TRY_LATER'});return;}
         if(Object.keys(req.query).length){res.status(400).json({code:'INVALID_QUERY'});return;}

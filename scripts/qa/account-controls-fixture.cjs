@@ -20,8 +20,8 @@ app.use(createAccountProgressRouter(auth,{verifyUser,blocked,read:async id=>save
 app.use(createAccountProfileRouter(auth,{verifyUser,blocked,profile:async id=>profile(id),ensure:async id=>profile(id),rename:async(id,name)=>{users.get(id).name=name;return profile(id);},friends:async()=>[],changeFriend:async()=>false},gate));
 app.use(express.json({limit:'2kb'}));
 app.post('/auth/ranked-session',async(req,res)=>{const session=await auth.issueLegacySession(req.body.username,req.body.password);res.status(session?200:401).json(session??{code:'AUTH_FAILED'});});
-app.post('/auth/ranked-session/revoke',(req,res)=>{auth.revokeSession(req.headers.authorization?.replace(/^Bearer /,''));res.status(204).end();});
+app.post('/auth/ranked-session/revoke',async(req,res)=>{try{await auth.revokeSession(req.headers.authorization?.replace(/^Bearer /,''));res.status(204).end();}catch{res.status(503).json({code:'UNAVAILABLE'});}});
 const server=http.createServer(app),io=new Server(server,{cors:{origin:['http://127.0.0.1:4191','http://localhost:4191']}});
-io.use((socket,next)=>{const token=socket.handshake.auth.token,id=auth.verifySession(token)?.userId??(/^GUEST-/.test(token)?token:null);if(!id)return next(new Error('Authentication Error'));socket.data.id=id;next();});
+io.use(async(socket,next)=>{try{const token=socket.handshake.auth.token,id=(await auth.verifySession(token))?.userId??(/^GUEST-/.test(token)?token:null);if(!id)return next(new Error('Authentication Error'));socket.data.id=id;}catch{return next(new Error('Authentication Error'));}next();});
 io.on('connection',socket=>socket.emit('queue_stats',{}));
 server.listen(4192,'127.0.0.1',()=>console.log('Account controls QA fixture on loopback:4192; ephemeral local data only.'));

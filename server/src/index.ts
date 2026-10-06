@@ -6,7 +6,7 @@ import { GameEngine, Action, ActionPayload } from './game/GameEngine';
 import { ENTANGLEMENT_VERSION } from './game/quantumChess';
 import { CPU_FALLBACK_MS, MatchmakingService } from './matchmaking/MatchmakingService';
 import { SupabaseService } from './services/SupabaseService';
-import { RankedAuth, isRankedUserId } from './services/RankedAuth';
+import { RankedAuth, type RankedSessionAuthority, type RankedSession, isRankedUserId } from './services/RankedAuth';
 import { RankedRuntime } from './game/RankedRuntime';
 import { createPrivateGameRecordRouter } from './services/PrivateGameRecordRoutes';
 import { createProfileAvatarRouter } from './services/ProfileAvatarRoutes';
@@ -42,7 +42,7 @@ const app = express();
 app.use(cors());
 const supabaseService = new SupabaseService();
 const audit=createSecurityAudit((event,outcome,id)=>supabaseService.recordSecurityEvent(event,outcome,id));
-const rankedAuth = new RankedAuth((id,password)=>supabaseService.verifyLegacyPassword(id,password));
+const rankedAuth: RankedSessionAuthority = new RankedAuth((id,password)=>supabaseService.verifyLegacyPassword(id,password));
 const accountGate = new AccountWriteGate();
 let cpuPractice:ReturnType<SupabaseService['cpuPracticeService']>|undefined;
 const getCpuPractice=()=>cpuPractice??=supabaseService.cpuPracticeService();
@@ -216,30 +216,41 @@ app.post('/auth/ranked-session',async(req,res)=>{
     // Reject overload with retry guidance instead of an unbounded login queue.
     if(pendingLegacyLogins>=16){res.setHeader('Retry-After','2');return res.status(503).json({code:'TRY_LATER'});}
     pendingLegacyLogins++;
+    let session: RankedSession | null = null;
     try {
         // The durable check survives a server restart; the in-memory gate alone
         // cannot remember a partially completed account deletion.
-        if(accountGate.blocked(username)||await deletionStore.blocked(username))return res.status(409).json({code:'ACCOUNT_BUSY'});
+        // A logout/reset/deletion barrier may close while the durable lookup
+        // awaits. Never start a password check from that stale preflight.
+        if(accountGate.blocked(username)||await deletionStore.blocked(username)||accountGate.blocked(username))return res.status(409).json({code:'ACCOUNT_BUSY'});
         const keepLoggedIn = req.body?.keepLoggedIn === true;
-        const session=await rankedAuth.issueLegacySession(username,req.body.password,keepLoggedIn);
+        session=await rankedAuth.issueLegacySession(username,req.body.password,keepLoggedIn);
         if(accountGate.blocked(username)||await deletionStore.blocked(username)){
-            rankedAuth.revokeUserSessions(username);return res.status(409).json({code:'ACCOUNT_BUSY'});
+            await rankedAuth.revokeUserSessions(username);return res.status(409).json({code:'ACCOUNT_BUSY'});
         }
         if(!session){await audit('login','denied',username);return res.status(401).json({code:'AUTH_FAILED'});}
         await audit('login','success',username);
         return res.json(session);
     } catch {
+        // An unavailable check must not revoke unrelated devices. Only the
+        // unreturned proof from this attempt needs cleanup; confirmed deletion
+        // above still revokes every proof, including in-flight password checks.
+        if(session)try{await rankedAuth.revokeSession(session.token);}catch{/* Never report success after uncertain cleanup. */}
         // No upstream error, submitted password or token reaches logs/clients.
-        rankedAuth.revokeUserSessions(username);
         await audit('upstream_error','error');
         res.setHeader('Retry-After','5');return res.status(503).json({code:'UNAVAILABLE'});
     } finally {pendingLegacyLogins--;}
 });
-app.post('/auth/ranked-session/revoke',(req,res)=>{
+app.post('/auth/ranked-session/revoke',async(req,res)=>{
+    res.setHeader('Cache-Control','no-store');
     const token=req.headers.authorization?.replace(/^Bearer /,'');
-    rankedAuth.revokeSession(token);
-    for(const socket of io.sockets.sockets.values())if(token&&socket.handshake.auth.token===token)socket.disconnect(true);
-    res.setHeader('Cache-Control','no-store');res.status(204).end();
+    try {
+        await rankedAuth.revokeSession(token);
+        for(const socket of io.sockets.sockets.values())if(token&&socket.handshake.auth.token===token)socket.disconnect(true);
+        res.status(204).end();
+    } catch {
+        res.setHeader('Retry-After','5');res.status(503).json({code:'UNAVAILABLE'});
+    }
 });
 
 function announceMatch(match:MatchSession) {
@@ -264,7 +275,7 @@ setInterval(()=>{
         for(let offset=0;offset<ids.length;offset+=200){
             const blocked=new Set(await supabaseService.restrictedAccounts(ids.slice(offset,offset+200)));
             for(const socket of io.sockets.sockets.values())if(blocked.has(socket.data.userId)){
-                rankedAuth.revokeUserSessions(socket.data.userId);socket.emit('session_replaced');socket.disconnect(true);
+                await rankedAuth.revokeUserSessions(socket.data.userId);socket.emit('session_replaced');socket.disconnect(true);
             }
         }
     })().catch(()=>{/* A transient admin check failure must not forfeit existing games. */}).finally(()=>{checkingRestrictions=false;});
@@ -286,18 +297,21 @@ io.use(async (socket, next) => {
   }
 
   if(typeof token!=='string'||token.length>8192)return next(new Error('Authentication Error'));
-  const proof=rankedAuth.verifySession(token);
-  const guest=/^GUEST-[A-Za-z0-9_-]{1,120}$/.test(token);
-  const userId=proof?.userId??(guest?token:await supabaseService.verifyUser(token));
-  if (!userId) {
-      return next(new Error('Authentication Error: Invalid token'));
-  }
   try {
+      const proof=await rankedAuth.verifySession(token);
+      const guest=/^GUEST-[A-Za-z0-9_-]{1,120}$/.test(token);
+      const userId=proof?.userId??(guest?token:await supabaseService.verifyUser(token));
+      if (!userId) {
+          return next(new Error('Authentication Error: Invalid token'));
+      }
       if(accountGate.blocked(userId)||(!guest&&(await deletionStore.blocked(userId)||await supabaseService.accountSecurityStore().restricted(userId))))return next(new Error('Authentication Error: Account unavailable'));
-  } catch { return next(new Error('Authentication Error: Account check unavailable')); }
+      // Logout cannot disconnect a handshake which has not connected yet.
+      // Recheck the legacy proof after the asynchronous account guards.
+      if(proof&&!(await rankedAuth.verifySession(token,userId)))return next(new Error('Authentication Error: Invalid token'));
 
-  socket.data.userId = userId;
-  socket.data.verified=!guest;
+      socket.data.userId = userId;
+      socket.data.verified=!guest;
+  } catch { return next(new Error('Authentication Error: Account check unavailable')); }
   next();
 });
 
@@ -381,8 +395,10 @@ io.on('connection', (socket: Socket) => {
     let rating:number|null=null;
     if(mode==='ranked') {
         const token=socket.handshake.auth.token;
-        const identity=rankedAuth.verifySession(token)?.userId??(socket.data.verified?await supabaseService.verifyUser(token):null);
-        if(identity!==userId)return fail('AUTH_REQUIRED');
+        try {
+            const identity=(await rankedAuth.verifySession(token))?.userId??(socket.data.verified?await supabaseService.verifyUser(token):null);
+            if(identity!==userId)return fail('AUTH_REQUIRED');
+        } catch { return fail('RANKED_UNAVAILABLE'); }
         if(admission) {
             try{if(await admission.accountBusy(userId))return fail('ACCOUNT_BUSY');}
             catch{return fail('RANKED_UNAVAILABLE');}

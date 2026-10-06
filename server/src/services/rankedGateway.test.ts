@@ -29,7 +29,7 @@ vi.mock('../matchmaking/MatchmakingService', async importOriginal => ({
     CPU_FALLBACK_MS: (await importOriginal<typeof import('../matchmaking/MatchmakingService')>()).CPU_FALLBACK_MS,
     MatchmakingService: class { constructor() { return h.mm; } },
 }));
-vi.mock('../game/RankedRuntime', () => ({ RankedRuntime: class { tick = h.tick; } }));
+vi.mock('../game/RankedRuntime', () => ({ RankedRuntime: class { tick = h.tick; replaySettlement = vi.fn(); } }));
 vi.mock('../game/GameEngine', () => ({ GameEngine: class {
     constructor(...args: any[]) { if (h.engineClass) return new (h.engineClass as any)(...args); }
 } }));
@@ -233,7 +233,7 @@ describe('ranked gateway without network or database side effects', () => {
         const proof = (await login()).body.token;
         const first = await socket(proof), other = await socket('GUEST-other', 'socket-2');
         const res = response();
-        h.routes.get('/auth/ranked-session/revoke')!({ headers: { authorization: `Bearer ${proof}` } }, res);
+        await h.routes.get('/auth/ranked-session/revoke')!({ headers: { authorization: `Bearer ${proof}` } }, res);
         expect(res.code).toBe(204); expect(res.headers['Cache-Control']).toBe('no-store');
         expect(first.s.disconnect).toHaveBeenCalledWith(true); expect(other.s.disconnect).not.toHaveBeenCalled();
         expect((await socket(proof, 'revoked')).next).toHaveBeenCalledWith(expect.any(Error));
@@ -282,4 +282,131 @@ describe('ranked gateway without network or database side effects', () => {
         expect(connected.s.emit).toHaveBeenCalledWith('queue_error', { code: 'AUTH_REQUIRED', message: 'AUTH_REQUIRED' });
         expect(h.mm.joinQueue).not.toHaveBeenCalled();
     });
+});
+
+describe('awaited authority at the socket/login boundary', () => {
+    it.each(['null', 'reject'] as const)('awaits socket identity and calls next once with a sanitized error on %s', async outcome => {
+        const proof = (await login()).body.token;
+        const { RankedAuth } = await import('./RankedAuth');
+        let finish!: (value: null) => void, reject!: (error: Error) => void;
+        const verify = vi.spyOn(RankedAuth.prototype, 'verifySession').mockImplementationOnce(() => new Promise((yes, no) => { finish = yes; reject = no; }));
+        const pending = socket(proof);
+        expect(verify).toHaveBeenCalledOnce(); expect(h.mm.registerSocket).not.toHaveBeenCalled();
+        if (outcome === 'null') finish(null); else reject(new Error('private-password-and-token'));
+        const result = await pending;
+        expect(result.next).toHaveBeenCalledTimes(1);
+        expect(result.next.mock.calls[0][0].message).toBe(outcome === 'null'
+            ? 'Authentication Error: Invalid token' : 'Authentication Error: Account check unavailable');
+        expect(h.mm.registerSocket).not.toHaveBeenCalled();
+        expect(h.service.verifyUser).toHaveBeenCalledTimes(outcome === 'null' ? 1 : 0);
+    });
+    it.each(['null', 'reject'] as const)('awaits ranked admission verification without forfeiting the socket on %s', async outcome => {
+        const connected = await socket((await login()).body.token);
+        const { RankedAuth } = await import('./RankedAuth');
+        let finish!: (value: null) => void, reject!: (error: Error) => void;
+        const verify = vi.spyOn(RankedAuth.prototype, 'verifySession').mockImplementationOnce(() => new Promise((yes, no) => { finish = yes; reject = no; }));
+        const pending = connected.dispatch('join_queue', { mode: 'ranked', timeControl: 600 });
+        await vi.waitFor(() => expect(verify).toHaveBeenCalledOnce());
+        expect(h.mm.joinQueue).not.toHaveBeenCalled();
+        if (outcome === 'null') finish(null); else reject(new Error('private-password-and-token'));
+        await pending;
+        const code = outcome === 'null' ? 'AUTH_REQUIRED' : 'RANKED_UNAVAILABLE';
+        expect(connected.s.emit).toHaveBeenCalledWith('queue_error', { code, message: code });
+        expect(h.mm.joinQueue).not.toHaveBeenCalled(); expect(connected.s.disconnect).not.toHaveBeenCalled();
+    });
+    it.each([false, true])('does not acknowledge logout before delayed revocation settles (reject=%s)', async rejected => {
+        const proof = (await login()).body.token, connected = await socket(proof);
+        const { RankedAuth } = await import('./RankedAuth');
+        let finish!: (value: boolean) => void, reject!: (error: Error) => void;
+        vi.spyOn(RankedAuth.prototype, 'revokeSession').mockImplementationOnce(() => new Promise((yes, no) => { finish = yes; reject = no; }));
+        const res = response();
+        const pending = h.routes.get('/auth/ranked-session/revoke')!({ headers: { authorization: `Bearer ${proof}` } }, res);
+        expect(res.status).not.toHaveBeenCalled(); expect(res.end).not.toHaveBeenCalled(); expect(connected.s.disconnect).not.toHaveBeenCalled();
+        if (rejected) reject(new Error('private-password-and-token')); else finish(true);
+        await pending;
+        expect(res.code).toBe(rejected ? 503 : 204);
+        if (rejected) {
+            expect(res.body).toEqual({ code: 'UNAVAILABLE' }); expect(res.end).not.toHaveBeenCalled(); expect(connected.s.disconnect).not.toHaveBeenCalled();
+        } else expect(connected.s.disconnect).toHaveBeenCalledExactlyOnceWith(true);
+    });
+    it.each(['before issuance', 'after issuance'])('does not revoke another device on an unavailable login check %s', async phase => {
+        const original = (await login()).body.token;
+        const { RankedAuth } = await import('./RankedAuth');
+        const issue = vi.spyOn(RankedAuth.prototype, 'issueLegacySession');
+        const revokeAll = vi.spyOn(RankedAuth.prototype, 'revokeUserSessions');
+        const revokeOne = vi.spyOn(RankedAuth.prototype, 'revokeSession');
+        if (phase === 'after issuance') h.blocked.mockResolvedValueOnce(false);
+        h.blocked.mockRejectedValueOnce(new Error('private-password-and-token'));
+        expect((await login()).code).toBe(503); expect(revokeAll).not.toHaveBeenCalled();
+        expect((await socket(original)).next).toHaveBeenCalledExactlyOnceWith();
+        if (phase === 'after issuance') {
+            const issued = await issue.mock.results[0].value;
+            expect(revokeOne).toHaveBeenCalledExactlyOnceWith(issued.token);
+            expect((await socket(issued.token, 'not-returned')).next).toHaveBeenCalledWith(expect.any(Error));
+        } else expect(revokeOne).not.toHaveBeenCalled();
+    });
+    it('continues to revoke every device when deletion is confirmed during login', async () => {
+        const original = (await login()).body.token;
+        h.blocked.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
+        expect((await login()).code).toBe(409);
+        expect((await socket(original)).next).toHaveBeenCalledWith(expect.any(Error));
+    });
+    it.each([false, true])('awaits restriction revocation and preserves existing connections on outage (reject=%s)', async rejected => {
+        const connected = await socket((await login()).body.token);
+        const { RankedAuth } = await import('./RankedAuth');
+        let finish!: (value: number) => void, reject!: (error: Error) => void;
+        const revoke = vi.spyOn(RankedAuth.prototype, 'revokeUserSessions').mockImplementationOnce(() => new Promise((yes, no) => { finish = yes; reject = no; }));
+        (h.service as any).restrictedAccounts = vi.fn().mockResolvedValue(['Alice']);
+        await vi.advanceTimersByTimeAsync(15000);
+        expect(revoke).toHaveBeenCalledExactlyOnceWith('Alice'); expect(connected.s.disconnect).not.toHaveBeenCalled();
+        if (rejected) reject(new Error('private-password-and-token')); else finish(1);
+        await vi.advanceTimersByTimeAsync(0);
+        if (rejected) expect(connected.s.disconnect).not.toHaveBeenCalled();
+        else expect(connected.s.disconnect).toHaveBeenCalledExactlyOnceWith(true);
+    });
+});
+
+it('rejects a legacy handshake revoked while the asynchronous account guard is pending', async () => {
+    const proof = (await login()).body.token;
+    let finish!: (blocked: boolean) => void;
+    h.blocked.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+    const pending = socket(proof);
+    await vi.waitFor(() => expect(finish).toBeTypeOf('function'));
+    const res = response();
+    await h.routes.get('/auth/ranked-session/revoke')!({ headers: { authorization: `Bearer ${proof}` } }, res);
+    expect(res.code).toBe(204); expect(h.mm.registerSocket).not.toHaveBeenCalled(); finish(false);
+    const result = await pending;
+    expect(result.next).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ message: 'Authentication Error: Invalid token' }));
+    expect(h.mm.registerSocket).not.toHaveBeenCalled();
+});
+
+it.each(['expiry', 'outage'] as const)('keeps an already-started game available on session %s without reauthorizing every action', async reason => {
+    const mm = await realMatchmaking();
+    h.service.verifyLegacyPassword.mockImplementation(async (id, password) => ['Alice', 'Bob'].includes(id) && password === 'correct');
+    const proof = (await login()).body;
+    const alice = await socket(proof.token, 'alice'), bob = await socket((await login('Bob')).body.token, 'bob');
+    for (const player of [alice, bob]) await player.dispatch('join_queue', { mode: 'ranked', timeControl: 600 });
+    const matchId = mm.getPlayerSession('Alice')!.currentMatchId!;
+    for (const player of [alice, bob]) await player.dispatch('connect_match', { matchId });
+    const { RankedAuth } = await import('./RankedAuth');
+    const verify = vi.spyOn(RankedAuth.prototype, 'verifySession');
+    if (reason === 'expiry') vi.setSystemTime(proof.expiresAt);
+    else verify.mockRejectedValue(new Error('private-password-and-token'));
+    alice.s.emit.mockClear(); await alice.dispatch('request_sync', { matchId });
+    expect(verify).not.toHaveBeenCalled();
+    expect(alice.s.emit).toHaveBeenCalledWith('sync_state', expect.objectContaining({ matchId }));
+    expect(alice.s.disconnect).not.toHaveBeenCalled(); expect(mm.getMatch(matchId)!.state).toBe('IN_GAME');
+});
+
+it('does not start a password check from a preflight that predates a logout/reset barrier', async () => {
+    let finish!: (blocked: boolean) => void;
+    h.blocked.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+    const pending = login(); await vi.waitFor(() => expect(finish).toBeTypeOf('function'));
+    const { createAccountSecurityRouter } = await import('./AccountSecurityRoutes');
+    const gate = vi.mocked(createAccountSecurityRouter).mock.calls[0][2];
+    gate.reserve('Alice', false); finish(false);
+    const response = await pending;
+    expect(response.code).toBe(409); expect(response.body).toEqual({ code: 'ACCOUNT_BUSY' });
+    expect(h.service.verifyLegacyPassword).not.toHaveBeenCalled();
+    gate.release('Alice'); expect((await login()).code).toBe(200);
 });

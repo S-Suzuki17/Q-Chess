@@ -18,6 +18,19 @@ export interface RankedSession extends RankedIdentity {
     token: string;
 }
 
+/**
+ * Await every operation, including checks and revocations. A pending Promise is
+ * never identity proof. Rejection is an unavailable authority, not authorization.
+ * Identity verification deliberately does not enforce account restrictions:
+ * restricted accounts must retain their recovery and deletion routes.
+ */
+export interface RankedSessionAuthority {
+    issueLegacySession(userId: unknown, password: unknown, keepLoggedIn?: boolean): Promise<RankedSession | null>;
+    verifySession(token: unknown, expectedUserId?: unknown): Promise<RankedIdentity | null>;
+    revokeSession(token: unknown): Promise<boolean>;
+    revokeUserSessions(userId: unknown): Promise<number>;
+}
+
 export interface RankedAuthOptions {
     /** Defaults to one hour; may only be shortened. */
     sessionTtlMs?: number;
@@ -50,7 +63,7 @@ function tokenHash(token: unknown): string | null {
 }
 
 /**
- * Process-local proof for existing password accounts. The verifier must perform
+ * Process-local Map adapter for existing password accounts. The verifier must perform
  * the actual legacy password check and return true only after successful login.
  * Passwords and plaintext tokens are never retained in the session store.
  *
@@ -59,7 +72,7 @@ function tokenHash(token: unknown): string | null {
  * would need a shared session store. HTTPS is required when carrying credentials
  * or tokens. Rate limiting and request body limits belong at the route boundary.
  */
-export class RankedAuth {
+export class RankedAuth implements RankedSessionAuthority {
     private readonly sessions = new Map<string, RankedIdentity>();
     private readonly pendingChecks = new Map<string, Set<{ revoked: boolean }>>();
     private readonly sessionTtlMs: number;
@@ -114,7 +127,7 @@ export class RankedAuth {
         return null;
     }
 
-    verifySession(token: unknown, expectedUserId?: unknown): RankedIdentity | null {
+    async verifySession(token: unknown, expectedUserId?: unknown): Promise<RankedIdentity | null> {
         const hash = tokenHash(token);
         if (!hash) return null;
         const identity = this.sessions.get(hash);
@@ -129,12 +142,12 @@ export class RankedAuth {
         return { ...identity };
     }
 
-    revokeSession(token: unknown): boolean {
+    async revokeSession(token: unknown): Promise<boolean> {
         const hash = tokenHash(token);
         return hash ? this.sessions.delete(hash) : false;
     }
 
-    revokeUserSessions(userId: unknown): number {
+    async revokeUserSessions(userId: unknown): Promise<number> {
         if (!isRankedUserId(userId)) return 0;
         for (const check of this.pendingChecks.get(userId) ?? []) check.revoked = true;
         let revoked = 0;

@@ -64,7 +64,7 @@ it('blocks deleting accounts before reading and after a read in flight', async (
     expect((await fetch(base, get())).status).toBe(423);
 });
 it('rejects a legacy session revoked while the balance read is in flight', async () => {
-    store.read.mockImplementation(async () => { auth.revokeUserSessions('Alice'); return { freeRankedRefunds: 1, paidRankedRefunds: 2 }; });
+    store.read.mockImplementation(async () => { await auth.revokeUserSessions('Alice'); return { freeRankedRefunds: 1, paidRankedRefunds: 2 }; });
     expect((await fetch(base, get())).status).toBe(401);
 });
 it('does not return a balance if recovery is disabled during a read', async () => {

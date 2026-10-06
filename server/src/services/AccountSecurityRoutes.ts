@@ -1,10 +1,10 @@
 import express from 'express';
-import { RankedAuth } from './RankedAuth';
+import { type RankedSessionAuthority } from './RankedAuth';
 import { AccountWriteGate } from './AccountDeletion';
 import { validRegistration,type AccountSecurityStore } from './AccountSecurity';
 import {noAudit,type AuditWriter} from './SecurityAudit';
 
-export function createAccountSecurityRouter(auth:RankedAuth,store:AccountSecurityStore,gate:AccountWriteGate,disconnect:(id:string)=>void,audit:AuditWriter=noAudit) {
+export function createAccountSecurityRouter(auth:RankedSessionAuthority,store:AccountSecurityStore,gate:AccountWriteGate,disconnect:(id:string)=>void,audit:AuditWriter=noAudit) {
     const router=express.Router(), budgets=new Map<string,{count:number;until:number}>();
     let registering=0;
     const allow=(key:string,max:number,ms=60000)=>{
@@ -41,20 +41,21 @@ export function createAccountSecurityRouter(auth:RankedAuth,store:AccountSecurit
     router.post('/account/sessions/revoke-all',json,async(req,res)=>{
         if(!req.is('application/json')||!req.body||Array.isArray(req.body)||Object.keys(req.body).length){res.status(400).json({code:'INVALID_REQUEST'});return;}
         const token=/^Bearer ([-\w.]{1,8192})$/i.exec(req.headers.authorization??'')?.[1];
-        const proof=auth.verifySession(token);let id:string|undefined,locked=false;
+        let id:string|undefined,locked=false;
         try{
+            const proof=await auth.verifySession(token);
             id=proof?.userId??(token&&/^[-\w]+\.[-\w]+\.[-\w]+$/.test(token)?await store.verifyUser(token)??undefined:undefined);
-            if(!id||!token||(proof&&!auth.verifySession(token))){res.status(401).json({code:'AUTH_REQUIRED'});return;}
+            if(!id||!token||(proof&&!(await auth.verifySession(token)))){res.status(401).json({code:'AUTH_REQUIRED'});return;}
             if(!allow(`logout:${id}`,3)){res.setHeader('Retry-After','60');res.status(429).json({code:'TRY_LATER'});return;}
             if(gate.blocked(id)){res.status(409).json({code:'ACCOUNT_BUSY'});return;}
             gate.reserve(id,false);locked=true;
             // Cancel password checks in flight both before and after the upstream await.
-            auth.revokeUserSessions(id);
+            await auth.revokeUserSessions(id);
             if(!proof)await store.signOutAll(token);
-            auth.revokeUserSessions(id);disconnect(id);
+            await auth.revokeUserSessions(id);disconnect(id);
             await audit('logout_all','success',id);res.json({userId:id,revoked:true});
         }catch(error){res.status(error instanceof Error&&error.message==='ACCOUNT_BUSY'?409:503).json({code:error instanceof Error&&error.message==='ACCOUNT_BUSY'?'ACCOUNT_BUSY':'UNAVAILABLE'});}
-        finally{if(id&&locked){auth.revokeUserSessions(id);gate.release(id);}}
+        finally{if(id&&locked)gate.release(id);}
     });
     // Deletion/recovery routes are mounted before this router, so a restricted
     // user still has an erasure/recovery route instead of being trapped.
@@ -62,7 +63,7 @@ export function createAccountSecurityRouter(auth:RankedAuth,store:AccountSecurit
         const token=/^Bearer ([-\w.]{1,8192})$/i.exec(req.headers.authorization??'')?.[1];
         if(!token){next();return;}
         try{
-            const id=auth.verifySession(token)?.userId??(/^[-\w]+\.[-\w]+\.[-\w]+$/.test(token)?await store.verifyUser(token):null);
+            const id=(await auth.verifySession(token))?.userId??(/^[-\w]+\.[-\w]+\.[-\w]+$/.test(token)?await store.verifyUser(token):null);
             if(id&&await store.restricted(id)){res.status(403).json({code:'ACCOUNT_RESTRICTED'});return;}next();}
         catch{res.status(503).json({code:'UNAVAILABLE'});}
     });

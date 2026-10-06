@@ -1,10 +1,10 @@
 import express, { type ErrorRequestHandler } from 'express';
 import { createHash } from 'node:crypto';
-import { RankedAuth, isRankedUserId } from './RankedAuth';
+import { type RankedSessionAuthority, isRankedUserId } from './RankedAuth';
 import { AccountWriteGate } from './AccountDeletion';
 import { RecoveryChallenges, RecoveryError, recoveryEmail, recoveryPassword, type RecoveryStore } from './AccountRecovery';
 
-export function createAccountRecoveryRouter(auth: RankedAuth, store: RecoveryStore, gate: AccountWriteGate,
+export function createAccountRecoveryRouter(auth: RankedSessionAuthority, store: RecoveryStore, gate: AccountWriteGate,
     busy: (id: string) => boolean, disconnect: (id: string) => void, enabled = false) {
     const router = express.Router(), challenges = new RecoveryChallenges();
     const attempts = new Map<string, { count: number; until: number }>(), active = new Set<string>();
@@ -38,7 +38,7 @@ export function createAccountRecoveryRouter(auth: RankedAuth, store: RecoverySto
             if (!await store.ready()) throw new RecoveryError('UNAVAILABLE');
             if (enroll) {
                 const token = /^Bearer (ranked_[A-Za-z0-9_-]{43})$/.exec(req.headers.authorization ?? '')?.[1];
-                if (!auth.verifySession(token, userId) || typeof password !== 'string' || Buffer.byteLength(password) > 1024
+                if (!(await auth.verifySession(token, userId)) || typeof password !== 'string' || Buffer.byteLength(password) > 1024
                     || !await store.verifyPassword(userId, password)) throw new RecoveryError('AUTH_REQUIRED');
                 release = gate.enter(userId) ?? undefined;
                 if (!release || await store.blocked(userId)) throw new RecoveryError('ACCOUNT_BUSY');
@@ -66,8 +66,10 @@ export function createAccountRecoveryRouter(auth: RankedAuth, store: RecoverySto
             if (active.has(ticket)) throw new RecoveryError('TRY_LATER');
             const challenge = challenges.take(ticket);
             if (challenge.kind !== (enroll ? 'enroll' : 'reset')) throw new RecoveryError('INVALID_CODE');
-            if (enroll && !auth.verifySession(/^Bearer (ranked_[A-Za-z0-9_-]{43})$/.exec(req.headers.authorization ?? '')?.[1], challenge.id)) throw new RecoveryError('AUTH_REQUIRED');
+            // Claim this challenge before asynchronous verification so duplicate
+            // enrollment completions cannot both pass the one-use guard.
             active.add(ticket); ownsTicket = true;
+            if (enroll && !(await auth.verifySession(/^Bearer (ranked_[A-Za-z0-9_-]{43})$/.exec(req.headers.authorization ?? '')?.[1], challenge.id))) throw new RecoveryError('AUTH_REQUIRED');
             if (gate.blocked(challenge.id) || busy(challenge.id) || await store.blocked(challenge.id)) throw new RecoveryError('ACCOUNT_BUSY');
             try { gate.reserve(challenge.id, busy(challenge.id)); } catch { throw new RecoveryError('ACCOUNT_BUSY'); }
             reserved = challenge.id;
@@ -78,14 +80,14 @@ export function createAccountRecoveryRouter(auth: RankedAuth, store: RecoverySto
             if (enroll) await store.enroll(challenge.id, challenge.email, authId);
             else {
                 // Revoke in-flight as well as existing proofs BEFORE the password write.
-                auth.revokeUserSessions(challenge.id); disconnect(challenge.id);
+                await auth.revokeUserSessions(challenge.id); disconnect(challenge.id);
                 try { await store.reset(challenge.binding!, password); }
                 catch {
                     // An aborted HTTP response does not prove the database rolled back.
                     // Only reopen login after the new password is confirmed persisted.
                     const persisted = await store.verifyPassword(challenge.id, password).catch(() => false);
                     if(!persisted) { uncertainReset = true; throw new RecoveryError('UNAVAILABLE'); }
-                } finally { auth.revokeUserSessions(challenge.id); }
+                } finally { await auth.revokeUserSessions(challenge.id); }
             }
             res.json({ completed: true });
         } catch (error) { fail(res, error); }
