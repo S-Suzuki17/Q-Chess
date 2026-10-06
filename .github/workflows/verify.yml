@@ -47,3 +47,42 @@ jobs:
         run: node scripts/qa/qube-loading-accessibility.mjs
       - name: Verify desktop and mobile commerce page
         run: node scripts/qa/check-commerce-browser.mjs
+
+  commerce-postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17.11-bookworm
+        env:
+          POSTGRES_DB: commerce_upgrade
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: qgambit-ephemeral-only
+          POSTGRES_INITDB_ARGS: --locale=C --encoding=UTF8
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d commerce_upgrade"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - name: Native PostgreSQL baseline upgrade and concurrency
+        run: node --test --test-timeout=180000 scripts/qa/commerce-postgres.test.mjs
+      - name: Retain synthetic verification report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: commerce-postgres-results
+          path: /tmp/commerce-postgres-results.json
+          if-no-files-found: warn
+          retention-days: 7
