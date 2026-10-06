@@ -5,6 +5,7 @@ import { User } from '../types/game';
 import { circuitAccess } from '../lib/circuitAccess';
 import { dict, Language } from '../locales/dict';
 import { supabase } from '../lib/supabaseClient';
+import { beginOAuthLoginIntent, clearOAuthLoginIntent } from '../lib/oauthLoginIntent';
 import { requestRankedSession } from '../lib/rankedSession';
 import { registerAccount } from '../lib/accountSecurity';
 import { AccountProfileError } from '../lib/accountProfile';
@@ -22,10 +23,12 @@ import { Browser } from '@capacitor/browser';
 interface TitleScreenProps {
     lang: Language;
     onLogin: (u: User, attempt?:number) => void;
+    onOAuthStart?: () => void;
+    onOAuthCancel?: () => void;
     initialMode?:'select'|'login';
 }
 
-export function TitleScreen({ lang, onLogin, initialMode='select' }: TitleScreenProps) {
+export function TitleScreen({ lang, onLogin, initialMode='select', onOAuthStart, onOAuthCancel }: TitleScreenProps) {
     const { android, webContent } = useAppPlatform();
     const t = { ...dict['en'], ...(dict[lang] || {}) } as any;
     const [mode, setMode] = useState<'select' | 'register' | 'login' | 'rules'>(initialMode);
@@ -38,11 +41,15 @@ export function TitleScreen({ lang, onLogin, initialMode='select' }: TitleScreen
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
 
+    const changeMode = (next: typeof mode) => { clearOAuthLoginIntent(); onOAuthCancel?.(); setMode(next); };
+
     const handleOAuthLogin = async (provider: 'google' | 'discord') => {
         if (loading) return;
         loginRequest.current?.abort();
         setLoading(true);setError('');
         try {
+            beginOAuthLoginIntent();
+            onOAuthStart?.();
             const native = Capacitor.isNativePlatform();
             const { data, error: authError } = await supabase.auth.signInWithOAuth({
                 provider,
@@ -55,11 +62,12 @@ export function TitleScreen({ lang, onLogin, initialMode='select' }: TitleScreen
             if (native && data?.url) {
                 await Browser.open({ url: data.url });
             }
-        } catch { if (mounted.current) setError(matchText(lang,'ログインできませんでした。もう一度お試しください。','Sign-in failed. Please try again.')); }
+        } catch { clearOAuthLoginIntent(); onOAuthCancel?.(); if (mounted.current) setError(matchText(lang,'ログインできませんでした。もう一度お試しください。','Sign-in failed. Please try again.')); }
         finally { if (mounted.current) setLoading(false); }
     };
 
     const handleGuest = () => {
+        clearOAuthLoginIntent();
         const guestId = `GUEST-${crypto.randomUUID()}`;
         onLogin({ id: guestId, name: 'Guest', type: 'guest' });
     };
@@ -78,6 +86,7 @@ export function TitleScreen({ lang, onLogin, initialMode='select' }: TitleScreen
         }
 
         setLoading(true);
+        clearOAuthLoginIntent();
         const attempt=circuitAccess.beginAuthentication();
         loginRequest.current?.abort();
         const request=new AbortController();loginRequest.current=request;
@@ -110,6 +119,7 @@ export function TitleScreen({ lang, onLogin, initialMode='select' }: TitleScreen
         }
 
         setLoading(true);
+        clearOAuthLoginIntent();
         const attempt=circuitAccess.beginAuthentication();
         loginRequest.current?.abort();
         const request=new AbortController();loginRequest.current=request;
@@ -150,8 +160,8 @@ export function TitleScreen({ lang, onLogin, initialMode='select' }: TitleScreen
                         <button onClick={handleGuest} className="title-play">{(t as any)?.guestLogin || "PLAY AS GUEST"}<ArrowUpRight size={24} aria-hidden="true"/></button>
                         
                         <div className="title-auth-actions flex flex-col gap-3 mt-4">
-                            <button onClick={() => { setMode('login'); setError(''); }} className="w-full py-3 bg-[#191714]/80 border border-[#A89C86]/30 hover:bg-[#A89C86]/20 transition-colors text-sm tracking-widest text-[#E8E2D7]">{(t as any)?.login || "SIGN IN"}</button>
-                            <button onClick={() => { setMode('register'); setError(''); }} className="w-full py-3 bg-transparent border border-[#A89C86]/30 hover:bg-[#A89C86]/10 transition-colors text-sm tracking-widest text-[#E8E2D7]">{(t as any)?.createAccount || "CREATE ACCOUNT"}</button>
+                            <button onClick={() => { changeMode('login'); setError(''); }} className="w-full py-3 bg-[#191714]/80 border border-[#A89C86]/30 hover:bg-[#A89C86]/20 transition-colors text-sm tracking-widest text-[#E8E2D7]">{(t as any)?.login || "SIGN IN"}</button>
+                            <button onClick={() => { changeMode('register'); setError(''); }} className="w-full py-3 bg-transparent border border-[#A89C86]/30 hover:bg-[#A89C86]/10 transition-colors text-sm tracking-widest text-[#E8E2D7]">{(t as any)?.createAccount || "CREATE ACCOUNT"}</button>
                         </div>
                     </div>
                 )}
@@ -231,7 +241,7 @@ export function TitleScreen({ lang, onLogin, initialMode='select' }: TitleScreen
                             </button>
                         </div>
                         
-                        <button type="button" onClick={() => setMode('select')} disabled={loading} className="text-[#A89C86] hover:text-[#E8E2D7] text-xs tracking-widest mt-2">{(t as any)?.cancel || "CANCEL"}</button>
+                        <button type="button" onClick={() => changeMode('select')} disabled={loading} className="text-[#A89C86] hover:text-[#E8E2D7] text-xs tracking-widest mt-2">{(t as any)?.cancel || "CANCEL"}</button>
                     </form>
                 )}
                 {mode==='login'&&<AccountRecoveryPanel lang={lang}/>}

@@ -2,7 +2,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { io, type Socket } from 'socket.io-client';
 import { supabase } from './supabaseClient';
-import { gameServerUrl, readRankedSession, RANKED_SESSION_EVENT } from './rankedSession';
+import { gameServerUrl, readRankedSession, rankedSessionRemainingMs, RANKED_SESSION_EVENT } from './rankedSession';
 import {clientRelease} from './clientRelease';
 
 interface SocketContextProps {
@@ -40,19 +40,19 @@ export function SocketProvider({ children, userId }: { children:React.ReactNode;
             setAuthPending(true);
             try {
                 const proof=readRankedSession(userId);
-                let token=proof?.token,expiresAt=proof?.expiresAt;
+                let token=proof?.token,remainingMs=proof?rankedSessionRemainingMs(proof):undefined;
                 const guest=userId.startsWith('GUEST-');
                 if(guest)token=userId;
                 else if(!token){
                     const {data,error}=await supabase.auth.getSession();
                     const session=data.session;
                     if(!error&&session?.user.id===userId&&!session.user.is_anonymous){
-                        token=session.access_token;expiresAt=session.expires_at?session.expires_at*1000:undefined;
+                        token=session.access_token;remainingMs=session.expires_at?session.expires_at*1000-Date.now():undefined;
                     }
                 }
                 if(disposed||superseded||request!==revision)return;
                 clearTimeout(expiryTimer);
-                if(!token || (!guest&&expiresAt!==undefined&&expiresAt<=Date.now())){
+                if(!token || (!guest&&remainingMs!==undefined&&remainingMs<=0)){
                     current?.disconnect();current=null;setSocket(null);setIsConnected(false);setIsAuthenticated(false);setConnectionError('AUTH_REQUIRED');return;
                 }
                 const authenticated=!guest;
@@ -82,7 +82,15 @@ export function SocketProvider({ children, userId }: { children:React.ReactNode;
                 }
                 lastToken=token;
                 // Expiry prevents new rated queues. Do not interrupt an existing match.
-                if(authenticated&&expiresAt)expiryTimer=setTimeout(()=>{if(!disposed)setIsAuthenticated(false);},Math.min(2147483647,Math.max(0,expiresAt-Date.now())));
+                if(authenticated&&remainingMs!==undefined){
+                    const expire=()=>{
+                        if(disposed)return;
+                        const left=proof?rankedSessionRemainingMs(proof):0;
+                        if(left>0)expiryTimer=setTimeout(expire,Math.min(2147483647,left));
+                        else setIsAuthenticated(false);
+                    };
+                    expiryTimer=setTimeout(expire,Math.min(2147483647,Math.max(0,remainingMs)));
+                }
             }catch{
                 if(!disposed&&request===revision){setConnectionError('AUTH_REQUIRED');setIsAuthenticated(false);}
             }finally{if(!disposed&&request===revision)setAuthPending(false);}

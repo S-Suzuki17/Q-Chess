@@ -27,6 +27,7 @@ import {createSecurityAudit} from './services/SecurityAudit';
 import {createEngagementMetricsRouter} from './services/EngagementMetricsRoutes';
 import {createDailyLoginRouter} from './services/DailyLoginRoutes';
 import { createRankedRefundRouter } from './services/RankedRefundRoutes';
+import { createRankedSessionInspectionRouter } from './services/RankedSessionInspectionRoutes';
 import {QG_LIVE_MONTHLY_PRICE_ID, StripeMembershipApi, type StripeMembershipMode} from './services/StripeMembership';
 import {createStripeMembershipRouter,createStripeWebhookRouter} from './services/StripeMembershipRoutes';
 import {createStripeCancellationGuard} from './services/StripeCancellation';
@@ -127,6 +128,9 @@ app.use(createAccountRecoveryRouter(rankedAuth,supabaseService.accountRecoverySt
     id=>matchmaking.accountBusy(id)||runtime.isSavingAccount(id),
     id=>{ for(const socket of io.sockets.sockets.values())if(socket.data.userId===id)socket.disconnect(true); },
     process.env.ACCOUNT_RECOVERY_ENABLED==='true'));
+// Identity restoration must remain available to restricted users for recovery
+// and deletion. This router enforces its own deletion guard and token recheck.
+app.use(createRankedSessionInspectionRouter(rankedAuth,deletionStore,accountGate));
 app.use(createAccountSecurityRouter(rankedAuth,supabaseService.accountSecurityStore(),accountGate,
     id=>{for(const socket of io.sockets.sockets.values())if(socket.data.userId===id){socket.emit('session_replaced');socket.disconnect(true);}},audit));
 app.use(accountRequestGuard(rankedAuth,deletionStore,accountGate));
@@ -230,7 +234,7 @@ app.post('/auth/ranked-session',async(req,res)=>{
         }
         if(!session){await audit('login','denied',username);return res.status(401).json({code:'AUTH_FAILED'});}
         await audit('login','success',username);
-        return res.json(session);
+        return res.json({...session,serverNow:Date.now()});
     } catch {
         // An unavailable check must not revoke unrelated devices. Only the
         // unreturned proof from this attempt needs cleanup; confirmed deletion
