@@ -45,6 +45,7 @@ vi.mock('./AccountSecurityRoutes', () => ({ createAccountSecurityRouter: vi.fn((
 vi.mock('./AccountProgressRoutes', () => ({ createAccountProgressRouter: vi.fn(() => () => {}) }));
 vi.mock('./DailyLoginRoutes', () => ({ createDailyLoginRouter: vi.fn(() => () => {}) }));
 vi.mock('./CpuPracticeRoutes', () => ({ createCpuPracticeRouter: vi.fn(() => () => {}) }));
+vi.mock('./RankedSessionInspectionRoutes', () => ({ createRankedSessionInspectionRouter: vi.fn(() => () => {}) }));
 vi.mock('./RankedRefundRoutes', () => ({ createRankedRefundRouter: vi.fn(() => () => {}) }));
 vi.mock('./StripeMembershipRoutes', () => ({ createStripeMembershipRouter: vi.fn(() => () => {}), createStripeWebhookRouter: vi.fn(() => () => {}) }));
 vi.mock('./AccountCurrentTermsRoutes', () => ({ createCurrentTermsRouter: vi.fn(() => () => {}) }));
@@ -127,6 +128,31 @@ async function realMatchmaking() {
 }
 
 describe('ranked gateway without network or database side effects', () => {
+    it('mounts verified session inspection before generic restriction and account guards',async()=>{
+        const {createRankedSessionInspectionRouter}=await import('./RankedSessionInspectionRoutes');
+        const {createAccountSecurityRouter}=await import('./AccountSecurityRoutes');
+        const {accountRequestGuard}=await import('./AccountDeletionRoutes');
+        const inspection=vi.mocked(createRankedSessionInspectionRouter);
+        expect(inspection).toHaveBeenCalledOnce();
+        const [authority,deletion,gate]=inspection.mock.calls[0];
+        expect(deletion.blocked).toBe(h.blocked);
+        expect(authority.verifySession).toBeTypeOf('function');
+        expect(gate.blocked('Alice')).toBe(false);
+        const mounted=h.app.use.mock.calls.map(args=>args[0]);
+        const index=mounted.indexOf(inspection.mock.results[0].value);
+        expect(index).toBeGreaterThanOrEqual(0);
+        expect(index).toBeLessThan(mounted.indexOf(vi.mocked(createAccountSecurityRouter).mock.results[0].value));
+        expect(index).toBeLessThan(mounted.indexOf(vi.mocked(accountRequestGuard).mock.results[0].value));
+    });
+    it('returns server time sampled after issuance without extending the absolute expiry',async()=>{
+        const issuedAt=Date.now();
+        (h.service as any).recordSecurityEvent=async()=>{vi.setSystemTime(issuedAt+250);};
+        const result=await login();
+        expect(result.code).toBe(200);expect(result.headers['Cache-Control']).toBe('no-store');
+        expect(result.body).toEqual({token:expect.stringMatching(/^ranked_[A-Za-z0-9_-]{43}$/),userId:'Alice',
+            expiresAt:issuedAt+60*60*1000,serverNow:issuedAt+250});
+        expect(JSON.stringify(result.body)).not.toContain('correct');
+    });
     it('starts free ranked PvP through the real matchmaking and engine while ticket DB is unavailable', async () => {
         const mm = await realMatchmaking();
         h.service.verifyLegacyPassword.mockImplementation(async (id, password) => ['Alice', 'Bob'].includes(id) && password === 'correct');

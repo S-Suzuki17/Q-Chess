@@ -14,7 +14,7 @@ import { AppSupportLinks } from '../components/AppSupportLinks';
 import { useAppPlatform } from '../hooks/useAppPlatform';
 import { useNativeAuthLinks } from '../hooks/useNativeAuthLinks';
 import { SystemStatusBanner } from '../components/SystemStatusBanner';
-import { supabase } from '../lib/supabaseClient';
+import { supabase, oauthCallbackAtStartup } from '../lib/supabaseClient';
 import { TitleScreen } from '../components/TitleScreen';
 import { LevelSelect } from '../components/LevelSelect';
 import { SettingsDialog } from '../components/SettingsDialog';
@@ -30,7 +30,10 @@ import { User, GameState, TimeControl } from '../types/game';
 import { GameRecord } from '../lib/gameRecordService';
 
 import { RankedMatchmakingManager } from '../components/RankedMatchmakingManager';
-import { clearRankedSession } from '../lib/rankedSession';
+import { clearRankedSession, readRankedSessionCandidate, RANKED_SESSION_STORAGE_KEY } from '../lib/rankedSession';
+import { restoredLegacyUser, restoredOnlineMatch } from '../lib/legacySessionRestoration';
+import { useLegacySessionRestoration } from '../hooks/useLegacySessionRestoration';
+import { clearOAuthLoginIntent, hasOAuthLoginIntent, completedOAuthCallback } from '../lib/oauthLoginIntent';
 
 
 import { useCampaignProgress } from '../hooks/useCampaignProgress';
@@ -107,44 +110,104 @@ export default function Home() {
     const [queueMode, setQueueMode] = useState<'ranked' | 'random'>('random');
 
 
+    const authOwner = React.useRef<'legacy'|'oauth'|'guest'|null>(null);
+    const oauthIntent = React.useRef<number|null>(null);
+    const [oauthCallbackExpected] = useState(hasOAuthLoginIntent);
+    const showRestoredUser = (u: User) => {
+        let match: ReturnType<typeof restoredOnlineMatch>=null;
+        try { match=restoredOnlineMatch(u.id,JSON.parse(localStorage.getItem('qg_last_user')||'null'),JSON.parse(localStorage.getItem('qg_active_online_match')||'null')); }
+        catch { /* Display/match cache is optional. */ }
+        setUser(u);
+        try { localStorage.setItem('qg_last_user',JSON.stringify(u)); } catch { /* Verified identity remains in memory. */ }
+        if(match&&!circuitLoginRequested.current){
+            setOnlineInfo(match);setTimeControl(match.tc);
+            setGameState(current=>current==='title'||current==='level_select'?'playing':current);
+        } else setGameState(current=>current==='title'?(circuitLoginRequested.current?'campaign':'level_select'):current);
+        circuitLoginRequested.current=false;
+    };
+    const legacyRestore = useLegacySessionRestoration(userId => {
+        authOwner.current='legacy';clearOAuthLoginIntent();oauthIntent.current=null;
+        let cached:unknown=null;
+        try { cached=JSON.parse(localStorage.getItem('qg_last_user')||'null'); } catch { /* Appearance is optional. */ }
+        showRestoredUser(restoredLegacyUser(userId,cached));
+    }, !oauthCallbackExpected);
+    const cancelOAuth = () => {
+        clearOAuthLoginIntent();
+        if(oauthIntent.current!==null&&circuitAccess.getSnapshot().revision===oauthIntent.current)circuitAccess.revoke();
+        oauthIntent.current=null;
+        if(authOwner.current==='oauth'&&!circuitAccess.getSnapshot().userId)authOwner.current=null;
+    };
+    useEffect(()=>{if(nativeAuth.failed)cancelOAuth();},[nativeAuth.failed]);
+
     useEffect(() => {
         let active=true;
+        let restoring:number|null=null;
         const initialRevision=circuitAccess.getSnapshot().revision;
+        const legacyAtStart=!!readRankedSessionCandidate();
+        let callbackReady=!oauthCallbackExpected;
+        if(oauthCallbackExpected)oauthIntent.current=initialRevision;
         const restoreSession=(session:Session)=>{
-            // SIGNED_IN can repeat on tab focus; never restart an existing match.
-            if(circuitAccess.getSnapshot().userId===session.user.id)return;
+            const snapshot=circuitAccess.getSnapshot();
+            const expected=oauthIntent.current??initialRevision;
+            // A background event cannot replace legacy restoration, a newer
+            // explicit login or a match. Explicit OAuth owns a separate revision.
+            if((!callbackReady&&(oauthIntent.current===null||oauthIntent.current===initialRevision))||
+                restoring===snapshot.revision||snapshot.userId===session.user.id||snapshot.revision!==expected||
+                (oauthIntent.current===null&&(legacyAtStart||authOwner.current!==null)))return;
             const attempt=circuitAccess.beginAuthentication();
+            authOwner.current='oauth';
+            if(oauthIntent.current!==null)oauthIntent.current=attempt;
+            restoring=attempt;
             const restore=async()=>{
                 try {
                     const {data,error}=await supabase.auth.getUser();
                     const verified=data.user;
                     if(error||!verified||verified.is_anonymous||verified.id!==session.user.id)return;
                     let profile:{name?:string;avatar_url?:string}|null=null;
-                    try { const result=await supabase.from('profiles').select('name, avatar_url').eq('id',verified.id).single();profile=result.data; } catch { /* Auth is valid even if public appearance is unavailable. */ }
+                    try { const result=await supabase.from('profiles').select('name, avatar_url').eq('id',verified.id).single();profile=result.data; } catch { /* Appearance is optional. */ }
                     const u:User={id:verified.id,name:profile?.name||verified.user_metadata?.full_name||verified.user_metadata?.name||'Player',avatar_url:profile?.avatar_url,type:'registered'};
                     if(!active||!circuitAccess.grant(u,attempt))return;
-                    setUser(u);
-                    try { localStorage.setItem('qg_last_user',JSON.stringify(u)); } catch { /* Keep the verified session in memory. */ }
-                    setGameState(circuitLoginRequested.current?'campaign':'level_select');
-                    circuitLoginRequested.current=false;
-                } catch { /* Fail closed for Circuit; cached identity is not a login. */ }
+                    if(oauthIntent.current===attempt)clearRankedSession();
+                    authOwner.current='oauth';clearOAuthLoginIntent();oauthIntent.current=null;showRestoredUser(u);
+                } catch { /* A cached identity never grants access. */ }
+                finally {
+                    if(restoring===attempt)restoring=null;
+                    if(active&&oauthIntent.current===attempt){clearOAuthLoginIntent();oauthIntent.current=null;}
+                }
             };
-            // Do not await another Supabase call inside its auth lock callback.
-            setTimeout(()=>{if(active&&circuitAccess.getSnapshot().revision===attempt)void restore();},0);
+            // Never await another Supabase call inside its auth-lock callback.
+            setTimeout(()=>{if(active&&circuitAccess.getSnapshot().revision===attempt)void restore();else if(restoring===attempt)restoring=null;},0);
         };
         const {data:{subscription}}=supabase.auth.onAuthStateChange((event,session)=>{
             if(event==='SIGNED_IN'&&session)restoreSession(session);
-            else if(event==='SIGNED_OUT'){
-                circuitAccess.revoke();setUser(null);setGameState('title');setLoginMode('select');
+            else if(event==='SIGNED_OUT'&&authOwner.current==='oauth'){
+                circuitAccess.revoke();authOwner.current=null;clearOAuthLoginIntent();oauthIntent.current=null;
+                setUser(null);setGameState('title');setLoginMode('select');
                 try { localStorage.removeItem('qg_last_user'); } catch { /* Access is already revoked. */ }
             }
         });
-        void supabase.auth.getSession().then(({data:{session}})=>{
-            if(active&&session&&circuitAccess.getSnapshot().revision===initialRevision)restoreSession(session);
-        }).catch(()=>{});
-        // A logout/account replacement in another tab must cancel a local run.
+        void (async()=>{
+            if(oauthCallbackExpected){
+                const result=await supabase.auth.initialize();
+                if(!active||circuitAccess.getSnapshot().revision!==initialRevision)return;
+                if(!completedOAuthCallback(oauthCallbackAtStartup,result.error)){
+                    clearOAuthLoginIntent();oauthIntent.current=null;return;
+                }
+                callbackReady=true;
+            }
+            const {data:{session},error}=await supabase.auth.getSession();
+            if(!active)return;
+            if(!error&&session)restoreSession(session);
+            else if(oauthCallbackExpected&&circuitAccess.getSnapshot().revision===initialRevision){clearOAuthLoginIntent();oauthIntent.current=null;}
+        })().catch(()=>{
+            if(active&&oauthCallbackExpected&&circuitAccess.getSnapshot().revision===initialRevision){clearOAuthLoginIntent();oauthIntent.current=null;}
+        });
         const identityChanged=(event:StorageEvent)=>{
-            if(event.key===null||(event.key==='qg_last_user'&&!isSameCircuitIdentity(event.oldValue,event.newValue)))circuitAccess.revoke();
+            if(event.key===null||event.key===RANKED_SESSION_STORAGE_KEY||
+                (event.key==='qg_last_user'&&!isSameCircuitIdentity(event.oldValue,event.newValue))){
+                circuitAccess.revoke();authOwner.current=null;clearOAuthLoginIntent();oauthIntent.current=null;
+                setUser(null);setGameState('title');setLoginMode('select');
+            }
         };
         window.addEventListener('storage',identityChanged);
         return()=>{active=false;subscription.unsubscribe();window.removeEventListener('storage',identityChanged);circuitAccess.revoke();};
@@ -189,50 +252,23 @@ export default function Home() {
     }, [gameState,campaignProgress.music]);
 
     useEffect(() => {
-        if (typeof window !== 'undefined') {
-            const lastUser = localStorage.getItem('qg_last_user');
-            if (lastUser) {
-                try {
-                    const u = JSON.parse(lastUser);
-                    setUser(u);
-
-                    // Check if there is an active online match from within the last 15 minutes
-                    const activeMatchStr = localStorage.getItem('qg_active_online_match');
-                    if (activeMatchStr) {
-                        try {
-                            const match = JSON.parse(activeMatchStr);
-                            if (match.roomId && match.role && Date.now() - (match.timestamp || 0) < 15 * 60 * 1000) {
-                                setOnlineInfo({
-                                    roomId: match.roomId,
-                                    role: match.role,
-                                    matchMode: match.matchMode,
-                                    opponentId: match.opponentId
-                                });
-                                setTimeControl(match.tc || '10m');
-                                setGameState('playing');
-                                return;
-                            } else {
-                                localStorage.removeItem('qg_active_online_match');
-                            }
-                        } catch (e) {
-                            localStorage.removeItem('qg_active_online_match');
-                        }
-                    }
-
-                    setGameState('level_select');
-                } catch (e) {
-                    localStorage.removeItem('qg_last_user');
-                }
+        // A registered cache is appearance only. A guest can resume local play.
+        if(readRankedSessionCandidate()||oauthCallbackExpected)return;
+        try {
+            const cached=JSON.parse(localStorage.getItem('qg_last_user')||'null');
+            if(cached?.type==='guest'&&typeof cached.id==='string'&&cached.id.startsWith('GUEST-')&&typeof cached.name==='string'){
+                authOwner.current='guest';showRestoredUser(cached);
             }
-        }
+        } catch { /* Unreadable cache is not authentication. */ }
     }, []);
 
     const handleLogin = (u: User,attempt?:number) => {
         if(u.type==='registered'){
             if(attempt===undefined||!circuitAccess.grant(u,attempt))return;
         } else circuitAccess.revoke();
+        authOwner.current=u.type==='registered'?'legacy':'guest';clearOAuthLoginIntent();oauthIntent.current=null;
         setUser(u);
-        localStorage.setItem('qg_last_user', JSON.stringify(u));
+        try { localStorage.setItem('qg_last_user', JSON.stringify(u)); } catch { /* Keep verified login in memory. */ }
         setGameState(u.type==='registered'&&circuitLoginRequested.current?'campaign':'level_select');
         circuitLoginRequested.current=false;
     };
@@ -262,6 +298,7 @@ export default function Home() {
         setTimeControl(tc);
         if (typeof window !== 'undefined' && role !== 'spectator') {
             localStorage.setItem('qg_active_online_match', JSON.stringify({
+                userId:user?.id,
                 roomId,
                 role,
                 matchMode,
@@ -274,6 +311,7 @@ export default function Home() {
     };
 
     const handleLogout = async () => {
+        authOwner.current=null;clearOAuthLoginIntent();oauthIntent.current=null;
         clearRankedSession();
         circuitAccess.revoke();
         setUser(null);
@@ -285,7 +323,7 @@ export default function Home() {
     };
 
     const requestCircuitLogin=()=>{
-        circuitAccess.revoke();circuitLoginRequested.current=true;
+        circuitAccess.revoke();authOwner.current=null;clearOAuthLoginIntent();oauthIntent.current=null;circuitLoginRequested.current=true;
         setUser(null);setSettingsPanel(null);setShowSettings(false);setLoginMode('login');setGameState('title');
         try { localStorage.removeItem('qg_last_user'); } catch { /* Do not delete campaign progress. */ }
     };
@@ -297,6 +335,11 @@ export default function Home() {
             {DAILY_LOGIN_REWARDS_ENABLED && <DailyLoginClaimController user={user} termsReady={termsReadyIdentity===termsIdentity}/>}
             {MEMBER_TICKET_USAGE_ENABLED && <MemberTicketClaimController user={user} termsReady={termsReadyIdentity===termsIdentity}/>}
             <SystemStatusBanner lang={lang} playing={gameState==='playing'||circuitPlaying} />
+            {legacyRestore.hasCandidate&&(legacyRestore.state==='checking'||legacyRestore.state==='unavailable')&&
+                <div role="status" className="fixed bottom-4 left-4 right-4 z-[100] rounded border border-[#D4B872] bg-[#1E1C19] p-4 text-[#E8E2D7]">
+                    {legacyRestore.state==='checking'?matchText(lang,'ログイン状態を確認しています…','Checking your saved sign-in…'):matchText(lang,'ログイン状態を確認できません。保存したログインは保持されています。','Could not check your sign-in. Your saved login has been kept.')}
+                    {legacyRestore.state==='unavailable'&&<button type="button" className="ml-4 p-2" onClick={legacyRestore.retry}>{matchText(lang,'再試行','Retry')}</button>}
+                </div>}
             {nativeAuth.failed && <div role="alert" className="fixed bottom-4 left-4 right-4 z-[100] rounded border border-[#D4B872] bg-[#1E1C19] p-4 text-[#E8E2D7]">
                 {matchText(lang,'ログインできませんでした。もう一度お試しください。','Sign-in failed. Please try again.')}
                 <button type="button" onClick={nativeAuth.dismiss} className="ml-4 p-2" aria-label={matchText(lang,'閉じる','Close')}>×</button>
@@ -446,7 +489,7 @@ export default function Home() {
 
             <div className="flex-grow w-full flex flex-col items-center justify-center relative z-10 shrink-0 mt-8">
                 {gameState === 'title' && (
-                    <TitleScreen lang={lang} onLogin={handleLogin} initialMode={loginMode}/>
+                    <TitleScreen lang={lang} onLogin={handleLogin} initialMode={loginMode} onOAuthStart={()=>{authOwner.current='oauth';oauthIntent.current=circuitAccess.beginAuthentication();}} onOAuthCancel={cancelOAuth}/>
                 )}
 
                 {gameState === 'level_select' && user && (

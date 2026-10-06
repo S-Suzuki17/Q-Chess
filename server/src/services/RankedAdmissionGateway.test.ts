@@ -47,6 +47,8 @@ vi.mock('./AccountSecurityRoutes', () => ({ createAccountSecurityRouter: vi.fn((
 vi.mock('./AccountProgressRoutes', () => ({ createAccountProgressRouter: vi.fn(() => () => {}) }));
 vi.mock('./DailyLoginRoutes', () => ({ createDailyLoginRouter: vi.fn(() => () => {}) }));
 vi.mock('./CpuPracticeRoutes', () => ({ createCpuPracticeRouter: vi.fn(() => () => {}) }));
+// HTTP inspection has its own real-router suite; this fixture isolates socket admission.
+vi.mock('./RankedSessionInspectionRoutes', () => ({ createRankedSessionInspectionRouter: vi.fn(() => () => {}) }));
 vi.mock('./RankedRefundRoutes', () => ({ createRankedRefundRouter: vi.fn(() => () => {}) }));
 vi.mock('./StripeMembershipRoutes', () => ({ createStripeMembershipRouter: vi.fn(() => () => {}), createStripeWebhookRouter: vi.fn(() => () => {}) }));
 vi.mock('./AccountCurrentTermsRoutes', () => ({ createCurrentTermsRouter: vi.fn(() => () => {}) }));

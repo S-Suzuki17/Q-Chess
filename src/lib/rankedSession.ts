@@ -1,39 +1,108 @@
 import {clientReleaseHeaders} from './clientRelease';
 export const RANKED_SESSION_EVENT = 'qg-ranked-session-change';
-const STORAGE_KEY = 'qg_ranked_session_v1';
+export const RANKED_SESSION_STORAGE_KEY = 'qg_ranked_session_v1';
+const STORAGE_KEY = RANKED_SESSION_STORAGE_KEY;
+const STORAGE_LOCATIONS = ['session', 'local'] as const;
+type StorageLocation = typeof STORAGE_LOCATIONS[number];
 let generation = 0;
 let revoked = false;
+const MAX_LIFETIME_MS = 30 * 24 * 60 * 60 * 1000;
+// Never persisted: reload must verify with the server again.
+let verifiedClock: { token: string; expiresAt: number; deadline: number; observed: number; wallDeadline: number; observedWall: number } | null = null;
+export const rankedSessionRevision = () => generation;
+export const rankedMonotonicNow = () => performance.now();
 
 export type RankedSession = Readonly<{ token: string; userId: string; expiresAt: number }>;
 export const gameServerUrl = () => process.env.NEXT_PUBLIC_SERVER_URL || 'https://q-chess.onrender.com';
 
-export function parseRankedSession(value: unknown, now = Date.now()): RankedSession | null {
+/** Structural candidate only, never proof of login. Deliberately clock-independent. */
+export function parseRankedSessionCandidate(value: unknown): RankedSession | null {
     if (!value || typeof value !== 'object') return null;
     const candidate = value as Record<string, unknown>;
     if (typeof candidate.token !== 'string' || candidate.token.length < 16 || candidate.token.length > 16384 ||
         typeof candidate.userId !== 'string' || !candidate.userId || candidate.userId.length > 128 ||
-        candidate.userId.startsWith('GUEST-') || typeof candidate.expiresAt !== 'number' ||
-        !Number.isFinite(candidate.expiresAt) || candidate.expiresAt <= now) return null;
+        candidate.userId !== candidate.userId.trim() || /[\u0000-\u001f\u007f]/.test(candidate.userId) ||
+        /^(?:guest(?:[-_]|$)|anon(?:ymous)?(?:[-_]|$)|cpu(?:[-_]|$)|ai(?::|$)|supabase-)/i.test(candidate.userId) ||
+        typeof candidate.expiresAt !== 'number' || !Number.isSafeInteger(candidate.expiresAt) || candidate.expiresAt <= 0) return null;
     return { token: candidate.token, userId: candidate.userId, expiresAt: candidate.expiresAt };
+}
+
+export function parseRankedSession(value: unknown, now = Date.now()): RankedSession | null {
+    const candidate = parseRankedSessionCandidate(value);
+    return candidate && candidate.expiresAt > now ? candidate : null;
+}
+
+export function rankedSessionRemainingMs(proof: RankedSession): number {
+    if (verifiedClock?.token === proof.token && verifiedClock.expiresAt === proof.expiresAt) {
+        const now = rankedMonotonicNow(), wallNow = Date.now();
+        if (!Number.isFinite(now) || !Number.isFinite(wallNow) || now < verifiedClock.observed || wallNow < verifiedClock.observedWall) {
+            verifiedClock.deadline = 0; return 0;
+        }
+        verifiedClock.observed = now; verifiedClock.observedWall = wallNow;
+        // Wall elapsed also covers platforms whose monotonic clock pauses during sleep.
+        return Math.max(0, Math.min(verifiedClock.deadline - now, verifiedClock.wallDeadline - wallNow));
+    }
+    return Math.max(0, proof.expiresAt - Date.now());
+}
+
+/** Conservative UI timer: subtract ALL transit/processing time. Server authorization
+ * remains authoritative for every privileged request. Never extend stored expiry. */
+export function acceptVerifiedRankedSession(proof: RankedSession, serverNow: number, started: number): boolean {
+    const remaining = proof.expiresAt - serverNow;
+    const now = rankedMonotonicNow();
+    if (!Number.isSafeInteger(serverNow) || serverNow <= 0 || remaining <= 0 || remaining > MAX_LIFETIME_MS ||
+        !Number.isFinite(started) || started < 0 || !Number.isFinite(now) || started > now || started + remaining <= now) return false;
+    const wallNow = Date.now();
+    verifiedClock = { token: proof.token, expiresAt: proof.expiresAt, deadline: started + remaining, observed: now,
+        wallDeadline: wallNow + started + remaining - now, observedWall: wallNow };
+    return true;
+}
+
+/** One deterministic reload candidate. Never silently fall back to another account. */
+export function readRankedSessionCandidate(userId?: string): RankedSession | null {
+    if (typeof window === 'undefined' || revoked) return null;
+    for (const location of STORAGE_LOCATIONS) {
+        const candidate = readStoredSession(location);
+        if (candidate && (userId === undefined || candidate.userId === userId)) return candidate;
+    }
+    return null;
 }
 
 export function readRankedSession(userId: string): RankedSession | null {
     if (typeof window === 'undefined' || revoked) return null;
+    for (const location of STORAGE_LOCATIONS) {
+        const proof = readStoredSession(location);
+        if (proof?.userId === userId && rankedSessionRemainingMs(proof) > 0) return proof;
+    }
+    return null;
+}
+
+/** Cross-tab invalidation cancels work without revoking a different tab's token. */
+export function invalidateRankedSessionRestoration(): void { generation++; verifiedClock = null; }
+
+function browserStorage(location: StorageLocation): Storage {
+    return location === 'local' ? localStorage : sessionStorage;
+}
+
+function readStoredSession(location: StorageLocation): RankedSession | null {
     try {
-        const proof = parseRankedSession(JSON.parse(localStorage.getItem(STORAGE_KEY) || sessionStorage.getItem(STORAGE_KEY) || 'null'));
-        return proof?.userId === userId ? proof : null;
+        return parseRankedSessionCandidate(JSON.parse(browserStorage(location).getItem(STORAGE_KEY) || 'null'));
     } catch { return null; }
 }
 
-export function clearRankedSession(): void {
-    generation++;
+function invalidateStoredSessions(issuedToken?: string): void {
+    invalidateRankedSessionRestoration();
     revoked = true;
     if (typeof window === 'undefined') return;
-    let token:string|undefined;
-    try { token=parseRankedSession(JSON.parse(localStorage.getItem(STORAGE_KEY)||sessionStorage.getItem(STORAGE_KEY)||'null'))?.token; } catch { /* No readable proof. */ }
-    try { sessionStorage.removeItem(STORAGE_KEY); localStorage.removeItem(STORAGE_KEY); } catch { /* Access is revoked in this tab regardless. */ }
+    const tokens = new Set<string>(issuedToken ? [issuedToken] : []);
+    for (const location of STORAGE_LOCATIONS) {
+        const proof = readStoredSession(location);
+        if (proof) tokens.add(proof.token);
+        // A failure in one store must not prevent cleanup of the other.
+        try { browserStorage(location).removeItem(STORAGE_KEY); } catch { /* Revoked in this tab regardless. */ }
+    }
     window.dispatchEvent(new Event(RANKED_SESSION_EVENT));
-    if(token){
+    for (const token of tokens) {
         try {
             const endpoint=new URL('/auth/ranked-session/revoke',gameServerUrl());
             if(endpoint.protocol==='https:'||['localhost','127.0.0.1','[::1]'].includes(endpoint.hostname)){
@@ -43,6 +112,10 @@ export function clearRankedSession(): void {
     }
 }
 
+export function clearRankedSession(): void {
+    invalidateStoredSessions();
+}
+
 /** Credentials are sent once over HTTPS and never written to browser storage. */
 export async function requestRankedSession(username: string, password: string, keepLoggedIn: boolean, signal?: AbortSignal): Promise<RankedSession> {
     const attempt = ++generation;
@@ -50,21 +123,30 @@ export async function requestRankedSession(username: string, password: string, k
     if (endpoint.protocol !== 'https:' && !['localhost', '127.0.0.1', '[::1]'].includes(endpoint.hostname)) {
         throw new Error('Ranked login requires a secure connection');
     }
+    const started = rankedMonotonicNow();
     const response = await fetch(endpoint, {
         method: 'POST', headers: { 'Content-Type': 'application/json',...clientReleaseHeaders() },
         body: JSON.stringify({ username, password, keepLoggedIn }), signal,
         credentials: 'omit', cache: 'no-store', redirect: 'error',
     });
     if (!response.ok) throw new Error('Ranked login failed');
-    const proof = parseRankedSession(await response.json());
-    if (!proof || proof.userId !== username || signal?.aborted || attempt !== generation) {
+    const payload: unknown = await response.json();
+    const proof = parseRankedSessionCandidate(payload);
+    const serverNow = (payload as {serverNow?: unknown} | null)?.serverNow;
+    if (!proof || proof.userId !== username || signal?.aborted || attempt !== generation ||
+        (serverNow === undefined ? !parseRankedSession(proof) :
+            typeof serverNow !== 'number' || !acceptVerifiedRankedSession(proof, serverNow, started))) {
         throw new Error('Ranked login could not be verified');
     }
-    // A blocked storage must not report successful authorization.
-    if (keepLoggedIn) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(proof));
-    } else {
-        sessionStorage.setItem(STORAGE_KEY, JSON.stringify(proof));
+    // A successful explicit choice owns exactly one store. Clear the opposite
+    // store first, especially an old persistent token when persistence is OFF.
+    // Do not fall back to a different lifetime if storage access is blocked.
+    try {
+        browserStorage(keepLoggedIn ? 'session' : 'local').removeItem(STORAGE_KEY);
+        browserStorage(keepLoggedIn ? 'local' : 'session').setItem(STORAGE_KEY, JSON.stringify(proof));
+    } catch {
+        invalidateStoredSessions(proof.token);
+        throw new Error('Ranked login could not be stored');
     }
     revoked = false;
     window.dispatchEvent(new Event(RANKED_SESSION_EVENT));

@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const h = vi.hoisted(() => ({
     slots: [] as unknown[], cursor: 0,
     effects: [] as (() => void)[], cleanups: new Map<number, () => void>(),
-    proof: vi.fn(), session: vi.fn(), subscribe: vi.fn(), unsubscribe: vi.fn(), io: vi.fn(),
+    proof: vi.fn(), remaining: vi.fn(), session: vi.fn(), subscribe: vi.fn(), unsubscribe: vi.fn(), io: vi.fn(),
 }));
 vi.mock('react', async importOriginal => {
     const actual = await importOriginal<typeof import('react')>();
@@ -32,7 +32,7 @@ vi.mock('./supabaseClient', () => ({ supabase: { auth: {
     getSession: h.session, onAuthStateChange: h.subscribe,
 } } }));
 vi.mock('./rankedSession', () => ({
-    readRankedSession: h.proof, gameServerUrl: () => 'http://127.0.0.1:3001',
+    readRankedSession: h.proof, rankedSessionRemainingMs: h.remaining, gameServerUrl: () => 'http://127.0.0.1:3001',
     RANKED_SESSION_EVENT: 'qg_test_ranked_session',
 }));
 vi.mock('socket.io-client', () => ({ io: h.io }));
@@ -71,6 +71,7 @@ beforeEach(() => {
     vi.stubGlobal('window', new EventTarget());
     transport = new Transport(); h.io.mockReturnValue(transport);
     h.proof.mockReturnValue(proof());
+    h.remaining.mockImplementation((value: {expiresAt:number}) => Math.max(0,value.expiresAt-Date.now()));
     h.session.mockResolvedValue({ data: { session: null }, error: null });
     h.subscribe.mockImplementation((callback: () => void) => {
         authChanged = callback; return { data: { subscription: { unsubscribe: h.unsubscribe } } };
@@ -145,5 +146,20 @@ describe('socket account handoff lifecycle', () => {
         window.dispatchEvent(new Event(RANKED_SESSION_EVENT)); await flush();
         expect(h.io).not.toHaveBeenCalled(); expect(h.unsubscribe).toHaveBeenCalledOnce();
         expect(vi.getTimerCount()).toBe(0);
+    });
+});
+
+describe('verified legacy clock handling',()=>{
+    it('uses the verified remaining lifetime rather than a skewed absolute device clock',async()=>{
+        h.proof.mockReturnValue({...proof(),expiresAt:Date.now()-86400000});
+        let remaining=1000;h.remaining.mockImplementation(()=>remaining);
+        render();expect(render().isAuthenticated).toBe(true);expect(h.io).toHaveBeenCalledOnce();
+        remaining=0;await vi.advanceTimersByTimeAsync(1000);expect(render().isAuthenticated).toBe(false);expect(transport.disconnect).not.toHaveBeenCalled();
+    });
+    it('does not prematurely expire a 30-day proof at the maximum timer boundary',async()=>{
+        let remaining=30*86400000;h.remaining.mockImplementation(()=>remaining);
+        render();remaining-=2147483647;await vi.advanceTimersByTimeAsync(2147483647);
+        expect(render().isAuthenticated).toBe(true);const rest=remaining;remaining=0;await vi.advanceTimersByTimeAsync(rest);
+        expect(render().isAuthenticated).toBe(false);expect(transport.disconnect).not.toHaveBeenCalled();
     });
 });
