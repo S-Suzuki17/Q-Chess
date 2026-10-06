@@ -37,9 +37,10 @@ export const commercePendingMigrations = [
     '20261004040000_monetization_update.sql',
     '20261004050000_hint_tickets_store.sql',
     '20261006000000_pricing_v2.sql',
+    '20261006155010_atomic_commerce_fulfillment.sql',
 ];
 export const runtimeSessionMigration = '20261006154443_dormant_legacy_session_runtime.sql';
-export const combinedPendingMigrations = [...commercePendingMigrations, durableSessionMigration, runtimeSessionMigration];
+export const combinedPendingMigrations = [...commercePendingMigrations, durableSessionMigration, runtimeSessionMigration].sort();
 export const combinedHistoricalMigrations = [...historicalSessionMigrations,
     ...commerceHistoricalDependencies.filter(name => !historicalSessionMigrations.includes(name))];
 export const sessionBaselineEvidence = Object.freeze({

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { randomUUID } from 'node:crypto';
-import { writeFile } from 'node:fs/promises';
+import { createHash, randomUUID } from 'node:crypto';
+import { readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
@@ -70,6 +70,69 @@ test('native PostgreSQL public-baseline upgrade and concurrent commerce', { time
         assert.equal(await scalar(a, 'select count(*)::integer as result from public.stripe_commerce_price_bindings'), 0);
         await assert.rejects(register(a, upgrade), /Unverified commerce SKU binding/);
         await bind(admin);
+    });
+
+    const atomicOneTime = (client, intent, eventId) => scalar(client,
+        'select public.fulfill_stripe_commerce_one_time($1::jsonb) as result', [JSON.stringify({
+            eventId, payloadHash: HASH, checkoutId: intent.checkout, userId: intent.user, sku: intent.sku,
+            priceId: intent.price, amountTotal: intent.amount, currency: 'usd', livemode: intent.live, paymentStatus: 'paid',
+        })]);
+    const atomicSubscription = (client, m, eventId, changes = {}) => scalar(client,
+        'select public.fulfill_stripe_commerce_subscription($1::jsonb) as result', [JSON.stringify({
+            eventId, payloadHash: HASH, eventType: 'invoice.paid', eventCreated: 100, observedAt: new Date().toISOString(),
+            checkoutId: m.checkout, userId: m.user, sku: m.sku, priceId: m.price, amountTotal: m.amount,
+            currency: 'usd', livemode: m.live, subscriptionId: m.subscription, customerId: `cus_${m.user}`,
+            status: 'active', periodEnd: m.end, paidNewPeriod: true, cancelAtPeriodEnd: false, token: m.token,
+            latestInvoiceId: 'in_ATOMICCURRENT', paidPeriod: { invoiceId: 'in_ATOMICCURRENT', periodStart: m.start, periodEnd: m.end },
+            ...changes,
+        })]);
+    await check('atomic pack RPC deduplicates real concurrent deliveries on independent backends', async () => {
+        const user = await account(admin); const intent = await register(a, user);
+        const result = await contended(admin, a, b,
+            client => atomicOneTime(client, intent, unique('evt_ATOMIC')),
+            client => atomicOneTime(client, intent, unique('evt_ATOMIC')));
+        assert.equal(result.filter(r => r.applied).length, 1);
+        assert.equal(result.filter(r => r.duplicate).length, 1);
+        assert.equal((await wallet(a, user)).test_purchased_hint_tickets, 13);
+        assert.equal(await scalar(a, 'select count(*)::integer as result from public.stripe_one_time_purchases where checkout_id=$1', [intent.checkout]), 1);
+    });
+    await check('atomic paid-period RPC deduplicates concurrent events and keeps purchased stock separate', async () => {
+        const user = await account(admin); const m = await member(a, user);
+        await admin.query('update public.ticket_wallets set test_purchased_hint_tickets=77 where user_id=$1', [user]);
+        const result = await contended(admin, a, b,
+            client => atomicSubscription(client, m, unique('evt_ATOMIC')),
+            client => atomicSubscription(client, m, unique('evt_ATOMIC')));
+        assert.equal(result.filter(r => r.applied).length, 1);
+        assert.equal(result.filter(r => r.duplicate).length, 1);
+        const w = await wallet(a, user);
+        assert.equal(w.test_subscription_hint_tickets, 10); assert.equal(w.test_purchased_hint_tickets, 77);
+    });
+    await check('atomic snapshot and evidence roll back on failed grant then retry successfully', async () => {
+        const user = await account(admin); const m = await member(a, user); const event = unique('evt_ATOMIC');
+        await admin.query('update public.ticket_wallets set test_subscription_hint_tickets=$2 where user_id=$1', [user, MAX]);
+        await assert.rejects(atomicSubscription(a, m, event), /Wallet arithmetic limit/);
+        for (const table of ['stripe_webhook_receipts', 'stripe_commerce_paid_evidence', 'stripe_commerce_event_receipts']) {
+            assert.equal(await scalar(a, `select count(*)::integer as result from public.${table} where event_id=$1`, [event]), 0);
+        }
+        assert.equal(await scalar(a, 'select count(*)::integer as result from public.stripe_memberships where subscription_id=$1', [m.subscription]), 0);
+        await admin.query('update public.ticket_wallets set test_subscription_hint_tickets=0 where user_id=$1', [user]);
+        assert.equal((await atomicSubscription(a, m, event)).credited, 10);
+    });
+    await check('atomic reordered invoice keeps current period and refuses a refund-barrier backfill', async () => {
+        const user = await account(admin); const m = await member(a, user);
+        await atomicSubscription(a, m, unique('evt_ATOMIC'));
+        const priorEnd = m.start;
+        const priorStart = new Date(Date.parse(priorEnd) - 30 * 86400000).toISOString();
+        const historical = { paidNewPeriod: false, paidPeriod: { invoiceId: 'in_ATOMICHISTORY', periodStart: priorStart, periodEnd: priorEnd } };
+        assert.equal((await atomicSubscription(a, m, unique('evt_ATOMIC'), historical)).credited, 10);
+        assert.equal(await scalar(a, 'select period_end=$2::timestamptz as result from public.stripe_memberships where subscription_id=$1', [m.subscription, m.end]), true);
+        await admin.query('update public.stripe_memberships set refund_blocked_until=$2 where subscription_id=$1', [m.subscription, m.end]);
+        const blockedEvent = unique('evt_ATOMIC');
+        const older = { paidNewPeriod: false, paidPeriod: { invoiceId: 'in_ATOMICOLDER', periodEnd: priorStart,
+            periodStart: new Date(Date.parse(priorStart) - 30 * 86400000).toISOString() } };
+        await assert.rejects(atomicSubscription(a, m, blockedEvent, older), /Canonical paid snapshot required/);
+        assert.equal(await scalar(a, 'select count(*)::integer as result from public.stripe_webhook_receipts where event_id=$1', [blockedEvent]), 0);
+        assert.equal((await wallet(a, user)).test_subscription_hint_tickets, 20);
     });
 
     await check('independent backends contend on one daily claim and credit the seventh day once', async () => {
@@ -358,7 +421,17 @@ test('native PostgreSQL public-baseline upgrade and concurrent commerce', { time
         }
     });
 
-    const report = { completed: failures === 0 && results.length === 31, nativePostgreSQL: true, nativeVersion, independentBackends: true,
+    const sourceSha256 = {};
+    for (const source of [...baselineEvidence.historical, ...baselineEvidence.pending].map(name => `supabase/migrations/${name}`).concat([
+        'scripts/qa/fixtures/session-postgres-baseline.mjs', 'scripts/qa/fixtures/commerce-postgres-baseline.mjs',
+        'scripts/qa/commerce-postgres.test.mjs', 'scripts/qa/commerce-postgres-support.mjs',
+        'server/src/services/StripeCommerceEvidence.ts', 'server/src/services/StripeCommerceStore.ts',
+        'server/src/services/StripeCommerceFulfillment.ts', 'server/src/services/StripeCommerceWebhookDatabase.test.ts',
+    ])) {
+        sourceSha256[source] = createHash('sha256').update(await readFile(new URL(`../../${source}`, import.meta.url))).digest('hex');
+    }
+    const report = { completed: failures === 0 && results.length === 35, verifiedAt: new Date().toISOString(), sourceSha256,
+        nativePostgreSQL: true, nativeVersion, independentBackends: true,
         productionData: false, providerHttpVerified: false, freshInstallVerified: false,
         baseline: baselineEvidence, passed: results.length, failed: failures, tests: results,
         limitations: ['No live provider calls, auth/storage service integration or production rows',
@@ -368,7 +441,7 @@ test('native PostgreSQL public-baseline upgrade and concurrent commerce', { time
     await writeFile(join(tmpdir(), 'commerce-postgres-results.json'), JSON.stringify(report, null, 2) + '\n');
     console.log(JSON.stringify(report));
     assert.equal(failures, 0, 'Native PostgreSQL verification contains failed checks');
-    assert.equal(results.length, 31, 'Native PostgreSQL verification contains omitted checks');
+    assert.equal(results.length, 35, 'Native PostgreSQL verification contains omitted checks');
 });
 
 async function protectedDefinitions(client) {

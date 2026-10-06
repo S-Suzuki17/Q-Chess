@@ -26,6 +26,8 @@ pending commerce/auth chain verbatim, in order:
 2. `20261004050000_hint_tickets_store.sql`
 3. `20261006000000_pricing_v2.sql`
 4. `20261006142305_dormant_durable_legacy_sessions.sql`
+5. `20261006154443_dormant_legacy_session_runtime.sql`
+6. `20261006155010_atomic_commerce_fulfillment.sql`
 
 An additional pending file causes a hard failure until the reviewed chain is
 explicitly extended. The 22 historical dependencies are an explicit, bounded
@@ -33,18 +35,20 @@ public fixture, not an all-files installation or a claim about hosted migration
 history. No applied history is rewritten. Unrelated historical features are not
 silently counted as verified by this commerce fixture.
 
-The unchanged 31 commerce scenarios therefore run with the new authentication
-triggers installed. A separate mandatory native job runs 35 session scenarios
+The 35 commerce scenarios therefore run with the new authentication
+triggers installed. A separate mandatory native job runs 45 session/runtime scenarios
 on the same combined schema. Both suites reject missing scenarios and use fresh
 fixed-name loopback databases; neither accepts a hosted connection URL. See
 [session fixture and limitations](../../docs/durable-legacy-sessions.md).
 
 ## Coverage
 
-31 bounded scenarios (32 Node tests including the parent test) cover:
+35 bounded scenarios (36 Node tests including the parent test) cover:
 
 - Existing balances and subscription provenance across the full pending upgrade
 - Closed database protocol, initially empty price bindings, and immutable catalog
+- Atomic one-time and paid-period RPC contention, complete rollback/retry, and
+  reordered invoice application while retaining refund barriers
 - Actual independent backend PIDs and observed PostgreSQL lock waits for daily
   claims, same/different event purchase replays, monthly grants, ranked start/void,
   and hint restoration

@@ -86,8 +86,8 @@ describe('actual isolated PostgreSQL commerce migration chain', () => {
     });
     afterEach(async () => { await db.exec('rollback; reset role'); });
 
-    it('executes all 20 raw dependency-ordered migrations with real profiles and keeps all new sale gates closed', async () => {
-        expect(historicalCommerceMigrations.length + releaseCommerceMigrations.length).toBe(20);
+    it('executes all 21 raw dependency-ordered migrations with real profiles and keeps all new sale gates closed', async () => {
+        expect(historicalCommerceMigrations.length + releaseCommerceMigrations.length).toBe(21);
         expect(await scalar("select to_regclass('public.users')::text as result")).toBeNull();
         expect(await scalar('select public.stripe_commerce_protocol_version() as result')).toEqual({ version: 1, newSalesEnabled: false, spendingEnabled: false, reversalsReady: false });
         expect(await scalar('select count(*)::integer as result from public.stripe_commerce_price_bindings')).toBe(0);

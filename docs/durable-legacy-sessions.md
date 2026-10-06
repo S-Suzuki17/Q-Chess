@@ -19,23 +19,24 @@ The final native suite reconstructs **22 explicit raw public dependencies**:
 six auth dependencies, including the actual `login_user`, recovery/reset and
 self-service deletion implementations, plus the 16 commerce dependencies not
 already applied. Ranked settlement is the sole shared historical dependency.
-It then applies **all five pending migrations in one database**, in order:
+It then applies **all six pending migrations in one database**, in order:
 
 1. `20261004040000_monetization_update.sql`
 2. `20261004050000_hint_tickets_store.sql`
 3. `20261006000000_pricing_v2.sql`
 4. `20261006142305_dormant_durable_legacy_sessions.sql`
 5. `20261006154443_dormant_legacy_session_runtime.sql`
+6. `20261006155010_atomic_commerce_fulfillment.sql`
 
 The fixture exports `combinedHistoricalMigrations` and
 `combinedPendingMigrations`, compares commerce dependency lists with the public
-TypeScript fixture, and asserts directory discovery exactly equals the five-file
+TypeScript fixture, and asserts directory discovery exactly equals the six-file
 pending inventory. Every statement executes as raw SQL. The real public auth
 deletion/restriction tables are used rather than commerce's minimal stubs. All
 35 original auth scenarios plus 10 runtime/adapter scenarios run on this combined upgraded schema, and commerce protocol
 sales/spending/reversal gates remain closed with zero price bindings. The native
-commerce fixture now delegates to the same helper: its **unchanged 31 commerce
-scenarios** execute all five pending files, with the new session triggers present
+commerce fixture now delegates to the same helper: its **35 commerce
+scenarios** (the original 31 plus four atomic fulfillment cases) execute all six pending files, with the new session triggers present
 during billing, refund, rollback and profile-erasure checks. Both suites use
 separate fresh databases with the same combined schema. This is direct
 coexistence evidence, not a claim based only on disjoint migration fixtures.
@@ -149,8 +150,8 @@ while direct helper calls, private enumeration and private writes are denied.
 
 The schema-only checkpoint passed 35 session scenarios / 36 Node tests on native
 PostgreSQL 17.6 with the actual pgcrypto C extension. The additive runtime slice
-now exercises the combined five-file upgrade: **45 session/runtime scenarios /
-46 Node tests** and **31 commerce scenarios / 32 Node tests** pass, with zero
+now exercises the combined six-file upgrade: **45 session/runtime scenarios /
+46 Node tests** and **35 commerce scenarios / 36 Node tests** pass, with zero
 skipped scenarios, failures or omitted assertions. See the runtime evidence
 page for the actual TypeScript adapter and loopback socket coverage.
 The report records actual PostgreSQL version, verification time and SHA-256 of
@@ -206,7 +207,7 @@ database, extension, dependency or scenario must fail; no mocks or skips.
 
 ## Integration and release holds
 
-- Both native jobs execute the full five-file inventory and enforce exact
+- Both native jobs execute the full six-file inventory and enforce exact
   completed-scenario counts. The shared discovery assertion rejects additional
   pending files until explicitly reviewed. Neither job silently excludes an
   auth migration; keep both jobs mandatory in CI

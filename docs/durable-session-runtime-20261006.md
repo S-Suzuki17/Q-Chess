@@ -50,8 +50,9 @@ with official Supabase CLI 2.119.0 `migration new` after help discovery, then
 filled with the reviewed additive SQL. It adds functions only; it does not alter
 retention, install a scheduler, add leases or retain account-hash tombstones.
 
-The native fixtures execute 22 raw public historical dependencies and all five
-pending migrations. The original 35 auth and 31 commerce scenarios remain; ten
+The native fixtures execute 22 raw public historical dependencies and all six
+pending migrations. The original 35 auth and 31 commerce scenarios remain, alongside four atomic
+commerce scenarios; ten
 new native runtime scenarios exercise the actual compiled TypeScript adapter,
 two SQL backends, a restarted process, DB clock consistency, absolute expiry,
 local/global logout, real password reset/deletion, service-only access, bounded
@@ -70,7 +71,7 @@ Run `npm run build --prefix server` before the native session suite. CI builds
 that adapter, then runs `node --test --test-timeout=180000
 scripts/qa/session-postgres.test.mjs` against a fresh PostgreSQL 17 service. Local
 fresh-cluster runner: `node scripts/qa/session-postgres-local.mjs
-/absolute/postgres/bin`, and add `--commerce` for the 31 commerce scenarios.
+/absolute/postgres/bin`, and add `--commerce` for the 35 commerce scenarios.
 Local native version is 17.6; CI pins 17.11. This is not a hosted-schema capture.
 
 ## One unresolved owner decision, blocking activation
@@ -97,7 +98,11 @@ leases. Ranked pause would remain subordinate to ownership; random/private need
 separate pause/recovery UX. None of that proposed behavior is implemented here.
 Production application, activation, merge, and the release gate remain held.
 
-## Final local verification
+## Runtime-only checkpoint verification
+
+These results describe the prior runtime checkpoint. The combined six-file
+commerce/runtime integration is recorded in
+[the integration evidence](commerce-runtime-integration-20261006.md).
 
 - Full default Vitest inventory: 179 files, 1,729 tests passed, none skipped;
   `npm test -- --maxWorkers=1 --reporter=dot --reporter=json` and the repository

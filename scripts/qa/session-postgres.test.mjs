@@ -12,7 +12,7 @@ import {
     PASSWORD, NEW_PASSWORD, connectSession, scalar, tokenHash, account, issue, verify,
     revoke, revokeUser, epoch, recovery, reset, beginDeletion, contend, waitBlocked,
 } from './session-postgres-support.mjs';
-import { setupSessionBaseline, applySessionPending, durableSessionMigration, sessionBaselineEvidence } from './fixtures/session-postgres-baseline.mjs';
+import { setupSessionBaseline, applySessionPending, sessionBaselineEvidence } from './fixtures/session-postgres-baseline.mjs';
 
 const INVALID = { status: 'invalid' }, REVOKED = { status: 'revoked' };
 const FAIL = error => ({ ok: false, error });
@@ -35,7 +35,7 @@ test('dormant durable sessions on native PostgreSQL, public-source baseline only
         from pg_proc where pronamespace='public'::regnamespace and proname in
         ('login_user','reset_legacy_account_password','begin_account_deletion')`);
 
-    await check('combined five-file raw upgrade preserves public auth functions, native pgcrypto and atomic profile backfill', async () => {
+    await check('combined six-file raw upgrade preserves public auth functions, native pgcrypto and atomic profile backfill', async () => {
         nativeVersion = await setupSessionBaseline(admin);
         assert.equal(await scalar(admin, "select extname as result from pg_extension where extname='pgcrypto'"), 'pgcrypto');
         assert.equal(await scalar(admin, `select l.lanname as result from pg_proc p join pg_language l on l.oid=p.prolang
@@ -423,11 +423,11 @@ test('dormant durable sessions on native PostgreSQL, public-source baseline only
 
     // Tie every recovery run to these actual source bytes, not an older report.
     const sourceSha256 = {};
-    for (const name of [`supabase/migrations/${durableSessionMigration}`, 'scripts/qa/fixtures/session-postgres-baseline.mjs',
-        'supabase/migrations/20261006154443_dormant_legacy_session_runtime.sql',
+    for (const name of [...sessionBaselineEvidence.historical, ...sessionBaselineEvidence.pending].map(name => `supabase/migrations/${name}`).concat([
+        'scripts/qa/fixtures/session-postgres-baseline.mjs',
         'scripts/qa/session-runtime-postgres.mjs','scripts/qa/session-runtime-rpc.mjs','scripts/qa/session-runtime-reuse.mjs',
         'server/src/services/DurableRankedAuth.ts','server/src/services/LegacySocketAuthority.ts',
-        ...['test','support','reuse','local'].map(n => `scripts/qa/session-postgres-${n}.mjs`)]) {
+        ...['test','support','reuse','local'].map(n => `scripts/qa/session-postgres-${n}.mjs`)])) {
         // The test itself uses the conventional .test.mjs filename.
         const source = name.replace('session-postgres-test.mjs', 'session-postgres.test.mjs');
         sourceSha256[source] = createHash('sha256').update(await readFile(new URL(`../../${source}`, import.meta.url))).digest('hex');
