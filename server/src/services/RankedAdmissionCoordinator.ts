@@ -1,3 +1,4 @@
+import type { SharedMatchChoice } from '../protocol/SharedMatchAdmission';
 import { randomUUID } from 'node:crypto';
 import type { MatchSession, MatchmakingService } from '../matchmaking/MatchmakingService';
 import type { RankedAdmissionStore, AdmissionOutcome } from './RankedAdmissionStore';
@@ -19,11 +20,12 @@ export class RankedAdmissionCoordinator {
     private recoveryAt = 0;
     private requests = new Map<string, Promise<void>>();
     private retryAt = new Map<string, number>();
+    private choiceRecheckAt = new Map<string, number>();
     constructor(private matchmaking: MatchmakingService, private store: RankedAdmissionStore,
         private onStarted: (match: MatchSession) => void,
         private notify: (outcome: AdmissionOutcome) => void,
         private clock = { mono: () => performance.now(), wall: () => Date.now() },
-        ownerId = randomUUID()) {
+        ownerId = randomUUID(), private beforeActivate?: (match: MatchSession) => Promise<boolean>) {
         this.ownerId = ownerId;
         matchmaking.onAdmissionCancel = (match, reason) => { void this.cancel(match, reason); };
     }
@@ -63,8 +65,16 @@ export class RankedAdmissionCoordinator {
         this.renewing = request;
         try { return await request; } finally { this.renewing = undefined; }
     }
-    public begin(match: MatchSession): Promise<void> {
+    public begin(match: MatchSession, replayChoice=false): Promise<void> {
         if (match.state !== 'ADMITTING') return Promise.resolve();
+        if (match.admissionProtocol==='shared_v1' && match.awaitingChoices?.some(id=>!Object.hasOwn(match.admissionConsents??{},id))) {
+            if(replayChoice)this.notify({state:'choice_required',matchId:match.matchId,
+                humanIds:match.awaitingChoices.filter(id=>!Object.hasOwn(match.admissionConsents??{},id))});
+            // A bounded readmission rechecks the database's UTC quota. It can
+            // never spend without a bound consent, and keeps the original
+            // 15-second prestart deadline. The host's calendar is not authority.
+            if(this.clock.mono()<(this.choiceRecheckAt.get(match.matchId)??0))return Promise.resolve();
+        }
         match.admission ??= { state: 'pending', ownerId: this.ownerId };
         if(match.admission.state==='active') {
             if(!this.alive())return this.cancel(match,'owner_unavailable');
@@ -87,16 +97,49 @@ export class RankedAdmissionCoordinator {
                 await this.voidMatch(match, match.admission?.reason ?? 'admission_unavailable');
                 return;
             }
+            if (result.state === 'choice_required' && match.state === 'ADMITTING') {
+                const changed=JSON.stringify(match.awaitingChoices)!==JSON.stringify(result.humanIds);
+                match.awaitingChoices = result.humanIds;
+                this.choiceRecheckAt.set(match.matchId,this.clock.mono()+1000);
+                if(changed)this.notify({...result,matchId:match.matchId});
+                return;
+            }
+            if (result.state === 'active' && match.admissionProtocol==='shared_v1') {
+                this.choiceRecheckAt.delete(match.matchId);match.awaitingChoices=undefined;
+                let eligible = false;
+                try { eligible = this.beforeActivate ? await this.beforeActivate(match) : true; } catch { /* fail closed */ }
+                if (!eligible || match.state !== 'ADMITTING' || !match.connected.host || !match.connected.joiner
+                    || this.clock.wall() >= match.createdAt + 15000 || !this.alive()) {
+                    await this.voidMatch(match,match.admission?.reason??'prestart_unavailable'); return;
+                }
+            }
             if (result.state === 'active' && match.state === 'ADMITTING' && this.alive()) {
                 match.admission!.state = 'active';
                 if (this.matchmaking.activateMatch(match, {
                     canAdvance: () => this.canAdvance(match),
                     safeUntil: () => this.safeUntil(),
                 })) this.onStarted(match);
+                else if (match.admissionProtocol==='shared_v1') await this.voidMatch(match,match.admission?.reason??'prestart_unavailable');
             } else if (result.state === 'active' || match.state === 'VOIDING') {
                 await this.voidMatch(match, match.admission?.reason ?? 'owner_unavailable');
             } else this.finish(match, result);
         });
+    }
+    public async choose(match: MatchSession, userId: string, choice: SharedMatchChoice) {
+        if (!this.store.choice || match.admissionProtocol!=='shared_v1' || match.state!=='ADMITTING'
+            || choice.matchId!==match.matchId || !match.awaitingChoices?.includes(userId)) return false;
+        const token = await this.store.choice(userId,choice);
+        if (match.state!=='ADMITTING') return false;
+        (match.admissionConsents??=Object.create(null))[userId]=token;
+        await this.begin(match);
+        return true;
+    }
+    public async finishOnline(match: MatchSession) {
+        if (!this.store.finishOnline || match.admissionProtocol!=='shared_v1') throw new Error('SHARED_MATCH_UNAVAILABLE');
+        const outcome = await this.store.finishOnline(match.matchId,this.ownerId);
+        if (outcome.state!=='settled') throw new Error('SHARED_MATCH_FINISH_UNCONFIRMED');
+        match.admission!.state='settled';
+        match.settlement='saved';
     }
     private request(match: MatchSession, run: () => Promise<void>): Promise<void> {
         const existing = this.requests.get(match.matchId);
@@ -110,6 +153,7 @@ export class RankedAdmissionCoordinator {
         return request;
     }
     public cancel(match: MatchSession, reason: string): Promise<void> {
+        if (match.admissionProtocol==='shared_v1') match.admission??={state:'pending',ownerId:this.ownerId};
         if (!match.admission) {
             this.matchmaking.finishMatch(match, 'CANCELLED');
             this.notify({ state: 'voided', matchId: match.matchId, humanIds: Object.values(match.players), reason });
@@ -133,8 +177,8 @@ export class RankedAdmissionCoordinator {
         this.finish(match, result);
     }
     private finish(match: MatchSession, outcome: AdmissionOutcome) {
-        match.admission!.state = outcome.state === 'missing' ? 'voided' : outcome.state;
-        this.retryAt.delete(match.matchId);
+        match.admission!.state = outcome.state === 'missing' || outcome.state === 'choice_required' ? 'voided' : outcome.state;
+        this.retryAt.delete(match.matchId);this.choiceRecheckAt.delete(match.matchId);
         this.matchmaking.finishMatch(match, outcome.state === 'settled' ? 'FINISHED' : 'CANCELLED');
         match.settlement = outcome.state === 'settled' ? 'saved' : undefined;
         this.notify({ ...outcome, matchId: match.matchId, humanIds: Object.values(match.players),
@@ -166,7 +210,9 @@ export class RankedAdmissionCoordinator {
         if (!this.retired && this.clock.mono() >= this.renewAt) void this.renew();
         if (this.clock.mono() >= this.recoveryAt) void this.recover().catch(() => {});
         for (const match of this.matchmaking.getMatches()) {
-            if (match.state === 'ADMITTING') void this.begin(match);
+            if (match.state==='ADMITTING' && match.admissionProtocol==='shared_v1' && this.clock.wall()>=match.createdAt+15000)
+                void this.cancel(match,'connection_timeout');
+            else if (match.state === 'ADMITTING') void this.begin(match);
             else if (match.state === 'VOIDING' && match.admission) void this.cancel(match, match.admission.reason ?? 'server_recovery');
         }
     }

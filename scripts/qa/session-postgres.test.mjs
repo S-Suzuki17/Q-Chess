@@ -35,7 +35,7 @@ test('dormant durable sessions on native PostgreSQL, public-source baseline only
         from pg_proc where pronamespace='public'::regnamespace and proname in
         ('login_user','reset_legacy_account_password','begin_account_deletion')`);
 
-    await check('combined six-file raw upgrade preserves public auth functions, native pgcrypto and atomic profile backfill', async () => {
+    await check('combined nine-file raw upgrade preserves public auth functions, native pgcrypto and atomic profile backfill', async () => {
         nativeVersion = await setupSessionBaseline(admin);
         assert.equal(await scalar(admin, "select extname as result from pg_extension where extname='pgcrypto'"), 'pgcrypto');
         assert.equal(await scalar(admin, `select l.lanname as result from pg_proc p join pg_language l on l.oid=p.prolang

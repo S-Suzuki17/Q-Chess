@@ -45,6 +45,8 @@ vi.mock('./AccountSecurityRoutes', () => ({ createAccountSecurityRouter: vi.fn((
 vi.mock('./AccountProgressRoutes', () => ({ createAccountProgressRouter: vi.fn(() => () => {}) }));
 vi.mock('./DailyLoginRoutes', () => ({ createDailyLoginRouter: vi.fn(() => () => {}) }));
 vi.mock('./CpuPracticeRoutes', () => ({ createCpuPracticeRouter: vi.fn(() => () => {}) }));
+// This fixture isolates socket/login handlers; Crown has real HTTP mount coverage.
+vi.mock('./CrownAdmissionRoutes', () => ({ createCrownAdmissionRouter: vi.fn(() => () => {}) }));
 vi.mock('./RankedSessionInspectionRoutes', () => ({ createRankedSessionInspectionRouter: vi.fn(() => () => {}) }));
 vi.mock('./RankedRefundRoutes', () => ({ createRankedRefundRouter: vi.fn(() => () => {}) }));
 vi.mock('./StripeMembershipRoutes', () => ({ createStripeMembershipRouter: vi.fn(() => () => {}), createStripeWebhookRouter: vi.fn(() => () => {}) }));

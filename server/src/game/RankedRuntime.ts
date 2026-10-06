@@ -60,6 +60,9 @@ export class RankedRuntime {
                 match.settlement='pending';
                 void this.persist(match);
             }
+            else if(match.admissionProtocol==='shared_v1'&&match.settlement!=='saved') {
+                match.settlement='pending'; void this.persistOnline(match);
+            }
             else if(match.mode!=='ranked'&&!alreadyFinished&&this.recordCasual) {
                 this.casualSaving.add(match.matchId);
                 void this.recordCasual(match).catch(()=>{}).finally(()=>this.casualSaving.delete(match.matchId));
@@ -73,6 +76,17 @@ export class RankedRuntime {
     }
     public forgetReceipts(matchIds:string[]) {
         for(const id of matchIds) { this.saved.delete(id); this.retryAt.delete(id); }
+    }
+
+    private async persistOnline(match:MatchSession) {
+        if(this.casualSaving.has(match.matchId)||match.settlement==='saved'||Date.now()<(this.retryAt.get(match.matchId)??0))return;
+        this.casualSaving.add(match.matchId);
+        try {
+            await this.admission!.finishOnline(match);
+            this.retryAt.delete(match.matchId);
+            await this.recordCasual?.(match);
+        } catch { this.retryAt.set(match.matchId,Date.now()+1000); }
+        finally { this.casualSaving.delete(match.matchId); }
     }
 
     private async persist(match:MatchSession) {
@@ -100,7 +114,11 @@ export class RankedRuntime {
             if(match.admission?.state==='active'&&!this.admission?.canAdvance(match)) {
                 void this.admission?.cancel(match,'owner_unavailable');continue;
             }
-            if(match.state==='FINISHED'&&match.settlement==='pending'){void this.persist(match);continue;}
+            if(match.state==='FINISHED'&&match.settlement==='pending'){
+                if(match.mode!=='ranked'&&match.admissionProtocol==='shared_v1')void this.persistOnline(match);
+                else void this.persist(match);
+                continue;
+            }
             if(match.state!=='IN_GAME'||!match.engine)continue;
             if(match.engine.checkTimeout()){this.afterAction(match);continue;}
             const state=match.engine.getPublicState(match.players.host);

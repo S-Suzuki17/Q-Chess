@@ -36,6 +36,21 @@ beforeAll(async()=>{
 afterEach(()=>{h.outage=false;});
 afterAll(async()=>{h.outage=false;for(const client of clients)client.disconnect();if(h.io)await new Promise<void>(resolve=>h.io.close(resolve));server?.closeAllConnections();for(const timer of timers){clearTimeout(timer);clearInterval(timer);}vi.restoreAllMocks();vi.unstubAllGlobals();});
 describe('actual server admission entrypoints on loopback sockets',()=>{
+    it('mounts the Crown endpoint with its independent release gate closed',async()=>{
+        const {client,token}=await connect('Crown-route-mount');
+        const reply=await new Promise<{status:number;body:any}>((resolve,reject)=>{
+            const request=http.request(endpoint+'/crown/first-attempt',{method:'POST',headers:{
+                'content-type':'application/json',authorization:'Bearer '+token,
+            }},response=>{
+                let body='';response.setEncoding('utf8');response.on('data',chunk=>body+=chunk);
+                response.on('end',()=>{try{resolve({status:response.statusCode!,body:JSON.parse(body)});}catch(error){reject(error);}});
+            });
+            request.on('error',reject);request.setTimeout(4000,()=>request.destroy(Error('Crown mount timeout')));
+            request.end(JSON.stringify({stageId:1}));
+        });
+        expect(reply).toEqual({status:503,body:{code:'FEATURE_DISABLED'}});client.disconnect();
+    });
+
     it.each(['random','ranked','private'])('rejects expired registered proof for new %s admission',async mode=>{
         const {client,token}=await connect('Expired-'+mode);h.sessions.get(token).expiresAt=Date.now()-1;
         const denied=event(client,'queue_error');client.emit(mode==='private'?'connect_match':'join_queue',mode==='private'?{matchId:'room-'+mode}:{mode,timeControl:600});

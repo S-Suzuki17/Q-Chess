@@ -52,7 +52,7 @@ class Transport {
     });
     connect = vi.fn(() => { this.connected = true; this.emit('connect'); return this; });
     disconnect = vi.fn(() => { this.connected = false; this.emit('disconnect'); return this; });
-    emit(event: string, ...args: unknown[]) { this.handlers.get(event)?.(...args); }
+    emit = vi.fn((event: string, ...args: unknown[]) => { this.handlers.get(event)?.(...args); });
 }
 let transport: Transport;
 let authChanged: () => void;
@@ -106,6 +106,15 @@ describe('socket account handoff lifecycle', () => {
         h.proof.mockReturnValue(null); render('GUEST-1');
         expect(render('GUEST-1')).toMatchObject({ isConnected: true, isAuthenticated: false });
         expect(h.io.mock.calls.at(-1)?.[1].auth.token).toBe('GUEST-1');
+    });
+    it('sends the object-shaped entitlement request on connection and periodic refresh', async () => {
+        h.proof.mockReturnValue({...proof(),expiresAt:Date.now()+120_000});
+        render();
+        expect(transport.emit.mock.calls.filter(([event])=>event==='request_shared_entitlement'))
+            .toEqual([['request_shared_entitlement',{}]]);
+        await vi.advanceTimersByTimeAsync(45_000);
+        expect(transport.emit.mock.calls.filter(([event])=>event==='request_shared_entitlement'))
+            .toEqual([['request_shared_entitlement',{}],['request_shared_entitlement',{}]]);
     });
     it('refuses an expired proof and an OAuth session belonging to another user', async () => {
         h.proof.mockReturnValue({ ...proof(), expiresAt: Date.now() - 1 });

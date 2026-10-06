@@ -23,6 +23,9 @@ export interface PlayerSession {
 }
 
 export interface MatchSession {
+    admissionProtocol?: 'shared_v1';
+    admissionConsents?: Record<string,string>;
+    awaitingChoices?: string[];
     admission?: { state: 'pending'|'active'|'voiding'|'settled'|'voided'|'rejected'; ownerId: string; reason?: string };
     mode?: QueueMode;
     cpu?: {id:string;side:'host'|'joiner';profile:CpuProfile};
@@ -58,7 +61,7 @@ export class MatchmakingService {
     private disconnectTimers = new Map<string, NodeJS.Timeout>(); // userId -> Timer
     private io: Server;
 
-    constructor(io: Server, private requireRankedAdmission=false) {
+    constructor(io: Server, private requireRankedAdmission=false, private requireSharedAdmission=false) {
         this.io = io;
         
         // Cleanup dead matches and idle players every 10 minutes
@@ -197,6 +200,7 @@ export class MatchmakingService {
             const match: MatchSession = {
                 matchId,
                 mode,
+                ...(this.requireSharedAdmission?{admissionProtocol:'shared_v1' as const}:{}),
                 state: 'CONNECTING',
                 timeControl,
                 players: { host: hostId, joiner: joinerId },
@@ -220,6 +224,7 @@ export class MatchmakingService {
             setTimeout(() => {
                 const m = this.matches.get(matchId);
                 if (m && m.state === 'CONNECTING') {
+                    if(m.admissionProtocol==='shared_v1'){this.onAdmissionCancel?.(m,'connection_timeout');return;}
                     console.log(`[TIMEOUT] Match ${matchId} cancelled due to connection timeout.`);
                     m.state = 'CANCELLED';
                     const hSession = this.players.get(m.players.host);
@@ -314,7 +319,7 @@ export class MatchmakingService {
         if ((match.state === 'CONNECTING' || match.state === 'WAITING_FOR_JOINER') && match.connected.host && match.connected.joiner) {
             // Reserve synchronously before the first admission await. There is
             // no engine or running clock while the DB result is uncertain.
-            if(match.mode==='ranked'&&this.requireRankedAdmission) {
+            if(this.requiresAdmission(match)) {
                 match.state='ADMITTING';
                 for(const id of Object.values(match.players)) {
                     const player=this.players.get(id);
@@ -349,16 +354,20 @@ export class MatchmakingService {
         return { success: true, match: updatedMatch, engine: updatedMatch.engine, justStarted: updatedMatch.justStartedFlag };
     }
 
+    private requiresAdmission(match: MatchSession) {
+        return match.admissionProtocol==='shared_v1'||(match.mode==='ranked'&&this.requireRankedAdmission);
+    }
+
     /** Only admission acknowledgement, or the free release path, may call this. */
     public activateMatch(match:MatchSession, authority?:{canAdvance:()=>boolean;safeUntil:()=>number}):boolean {
         if(!match.engine&&this.canAdmitPlayer&&Object.values(match.players).some(id=>id!==match.cpu?.id&&!this.canAdmitPlayer!(id))){
-            if(match.mode==='ranked'&&this.requireRankedAdmission)this.onAdmissionCancel?.(match,'authentication_required');
+            if(this.requiresAdmission(match))this.onAdmissionCancel?.(match,'authentication_required');
             else {this.finishMatch(match,'CANCELLED');this.io.to(match.matchId).emit('match_cancelled',{matchId:match.matchId,reason:'authentication_required'});}
             return false;
         }
         if(match.engine||!['CONNECTING','WAITING_FOR_JOINER','ADMITTING'].includes(match.state))return false;
         if(!match.connected.host||!match.connected.joiner)return false;
-        if(match.mode==='ranked'&&this.requireRankedAdmission&&(!authority||match.admission?.state!=='active'||!authority.canAdvance()))return false;
+        if(this.requiresAdmission(match)&&(!authority||match.admission?.state!=='active'||!authority.canAdvance()))return false;
         match.engine=new GameEngine(match.matchId,match.players.host,match.players.joiner,createInitialBoard(),
             match.timeControl,match.playerNames,4000,!!match.appearances?.host?.intro&&!!match.appearances?.joiner?.intro);
         if(authority)match.engine.setAuthority(authority);
@@ -420,7 +429,7 @@ export class MatchmakingService {
             const side: 'host'|'joiner'=Math.random()<0.5?'host':'joiner';
             const humanSide=side==='host'?'joiner':'host';
             const profile=cpuProfileForRating(session.rating!,session.timeControl!);
-            const match:MatchSession={matchId,mode:'ranked',state:'CONNECTING',timeControl:session.timeControl!,
+            const match:MatchSession={matchId,mode:'ranked',...(this.requireSharedAdmission?{admissionProtocol:'shared_v1' as const}:{}),state:'CONNECTING',timeControl:session.timeControl!,
                 players:{host:side==='host'?cpuId:id,joiner:side==='joiner'?cpuId:id},
                 playerNames:{[humanSide]:session.userName,[side]:`CPU · ${profile.rating}`},
                 connected:{host:side==='host',joiner:side==='joiner'},createdAt:now,
@@ -428,7 +437,7 @@ export class MatchmakingService {
                 cpu:{id:cpuId,side,profile}};
             this.waitingQueue.delete(id);session.state='CONNECTING';session.currentMatchId=matchId;
             this.matches.set(matchId,match);created.push(match);cpuActive++;
-            setTimeout(()=>{if(match.state==='CONNECTING'){this.finishMatch(match,'CANCELLED');this.io.to(matchId).emit('match_cancelled',{matchId,reason:'connection_timeout'});}},15000);
+            setTimeout(()=>{if(match.state==='CONNECTING'){if(match.admissionProtocol==='shared_v1'){this.onAdmissionCancel?.(match,'connection_timeout');return;}this.finishMatch(match,'CANCELLED');this.io.to(matchId).emit('match_cancelled',{matchId,reason:'connection_timeout'});}},15000);
         }
         if(created.length)this.broadcastQueueStats();
         return created;

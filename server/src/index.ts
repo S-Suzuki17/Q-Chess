@@ -1,3 +1,5 @@
+import { sharedMatchAdmissionEnabled, sharedMatchAdmissionRecoveryEnabled } from './services/SharedMatchFeatureGates';
+import { parseSharedMatchChoice } from './protocol/SharedMatchAdmission';
 import { createRankedSessionAuthority } from './services/RankedSessionRuntime';
 import { LegacySocketAuthority, LEGACY_SOCKET_POLL_MS } from './services/LegacySocketAuthority';
 import express from 'express';
@@ -39,6 +41,7 @@ import { cpuHintTicketsEnabled, rankedTicketAdmissionEnabled, rankedAdmissionRec
 import { RankedAdmissionCoordinator } from './services/RankedAdmissionCoordinator';
 import type { AdmissionOutcome } from './services/RankedAdmissionStore';
 import { createCpuPracticeRouter } from './services/CpuPracticeRoutes';
+import { createCrownAdmissionRouter } from './services/CrownAdmissionRoutes';
 import {stripeDeploymentModeAllowed} from './services/StripeDeploymentMode';
 
 const app = express();
@@ -140,13 +143,16 @@ app.use(createCurrentTermsRouter(rankedAuth,supabaseService.currentTermsStore(),
 app.use(createAccountTermsRouter(rankedAuth,supabaseService.accountTermsStore(),accountGate));
 app.use(createAccountProgressRouter(rankedAuth,supabaseService.accountProgressStore(),accountGate));
 app.use(createDailyLoginRouter(rankedAuth,supabaseService.dailyLoginStore(),accountGate));
+app.use(createCrownAdmissionRouter(rankedAuth,{
+    authorize:(...args)=>supabaseService.crownAdmissionStore().authorize(...args),
+},token=>supabaseService.verifyUser(token),accountGate));
 app.use(createCpuPracticeRouter(rankedAuth,getCpuPractice,token=>supabaseService.verifyUser(token),accountGate,
     id=>matchmaking.accountBusy(id)||matchmaking.getPlayerSession(id)?.state==='WAITING'));
 app.use(createRankedRefundRouter(rankedAuth, {
     verifyUser: token => supabaseService.verifyUser(token),
     blocked: id => deletionStore.blocked(id),
     read: id => supabaseService.rankedRefundBalance(id),
-}, accountGate));
+}, accountGate,()=>rankedAdmissionRecoveryEnabled()||sharedMatchAdmissionRecoveryEnabled()));
 app.use(createStripeMembershipRouter(rankedAuth,stripeMembershipApi,stripeMembershipStore,accountGate,
     stripeBillingProcessingEnabled,stripePortalApi,stripePortalEnabled,stripeCheckoutEnabled));
 app.use(createAccountProfileRouter(rankedAuth,supabaseService.accountProfileStore(),accountGate));
@@ -172,7 +178,7 @@ const io = new Server(server, {
   }
 });
 
-const matchmaking = new MatchmakingService(io,rankedTicketAdmissionEnabled());
+const matchmaking = new MatchmakingService(io,rankedTicketAdmissionEnabled(),sharedMatchAdmissionEnabled());
 function sendMatchStart(match:MatchSession) {
     if(!match.engine||(match.admission&&!admission?.canAdvance(match)))return;
     for(const id of Object.values(match.players)) {
@@ -188,7 +194,14 @@ function notifyAdmission(outcome:AdmissionOutcome) {
     for(const id of outcome.humanIds??[]) {
         const session=matchmaking.getPlayerSession(id),socket=session&&io.sockets.sockets.get(session.socketId);
         if(!socket)continue;
-        if(outcome.state==='settled') {
+        if(outcome.state==='choice_required') {
+            socket.emit('match_admission_choice_required',{matchId:outcome.matchId,dailyFreeMatches:3,ticketCost:1,verifiedAdMatches:1,verifiedAdAvailable:false});
+            if(outcome.matchId)void supabaseService.sharedMatchAdChoice(id,outcome.matchId).then(grantId=>{
+                if(grantId&&socket.connected&&matchmaking.getPlayerSession(id)?.socketId===socket.id
+                    &&matchmaking.getMatch(outcome.matchId!)?.state==='ADMITTING')
+                    socket.emit('match_admission_choice_required',{matchId:outcome.matchId,dailyFreeMatches:3,ticketCost:1,verifiedAdMatches:1,verifiedAdAvailable:true,grantId});
+            }).catch(()=>{});
+        } else if(outcome.state==='settled') {
             const change=[outcome.result?.white,outcome.result?.black].find(x=>x?.userId===id);
             if(change)socket.emit('rating_settled',{matchId:outcome.matchId,...change,timeControl:outcome.result?.timeControl});
         } else if(['voided','rejected'].includes(outcome.state)) {
@@ -197,10 +210,25 @@ function notifyAdmission(outcome:AdmissionOutcome) {
         }
     }
 }
-const admission=rankedAdmissionRecoveryEnabled()
-    ? new RankedAdmissionCoordinator(matchmaking,supabaseService.rankedAdmissionStore(),sendMatchStart,notifyAdmission) : undefined;
+const admission=(rankedAdmissionRecoveryEnabled()||sharedMatchAdmissionRecoveryEnabled())
+    ? new RankedAdmissionCoordinator(matchmaking,supabaseService.rankedAdmissionStore(),sendMatchStart,notifyAdmission,undefined,undefined,async match=>{
+        const humans=Object.values(match.players).filter(id=>id!==match.cpu?.id);
+        if((await supabaseService.restrictedAccounts(humans)).length)return false;
+        for(const id of humans){
+            const session=matchmaking.getPlayerSession(id),socket=session&&io.sockets.sockets.get(session.socketId);
+            if(!socket?.connected||!socket.data.verified||accountGate.blocked(id))return false;
+            const token=socket.handshake.auth.token;
+            const proof=await rankedAuth.verifySession(token,id);
+            const identity=proof?.userId??(!socket.data.legacy?await supabaseService.verifyUser(token):null);
+            if(identity!==id||!socket.connected||socket.handshake.auth.token!==token
+                ||matchmaking.getPlayerSession(id)?.socketId!==socket.id)return false;
+            if(proof)legacySockets.capture(socket,token,proof);
+            if(!legacySockets.canAdmit(socket))return false;
+        }
+        return true;
+    }) : undefined;
 const legacySockets=new LegacySocketAuthority(rankedAuth,io,(id,socketId)=>matchmaking.getPlayerSession(id)?.socketId===socketId,id=>matchmaking.leaveQueue(id));
-matchmaking.canAdmitPlayer=id=>{const socketId=matchmaking.getPlayerSession(id)?.socketId;const socket=socketId?io.sockets.sockets.get(socketId):undefined;return !!socket&&legacySockets.canAdmit(socket);};
+matchmaking.canAdmitPlayer=id=>{const socketId=matchmaking.getPlayerSession(id)?.socketId;const socket=socketId?io.sockets.sockets.get(socketId):undefined;return !!socket&&!accountGate.blocked(id)&&legacySockets.canAdmit(socket);};
 setInterval(()=>void legacySockets.poll(),LEGACY_SOCKET_POLL_MS).unref();
 const runtime = new RankedRuntime(io,matchmaking,match=>supabaseService.settleRankedMatch(match),undefined,match=>supabaseService.recordUnratedMatch(match),admission);
 const loginAttempts=new Map<string,{count:number;until:number}>();
@@ -351,7 +379,7 @@ io.on('connection', (socket: Socket) => {
   // Socket middleware for incoming event rate-limiting
   socket.use((packet, next) => {
     const eventName = packet[0];
-    if(['join_queue','connect_match','intro_ready','emote','piece_selection','player_action','request_sync','request_cpu_hint','ping'].includes(eventName)
+    if(['join_queue','connect_match','choose_match_admission','request_shared_entitlement','intro_ready','emote','piece_selection','player_action','request_sync','request_cpu_hint','ping'].includes(eventName)
         &&(!packet[1]||typeof packet[1]!=='object'||Array.isArray(packet[1])))return;
     const now = Date.now();
     const rl = socket.data.rateLimit;
@@ -425,6 +453,11 @@ io.on('connection', (socket: Socket) => {
     const unavailable=await operations.admission(socket.handshake.auth.client);
     if(unavailable)return fail(unavailable);
     let rating:number|null=null;
+    if(sharedMatchAdmissionEnabled()){
+        if(!socket.data.verified)return fail('AUTH_REQUIRED');
+        try{if(await admission?.accountBusy(userId))return fail('ACCOUNT_BUSY');}
+        catch{return fail('SHARED_MATCH_UNAVAILABLE');}
+    }
     if(mode==='ranked') {
         if(!socket.data.verified)return fail('AUTH_REQUIRED');
         if(admission) {
@@ -444,6 +477,36 @@ io.on('connection', (socket: Socket) => {
     if(!result.success)return fail('QUEUE_BUSY');
     socket.emit('queue_joined',{mode,timeControl,cpuFallbackAt:mode==='ranked'?Date.now()+CPU_FALLBACK_MS:null});
     if(result.match)announceMatch(result.match);
+  });
+
+  let entitlementRequest=false;
+  socket.on('request_shared_entitlement', async () => {
+    if(entitlementRequest||!socket.data.verified||accountGate.blocked(userId))return;
+    entitlementRequest=true;
+    try {
+        if(!await verifyAdmission())return;
+        const entitlement=await supabaseService.sharedMatchEntitlement(userId);
+        if(currentOwner())socket.emit('shared_entitlement',{userId,entitlement});
+    } catch { if(currentOwner())socket.emit('shared_entitlement',{userId,entitlement:null}); }
+    finally { entitlementRequest=false; }
+  });
+  let choiceRequest=false;
+  socket.on('choose_match_admission', async (data: unknown) => {
+    if(!sharedMatchAdmissionEnabled()||choiceRequest||accountGate.blocked(userId)||!socket.data.verified)return;
+    const choice=parseSharedMatchChoice(data),match=choice&&matchmaking.getMatch(choice.matchId);
+    if(!choice||!match||!Object.values(match.players).includes(userId)||!currentOwner())return;
+    choiceRequest=true;
+    try {
+        if(!await verifyAdmission())return;
+        await admission?.choose(match,userId,choice);
+    } catch { if(currentOwner())socket.emit('match_admission_choice_error',{matchId:match.matchId,code:'CHOICE_UNAVAILABLE'}); }
+    finally { choiceRequest=false; }
+  });
+  socket.on('cancel_match_admission', (data: {matchId?:unknown}) => {
+    if(!sharedMatchAdmissionEnabled()||!currentOwner())return;
+    const match=typeof data?.matchId==='string'?matchmaking.getMatch(data.matchId):undefined;
+    if(match?.admissionProtocol==='shared_v1'&&['CONNECTING','ADMITTING'].includes(match.state)
+        &&Object.values(match.players).includes(userId))void admission?.cancel(match,'admission_cancelled');
   });
 
   socket.on('cancel_queue', () => {
@@ -505,7 +568,7 @@ io.on('connection', (socket: Socket) => {
     socket.join(data.matchId);
     if(result.match?.state==='ADMITTING') {
         socket.emit('match_preparing',{matchId:data.matchId,reason:'admitting'});
-        await admission?.begin(result.match);
+        await admission?.begin(result.match,true);
         return;
     }
 

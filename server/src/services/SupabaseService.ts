@@ -1,3 +1,6 @@
+import { createCrownAdmissionStore } from './CrownAdmissionStore';
+import { sharedMatchAdmissionEnabled, sharedMatchAdmissionRecoveryEnabled } from './SharedMatchFeatureGates';
+import { createSharedMatchEntitlements } from './SharedMatchEntitlements';
 import { createDurableRankedAuth } from './DurableRankedAuth';
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
@@ -80,9 +83,20 @@ export class SupabaseService {
     }
     public accountSecurityStore() {return createAccountSecurityStore(this.supabase,token=>this.verifyUser(token));}
     public cpuPracticeService() { return new CpuPracticeService(this.supabase, cpuHintTicketsEnabled); }
-    public rankedAdmissionStore() { return createRankedAdmissionStore(this.supabase,rankedAdmissionRecoveryEnabled,rankedTicketAdmissionEnabled); }
+    public crownAdmissionStore() { return createCrownAdmissionStore(this.supabase); }
+    public sharedMatchEntitlement = (userId: string) => createSharedMatchEntitlements(this.supabase)(userId);
+    public async sharedMatchAdChoice(userId:string,matchId:string):Promise<string|null> {
+        if(!sharedMatchAdmissionEnabled())return null;
+        const {data,error}=await this.supabase.rpc('get_shared_match_ad_choice',{p_user_id:userId,p_match_id:matchId}).abortSignal(AbortSignal.timeout(5000));
+        if(error||!(data===null||typeof data==='string'&&/^[0-9a-f-]{36}$/i.test(data)))throw new Error('VERIFIED_AD_CHOICE_UNAVAILABLE');
+        return data;
+    }
+    public rankedAdmissionStore() {
+        return createRankedAdmissionStore(this.supabase,()=>rankedAdmissionRecoveryEnabled()||sharedMatchAdmissionRecoveryEnabled(),
+            ()=>rankedTicketAdmissionEnabled()||sharedMatchAdmissionEnabled(),sharedMatchAdmissionEnabled());
+    }
     public async rankedRefundBalance(userId:string):Promise<{freeRankedRefunds:number;paidRankedRefunds:number}> {
-        if(!rankedAdmissionRecoveryEnabled())return {freeRankedRefunds:0,paidRankedRefunds:0};
+        if(!rankedAdmissionRecoveryEnabled()&&!sharedMatchAdmissionRecoveryEnabled())return {freeRankedRefunds:0,paidRankedRefunds:0};
         const {data,error}=await this.supabase.rpc('get_ranked_refund_balance',{p_user_id:userId}).abortSignal(AbortSignal.timeout(5000));
         if(error||!data||!['freeRankedRefunds','paidRankedRefunds'].every(key=>Number.isSafeInteger(data[key])&&data[key]>=0))
             throw new Error('RANKED_REFUND_BALANCE_UNAVAILABLE');

@@ -2,7 +2,7 @@ name: Verify game and server
 
 on:
   pull_request:
-    branches: [main, fix/commerce-safety-20261006, prep/awaited-session-authority-20261006, fix/verified-legacy-restoration-20261006, prep/durable-auth-runtime-20261006]
+    branches: [main, fix/commerce-safety-20261006, prep/awaited-session-authority-20261006, fix/verified-legacy-restoration-20261006, prep/durable-auth-runtime-20261006, prep/new-sku-runtime-integration-20261006]
   push:
     branches: [main]
 
@@ -45,6 +45,10 @@ jobs:
         run: npx playwright install chromium
       - name: Verify isolated legacy sign-in restoration
         run: node scripts/qa/verify-legacy-session-browser.mjs
+      - name: Verify explicit match choice on desktop and mobile
+        run: node scripts/qa/shared-choice-browser.mjs
+      - name: Verify isolated Crown entry and interrupted requests
+        run: node scripts/qa/crown-browser.mjs
       - name: Verify desktop and mobile commerce page
         run: node scripts/qa/check-commerce-browser.mjs
 
