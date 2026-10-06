@@ -30,6 +30,7 @@ export const releaseCommerceMigrations = [
     '20261004050000_hint_tickets_store.sql',
     '20261006000000_pricing_v2.sql',
     '20261006155010_atomic_commerce_fulfillment.sql',
+    '20261006171022_dormant_hint_origin_consumption.sql',
 ];
 export async function applyMigrations(db: PGlite, files: readonly string[]) {
     for (const file of files) {

@@ -1,3 +1,4 @@
+import { canShowVerifiedAccountAds } from './sharedAdEligibility';
 /**
  * Fail closed during publisher review. Ownership verification uses metadata/ads.txt,
  * not an SDK on every screen. Enabling ads needs an explicit reviewed code change:
@@ -12,7 +13,7 @@ export function canRequestWebAds(pathname: string, native = false): boolean {
         WEB_AD_RELEASE.childSafetyReady && !native && contentRoute;
 }
 export function browserCanRequestWebAds(): boolean {
-    if (typeof window === 'undefined') return false;
+    if (typeof window === 'undefined' || !canShowVerifiedAccountAds()) return false;
     const native = (window as Window & { Capacitor?: { isNativePlatform?: () => boolean } })
         .Capacitor?.isNativePlatform?.() ?? false;
     return canRequestWebAds(window.location?.pathname ?? '', native);

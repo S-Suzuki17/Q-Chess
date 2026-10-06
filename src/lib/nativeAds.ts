@@ -1,3 +1,4 @@
+import { canShowVerifiedAccountAdsFor, verifiedAdAccountId } from './sharedAdEligibility';
 import {Capacitor} from '@capacitor/core';
 import type {AdMobPlugin,MaxAdContentRating} from '@capacitor-community/admob';
 import {ADMOB_UNITS,ADMOB_TEST_UNITS,nativeAdsLive} from '../config/nativeAds';
@@ -23,7 +24,7 @@ export class NativeAds {
         try{return await Promise.race([operation,new Promise<never>((_,reject)=>{timer=setTimeout(()=>reject(new Error('Ad operation timeout')),15000);})]);}
         finally{clearTimeout(timer);}
     }
-    constructor(private supported=isAndroidApp,private live=nativeAdsLive,private load=async()=> (await import('@capacitor-community/admob')).AdMob){}
+    constructor(private supported=isAndroidApp,private live=nativeAdsLive,private load=async()=> (await import('@capacitor-community/admob')).AdMob,private canShowAds=canShowVerifiedAccountAdsFor,private adAccount=verifiedAdAccountId){}
     private async initialize(){
         const ad=await this.bounded(this.sdk??=this.load().then(async sdk=>{
             // Conservative default for a mixed audience: never assume an adult.
@@ -47,17 +48,19 @@ export class NativeAds {
     }
     async reward(kind:'hint'|'online',proof:RewardProof):Promise<AdResult>{
         if(!proof.userId||!proof.intentId)return 'unavailable';
-        return this.show(kind,proof);
+        return this.show(kind,{userId:proof.userId,intentId:proof.intentId});
     }
     async interstitial():Promise<AdResult>{return this.show('circuit');}
     private async show(kind:keyof typeof ADMOB_UNITS,proof?:RewardProof):Promise<AdResult>{
-        if(!this.supported())return 'unavailable';
+        const accountId=proof?.userId??this.adAccount()??undefined;
+        const canShow=()=>this.canShowAds(accountId);
+        if(!this.supported()||!canShow())return 'unavailable';
         if(this.busy||this.pendingOperations.size)return 'busy';
         this.busy=true;
         const listeners:Listener[]=[];
         let resumeAudio:(()=>void)|undefined;
         try{
-            const ad=await this.ready();if(!ad)return 'unavailable';
+            const ad=await this.ready();if(!ad||!canShow())return 'unavailable';
             const {RewardAdPluginEvents:R,InterstitialAdPluginEvents:I}=await import('@capacitor-community/admob');
             const rewarded=kind!=='circuit';let earned=false;let showing=false;
             let finish!:(result:AdResult)=>void;
@@ -72,8 +75,13 @@ export class NativeAds {
             }
             const adId=(this.live()?ADMOB_UNITS:ADMOB_TEST_UNITS)[kind];
             const options={adId,isTesting:!this.live()};
+            // Listener registration and dynamic imports can outlive an account
+            // switch or a paid/unknown entitlement transition. Recheck at the
+            // provider-request boundary, with the reward intent's account bound.
+            if(!canShow())return 'unavailable';
             const prepare=rewarded?ad.prepareRewardVideoAd({...options,ssv:{userId:proof!.userId,customData:proof!.intentId}}):ad.prepareInterstitial(options);
             await this.bounded(prepare);
+            if(!canShow())return 'unavailable';
             resumeAudio=soundManager.pauseForAd();
             showing=true;
             // show promises may settle at reward time; wait for dismissal before resuming play.

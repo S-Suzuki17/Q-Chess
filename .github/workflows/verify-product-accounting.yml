@@ -1,0 +1,62 @@
+name: Verify shared product accounting
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: product-accounting-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  product-postgres:
+    name: ${{ matrix.suite }} PostgreSQL
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - suite: shared-match-admission
+            report: shared-match-admission-postgres-results.json
+          - suite: crown
+            report: crown-postgres-results.json
+    services:
+      postgres:
+        image: postgres:17.11-bookworm
+        env:
+          POSTGRES_DB: commerce_upgrade
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: qgambit-ephemeral-only
+          POSTGRES_INITDB_ARGS: --locale=C --encoding=UTF8
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d commerce_upgrade"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - name: Verify complete public upgrade and independent-backend accounting
+        run: node --test --test-timeout=180000 scripts/qa/${{ matrix.suite }}-postgres.test.mjs
+      - name: Retain synthetic verification report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ matrix.suite }}-postgres-results
+          path: /tmp/${{ matrix.report }}
+          if-no-files-found: error
+          retention-days: 7

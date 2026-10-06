@@ -1,10 +1,11 @@
 'use client';
+import { canShowVerifiedAccountAds } from './sharedAdEligibility';
 import {supabase} from './supabaseClient';
 import {gameServerUrl,readRankedSession} from './rankedSession';
 import {isAndroidApp,nativeAds} from './nativeAds';
 import {createRewardFlow} from './rewardFlow';
 export type RewardKind='hint'|'online';
-export const nativeRewardsEnabled=()=>isAndroidApp()&&process.env.NEXT_PUBLIC_NATIVE_REWARDS_ENABLED==='true';
+export const nativeRewardsEnabled=()=>canShowVerifiedAccountAds()&&isAndroidApp()&&process.env.NEXT_PUBLIC_NATIVE_REWARDS_ENABLED==='true';
 export async function requestRewardApi(userId:string,path:string,body?:unknown):Promise<Record<string,unknown>>{
  if(!userId||/^(guest|anon|cpu|ai[:_-])/i.test(userId))throw new Error('AUTH_REQUIRED');
  let token=readRankedSession(userId)?.token;

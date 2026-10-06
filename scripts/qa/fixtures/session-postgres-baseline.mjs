@@ -38,9 +38,12 @@ export const commercePendingMigrations = [
     '20261004050000_hint_tickets_store.sql',
     '20261006000000_pricing_v2.sql',
     '20261006155010_atomic_commerce_fulfillment.sql',
+    '20261006171022_dormant_hint_origin_consumption.sql',
 ];
 export const runtimeSessionMigration = '20261006154443_dormant_legacy_session_runtime.sql';
-export const combinedPendingMigrations = [...commercePendingMigrations, durableSessionMigration, runtimeSessionMigration].sort();
+export const sharedAdmissionMigration = '20261006171148_shared_match_admission.sql';
+export const crownAdmissionMigration = '20261006172232_dormant_crown_first_attempt.sql';
+export const combinedPendingMigrations = [...commercePendingMigrations, durableSessionMigration, runtimeSessionMigration, sharedAdmissionMigration, crownAdmissionMigration].sort();
 export const combinedHistoricalMigrations = [...historicalSessionMigrations,
     ...commerceHistoricalDependencies.filter(name => !historicalSessionMigrations.includes(name))];
 export const sessionBaselineEvidence = Object.freeze({

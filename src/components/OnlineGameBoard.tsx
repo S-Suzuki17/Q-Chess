@@ -4,6 +4,8 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { matchText } from '../locales/matchText';
 import { useBoardPreferences } from '../hooks/useBoardPreferences';
 import { useSocket } from '../lib/SocketContext';
+import { SharedMatchAdmissionChoice } from './SharedMatchAdmissionChoice';
+import { useSharedMatchChoice } from '../hooks/useSharedMatchChoice';
 import { useMatchPreparation } from '../hooks/useMatchPreparation';
 import { rankedRecoveryText } from '../locales/rankedRecoveryText';
 import { User, TimeControl } from '../types/game';
@@ -66,6 +68,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
     const { socket, isConnected, connectionError } = useSocket();
     const prevGameStateRef = useRef<any>(null);
     const preparation = useMatchPreparation(socket, roomId, user?.id, prevGameStateRef);
+    const admissionChoice = useSharedMatchChoice(socket,roomId);
     const recoveryText = rankedRecoveryText(lang);
 
     const [gameState, setGameState] = useState<any>(null);
@@ -618,6 +621,9 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
         <p>{recoveryText.settled}</p><RankedSettlement lang={lang} settlement={settledRating}/>
         <button className="mt-4 min-h-11 border border-[#B39A62]/40 px-6" onClick={onHome||(()=>window.location.reload())}>{t.home}</button>
     </div>;
+    if (admissionChoice.offer && !gameState) return <SharedMatchAdmissionChoice lang={lang} mode={matchMode}
+        offer={admissionChoice.offer} pending={admissionChoice.pending} error={admissionChoice.error}
+        onChoose={admissionChoice.choose} onCancel={()=>{admissionChoice.cancel();onHome?.();}}/>;
     if (!gameState || preparation) {
         return (
             <div className="flex flex-col items-center justify-center p-12 bg-black/60 border border-cyan-900/50 rounded-xl max-w-lg w-full">
@@ -627,7 +633,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
                 </p>
                 {loginPrompt}
                 <button 
-                    onClick={onHome || (() => window.location.reload())}
+                    onClick={()=>{admissionChoice.cancel();(onHome || (() => window.location.reload()))();}}
                     className="mt-6 px-4 py-2 bg-gray-900 border border-[#A89C86]/30 rounded text-xs text-gray-400 hover:text-[#E8E2D7] transition-colors"
                 >
                     {t.home}

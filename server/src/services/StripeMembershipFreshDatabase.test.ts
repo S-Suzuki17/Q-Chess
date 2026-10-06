@@ -26,9 +26,12 @@ describe('fresh full-history migration readiness blockers', () => {
                 try { await db.exec(await readFile(resolve(directory, file), 'utf8')); applied.push(file); }
                 catch (error) { failedFile = file; failure = error; break; }
             }
-            expect(all).toHaveLength(40);
-            expect(all.slice(-2)).toEqual(['20261006154443_dormant_legacy_session_runtime.sql',
-                '20261006155010_atomic_commerce_fulfillment.sql']);
+            expect(all).toHaveLength(43);
+            expect(all.slice(-5)).toEqual(['20261006154443_dormant_legacy_session_runtime.sql',
+                '20261006155010_atomic_commerce_fulfillment.sql',
+                '20261006171022_dormant_hint_origin_consumption.sql',
+                '20261006171148_shared_match_admission.sql',
+                '20261006172232_dormant_crown_first_attempt.sql']);
             expect(applied).toEqual(['20260918062045_ranked_server_settlement.sql']);
             expect(failedFile).toBe('20260918072145_ranked_server_settlement.sql');
             expect(String(failure)).toMatch(/relation "ranked_match_settlements" already exists/);

@@ -1,0 +1,53 @@
+name: Verify hint-origin accounting
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hint-origins-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  hint-origin-postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17.11-bookworm
+        env:
+          POSTGRES_DB: commerce_upgrade
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: qgambit-ephemeral-only
+          POSTGRES_INITDB_ARGS: --locale=C --encoding=UTF8
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d commerce_upgrade"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - name: Verify public upgrade and independent-backend hint races
+        run: node --test --test-timeout=180000 scripts/qa/hint-origin-postgres.test.mjs
+      - name: Retain synthetic hint-origin report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: hint-origin-postgres-results
+          path: /tmp/hint-origin-postgres-results.json
+          if-no-files-found: error
+          retention-days: 7

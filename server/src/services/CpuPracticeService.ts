@@ -4,6 +4,7 @@ import { createInitialState } from '../quantum-engine/initialState';
 import { applyPracticeMove, CPU_PRACTICE_RULES_VERSION, type CpuPracticeSnapshot } from '../quantum-engine/practice';
 import type { GameState, Move } from '../quantum-engine/types';
 import { searchCpuPracticeMove } from './CpuPracticeSearch';
+import { cpuHintPurchaseRpc, type CpuHintPurchaseRpc } from './CpuHintOriginProtocol';
 
 export type PracticeContext = { signal: AbortSignal; check(): Promise<void> | void };
 export type PaidHint = { receiptId: string; sessionId: string; revision: number; stateHash: string; rulesVersion: string;
@@ -22,7 +23,8 @@ export const hashPracticeState = (state: GameState) =>
 const digest = (value: unknown) => createHash('sha256').update(canonical(value)).digest('hex');
 const defaultContext = (): PracticeContext => ({ signal: new AbortController().signal, check() {} });
 const allowedErrors = new Set(['ACCOUNT_UNAVAILABLE','AUTH_REQUIRED','SESSION_NOT_FOUND','REQUEST_MISMATCH',
-    'STALE_REVISION','SESSION_FINISHED','NOT_YOUR_TURN','INSUFFICIENT_FUNDS','NO_LEGAL_HINT','SESSION_LIMIT','INVALID_MOVE','INVALID_REQUEST']);
+    'STALE_REVISION','SESSION_FINISHED','NOT_YOUR_TURN','INSUFFICIENT_FUNDS','NO_LEGAL_HINT','SESSION_LIMIT','INVALID_MOVE','INVALID_REQUEST',
+    'HINT_UNAVAILABLE_IN_MATCH']);
 
 export function parsePracticeMove(value: unknown): Move {
     if (!value || typeof value !== 'object' || Array.isArray(value)) throw new CpuPracticeError('INVALID_MOVE');
@@ -44,7 +46,8 @@ export function parsePracticeMove(value: unknown): Move {
 export class CpuPracticeService {
     private busy = new Map<string, number>();
     constructor(private client: SupabaseClient, private enabled: boolean | (() => boolean) = false,
-        private search = searchCpuPracticeMove) {}
+        private search = searchCpuPracticeMove,
+        private purchaseRpc: () => CpuHintPurchaseRpc = cpuHintPurchaseRpc) {}
     isBusy(userId: string) { return (this.busy.get(userId) ?? 0) > 0; }
     private ready() {
         if (!(typeof this.enabled === 'function' ? this.enabled() : this.enabled)) throw new CpuPracticeError('FEATURE_DISABLED');
@@ -156,10 +159,12 @@ export class CpuPracticeService {
             catch { throw new CpuPracticeError('NO_LEGAL_HINT'); }
             const hint = { fromRow: piece!.position.row, fromCol: piece!.position.col,
                 toRow: move.target.row, toCol: move.target.col };
-            // From this point the database atomically rechecks the revision, consumes
-            // one eligible ticket and saves an immutable, recoverable receipt.
+            // Cancellation still prevents dispatch at this final check. Once the
+            // purchase RPC is dispatched, its commit may outlive the request;
+            // recover the immutable receipt after cancellation/response loss.
+            // The database atomically rechecks revision, debits and saves it.
             await this.checked(context);
-            return this.hint(await this.rpc('buy_cpu_hint', { p_request_id: requestId, p_user_id: userId,
+            return this.hint(await this.rpc(this.purchaseRpc(), { p_request_id: requestId, p_user_id: userId,
                 p_session_id: sessionId, p_revision: revision, p_state_hash: session.stateHash, p_move: move, p_hint: hint }),
                 sessionId, revision);
         });

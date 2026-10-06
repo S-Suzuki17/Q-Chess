@@ -28,6 +28,7 @@ pending commerce/auth chain verbatim, in order:
 4. `20261006142305_dormant_durable_legacy_sessions.sql`
 5. `20261006154443_dormant_legacy_session_runtime.sql`
 6. `20261006155010_atomic_commerce_fulfillment.sql`
+7. `20261006171022_dormant_hint_origin_consumption.sql`
 
 An additional pending file causes a hard failure until the reviewed chain is
 explicitly extended. The 22 historical dependencies are an explicit, bounded
