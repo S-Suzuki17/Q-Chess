@@ -33,10 +33,44 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "Q-GAMBIT - Quantum Superposition Chess",
-  description: "A chess variant with hidden piece identities. Read candidate pieces, narrow them through moves, and play CPU practice, online matches and Crown Circuit.",
+  title: "Q-GAMBIT - 量子チェス・新感覚ボードゲーム (Quantum Superposition Chess)",
+  description: "Q-GAMBIT (キュー・ギャンビット) は駒の正体が隠された量子チェス風の新感覚ボードゲーム。CPU対戦、オンライン対局、クラウンサーキットなど豊富なモードで遊べるブラウザチェスゲームです。A chess variant with hidden piece identities. Play CPU practice, online matches and Crown Circuit.",
+  keywords: ["Q-Gambit", "q-gambit", "キューギャンビット", "チェス", "量子チェス", "ボードゲーム", "ブラウザゲーム", "オンライン対戦", "chess", "quantum chess", "board game"],
   metadataBase: new URL("https://q-gambit.com"),
   manifest: "/manifest.json",
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
+  openGraph: {
+    title: "Q-GAMBIT - 量子チェス・新感覚ボードゲーム",
+    description: "Q-GAMBIT (キュー・ギャンビット) は駒の正体が隠された量子チェス風の新感覚ボードゲーム。CPU対戦、オンライン対局、クラウンサーキットなど豊富なモードで遊べるブラウザチェスゲームです。",
+    url: "https://q-gambit.com",
+    siteName: "Q-GAMBIT",
+    images: [
+      {
+        url: "/icon.jpg",
+        width: 800,
+        height: 600,
+        alt: "Q-GAMBIT Logo",
+      },
+    ],
+    locale: "ja_JP",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Q-GAMBIT - 量子チェス・新感覚ボードゲーム",
+    description: "駒の正体が隠された新感覚チェス。Q-GAMBITで今すぐオンライン対戦！",
+    images: ["/icon.jpg"],
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
