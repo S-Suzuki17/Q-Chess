@@ -26,7 +26,7 @@ describe('fresh full-history migration readiness blockers', () => {
                 try { await db.exec(await readFile(resolve(directory, file), 'utf8')); applied.push(file); }
                 catch (error) { failedFile = file; failure = error; break; }
             }
-            expect(all).toHaveLength(37);
+            expect(all).toHaveLength(38);
             expect(applied).toEqual(['20260918062045_ranked_server_settlement.sql']);
             expect(failedFile).toBe('20260918072145_ranked_server_settlement.sql');
             expect(String(failure)).toMatch(/relation "ranked_match_settlements" already exists/);
