@@ -28,14 +28,19 @@ const move = {fromRow:6,fromCol:4,toRow:4,toCol:4};
 function Fixture() {
     const [position, setPosition] = useState(0);
     const hint = useMoveHint('white:' + position);
-    const control = useRef({requests:0, resolve:null, reject:null, signal:null});
+    const control = useRef({requests:0, resolve:null, reject:null, signal:null, saved:null});
     useEffect(() => {
         window.qubeFixture = {
             get requests() {return control.current.requests;},
             get aborted() {return control.current.signal?.aborted;},
             complete() {control.current.resolve?.(move);},
             fail() {control.current.reject?.(new Error('Fixture search failed'));},
-            changePosition() {setPosition(value => value + 1);}
+            changePosition() {setPosition(value => value + 1);},
+            setPosition(value) {setPosition(value);},
+            saveReply() {const {resolve,reject,signal}=control.current;control.current.saved={resolve,reject,signal};},
+            completeSaved() {control.current.saved?.resolve?.(move);},
+            failSaved() {control.current.saved?.reject?.(new Error('Old fixture search failed'));},
+            get savedAborted() {return control.current.saved?.signal.aborted;}
         };
     }, []);
     return <MatchLayout lang="en" mode="CPU fixture" white={{name:'Guest',clock:'10:00'}} black={{name:'CPU',clock:'10:00'}}
@@ -48,7 +53,7 @@ function Fixture() {
         onHint={() => hint.request(signal => new Promise((resolve,reject) => {
             control.current.requests++; Object.assign(control.current,{resolve,reject,signal});
         }))}
-        board={<div style={{height:'100%',background:'repeating-conic-gradient(#363f32 0% 25%, #88917c 0% 50%) 0 / 25% 25%'}} aria-label="Static fixture board"/>}/>;
+        board={<div data-fixture-position={position} style={{height:'100%',background:'repeating-conic-gradient(#363f32 0% 25%, #88917c 0% 50%) 0 / 25% 25%'}} aria-label="Static fixture board"/>}/>;
 }
 createRoot(document.getElementById('root')).render(<Fixture/>);
 `);
@@ -99,6 +104,11 @@ createRoot(document.getElementById('root')).render(<Fixture/>);
                 assert.equal(await pulse.getAttribute('alt'),'');
                 assert.equal(await pulse.getAttribute('aria-hidden'),'true');
             };
+            const goToPosition = async value => {
+                await page.evaluate(value => window.qubeFixture.setPosition(value),value);
+                await page.waitForFunction(value => document.querySelector('[data-fixture-position]')?.getAttribute('data-fixture-position') === String(value),value);
+                await page.evaluate(() => new Promise(requestAnimationFrame));
+            };
             assert.equal(await status.textContent(),'','The live region already exists while idle');
             await idle();
             await pending();
@@ -142,9 +152,53 @@ createRoot(document.getElementById('root')).render(<Fixture/>);
             await page.evaluate(() => new Promise(requestAnimationFrame));
             await idle();
             assert.equal(await status.textContent(),'','A late reply must not annotate a newer position');
+            // Reusing a key must not revive an aborted pending request, regardless of
+            // whether its worker settles before or after returning to that position.
+            for (const timing of ['before-return','after-return']) {
+                await goToPosition(2);
+                await pending();
+                await page.evaluate(() => window.qubeFixture.saveReply());
+                await goToPosition(3);
+                await idle();
+                assert.equal(await page.evaluate(() => window.qubeFixture.savedAborted),true);
+                if (timing === 'before-return') {
+                    await page.evaluate(() => window.qubeFixture.completeSaved());
+                    await page.evaluate(() => new Promise(requestAnimationFrame));
+                }
+                await goToPosition(2);
+                await idle();
+                assert.equal(await status.textContent(),'',`A reused key stays idle (${timing})`);
+                if (timing === 'after-return') {
+                    await page.evaluate(() => window.qubeFixture.completeSaved());
+                    await page.evaluate(() => new Promise(requestAnimationFrame));
+                }
+                await idle();
+                assert.equal(await status.textContent(),'','An aborted result remains hidden on the reused key');
+            }
+            for (const outcome of ['completeSaved','failSaved']) {
+                await goToPosition(4);
+                await pending();
+                await page.evaluate(() => window.qubeFixture.saveReply());
+                await goToPosition(5);
+                await idle();
+                await goToPosition(4);
+                await idle();
+                await pending();
+                await page.evaluate(outcome => window.qubeFixture[outcome](),outcome);
+                await page.evaluate(() => new Promise(requestAnimationFrame));
+                assert.equal(await button.getAttribute('aria-busy'),'true','An old reply must not clear the replacement request');
+                assert.equal(await button.isDisabled(),true);
+                assert.ok((await status.innerText()).includes('QUBE is thinking…'));
+                assert.equal(await page.getByTestId('hint-source').count(),0);
+                await page.evaluate(() => window.qubeFixture.complete());
+                await idle();
+                assert.equal(await page.getByTestId('hint-source').innerText(),'e2');
+                assert.equal(await page.getByTestId('hint-destination').innerText(),'e4');
+                await page.getByRole('button',{name:'Dismiss hint',exact:true}).click();
+            }
             assert.deepEqual(blocked,[],'No backend, auth, ad, or payment requests are expected');
             assert.deepEqual(errors,[],'No browser runtime errors');
-            console.log(`PASS: QUBE loading, disabled repeat, status/busy, animation/reduced motion, success/failure/dismiss/new position at ${width}px`);
+            console.log(`PASS: QUBE loading, disabled repeat, status/busy, animation/reduced motion, success/failure/dismiss/new position/key reuse/replacement request at ${width}px`);
             await context.close();
         }
     }

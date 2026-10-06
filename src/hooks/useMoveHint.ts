@@ -7,7 +7,9 @@ import { isValidHintMove, type HintMove } from '../components/boardPresentation'
 export function useMoveHint(positionKey: string) {
     const controller = useRef<AbortController | null>(null);
     const [result, setResult] = useState<{ key: string; move: HintMove } | null>(null);
-    const [pendingKey, setPendingKey] = useState<string | null>(null);
+    // A reused position key must not revive a request aborted by effect cleanup.
+    // Keep its signal in state so cleanup can invalidate pending without a setState on unmount.
+    const [pendingRequest, setPendingRequest] = useState<{ key: string; signal: AbortSignal } | null>(null);
     const [failedKey, setFailedKey] = useState<string | null>(null);
     useEffect(() => () => { controller.current?.abort(); controller.current = null; }, [positionKey]);
 
@@ -15,25 +17,26 @@ export function useMoveHint(positionKey: string) {
         controller.current?.abort();
         const active = new AbortController();
         controller.current = active;
-        setPendingKey(positionKey);
+        const isActive = () => controller.current === active && !active.signal.aborted;
+        setPendingRequest({ key: positionKey, signal: active.signal });
         setResult(null);
         setFailedKey(null);
         try {
             const move = await search(active.signal);
-            if (active.signal.aborted) return;
+            if (!isActive()) return;
             if (isValidHintMove(move)) { setResult({ key: positionKey, move }); onDelivered?.(); }
             else setFailedKey(positionKey);
         } catch {
-            if (!active.signal.aborted) setFailedKey(positionKey);
+            if (isActive()) setFailedKey(positionKey);
         } finally {
-            if (!active.signal.aborted) { setPendingKey(null); controller.current = null; }
+            if (isActive()) { setPendingRequest(null); controller.current = null; }
         }
     }
     function clear() {
         controller.current?.abort();
         controller.current = null;
-        setResult(null); setPendingKey(null); setFailedKey(null);
+        setResult(null); setPendingRequest(null); setFailedKey(null);
     }
     return { hintMove: result?.key === positionKey ? result.move : null,
-        pending: pendingKey === positionKey, failed: failedKey === positionKey, request, clear };
+        pending: pendingRequest?.key === positionKey && !pendingRequest.signal.aborted, failed: failedKey === positionKey, request, clear };
 }
