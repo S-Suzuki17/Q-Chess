@@ -2,7 +2,7 @@ name: Verify game and server
 
 on:
   pull_request:
-    branches: [main, fix/commerce-safety-20261006, prep/awaited-session-authority-20261006, fix/verified-legacy-restoration-20261006]
+    branches: [main, fix/commerce-safety-20261006, prep/awaited-session-authority-20261006, fix/verified-legacy-restoration-20261006, prep/durable-auth-runtime-20261006]
   push:
     branches: [main]
 
