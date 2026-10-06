@@ -63,6 +63,8 @@
 .match-hint-action { background:#e5d7b6; color:#24261f; border-color:#e5d7b6; }.match-hint-action:hover:not(:disabled) { background:#f4e6c6; color:#171b15; }
 .match-resign { margin-left:auto; background:transparent; color:var(--match-muted); }.match-resign:hover { border-color:#8a5948; color:#f3b69d; background:#33221c; }.mobile-details,.mobile-rules { display:none; }
 .match-advice { display:flex; align-items:center; gap:12px; min-height:50px; padding:8px 12px; border:1px solid #746745; border-radius:12px; background:#252c21; color:#eed8a4; font-size:12px; }
+/* An empty live region stays accessible without taking a grid row. */
+.match-advice:empty { position:absolute; width:1px; height:1px; min-height:0; padding:0; border:0; overflow:hidden; clip-path:inset(50%); }
 .match-advice>svg { flex-shrink:0; }.match-advice>button { display:grid; place-items:center; margin-left:auto; width:36px; height:36px; flex-shrink:0; border:0; border-radius:8px; background:transparent; color:var(--match-ink); }
 .match-advice-move { display:flex; align-items:center; flex-wrap:wrap; gap:8px 12px; }.match-advice-move strong { margin-left:6px; font:600 22px var(--font-geist-mono),monospace; }
 .advice-from { color:#9ed8ff; }.advice-to { color:#ffe3a0; }.advice-arrow { font-size:21px; }.match-advice-move small { color:var(--match-muted); font-size:11px; }
@@ -109,6 +111,7 @@
     border-radius: 50%;
     object-fit: cover;
     margin-right: 4px;
+    flex-shrink: 0;
 }
 .qube-icon.thinking {
     animation: qube-pulse 1.5s infinite ease-in-out;
@@ -117,4 +120,8 @@
     0% { transform: scale(0.9); opacity: 0.7; }
     50% { transform: scale(1.1); opacity: 1; }
     100% { transform: scale(0.9); opacity: 0.7; }
+}
+
+@media(prefers-reduced-motion:reduce) {
+    .match-layout .qube-icon.thinking { animation:none!important; }
 }

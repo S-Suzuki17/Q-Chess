@@ -2,7 +2,7 @@ name: Verify game and server
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, fix/commerce-safety-20261006]
   push:
     branches: [main]
 
@@ -43,6 +43,8 @@ jobs:
         run: npm run build
       - name: Install browser for static-page verification
         run: npx playwright install chromium
+      - name: Verify QUBE loading and reduced-motion behavior
+        run: node scripts/qa/qube-loading-accessibility.mjs
       - name: Verify desktop and mobile commerce page
         run: node scripts/qa/check-commerce-browser.mjs
 
