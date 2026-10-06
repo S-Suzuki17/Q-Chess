@@ -51,8 +51,9 @@ export function MatchLayout(props: Props) {
     const topSide = props.bottomSide === 'white' ? 'black' : 'white';
     const isMyTurn = !props.spectator && props.currentTurn === props.bottomSide && !props.finished;
     const enemySelected = selected && selected.player !== props.bottomSide;
-    const hint = isMyTurn ? props.hintMove : null;
-    const hasAdvice = isMyTurn && !!(hint || props.hintPending || props.hintFailed);
+    const hintPending = isMyTurn && !!props.hintPending;
+    const hint = isMyTurn && !hintPending ? props.hintMove : null;
+    const hasAdvice = isMyTurn && !!(hint || hintPending || props.hintFailed);
     const instruction = props.finished ? label('対局が終了しました', 'Match complete')
         : props.spectator ? label('観戦中', 'Spectating')
         : !isMyTurn ? label('相手の手番です。駒を選んで候補を確認できます。', 'Opponent’s turn. Select a piece to inspect it.')
@@ -115,16 +116,18 @@ export function MatchLayout(props: Props) {
                 {props.checkNotice && !props.finished && <div className="match-check-warning" key={props.checkEvent} role="status" data-testid="check-warning">{props.checkNotice}</div>}
                 {props.notice && !props.finished && <div className="match-notice" role="status">{props.notice}</div>}
             </div>
-            {hasAdvice && <section className="match-advice" role="status" aria-live="polite" aria-atomic="true" data-testid="move-advice">
-                <Lightbulb size={18} aria-hidden="true"/>
+            {/* Keep the live region mounted before pending/results arrive. Busy belongs on the
+                action, not this region, so the thinking message can be announced immediately. */}
+            <section className="match-advice" role="status" aria-live="polite" aria-atomic="true" data-hint-status="true" data-testid={hasAdvice ? 'move-advice' : undefined}>
+                {hasAdvice && <><Lightbulb size={18} aria-hidden="true"/>
                 {hint ? <div className="match-advice-move">
                     <span className="advice-from">{label('動かす駒', 'Move from')} <strong data-testid="hint-source">{square(hint.fromRow,hint.fromCol)}</strong></span>
                     <span className="advice-arrow" aria-hidden="true">→</span>
                     <span className="advice-to">{label('移動先', 'Move to')} <strong data-testid="hint-destination">{square(hint.toRow,hint.toCol)}</strong></span>
                     <small>{label('青の駒を選び、金色のマスへ', 'Select blue, then move to gold')}</small>
-                </div> : <span>{props.hintPending ? label('QUBEが考え中…', 'QUBE is thinking…') : label('ヒントを取得できませんでした。もう一度お試しください。', 'Hint unavailable. Please try again.')}</span>}
-                {props.onClearHint && <button onClick={props.onClearHint} aria-label={label('ヒントを閉じる', 'Dismiss hint')}><X size={16}/></button>}
-            </section>}
+                </div> : <span>{hintPending ? label('QUBEが考え中…', 'QUBE is thinking…') : label('ヒントを取得できませんでした。もう一度お試しください。', 'Hint unavailable. Please try again.')}</span>}
+                {props.onClearHint && <button onClick={props.onClearHint} aria-label={label('ヒントを閉じる', 'Dismiss hint')}><X size={16}/></button>}</>}
+            </section>
             {playerBar(props.bottomSide)}
         </main>
 
@@ -167,7 +170,10 @@ export function MatchLayout(props: Props) {
 
         <footer className="match-footer">
             <label className="match-hints"><input type="checkbox" checked={props.showMoveHints} onChange={e=>props.onHintsChange(e.target.checked)}/>{label('移動候補', 'Move hints')}</label>
-            {props.onHint && <button className="match-button match-hint-action" onClick={props.onHint} disabled={!isMyTurn || props.hintPending}><img src="/qube_icon.jpg" alt="QUBE" className={`qube-icon ${props.hintPending ? 'thinking' : ''}`} width={15} height={15} />{props.hintPending ? label('QUBEが考え中…', 'QUBE is thinking…') : label('QUBEに聞く', 'Ask QUBE')}</button>}
+            {props.onHint && <button className="match-button match-hint-action" onClick={props.onHint} disabled={!isMyTurn || hintPending} aria-busy={hintPending}>
+                <img src="/qube_icon.jpg" alt="" aria-hidden="true" className={`qube-icon ${hintPending ? 'thinking' : ''}`} width={15} height={15} />
+                {hintPending ? label('QUBEが考え中…', 'QUBE is thinking…') : label('QUBEに聞く', 'Ask QUBE')}
+            </button>}
             <span className="match-view-hint" role={props.feedback ? 'status' : undefined}>{props.feedback || label('選択した駒はもう一度押すと解除', 'Select the same piece again to deselect')}</span>
             <button className="match-button mobile-details" onClick={()=>setExpanded(!expanded)} aria-expanded={expanded} aria-controls="match-detail-panels">{label(expanded ? '閉じる' : '棋譜・正体', expanded ? 'Close' : 'Details')}</button>
             <button className="match-button mobile-rules" onClick={props.onRules}>{label('ルール', 'Rules')}</button>

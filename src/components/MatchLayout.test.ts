@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { createElement, type ComponentProps } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
@@ -85,9 +86,46 @@ describe('Match decision feedback', () => {
         expect(render({hintMove,currentTurn:'black'})).not.toContain('data-testid="move-advice"');
         expect(render({hintMove,finished:true})).not.toContain('data-testid="move-advice"');
     });
-    it('provides pending and failure feedback', () => {
-        expect(render({hintPending:true})).toContain('QUBEが考え中…');
-        expect(render({hintFailed:true})).toContain('ヒントを取得できませんでした');
+    it('keeps an empty polite live region ready before a hint is requested', () => {
+        const html = render();
+        expect(html).toContain('role="status" aria-live="polite" aria-atomic="true" data-hint-status="true"></section>');
+        expect(html).not.toContain('data-testid="move-advice"');
+        expect(html).toContain('match-hint-action" aria-busy="false"');
+        expect(html).not.toContain('qube-icon thinking');
+    });
+    it.each(LANGUAGES.map(language => language.code))('exposes pending feedback and a disabled busy action without duplicate icon text in %s', lang => {
+        const html = render({lang, hintPending:true});
+        const button = html.match(/<button class="match-button match-hint-action"[^]*?<\/button>/)?.[0];
+        const status = html.match(/<section class="match-advice"[^]*?<\/section>/)?.[0];
+        expect(button).toContain('disabled="" aria-busy="true"');
+        expect(button).toContain('src="/qube_icon.jpg" alt="" aria-hidden="true" class="qube-icon thinking"');
+        expect(button).toContain(matchText(lang,'QUBEが考え中…','QUBE is thinking…'));
+        expect(button).not.toContain('alt="QUBE"');
+        expect(status).toContain(matchText(lang,'QUBEが考え中…','QUBE is thinking…'));
+        expect(status).not.toContain('aria-busy="true"');
+    });
+    it('shows pending feedback ahead of a stale result, then makes a failed hint retryable', () => {
+        const pending = render({hintPending:true, hintMove:{fromRow:6,fromCol:4,toRow:4,toCol:4}});
+        expect(pending).toContain('QUBEが考え中…');
+        expect(pending).not.toContain('data-testid="hint-source"');
+        const failed = render({hintFailed:true});
+        expect(failed).toContain('ヒントを取得できませんでした');
+        expect(failed).toContain('match-hint-action" aria-busy="false"');
+        expect(failed).not.toContain('qube-icon thinking');
+    });
+    it.each([{currentTurn:'black' as const},{finished:true},{spectator:true}])('clears stale loading feedback when advice is no longer available: %j', state => {
+        const html = render({...state, hintPending:true, hintFailed:true});
+        expect(html).toContain('match-hint-action" disabled="" aria-busy="false"');
+        expect(html).not.toContain('QUBEが考え中…');
+        expect(html).not.toContain('qube-icon thinking');
+        expect(html).not.toContain('data-testid="move-advice"');
+    });
+    it('defines a lightweight icon pulse and explicitly stops it for reduced motion', () => {
+        const css = readFileSync(new URL('./match-layout.css', import.meta.url), 'utf8');
+        expect(css).toMatch(/\.qube-icon\.thinking\s*\{\s*animation:\s*qube-pulse 1\.5s infinite ease-in-out;/);
+        expect(css).toContain('transform: scale(0.9); opacity: 0.7;');
+        expect(css).toContain('transform: scale(1.1); opacity: 1;');
+        expect(css).toMatch(/@media\(prefers-reduced-motion:reduce\)\s*\{\s*\.match-layout \.qube-icon\.thinking\s*\{\s*animation:none!important;/);
     });
     it('distinguishes no selection from an unresolved piece', () => {
         const html = render();
