@@ -139,7 +139,7 @@
     "docs/commerce-route-integration.md": "b8b7a11377c67b208e91058d7d648594776bcee11da4aa952d2a0d9359c2ddaa",
     "scripts/qa/commerce-postgres.md": "4870164c705d71b78622542ac730a9012bade7f08a2522df2302e35e052ab0cb",
     "scripts/qa/commerce-postgres.test.mjs": "fc6cd9c07de1079c7013c8006c2bea5f728057ebeba1e7ea28dba6d28d454ec9",
-    "scripts/qa/commerce-status-browser.mjs": "40fa665c1adee57ed98c8d1d153f91201caf1ec69c9366e49e84442e755a3176",
+    "scripts/qa/commerce-status-browser.mjs": "9ab8297df578c5e63292e4218f989b802ed116a6a21470e0d56204791c21faa6",
     "scripts/qa/fixtures/commerce-postgres-baseline.mjs": "3dbe4b79a50e85005d9289bfbf2b49de4375bd96f95b1e96c2804f0a540cd02a",
     "scripts/qa/fixtures/commerce-status/README.md": "dcb5e47c9c5f80aba39b2b8df9204adb5118599c08f3843377e6209560f4e7af",
     "scripts/qa/fixtures/commerce-status/index.html": "756a319622b9c9d806f89c7f34f9acaf790feaf133b3b1a7c905aa12b27eb19a",
@@ -193,5 +193,16 @@
     "all-history fresh install remains blocked by documented historical duplicate settlement",
     "new terms/version and risk/deletion/provider rollout review held",
     "held QUBE/CPU publication payload excluded"
+  ],
+  "postAggregateChanges": [
+    {
+      "file": "scripts/qa/commerce-status-browser.mjs",
+      "scope": "browser-test assertions only; application source unchanged",
+      "reason": "Permit existing Japanese payment-reversal disclosure while requiring Android to contain no purchase prices, prompts, links, controls or product catalog/review surfaces",
+      "firstRemoteHead": "8b7113b0102a4c4bfa1a6f47915d125fedeae7fb",
+      "firstRemoteRun": 37523843008,
+      "firstRemoteResult": "aggregate/types/builds/native/prior browser suites passed; new Android Japanese status assertion failed",
+      "correctedBrowserResult": "exact-head CI pending"
+    }
   ]
 }

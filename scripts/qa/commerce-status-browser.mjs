@@ -76,8 +76,10 @@ try {
             }
             if (platform === 'android') {
                 assert.equal(await store.locator('section').count(), 0);
-                assert.doesNotMatch(await usage.textContent(), /Stripe|USD|\$|checkout|決済|支払い方法/);
-                assert.equal(await usage.locator('a,button,input').count(), 0);
+                // Existing stock-expiry rules may mention a payment reversal
+                // (決済取消); that disclosure is not a payment invitation.
+                assert.doesNotMatch(await usage.textContent(), /Stripe|USD|\$|checkout|支払い方法|購入する|購入へ進む|決済へ進む/);
+                assert.equal(await usage.locator('a,button,input,[role="button"],[role="link"],[data-product-catalog],[data-purchase-review]').count(), 0);
             } else {
                 await store.locator('.reward-membership-status,[data-commerce-entitlements]').first().waitFor();
                 assert.equal(await store.locator('[data-legacy-membership-terms]').count(), hasLegacy ? 1 : 0);

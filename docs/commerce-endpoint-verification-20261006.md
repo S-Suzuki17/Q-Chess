@@ -35,9 +35,9 @@ was performed.
 
 ## Combined local verification
 
-The final implementation source is
-`16617f0652617fd359e8cacd196835e841a91a1d`; subsequent additions are these evidence
-documents only.
+The application implementation source is
+`16617f0652617fd359e8cacd196835e841a91a1d`; subsequent changes are evidence
+documents and the browser-test assertion correction described below.
 
 - Full default Vitest: **198 files / 2,183 tests passed**, zero skipped/todo,
   plus the repository completeness guard. Tests ran serially with their
@@ -67,6 +67,16 @@ records source hashes and exact counts. Mounted payment-flow tests use PGlite
 with synthetic provider responses; separate native suites prove real SQL
 transactions and independent-backend contention. Neither is hosted PostgREST or
 genuine Stripe evidence.
+
+The first PR18 CI head, `8b7113b0102a4c4bfa1a6f47915d125fedeae7fb`, passed the
+2,183-test guard, typecheck, both builds, all five native PostgreSQL 17.11 suites
+and the four prior browser fixtures. Its new status fixture failed because an
+overbroad Android assertion rejected the existing Japanese legacy disclosure
+word `決済取消` (payment reversal). The application disclosure is preserved.
+The fixture now rejects purchase prompts, prices, provider references, links,
+purchase controls and catalog/review surfaces, while permitting that existing
+consumption-only rule. Fixture syntax/compilation passed; exact-head browser CI
+must verify the correction before this checkpoint is called green.
 
 ## Required release follow-through
 
