@@ -4,6 +4,7 @@ import {readFileSync} from 'node:fs';
 import path from 'node:path';
 import {get as httpsGet} from 'node:https';
 import {isIP} from 'node:net';
+import {checkSearchMetadata, checkSearchFiles} from './search-metadata.mjs';
 
 // Read-only public verification. Never creates users, signs in, or starts a match.
 const [originArg, manifestArg, resolvedIp] = process.argv.slice(2);
@@ -49,11 +50,12 @@ for (const route of ['/', '/about/', '/rules/', '/contact/', '/privacy/', '/term
     assert.match(response.headers.get('content-type'), /text\/html/i, route);
     assert.equal(response.headers.get('x-frame-options'), null, 'Do not break the official itch embed');
     const html = await response.text();
+    checkSearchMetadata(html, route);
     assert.match(html, /name="google-adsense-account" content="ca-pub-1116866075179199"/, route);
     assert.doesNotMatch(html, /<script[^>]*src=["'][^"']*(?:googlesyndication|googleadservices|doubleclick)/i, route);
-    if (route !== '/') assert.ok(html.includes(`href="https://q-gambit.com${route}"`), `${route}: canonical`);
     checks++;
 }
+checkSearchFiles(await (await request('/robots.txt')).text(), await (await request('/sitemap.xml')).text());
 for (const route of ['/ads.txt', '/app-ads.txt']) {
     const response = await request(route);
     assert.equal(response.status, 200, route);

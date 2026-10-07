@@ -1,10 +1,12 @@
 import { readFileSync, existsSync } from 'node:fs';
 import assert from 'node:assert/strict';
+import {checkSearchMetadata, checkSearchFiles} from './search-metadata.mjs';
 
 // Local output only. Does not contact Google or enable any advertising.
 for (const route of ['', 'about', 'rules', 'contact', 'privacy', 'terms', 'updates']) {
     const html = readFileSync(`out/${route ? `${route}/` : ''}index.html`, 'utf8');
     const head = html.split('</head>')[0];
+    checkSearchMetadata(html, `/${route ? `${route}/` : ''}`);
     assert.match(head, /name="google-adsense-account" content="ca-pub-1116866075179199"/, route);
     assert.doesNotMatch(html, /<script[^>]*src=["'][^"']*(?:googlesyndication|googleadservices|doubleclick)/i, route);
     if (route) {
@@ -12,6 +14,7 @@ for (const route of ['', 'about', 'rules', 'contact', 'privacy', 'terms', 'updat
         assert.ok(head.includes('user-scalable=yes'), `${route}: text zoom`);
     }
 }
+checkSearchFiles(readFileSync('out/robots.txt', 'utf8'), readFileSync('out/sitemap.xml', 'utf8'));
 for (const route of ['teaser', 'teaser2', '_teaser', '_teaser2']) {
     assert.equal(existsSync(`out/${route}/index.html`), false, `${route} must not be exported`);
 }

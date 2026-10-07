@@ -1,4 +1,5 @@
 import { ANDROID_BUILD } from './appPlatform';
+import { PUBLIC_SUPPORT_EMAIL } from './publicContact';
 import { CURRENT_TERMS_VERSION, CURRENT_TERMS_EFFECTIVE_DATE, currentTermsEffective } from './currentTerms';
 
 export const SALES_TERMS_DRAFT_VERSION = CURRENT_TERMS_VERSION;
@@ -9,7 +10,7 @@ export const COMMERCE_SELLER = {
     address: '〒362-0812 埼玉県北足立郡伊奈町内宿台2-184-1',
     telephone: '070-7660-1602',
     telephoneUri: '+817076601602',
-    email: 'qgambit970@gmail.com',
+    email: PUBLIC_SUPPORT_EMAIL,
 } as const;
 
 /** Owner approved on 2026-10-03; separate from each free pool's cap of 20. */

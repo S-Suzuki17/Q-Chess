@@ -36,6 +36,8 @@ export const metadata: Metadata = {
   title: "Q-GAMBIT - Quantum Superposition Chess",
   description: "A chess variant with hidden piece identities. Read candidate pieces, narrow them through moves, and play CPU practice, online matches and Crown Circuit.",
   metadataBase: new URL("https://q-gambit.com"),
+  alternates: { canonical: "https://q-gambit.com/" },
+  robots: { index: true, follow: true },
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,

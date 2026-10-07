@@ -4,6 +4,7 @@ import {join} from 'node:path';
 import {renderToStaticMarkup} from 'react-dom/server';
 import {createElement} from 'react';
 import {PUBLIC_SUPPORT_EMAIL} from './publicContact';
+import {COMMERCE_SELLER} from './webCommerce';
 import {CHAMPIONSHIP_REWARDS,championshipReward} from './championshipRewards';
 import {LANGUAGES} from '../locales/dict';
 import {championshipName} from '../locales/championshipText';
@@ -40,6 +41,7 @@ describe('review-safe public release',()=>{
  });
  it('uses one public support address without changing private account credentials',()=>{
   expect(PUBLIC_SUPPORT_EMAIL).toBe('qgambit970@gmail.com');
+  expect(COMMERCE_SELLER.email).toBe(PUBLIC_SUPPORT_EMAIL);
   function scan(dir:string){for(const entry of readdirSync(dir,{withFileTypes:true})){
    const path=join(dir,entry.name);if(entry.isDirectory())scan(path);
    else if(/\.(tsx?|html|json|txt|xml|md)$/i.test(path)){
