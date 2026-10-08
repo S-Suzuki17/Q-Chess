@@ -3,6 +3,12 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { matchText } from '../locales/matchText';
 import { useBoardPreferences } from '../hooks/useBoardPreferences';
+import { useTicketHint } from '../hooks/useTicketHint';
+import { canRequestHint } from '../lib/hintPolicy';
+import { PAID_HINTS_ENABLED, isUuid, type MatchHintContext } from '../lib/paidHints';
+import { hintErrorText } from '../locales/moveHintText';
+import { QubeTeacher } from './QubeTeacher';
+import { SavedMatchHintRecovery } from './CrownHintRecovery';
 import { useSocket } from '../lib/SocketContext';
 import { SharedMatchAdmissionChoice } from './SharedMatchAdmissionChoice';
 import { useSharedMatchChoice } from '../hooks/useSharedMatchChoice';
@@ -171,6 +177,8 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
         pieceId: number;
         targetRow: number;
         targetCol: number;
+        validTypes: string[];
+        revision: number;
     } | null>(null);
 
     // Latency Measurement
@@ -301,6 +309,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
             if (!acceptsOnlineSnapshot(roomId, prevGameStateRef.current, state)) return;
             if (isNewOnlineMove(prevGameStateRef.current, state)) playMoveSound();
             // Update synchronously: duplicate events can arrive before React renders.
+            if(state.gameOver||state.version!==prevGameStateRef.current?.version){setPromotionPending(null);setCastlingPending(null);}
             prevGameStateRef.current = state;
             setGameState({...state, receivedAt: performance.now()});
             if (state.gameOver && disconnectTimerRef.current) {
@@ -417,7 +426,9 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
     }, [gameState, latency, preparation]);
 
     const handleSquareClick = (targetRow: number, targetCol: number) => {
-        if (preparation || !matchReady || !gameState || gameState.gameOver || onlineRole === 'spectator') return;
+        if (preparation || !matchReady || !gameState || gameState.gameOver || onlineRole === 'spectator' || ticketHint.pending) return;
+        // Presentation rows are canonical; the socket engine uses y from White's home rank.
+        targetRow=7-targetRow;
 
         setErrorMsg(null);
 
@@ -477,6 +488,10 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
                 }
             }
 
+            if(moveTypes.includes('P') && targetRow === (token.team===0?7:0)) {
+                setPromotionPending({pieceId:numId,targetRow,targetCol,validTypes:moveTypes,revision:gameState.version});
+                return;
+            }
             socket?.emit('player_action', {
                 actionId: uuidv4(),
                 version: gameState.version,
@@ -495,7 +510,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
     };
 
     const handleResign = () => {
-        if (preparation || !gameState || gameState.gameOver || onlineRole === 'spectator') return;
+        if (preparation || !gameState || gameState.gameOver || onlineRole === 'spectator' || ticketHint.pending) return;
         socket?.emit('player_action', {
             actionId: uuidv4(),
             version: gameState.version,
@@ -518,7 +533,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
             return {
                 id: `token_${p.id}`,
                 player: p.team === 0 ? 'white' : 'black',
-                row: p.y,
+                row: 7-p.y,
                 col: p.x,
                 isCaptured: p.captured,
                 probabilities,
@@ -538,7 +553,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
                 if (target?.team === piece.team) continue;
                 // Match server movement geometry, including moved flags.
                 if (filterPossibilities(piece, c, r, gameState.board, !!target, gameState.pieces).length) {
-                    moves.push({r, c});
+                    moves.push({r:7-r, c});
                 }
             }
         }
@@ -549,9 +564,8 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
     const myRole = onlineRole || 'white';
     const isMyTurn = myRole === currentTurn;
     const bottomPlayer = myRole === 'black' ? 'black' : 'white';
-    // Server team 0 (White) starts at y=0-1, unlike the local CPU board.
-    // Share one orientation for squares, clicks, highlights and animated pieces.
-    const isFlipped = bottomPlayer === 'white';
+    // Squares, actions and canonical hint coordinates share the same orientation.
+    const isFlipped = bottomPlayer === 'black';
 
     // Robust winner calculation
     const winner = useMemo(() => {
@@ -561,6 +575,19 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
         if (go === 'BLACK') return 'black_wins';
         return 'draw';
     }, [gameState]);
+
+    const originalMode=gameState?.mode==='ranked'||gameState?.mode==='random'||gameState?.mode==='private'
+        ? gameState.mode as MatchHintContext['mode'] : matchMode;
+    const paidHintContext=useMemo<MatchHintContext|null>(()=>roomId&&originalMode&&isUuid(gameState?.hintContextId)
+        ? {kind:'match',mode:originalMode,matchId:roomId,contextId:gameState.hintContextId,rulesVersion:'match-hint-v1'} : null,
+        [roomId,originalMode,gameState?.hintContextId]);
+    const verifiedParticipant=!!user?.id&&(hostId===user.id||joinerId===user.id);
+    const hintEligible=canRequestHint({ready:!!gameState&&!preparation&&matchReady&&!gameState.introPending&&isConnected
+        &&cancelledMatch!==roomId&&verifiedParticipant&&!!paidHintContext&&PAID_HINTS_ENABLED,
+        finished:!!winner,spectator:onlineRole==='spectator',playerSide:bottomPlayer,currentTurn});
+    const ticketHint=useTicketHint({userId:user?.type==='registered'?user.id:undefined,context:paidHintContext,
+        revision:Number.isSafeInteger(gameState?.version)?gameState.version:0,eligible:hintEligible});
+    const {hintMove}=ticketHint;
 
     useEffect(() => {
         const estimatedServerTime = gameState
@@ -626,10 +653,13 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
         {showRankedLogin&&<RankedLoginDialog lang={lang} userId={user.id} onCancel={()=>setShowRankedLogin(false)} onVerified={()=>setShowRankedLogin(false)}/>}
     </div>:null;
 
-    if (cancelledMatch===roomId && settledRating?.matchId!==roomId) return <RankedCancellationNotice
-        lang={lang} reason={cancelledReason} onHome={onHome||(()=>window.location.reload())}/>;
+    const savedRecovery=user?.type==='registered'&&roomId&&matchMode
+        ?<SavedMatchHintRecovery userId={user.id} lang={lang} matchId={roomId} mode={matchMode}/>:null;
+    if (cancelledMatch===roomId && settledRating?.matchId!==roomId) return <div><RankedCancellationNotice
+        lang={lang} reason={cancelledReason} onHome={onHome||(()=>window.location.reload())}/>{savedRecovery}</div>;
     if (settledRating && settledRating.matchId === roomId && !gameState?.gameOver) return <div role="status" className="m-auto max-w-md rounded-xl border border-[#B39A62]/30 bg-[#161513] p-6 text-center text-[#E8E2D7]">
         <p>{recoveryText.settled}</p><RankedSettlement lang={lang} settlement={settledRating}/>
+        {savedRecovery}
         <button className="mt-4 min-h-11 border border-[#B39A62]/40 px-6" onClick={onHome||(()=>window.location.reload())}>{t.home}</button>
     </div>;
     if (admissionChoice.offer && !gameState) return <SharedMatchAdmissionChoice lang={lang} mode={matchMode}
@@ -643,6 +673,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
                     {preparation ? recoveryText[preparation] : matchText(lang, 'サーバーと対局データを同期中...', 'CONNECTING TO GAME SERVER...')}
                 </p>
                 {loginPrompt}
+                {savedRecovery}
                 <button 
                     onClick={()=>{admissionChoice.cancel();(onHome || (() => window.location.reload()))();}}
                     className="mt-6 px-4 py-2 bg-gray-900 border border-[#A89C86]/30 rounded text-xs text-gray-400 hover:text-[#E8E2D7] transition-colors"
@@ -662,13 +693,18 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
             bottomSide={bottomPlayer} currentTurn={currentTurn} spectator={onlineRole === 'spectator'} finished={!!winner} resultVisible={showGameOver} checkNotice={showCheckWarning&&!winner?t.check:undefined} checkEvent={checkEvent} checkmate={!!winner && gameState.gameOverReason === 'checkmate'}
             tokens={tokens} selectedTokenId={selectedTokenId} 
             validMoveCount={validMoves.length} onClearSelection={() => setSelectedTokenId(null)}
+            onHint={onlineRole!=='spectator'?()=>void ticketHint.request():undefined} hintAccess="ticket"
+            hintDisabled={!hintEligible} hintPending={ticketHint.pending} hintMove={hintMove} hintFailed={ticketHint.failed}
+            hintError={ticketHint.error?hintErrorText(lang,ticketHint.error):undefined} onClearHint={ticketHint.clear}
+            onRecoverHint={onlineRole!=='spectator'&&verifiedParticipant&&ticketHint.hasRecovery?()=>void ticketHint.recover():undefined}
+            savedHint={ticketHint.recovered?.hint}
             is2D={is2DView} onViewChange={setIs2DView}
             onResetView={() => setViewResetKey(key => key + 1)}
             onHome={() => setShowHomeConfirm(true)} onRules={() => setShowRules(true)} onResign={() => setShowResignConfirm(true)}
             showMoveHints={showMoveHints} onHintsChange={setShowMoveHints}
             notice={!matchReady ? t.adCloudTitle : disconnectTimeLeft !== null ? (matchText(lang, '再接続を待っています… ', 'Waiting for reconnection… ')) + disconnectTimeLeft + 's' : errorMsg || undefined}
             board={is2DView ? (
-                    <Board2D quietLayout boardDesign={boardDesign} boardFinish={boardFinish}
+                    <Board2D quietLayout boardDesign={boardDesign} boardFinish={boardFinish} hintMove={hintMove}
                     tokens={tokens}
                     isFlipped={isFlipped}
                     onlineRole={onlineRole}
@@ -682,7 +718,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
                     currentTurn={currentTurn}
                 />
                 ) : (
-                    <Board3D lang={lang} quietLayout key={viewResetKey} boardDesign={boardDesign} boardFinish={boardFinish} pieceFinish={pieceFinish} checkmate={!!winner && gameState.gameOverReason === 'checkmate'}
+                    <Board3D lang={lang} quietLayout key={viewResetKey} boardDesign={boardDesign} boardFinish={boardFinish} pieceFinish={pieceFinish} hintMove={hintMove} checkmate={!!winner && gameState.gameOverReason === 'checkmate'}
                     tokens={tokens}
                     isFlipped={isFlipped}
                     onlineRole={onlineRole}
@@ -719,10 +755,10 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
             {castlingPending && (
                 <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
                     <div role="dialog" aria-modal="true" aria-label={matchText(lang, '移動方法を選択', 'Choose move type')} className="bg-[#161513] border border-[#B39A62]/30 p-6 rounded-lg max-w-sm w-full text-center">
-                        <p className="text-[#E8E2D7] mb-4">{matchText(lang, '通常移動かキャスリングを選んでください。', 'Choose a normal move or castling.')}</p>
+                        <QubeTeacher lang={lang} variant="compact"><p className="text-[#E8E2D7] mb-4">{matchText(lang, '通常移動かキャスリングを選んでください。', 'Choose a normal move or castling.')}</p></QubeTeacher>
                         {(['normal', 'castle'] as const).map(intention => (
                             <button key={intention} className="p-3 m-1 border border-[#B39A62]/30 rounded text-[#E8E2D7]" onClick={() => {
-                                if (preparation || !socket || !isConnected) return;
+                                if (preparation || !socket || !isConnected || ticketHint.pending) return;
                                 socket.emit('player_action', {
                                     actionId: uuidv4(),
                                     version: gameState.version,
@@ -748,13 +784,13 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
                 <div className="fixed inset-0 z-50 bg-black/80 flex flex-col items-center justify-center p-4">
                     <div className="bg-[#161513] border border-[#B39A62]/30 p-8 rounded-lg max-w-sm w-full text-center shadow-2xl">
                         <h3 className="text-xl tracking-[0.2em] font-serif text-[#E8E2D7] mb-2">{matchText(lang, 'プロモーション', 'Promotion')}</h3>
-                        <p className="text-[#A89C86] text-xs tracking-widest mb-6 font-serif">{matchText(lang, 'どの駒に昇格しますか？', 'Choose a piece to promote to:')}</p>
+                        <QubeTeacher lang={lang} variant="compact"><p className="text-[#A89C86] text-xs tracking-widest mb-6 font-serif">{matchText(lang, 'どの駒に昇格しますか？', 'Choose a piece to promote to:')}</p></QubeTeacher>
                         <div className="grid grid-cols-2 gap-3 mb-6">
                             {(['Queen', 'Rook', 'Bishop', 'Knight'] as const).map(pt => (
                                 <button
                                     key={pt}
                                     onClick={() => {
-                                        if (preparation || !socket || !isConnected) return;
+                                        if (preparation || !socket || !isConnected || ticketHint.pending || gameState.gameOver || gameState.version!==promotionPending.revision) return;
                                         const pTo = pt === 'Queen' ? 'Q' : pt === 'Rook' ? 'R' : pt === 'Bishop' ? 'B' : 'N';
                                         socket?.emit('player_action', {
                                             actionId: uuidv4(),
@@ -798,9 +834,9 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
                         <h3 className="text-lg font-bold text-[#E8E2D7] mb-2">
                             {matchText(lang, 'リザインしますか？', 'Resign Match?')}
                         </h3>
-                        <p className="text-sm text-gray-400 mb-6">
+                        <QubeTeacher lang={lang} variant="compact"><p className="text-sm text-gray-400 mb-6">
                             {matchText(lang, 'リザインすると相手の勝利となります。本当に対局を終了しますか？', 'Resigning will forfeit the match to your opponent. Are you sure?')}
-                        </p>
+                        </p></QubeTeacher>
                         <div className="flex gap-3 w-full">
                             <button
                                 onClick={() => setShowResignConfirm(false)}
@@ -829,11 +865,11 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
                         <h3 className="text-xl font-bold text-[#E8E2D7] tracking-widest uppercase">
                             {matchText(lang, '遊び方', 'How to Play')}
                         </h3>
-                        <div className="text-sm text-gray-400 text-left space-y-3">
+                        <QubeTeacher lang={lang} variant="compact" className="text-sm text-gray-400 text-left space-y-3">
                             <p>• <strong>{matchText(lang, '勝利条件:', 'Victory:')}</strong> {matchText(lang, '相手のキングを取るか、チェックメイトすると勝利です。', 'Capture the enemy King or Checkmate them.')}</p>
                             <p>• <strong>{matchText(lang, '重ね合わせ:', 'Superposition:')}</strong> {matchText(lang, '駒は初期状態では複数の正体（可能性）を持っています。駒を動かすことで、その動き方に基づいて可能性が絞り込まれていきます。', 'All pieces start with multiple possible identities. Moving a piece collapses its possibilities based on how it moved.')}</p>
                             <p>• <strong>{matchText(lang, '正体の確定:', 'Discovery:')}</strong> {matchText(lang, '正体が確定していない敵の駒は、実はキングかもしれません。慎重に攻めましょう！', 'Be careful! Any unknown enemy piece could turn out to be their King when revealed.')}</p>
-                        </div>
+                        </QubeTeacher>
                         <div className="flex gap-3 w-full mt-4">
                             <button
                                 onClick={() => setShowRules(false)}

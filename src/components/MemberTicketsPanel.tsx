@@ -1,4 +1,6 @@
 'use client';
+import { QubeTeacher } from './QubeTeacher';
+import { hintScopeText } from '../locales/hintScopeText';
 import { CURRENT_TERMS_ACCEPTED_EVENT } from '../lib/currentAccountTerms';
 import React, { useEffect } from 'react';
 import type { User } from '../types/game';
@@ -47,13 +49,14 @@ export function MemberTicketsPanel({ user, lang }: { user: User; lang: Language 
     if (status && !status.active && !hasCommerce) return null;
     return <section aria-label={title} className="reward-card text-sm" data-member-ticket-usage>
         <h4 className="reward-title">{title}</h4>
+        <QubeTeacher lang={lang} variant="compact"><p>{hintScopeText(lang)}</p></QubeTeacher>
         {failed === revision ? <p role="status">{text.unavailable}</p> : !status ? <p role="status">{text.loading}</p> : <>
             {status.commerce && <CommerceEntitlements status={status.commerce} lang={lang} />}
             {status.active && <div data-legacy-member-tickets>
             {hasCommerce && <h5 className="reward-title">{commerceStatusText(lang).legacy}</h5>}
             <dl className="reward-balances">
                 <div className="reward-balance"><dt>{text.rankedTickets}</dt><dd>{status.tickets.ranked}</dd></div>
-                <div className="reward-balance"><dt>{text.hintTickets} · CPU</dt><dd>{status.tickets.hint}</dd></div>
+                <div className="reward-balance"><dt>{text.hintTickets}</dt><dd>{status.tickets.hint}</dd></div>
             </dl>
             <details className="reward-details"><summary>{hub.rules}</summary><div className="reward-details__body">
                 <p>{text.lastClaimUtcDay}: {status.lastGrantUtcDay ?? text.notClaimed}</p><p>{wallet.expiry}</p>

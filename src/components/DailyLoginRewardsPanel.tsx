@@ -1,4 +1,6 @@
 'use client';
+import { QubeTeacher } from './QubeTeacher';
+import { hintScopeText } from '../locales/hintScopeText';
 
 import React from 'react';
 import type { User } from '../types/game';
@@ -56,14 +58,14 @@ export function DailyLoginRewardsPanel({ user, lang }: { user: User; lang: Langu
     const preview = status ? dailyRewardPreview(status) : null;
     return <section aria-label={text.title} className="reward-card">
         <h4 className="reward-title">{hub.balance}</h4>
-        {typeof sharedAdmissionEnabled === 'boolean' && <p className="reward-caption mt-2">{wallet.rule}</p>}
+        <QubeTeacher lang={lang} variant="compact">{typeof sharedAdmissionEnabled==='boolean'&&<p className="reward-caption mt-2">{wallet.rule}</p>}<p>{hintScopeText(lang)}</p></QubeTeacher>
         {failedRevision === revision || status?.enabled === false
             ? <p role="status" className="mt-2 text-sm text-[#A89C86]">{text.unavailable}</p>
             : !status
                 ? <p role="status" className="mt-2 text-sm text-[#A89C86]">{text.loading}</p>
                 : <dl className="reward-balances">
                     <div className="reward-balance"><dt>{text.rankedTickets}</dt><dd>{status.tickets.ranked}{status.rewardPolicyVersion !== 2 && <small>{hub.limit} 20</small>}</dd></div>
-                    <div className="reward-balance"><dt>{text.hintTickets} · CPU</dt><dd>{status.tickets.hint}{status.rewardPolicyVersion !== 2 && <small>{hub.limit} 20</small>}</dd></div>
+                    <div className="reward-balance"><dt>{text.hintTickets}</dt><dd>{status.tickets.hint}{status.rewardPolicyVersion !== 2 && <small>{hub.limit} 20</small>}</dd></div>
                 </dl>}
         {status?.enabled && preview && <div className="reward-next">
             {preview.claimedToday && <p className="reward-caption">✓ {wallet.claimed}</p>}
@@ -76,9 +78,9 @@ export function DailyLoginRewardsPanel({ user, lang }: { user: User; lang: Langu
             {preview.credit.ranked === 0 && preview.credit.hint === 0 && <p>{status.rewardPolicyVersion === 2 ? text.unavailable : hub.full}</p>}
             {!preview.claimedToday && <p className="reward-caption">{hub.automatic}</p>}
         </div>}
-        <details className="reward-details"><summary>{hub.rules}</summary><div className="reward-details__body">
+        <details className="reward-details"><summary>{hub.rules}</summary><QubeTeacher lang={lang} variant="compact" className="reward-details__body">
             <p>{status?.rewardPolicyVersion === 2 ? (lang === 'ja' ? 'UTC日付ごとの7日周期。ランク戦券は1・1・2・2・3・3・3枚、7日目にヒント1枚。8日目は1日目に戻り、受け取らない日があると1日目から再開します。' : 'Seven UTC-day cycle: 1, 1, 2, 2, 3, 3, 3 ranked tickets, plus one hint on day 7. Day 8 returns to day 1. A missed day resets the cycle.') : wallet.streak}</p>
             {status && <p>{text.lastClaimUtcDay}: {status.lastClaimUtcDay ?? text.notClaimed}</p>}
-        </div></details>
+        </QubeTeacher></details>
     </section>;
 }

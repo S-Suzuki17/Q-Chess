@@ -6,6 +6,7 @@ import { MatchLayout } from './MatchLayout';
 import type { Token } from '../lib/GameEngine';
 import { LANGUAGES } from '../locales/dict';
 import { matchText } from '../locales/matchText';
+import { moveHintText } from '../locales/moveHintText';
 
 const piece: Token = { id:'white_1', player:'white', row:6, col:4,
     probabilities:{King:1, Queen:1, Rook:1, Bishop:1, Knight:1, Pawn:1} };
@@ -19,6 +20,15 @@ const base: ComponentProps<typeof MatchLayout> = {
 const render = (overrides: Partial<typeof base> = {}) => renderToStaticMarkup(createElement(MatchLayout, {...base,...overrides}));
 
 describe('Match decision feedback', () => {
+    it.each(LANGUAGES.map(language=>language.code))('shows an explicit free or 1-ticket action and QUBE explanations in %s',lang=>{
+        expect(render({lang,hintAccess:'free'})).toContain(moveHintText(lang).free);
+        expect(render({lang,hintAccess:'ticket'})).toContain(moveHintText(lang).ticket);
+        expect(render({lang,hintAccess:'ticket'})).toContain('data-qube-speaker');
+        const historical=render({lang,finished:true,hintAccess:'ticket',onRecoverHint:noop,savedHint:{fromRow:6,fromCol:0,toRow:5,toCol:0}});
+        expect(historical).toContain(moveHintText(lang).historical);expect(historical).toContain(moveHintText(lang).recover);
+        expect(historical).not.toContain('data-testid="hint-source"');expect(historical).not.toContain('data-testid="hint-destination"');
+    });
+    it('uses the English teacher for an unsupported locale',()=>{expect(render({lang:'unknown'})).toContain('data-qube-speaker');});
     it('states every promotion and special choice needed to replay the hint', () => {
         const hintMove = { fromRow: 1, fromCol: 4, toRow: 0, toCol: 4 };
         for (const [promotionTarget, name] of [[16, 'クイーン'], [8, 'ルーク'], [4, 'ビショップ'], [2, 'ナイト']] as const) {

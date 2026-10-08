@@ -29,6 +29,9 @@ import {cloudText} from '../locales/cloudText';
 import { crownAdmissionEnabled } from '../config/crownAdmission';
 import { authorizeCrownStage } from '../lib/crownAdmission';
 import { createCrownEntryController } from '../lib/crownEntry';
+import { QubeTeacher } from './QubeTeacher';
+import { hintScopeText } from '../locales/hintScopeText';
+import { CrownHintRecovery } from './CrownHintRecovery';
 import './campaign.css';
 
 
@@ -46,6 +49,7 @@ function MemberCircuit({lang,user,onBack,onPlayingChange}:CampaignProps) {
     const [chosenPage,setPage]=useState<number|null>(null);
     const [firstClear,setFirstClear]=useState(false);
     const [run,setRun]=useState(0);
+    const [crownRunId,setCrownRunId]=useState<string|undefined>();
     const [runPersonality,setRunPersonality]=useState(randomCPUPersonality);
     const [side,setSide]=useState<'white'|'black'>('white');
     const [preview,setPreview]=useState<VisualReward|null>(null);
@@ -97,6 +101,7 @@ function MemberCircuit({lang,user,onBack,onPlayingChange}:CampaignProps) {
         if(result.state!=='ready'){setEntryError(true);return;}
         if(!result.canActivate())return;
         runPermit.current=permit;
+        setCrownRunId(crypto.randomUUID());
         setRunPersonality(randomCPUPersonality());
         setRunDesign({music:progress.music,effect:progress.effect});setRunMusic(CIRCUIT_MUSIC.filter(track=>rewardUnlocked(progress,track.id)).map(track=>track.id));onPlayingChange?.(true);
         setFirstClear(!progress.stageStars?.[id-1]);setSelected(id);setOutcome(null);setRun(value=>value+1);setActiveId(id);
@@ -110,6 +115,7 @@ function MemberCircuit({lang,user,onBack,onPlayingChange}:CampaignProps) {
     if(activeId) {
         const active=CIRCUIT_STAGES[activeId-1];
         return <LocalGameBoard key={`${activeId}-${run}`} lang={lang} user={user} cpuLevel={active.strength<12?1:active.strength<23?3:5}
+            crownStageId={activeId} crownRunId={crownRunId}
             cpuPersonality={runPersonality} cpuSearchProfile={active.search} campaignLabel={`${stageText(lang,'stage')} ${activeId} / 100 · ${loop('strength')} ${active.strength}`} opponentLabel={active.opponent}
             onlineRole={side} timeControl={active.timeControl} onComplete={complete} onHome={leaveStage}
             resultPanel={outcome&&<CampaignResult lang={lang} stageId={activeId} firstClear={firstClear} effect={runDesign.effect} outcome={outcome} saveError={storageError}
@@ -119,9 +125,10 @@ function MemberCircuit({lang,user,onBack,onPlayingChange}:CampaignProps) {
     }
     return <section className="campaign-screen" data-circuit-stage={selected} aria-label={t('title')}>
         <header className="campaign-header"><button onClick={()=>{cancelEntry();onBack();}}><ArrowLeft size={18}/>{t('back')}</button><span>Q-GAMBIT</span><span>{cleared}/100 <Trophy size={16}/></span></header>
-        <div className="campaign-intro"><p>{t('title')}</p><h1>{stageText(lang,'intro')}</h1><p>{stageText(lang,'rules')}</p><p>{cloudText(lang,'help')}</p></div>
+        <div className="campaign-intro"><p>{t('title')}</p><h1>{stageText(lang,'intro')}</h1><QubeTeacher lang={lang} variant="compact"><p>{stageText(lang,'rules')}</p><p>{cloudText(lang,'help')}</p><p>{hintScopeText(lang)}</p></QubeTeacher></div>
         {storageError&&<p className="campaign-save-error" role="alert">{t('saveError')}</p>}
         {entryError&&<p className="campaign-save-error" role="alert">{lang==='ja'?'対局の準備ができませんでした。もう一度お試しください。':'Could not prepare the game. Please try again.'}</p>}
+        <CrownHintRecovery userId={user.id} lang={lang}/>
         <section className="campaign-circuit" aria-label={loop('record')}>
             <div className="campaign-record"><span>{t('cleared')} <b>{cleared}/100</b></span><span>{loop('medals')} <b>{(progress.stageStars??[]).reduce((sum,value)=>sum+value,0)}/300</b></span><span>{loop('strength')} <b>{stage.strength}/34</b></span></div>
             <div className="campaign-circuit-nav"><button disabled={page===0} onClick={()=>{cancelEntry();setPage(page-1);}}>{loop('previous')}</button><strong>{stageText(lang,'stage')} {page*10+1}–{page*10+10}</strong><button disabled={page===9} onClick={()=>{cancelEntry();setPage(page+1);}}>{loop('next')}</button></div>
@@ -129,13 +136,13 @@ function MemberCircuit({lang,user,onBack,onPlayingChange}:CampaignProps) {
         <div className="campaign-journey">
             <article className="campaign-boss-card">
                 <div className="campaign-boss-heading"><span className="campaign-boss-seal" aria-hidden="true"><RewardSigil motif="corona" tier={Math.ceil(selected/10)}/></span><div><p>{stageText(lang,'stage')} {selected} / 100</p><h2>{stage.opponent}</h2></div></div>
-                <p>{stageText(lang,'rules')}</p>
+                <QubeTeacher lang={lang} variant="compact"><p>{stageText(lang,'rules')}</p></QubeTeacher>
                 <span className="campaign-difficulty">{loop('strength')} {stage.strength} / 34 · {stage.timeControl==='10m'?dict[lang].tc10m:stage.timeControl==='3m'?dict[lang].tc3m:dict[lang].tc10s}</span>
                 <div className="campaign-boss-reward"><Trophy size={20}/><span><small>{t('rewards')}</small><strong>{rewardName(lang,reward.id)}</strong></span>{rewardUnlocked(progress,reward.id)&&<Check size={18}/>}</div>
                 <button data-preview-reward={reward.id} onClick={()=>{cancelEntry();setPreview({kind:reward.kind,id:reward.id});}}>{circuitText(lang,'preview')}</button>
                 <fieldset className="campaign-side"><legend>{t('challenge')}</legend>{(['white','black'] as const).map(value=><button key={value} type="button" aria-pressed={side===value} onClick={()=>{cancelEntry();setSide(value);}}>{t(value)}</button>)}</fieldset>
                 <button className="campaign-primary" disabled={starting||!loaded||!stageUnlocked(progress,selected)} onClick={()=>start(selected)}>{starting||!loaded?dict[lang].loading:stageUnlocked(progress,selected)?t('challenge'):t('locked')}<ArrowUpRight size={20}/></button>
-                <p className="campaign-medal-help">★ {t('win')} · ★ {t('noHints')} · ★ {stage.timeControl==='10s'?stageText(lang,'quickMoves'):t('quick')}</p>
+                <QubeTeacher lang={lang} variant="compact"><p className="campaign-medal-help">★ {t('win')} · ★ {t('noHints')} · ★ {stage.timeControl==='10s'?stageText(lang,'quickMoves'):t('quick')}</p></QubeTeacher>
             </article>
             <nav className="campaign-rounds" aria-label={t('title')}>{CIRCUIT_STAGES.slice(page*10,page*10+10).map(item=>{
                 const unlocked=stageUnlocked(progress,item.id),stars=progress.stageStars?.[item.id-1]??0;
@@ -161,8 +168,8 @@ function MemberCircuit({lang,user,onBack,onPlayingChange}:CampaignProps) {
                 })}
             </div></div>)}
         </section>
-        <section className="campaign-collection" aria-label={circuitText(lang,'music')}><h2>{circuitText(lang,'music')}</h2><p>{cosmeticsSettingsText(lang,'settingsOnly')}</p>
-            <div className="music-star-summary"><strong>{musicMilestoneText(lang,'title')}</strong><span>{musicMilestoneText(lang,'total')} ★ {totalCircuitStars(progress)} / 300</span><p>{musicMilestoneText(lang,'help')}</p></div>
+        <section className="campaign-collection" aria-label={circuitText(lang,'music')}><h2>{circuitText(lang,'music')}</h2><QubeTeacher lang={lang} variant="compact"><p>{cosmeticsSettingsText(lang,'settingsOnly')}</p></QubeTeacher>
+            <div className="music-star-summary"><strong>{musicMilestoneText(lang,'title')}</strong><span>{musicMilestoneText(lang,'total')} ★ {totalCircuitStars(progress)} / 300</span><QubeTeacher lang={lang} variant="compact"><p>{musicMilestoneText(lang,'help')}</p></QubeTeacher></div>
             <div className="campaign-equipment campaign-music">{['standard',...CIRCUIT_MUSIC.map(track=>track.id),...CHAMPIONSHIP_REWARDS.filter(reward=>reward.kind==='music').map(reward=>reward.id)].map(id=>{
                 const acquired=rewardUnlocked(progress,id);
                 const milestone=circuitMusic(id);
