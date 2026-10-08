@@ -10,9 +10,9 @@ import net from 'node:net';
 import { once } from 'node:events';
 import pg from 'pg';
 const [bin, suite] = process.argv.slice(2);
-assert.equal(process.argv.length, 4, 'Usage: native-postgres-local.mjs <absolute PostgreSQL bin> <sessions|commerce|commerce-ledger|commerce-http|hint-origins|match-hints|match-hint-runtime|shared|shared-runtime|crown>');
+assert.equal(process.argv.length, 4, 'Usage: native-postgres-local.mjs <absolute PostgreSQL bin> <sessions|commerce|commerce-ledger|commerce-http|hint-origins|match-hints|match-hint-runtime|shared|shared-runtime|crown|email-registration>');
 assert.ok(bin && isAbsolute(bin));
-const suites = {sessions:['legacy_session_upgrade','session-postgres.test.mjs'],commerce:['commerce_upgrade','commerce-postgres.test.mjs'],
+const suites = {'email-registration':['commerce_upgrade','email-registration-postgres.test.mjs'],sessions:['legacy_session_upgrade','session-postgres.test.mjs'],commerce:['commerce_upgrade','commerce-postgres.test.mjs'],
     'commerce-ledger':['commerce_upgrade','commerce-source-ledger-postgres.test.mjs'],
     'commerce-http':['commerce_upgrade','commerce-postgrest.test.mjs'],
     'match-hints':['commerce_upgrade','match-hint-postgres.test.mjs'],
