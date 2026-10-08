@@ -9,7 +9,8 @@ import {
 // present during billing, rollback and profile erasure. The shared helper
 // compares commerce lists against the public TS fixture and asserts every
 // discovered file against the explicit reviewed inventory before executing the
-// PR19 baseline. New match-hint tests separately apply the forward policy file.
+// PR19 baseline. Match-hint and current compiled HTTP adapter tests separately
+// apply the forward policy file; historical SQL-only suites keep all thirteen.
 // No private schema import or claim of full hosted-schema equivalence.
 export const historical = combinedHistoricalMigrations;
 export const pending = combinedPendingMigrations;
