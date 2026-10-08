@@ -48,7 +48,7 @@ try {
             if (url.pathname === '/account/progress') return route.fulfill({ json:{ userId:user.id, revision:0, progress, saved:true } });
             if (url.pathname === '/game-records') return route.fulfill({ json:{ records } });
             if (url.pathname === '/rewards/daily-login' && route.request().method()==='GET') return route.fulfill({json:{
-                userId:user.id, enabled:true, streakDays:0, rewardPolicyVersion:1, tickets:{ranked:4,hint:5},
+                userId:user.id, enabled:true, streakDays:0, rewardPolicyVersion:1, tickets:{ranked:4,hint:0},
                 lastClaimUtcDay:null, currentUtcDay:new Date().toISOString().slice(0,10),
             }});
             if (url.pathname === '/membership/stripe/status') return route.fulfill({json:{
@@ -75,7 +75,7 @@ try {
         if (releaseFlagsOn) {
             await page.locator('.reward-balances dd').first().waitFor();
             assert.match(await page.locator('.reward-balances dd').nth(0).innerText(), /^4\b/);
-            assert.match(await page.locator('.reward-balances dd').nth(1).innerText(), /^5\b/);
+            assert.match(await page.locator('.reward-balances dd').nth(1).innerText(), /^0\b/);
             assert.equal(await page.locator('.lobby-wallet-status').count(), 0);
         } else assert.equal(await page.locator('.lobby-wallet-status').innerText(), '未解放');
         assert.equal(await page.locator('[data-lobby-cosmetic="board"]').getAttribute('data-reward-id'), 'walnut');
@@ -116,11 +116,36 @@ try {
         await page.locator('.lobby-navigation').scrollIntoViewIfNeeded();
         assert.ok(await lobby.evaluate(node => node.scrollTop >= 0));
 
-        // Actual game code and worker, not a Board stub. Backend operations still
-        // fail closed and are intercepted, so these are uncharged local fixtures.
-        if (releaseFlagsOn) {
-            // Paid authoritative practice is covered by its server/SQL suites.
-            // Use the real guest entry for this local worker and layout check.
+        // Actual game and strongest hint worker, with zero-ticket registered
+        // practice and guest practice. No remote hint endpoint may be invoked.
+        const verifyFreePractice = async identity => {
+            const requestStart=remoteRequests.length;
+            await page.locator('.lobby-shortcuts button').first().click();
+            const practice=page.getByRole('dialog');await practice.waitFor();
+            await practice.getByRole('button',{name:'黒・後手',exact:true}).click();
+            assert.equal(await practice.getByRole('button',{name:'黒・後手',exact:true}).getAttribute('aria-pressed'),'true');
+            await practice.getByRole('button',{name:'白・先手',exact:true}).click();
+            await practice.locator('[data-time-control="10m"]').click();
+            await page.locator('.match-layout').waitFor();
+            const hint=page.locator('[data-hint-access="free"]');
+            await hint.waitFor();assert.equal(await hint.innerText(),'無料でQUBEに聞く');await hint.click();
+            await page.getByTestId('hint-destination').waitFor({timeout:25000});
+            const from=(await page.getByTestId('hint-source').innerText()).trim(),to=(await page.getByTestId('hint-destination').innerText()).trim();
+            assert.match(from,/^[a-h][1-8]$/);assert.match(to,/^[a-h][1-8]$/);assert.notEqual(from,to);
+            assert.equal(await page.locator('#ranked-login-title').count(),0,identity+' practice does not require hint login');
+            assert.ok(!remoteRequests.slice(requestStart).some(path=>/^\/(cpu-practice|match-hints|crown-hints)(\/|$)/.test(path)),identity+' practice stays local with zero ticket operations');
+            await page.locator(`[data-square="${from}"]`).click();
+            assert.equal(await page.locator(`[data-square="${to}"]`).getAttribute('data-move-target'),'true','practice destination is legal in the actual position');
+            await page.locator(`[data-square="${to}"]`).click();
+            await page.waitForFunction(()=>document.querySelectorAll('.match-history li').length>=2,{},{timeout:20000});
+            assert.equal(await page.getByTestId('hint-destination').count(),0,'a moved position clears the old hint');
+            await page.getByRole('button',{name:'ホームに戻る',exact:true}).click();
+            await page.getByRole('button',{name:'戻る',exact:true}).click();await lobby.waitFor();
+        };
+        await verifyFreePractice('registered zero balance');
+        // The same guest path is exercised at the phone width; the registered
+        // game above covers every viewport without duplicating all worker runs.
+        if (width===390) {
             await page.getByRole('button',{name:/設定/}).first().click();
             await page.getByRole('button',{name:'アカウント',exact:true}).click();
             await page.getByRole('button',{name:'ログアウト',exact:true}).click();
@@ -129,35 +154,7 @@ try {
             await page.getByRole('checkbox').check();
             await page.getByRole('button',{name:'同意して続ける',exact:true}).click();
             await lobby.waitFor();
-        }
-        await page.locator('.lobby-shortcuts button').first().click();
-        const practice=page.getByRole('dialog');await practice.waitFor();
-        await practice.getByRole('button',{name:'黒・後手',exact:true}).click();
-        assert.equal(await practice.getByRole('button',{name:'黒・後手',exact:true}).getAttribute('aria-pressed'),'true');
-        await practice.getByRole('button',{name:'白・先手',exact:true}).click();
-        await practice.locator('[data-time-control="10m"]').click();
-        await page.locator('.match-layout').waitFor();
-        const hint=page.getByRole('button',{name:'QUBEに聞く',exact:true});
-        await hint.waitFor();await hint.click();
-        let from='a2',to='a3';
-        if(releaseFlagsOn){
-            await page.getByText('ヒント券は登録アカウントでの練習で使えます。ホームに戻り、登録アカウントでログインしてください。',{exact:true}).waitFor();
-            assert.equal(await page.locator('#ranked-login-title').count(),0,'guest has no password to re-enter');
-            assert.equal(await page.getByTestId('hint-destination').count(),0);
-            assert.ok(!remoteRequests.some(path=>path.startsWith('/cpu-practice')),'guest cannot debit paid practice tickets');
-        }else{
-            await page.getByTestId('hint-destination').waitFor({timeout:25000});
-            from=(await page.getByTestId('hint-source').innerText()).trim();to=(await page.getByTestId('hint-destination').innerText()).trim();
-            assert.match(from,/^[a-h][1-8]$/);assert.match(to,/^[a-h][1-8]$/);assert.notEqual(from,to);
-        }
-        await page.locator(`[data-square="${from}"]`).click();
-        assert.equal(await page.locator(`[data-square="${to}"]`).getAttribute('data-move-target'),'true','practice destination is legal in the actual position');
-        await page.locator(`[data-square="${to}"]`).click();
-        await page.waitForFunction(()=>document.querySelectorAll('.match-history li').length>=2,{},{timeout:20000});
-        assert.equal(await page.getByTestId('hint-destination').count(),0,'a moved position clears the old hint');
-        await page.getByRole('button',{name:'ホームに戻る',exact:true}).click();
-        await page.getByRole('button',{name:'戻る',exact:true}).click();await lobby.waitFor();
-        if(releaseFlagsOn){
+            await verifyFreePractice('guest');
             await page.locator('.lobby-campaign-action').click();
             await page.getByRole('button',{name:'ログインしてプレイ',exact:true}).waitFor();
             assert.equal(await page.locator('.campaign-boss-card .campaign-primary').count(),0,'guest cannot start account-bound Crown progress');
@@ -171,15 +168,16 @@ try {
         if(width<=700)assert.ok(boss.y<stages.y,'mobile puts the selected challenge before the stage list');
         await page.locator('.campaign-boss-card .campaign-primary').click();
         await page.locator('.match-layout').waitFor();
-        if(releaseFlagsOn)assert.equal(await page.getByRole('button',{name:'QUBEに聞く',exact:true}).count(),0,'paid hints are for practice only');
-        else await page.getByRole('button',{name:'QUBEに聞く',exact:true}).waitFor();
+        await page.locator('[data-hint-access="ticket"]').waitFor();
+        assert.equal(await page.locator('[data-hint-access="ticket"]').innerText(),'ヒント券を使用（1枚）');
+        assert.equal(await page.locator('[data-hint-access="free"]').count(),0,'Crown never falls back to a free practice hint');
         await page.getByRole('button',{name:'ホームに戻る',exact:true}).click();
         await page.getByRole('button',{name:'戻る',exact:true}).click();
         await page.locator('.campaign-screen').waitFor();
         await page.locator('.campaign-header button').click();await lobby.waitFor();
         assert.deepEqual(errors, [], `runtime errors ${width}`);
         assert.ok(remoteRequests.includes('/auth/ranked-session/status'));
-        results.push({ width,height, history:10, releaseFlagsOn, preview:true, settings:true, nativeDialogs:true, practiceLegalHint:!releaseFlagsOn, guestHintLoginGate:releaseFlagsOn, cpuReply:true, crown:true, crownGuestLoginGate:releaseFlagsOn, liveTraffic:false });
+        results.push({ width,height, history:10, releaseFlagsOn, preview:true, settings:true, nativeDialogs:true, zeroBalancePracticeLegalHint:true, guestFreePractice:width===390, practiceHintNetworkCalls:0, cpuReply:true, crownTicketLabel:true, crownGuestLoginGate:width===390, liveTraffic:false });
         } catch (error) {
             await page.screenshot({ path:resolve(artifacts, `failure-${width}.png`) });
             console.error(JSON.stringify({ width, errors, intercepted:remoteRequests, screen:await page.locator('body').innerText() }));
