@@ -36,6 +36,18 @@ describe('authoritative online hint position', () => {
         a.setPlayerName('host', 'new label');
         expect(a.hintPosition('Alice', 0).stateHash).toBe(p.stateHash);
     });
+    it('preserves public optional flags without publishing internal extra fields', () => {
+        const initial = createInitialBoard();
+        const source = initial.pieces.map(p => ({ ...p, trueType: 'K', privateSeed: 'hidden' }));
+        const a = new GameEngine('projection', 'Alice', 'Bob', { board: initial.board, pieces: source });
+        expect(a.getPublicState('Alice').pieces).toStrictEqual(initial.pieces);
+        expect(a.getPublicState('Bob').pieces).toStrictEqual(initial.pieces);
+        expect(a.getPublicState('Alice').pieces[0]).not.toHaveProperty('promoted');
+        const explicit = initial.pieces.map(p => ({ ...p, promoted: false, hasMoved: false }));
+        const b = new GameEngine('explicit-flags', 'Alice', 'Bob', { board: initial.board, pieces: explicit });
+        expect(b.getPublicState('Alice').pieces).toStrictEqual(explicit);
+        expect(JSON.stringify(a.hintPosition('Alice', 0))).not.toContain('privateSeed');
+    });
     it('retains ranked/random/private mode including CPU fallback', () => {
         const a = engine();
         expect(a.hintPosition('Alice', 0).mode).toBe('private');

@@ -16,7 +16,9 @@ export const onlineHintPieceId = (p: Pick<Piece, 'id' | 'team'>) => `${p.team ==
  * identity, a client-provided board, names, clocks, or other future fields. */
 export function publicHintPiece(p: Piece): Piece {
     return { id: p.id, team: p.team, possibilities: p.possibilities.slice(), x: p.x, y: p.y,
-        captured: !!p.captured, hasMoved: !!p.hasMoved, promoted: !!p.promoted };
+        captured: p.captured,
+        ...(p.hasMoved === undefined ? {} : { hasMoved: p.hasMoved }),
+        ...(p.promoted === undefined ? {} : { promoted: p.promoted }) };
 }
 export function onlineHintState(board: OnlineHintBoard, ply: number): GameState {
     const projected = { pieces: board.pieces.map(publicHintPiece), turn: board.turn };
