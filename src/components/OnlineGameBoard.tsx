@@ -576,8 +576,9 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
         return 'draw';
     }, [gameState]);
 
-    const originalMode=gameState?.mode==='ranked'||gameState?.mode==='random'||gameState?.mode==='private'
-        ? gameState.mode as MatchHintContext['mode'] : matchMode;
+    // Private engines retain legacy random display metadata; purchases use the original mode.
+    const originalMode=matchMode??(gameState?.mode==='ranked'||gameState?.mode==='random'||gameState?.mode==='private'
+        ? gameState.mode as MatchHintContext['mode'] : undefined);
     const paidHintContext=useMemo<MatchHintContext|null>(()=>roomId&&originalMode&&isUuid(gameState?.hintContextId)
         ? {kind:'match',mode:originalMode,matchId:roomId,contextId:gameState.hintContextId,rulesVersion:'match-hint-v1'} : null,
         [roomId,originalMode,gameState?.hintContextId]);
