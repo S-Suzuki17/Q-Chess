@@ -127,14 +127,15 @@ test('real hint policy entrypaths: index/auth/socket/Worker/PostgREST/native SQL
             -- a public display-field prerequisite absent from the minimal base.
             alter table public.profiles add column if not exists avatar_url text;
             alter table public.system_status enable row level security;grant select on public.system_status to service_role;
-            create role qg_shared_runtime_gateway login noinherit;grant anon,authenticated,service_role to qg_shared_runtime_gateway;`);
+            create role qg_shared_runtime_gateway login noinherit password 'qgambit-ephemeral-only';
+            grant anon,authenticated,service_role to qg_shared_runtime_gateway;`);
         service=await open('service_role');await bind(admin);
         const listener=net.createServer();listener.listen(0,'127.0.0.1');await once(listener,'listening');
         const restPort=listener.address().port;await new Promise(r=>listener.close(r));
         const rest=launch(postgrest,['+RTS','-N2','-RTS'],{...cleanEnv,
-            PGRST_DB_URI:'postgres://qg_shared_runtime_gateway@127.0.0.1:'+connection.port+'/commerce_upgrade?sslmode=disable&gssencmode=disable',
+            PGRST_DB_URI:'postgres://qg_shared_runtime_gateway:qgambit-ephemeral-only@127.0.0.1:'+connection.port+'/commerce_upgrade?sslmode=disable&gssencmode=disable',
             PGRST_DB_SCHEMAS:'public',PGRST_DB_ANON_ROLE:'anon',PGRST_JWT_SECRET:secret,PGRST_SERVER_HOST:'127.0.0.1',
-            PGRST_SERVER_PORT:String(restPort),PGRST_LOG_LEVEL:'warn',PGRST_DB_POOL:'8'});
+            PGRST_SERVER_PORT:String(restPort),PGRST_LOG_LEVEL:'info',PGRST_DB_POOL:'8'});
         await waitFor(async()=>{
             if(rest.exitCode!==null)throw Error('PostgREST exited '+rest.exitCode+'\n'+logs);
             try{return(await fetch('http://127.0.0.1:'+restPort+'/match_hint_receipts?select=request_id&limit=1',

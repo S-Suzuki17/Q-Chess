@@ -27,7 +27,7 @@
     },
     {
       "id": "commerce-and-disclosures",
-      "sources": ["^src/components/(Commerce|Stripe|Terms|CurrentTerms|AccountData)", "^src/config/(salesTermsDraft|currentTerms|webCommerce|publicContact)\\.ts$", "^src/locales/(terms|privacy|engagementPrivacy|commerce)", "^server/src/services/(Stripe|Commerce|AccountCurrentTerms)", "^supabase/migrations/"],
+      "sources": ["^src/components/(Commerce|Stripe|Terms|CurrentTerms|AccountData|MemberTicketsPanel|DailyLoginRewardsPanel|SharedMatchAdmissionChoice)", "^src/config/(salesTermsDraft|currentTerms|webCommerce|publicContact|commerceCatalog)\\.ts$", "^src/locales/(terms|privacy|engagementPrivacy|commerce|stripeMembership|hintScope)", "^server/src/services/(Stripe|Commerce|AccountCurrentTerms)", "^supabase/migrations/"],
       "pages": ["/faq/#hints", "/contact/", "/privacy/", "/terms/"],
       "guidance": ["src/locales/siteContent.ts", "src/locales/privacyReview.ts", "src/locales/termsText.ts", "src/components/TermsDocument.tsx", "src/config/salesTermsDraft.ts", "src/app/privacy/page.tsx", "src/app/terms/page.tsx"]
     },
@@ -39,7 +39,7 @@
     },
     {
       "id": "qube-teaching",
-      "sources": ["^src/components/(QubeTeacher|InteractiveTutorial|LearningPage|SiteInformation|LevelSelect|MatchLayout|LocalGameBoard|OnlineGameBoard|CampaignMode|RewardPreview|ChampionshipCollection|CosmeticsSettings)\\.tsx$", "^src/app/rules/page\\.tsx$", "^src/locales/(qubeTeaching|additionalTutorial|matchText|rulesDict|rulesVisualDict|siteContent|stageText|cosmeticsSettingsText)\\.ts$"],
+      "sources": ["^src/components/(QubeTeacher|InteractiveTutorial|LearningPage|SiteInformation|LevelSelect|MatchLayout|LocalGameBoard|OnlineGameBoard|CampaignMode|RewardPreview|ChampionshipCollection|CosmeticsSettings|MemberTicketsPanel|DailyLoginRewardsPanel|SharedMatchAdmissionChoice)\\.tsx$", "^src/app/rules/page\\.tsx$", "^src/locales/(qubeTeaching|additionalTutorial|matchText|rulesDict|rulesVisualDict|siteContent|stageText|cosmeticsSettingsText)\\.ts$"],
       "pages": ["/", "/about/", "/rules/", "/guide/", "/faq/", "game: tutorial, help dialogs, move hints and feedback, promotion/castling, stage/setup explanations, cosmetic preview/equipment guidance"],
       "guidance": ["src/components/QubeTeacher.tsx", "src/components/InteractiveTutorial.tsx", "src/components/LearningPage.tsx", "src/components/SiteInformation.tsx", "src/components/RewardPreview.tsx", "src/components/ChampionshipCollection.tsx", "src/components/CosmeticsSettings.tsx", "src/app/rules/page.tsx", "src/locales/qubeTeaching.ts", "src/locales/siteContent.ts", "src/locales/rulesDict.ts", "src/locales/rulesVisualDict.ts"]
     }

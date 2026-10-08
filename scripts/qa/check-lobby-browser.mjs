@@ -5,12 +5,12 @@ import { createServer } from 'node:http';
 import { readFile, mkdir } from 'node:fs/promises';
 import { resolve, sep, extname } from 'node:path';
 import { chromium } from 'playwright';
-const [releaseFlag='--release-flags=off', ...extraArgs] = process.argv.slice(2);
+const [releaseFlag='--release-flags=off', artifactDirectory='scratch/lobby-20261007', ...extraArgs] = process.argv.slice(2);
 assert.ok(/^--release-flags=(on|off)$/.test(releaseFlag) && extraArgs.length===0,
-    'Usage: check-lobby-browser.mjs [--release-flags=on|off]');
+    'Usage: check-lobby-browser.mjs [--release-flags=on|off] [artifact-directory]');
 const releaseFlagsOn = releaseFlag.endsWith('=on');
 
-const root = resolve('out'), artifacts = resolve('scratch/lobby-20261007');
+const root = resolve('out'), artifacts = resolve(artifactDirectory);
 const mime = { '.html':'text/html', '.js':'text/javascript', '.css':'text/css', '.svg':'image/svg+xml', '.jpg':'image/jpeg', '.png':'image/png', '.woff2':'font/woff2', '.mp3':'audio/mpeg' };
 const server = createServer(async (req, res) => {
     const pathname = decodeURIComponent(new URL(req.url ?? '/', 'http://localhost').pathname);
