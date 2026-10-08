@@ -23,7 +23,7 @@ export function commerceProductText(product: CommerceProduct, japanese = false) 
     return japanese ? `${name} · 月額総額 ${total}（税込）` : `${name} · ${total}/month total, tax included`;
 }
 export function commerceProductBenefits(product: CommerceProduct, japanese = false) {
-    if (product.kind === 'payment') return japanese ? 'CPU練習で使えるヒント。自動更新はありません。' : 'Hints for CPU practice. No automatic renewal.';
+    if (product.kind === 'payment') return japanese ? '練習以外の対局で1回につきヒント券1枚を使用します。練習・チュートリアルのヒントは無料です。自動更新はありません。' : 'Use 1 hint ticket per hint outside practice. Practice and tutorial hints are free. No automatic renewal.';
     const base = japanese ? 'オンライン・ランク戦が無制限、広告なし。' : 'Unlimited online and ranked matches, no ads.';
     return base + (product.hints ? (japanese ? '支払済みの購読期間ごとにヒント10枚。' : ' 10 hints per paid monthly subscription period.') : '');
 }

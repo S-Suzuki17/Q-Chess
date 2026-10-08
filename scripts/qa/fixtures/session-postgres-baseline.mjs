@@ -48,12 +48,17 @@ export const runtimeSessionMigration = '20261006154443_dormant_legacy_session_ru
 export const sharedAdmissionMigration = '20261006171148_shared_match_admission.sql';
 export const crownAdmissionMigration = '20261006172232_dormant_crown_first_attempt.sql';
 export const combinedPendingMigrations = [...commercePendingMigrations, durableSessionMigration, runtimeSessionMigration, sharedAdmissionMigration, crownAdmissionMigration].sort();
+// PR19's original thirteen-file upgrade remains a historical regression target.
+// The current hint-policy proof must also apply these explicit forward files.
+export const hintPolicyMigrations = ['20261008054904_match_hint_tickets_and_free_practice.sql'];
+export const reviewedMigrationInventory = [...combinedPendingMigrations, ...hintPolicyMigrations].sort();
 export const combinedHistoricalMigrations = [...historicalSessionMigrations,
     ...commerceHistoricalDependencies.filter(name => !historicalSessionMigrations.includes(name))];
 export const sessionBaselineEvidence = Object.freeze({
     postgresMajor: 17, publicSourceOnly: true, nativePgcrypto: true, hostedProductionEquivalent: false,
     historical: combinedHistoricalMigrations, pending: combinedPendingMigrations,
     migration: durableSessionMigration, combinedCommerceAndAuth: true,
+    releaseBaseline: 'PR19 / 93acd813', forwardMigrationsApplied: false,
     limitations: [
         'Minimal public account/Auth/Storage scaffolding is not complete hosted schema or ACL equivalence.',
         'auth.uid reads a synthetic request claim; Auth issuance, JWT validation, OTP and Storage HTTP APIs are not tested.',
@@ -64,11 +69,18 @@ export const sessionBaselineEvidence = Object.freeze({
 export async function applySessionFile(client, name) {
     await client.query(await readFile(new URL(`../../../supabase/migrations/${name}`, import.meta.url), 'utf8'));
 }
-export async function applySessionPending(client) {
+export async function assertReviewedMigrationInventory() {
     const names = (await readdir(new URL('../../../supabase/migrations/', import.meta.url)))
         .filter(name => name.endsWith('.sql') && name >= combinedPendingMigrations[0]).sort();
-    assert.deepEqual(names, combinedPendingMigrations, 'Review every new pending migration and extend the combined raw-file proof');
+    assert.deepEqual(names, reviewedMigrationInventory, 'Every new migration needs explicit current-release upgrade coverage');
+}
+export async function applySessionPending(client) {
+    await assertReviewedMigrationInventory();
     for (const name of combinedPendingMigrations) await applySessionFile(client, name);
+}
+export async function applyHintPolicyRelease(client) {
+    await applySessionPending(client);
+    for (const name of hintPolicyMigrations) await applySessionFile(client, name);
 }
 export async function setupSessionBaseline(client, expectedDatabase = 'legacy_session_upgrade') {
     // Only these disposable fixtures are allowed. Never accept a remote client,

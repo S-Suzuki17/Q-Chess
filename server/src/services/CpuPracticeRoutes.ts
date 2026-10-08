@@ -19,7 +19,8 @@ export function createCpuPracticeRouter(auth: RankedSessionAuthority, service: C
     };
     const authenticate: RequestHandler = async (req, res, next) => {
         res.setHeader('Cache-Control', 'no-store'); res.setHeader('Vary', 'Authorization');
-        if (!enabled()) { res.status(503).json({ code: 'FEATURE_DISABLED' }); return; }
+        const recovery = req.method === 'GET' && typeof req.params.requestId === 'string';
+        if (!recovery && !enabled()) { res.status(503).json({ code: 'FEATURE_DISABLED' }); return; }
         if (!allow('ip:' + (req.socket.remoteAddress ?? 'unknown'), 240)) {
             res.status(429).json({ code: 'TRY_LATER' }); return;
         }
@@ -36,7 +37,7 @@ export function createCpuPracticeRouter(auth: RankedSessionAuthority, service: C
             res.once('close', () => { if (!res.writableEnded) abort(); });
             const context: PracticeContext = { signal: controller.signal, async check() {
                 if (gate.blocked(userId)) throw new CpuPracticeError('ACCOUNT_UNAVAILABLE');
-                if (matchBusy(userId)) throw new CpuPracticeError('HINT_UNAVAILABLE_IN_MATCH');
+                if (!recovery && matchBusy(userId)) throw new CpuPracticeError('HINT_UNAVAILABLE_IN_MATCH');
                 if (legacy ? !(await auth.verifySession(token, userId)) : !token || await verifyUser(token) !== userId) {
                     throw new CpuPracticeError('AUTH_REQUIRED');
                 }
@@ -71,7 +72,15 @@ export function createCpuPracticeRouter(auth: RankedSessionAuthority, service: C
     router.post('/cpu-practice/sessions/:sessionId/close', authenticate, json, parser,
         action((_b,u,c,r) => practice().close(u,String(r.params.sessionId),c), []));
     router.post('/cpu-practice/sessions/:sessionId/hints', authenticate, json, parser,
-        action((b,u,c,r) => practice().requestHint(b.requestId,u,String(r.params.sessionId),b.revision,c), ['requestId','revision']));
+        action(async (b,_u,_c,r) => {
+            const uuid = (v: unknown) => typeof v === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);
+            if (!uuid(b.requestId) || !uuid(String(r.params.sessionId)) || !Number.isSafeInteger(b.revision) || b.revision < 0) {
+                throw new CpuPracticeError('INVALID_REQUEST');
+            }
+            // Practice/tutorial use the existing free local worker. No paid
+            // search, ledger read or purchase RPC is dispatched by this route.
+            throw new CpuPracticeError('PRACTICE_HINTS_FREE');
+        }, ['requestId','revision']));
     router.get('/cpu-practice/sessions/:sessionId/hints/:revision/:requestId', authenticate,
         action((_b,u,c,r) => practice().receipt(u,String(r.params.sessionId),Number(r.params.revision),String(r.params.requestId),c), []));
     const malformed: ErrorRequestHandler = (error, _req, res, next) => {
@@ -86,7 +95,7 @@ function respondError(res: express.Response, error: unknown) {
         : error instanceof Error && ['SEARCH_BUSY','SEARCH_FAILED','SEARCH_TIMEOUT'].includes(error.message) ? error.message : 'CPU_PRACTICE_UNAVAILABLE';
     const status = code === 'AUTH_REQUIRED' ? 401 : code === 'INSUFFICIENT_FUNDS' ? 402
         : ['SESSION_NOT_FOUND','ACCOUNT_UNAVAILABLE','HINT_UNAVAILABLE_IN_MATCH'].includes(code) ? 403
-        : ['STALE_REVISION','REQUEST_MISMATCH'].includes(code) ? 409
+        : ['STALE_REVISION','REQUEST_MISMATCH','PRACTICE_HINTS_FREE'].includes(code) ? 409
         : ['INVALID_REQUEST','INVALID_MOVE','NOT_YOUR_TURN','SESSION_FINISHED','NO_LEGAL_HINT'].includes(code) ? 422 : 503;
     res.status(status).json({ code });
 }

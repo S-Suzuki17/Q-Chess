@@ -4,6 +4,7 @@ import { Board3D } from './Board3D';
 import { tutorialDict } from '@/locales/rulesDict';
 import { Token } from '../lib/GameEngine';
 import { recordTutorialCompleted, recordTutorialStarted } from '../lib/engagementMetrics';
+import { QubeTeacher } from './QubeTeacher';
 
 interface Props {
     lang: Language;
@@ -190,13 +191,15 @@ export function InteractiveTutorial({ lang, onClose }: Props) {
                         {content.title}
                     </h2>
 
-                    <div className="text-gray-300 leading-relaxed text-lg flex-1 min-h-[160px] whitespace-pre-wrap">
+                    <QubeTeacher lang={lang} className="flex-1">
+                    <div data-tutorial-step={step} aria-live="polite" aria-atomic="true" className="text-gray-300 leading-relaxed text-lg min-h-[160px] whitespace-pre-wrap">
                         {instructions}
                     </div>
+                    </QubeTeacher>
 
                     <div className="flex justify-end mt-8 pt-6 border-t border-gray-800">
                         {(step === 2 || step === 5 || step === 8 || step === 11) && (
-                            <button 
+                            <button data-tutorial-next
                                 onClick={nextScenario}
                                 className="px-8 py-3 bg-[#B39A62]/20 border border-[#B39A62] text-[#D4B872] hover:bg-[#B39A62] hover:text-[#11100E] transition-colors font-bold tracking-widest"
                             >

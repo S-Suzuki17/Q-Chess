@@ -81,7 +81,7 @@
  .match-inspector .inspector-note,.match-pool p { display:none; }.match-candidates { gap:5px; }.candidate>span { font-size:26px; }
 }
 @media(max-width:999px) {
- .match-layout { display:flex; flex-direction:column; gap:8px; padding:0 12px calc(128px + env(safe-area-inset-bottom)); overflow-y:auto; overscroll-behavior:contain; }
+ .match-layout { display:flex; flex-direction:column; gap:8px; padding:0 12px calc(var(--match-footer-height,128px) + 12px); overflow-y:auto; overscroll-behavior:contain; }
  .match-header { display:grid; grid-template-columns:1fr auto auto; gap:6px; padding:6px 0; flex-shrink:0; }
  .match-brand strong { font-size:16px; }.match-brand>span { width:29px; height:29px; font-size:25px; }.match-heading,.match-mode,.desktop-label { display:none; }
  .match-tools { grid-row:2; grid-column:1/-1; }.match-view-switch { padding:2px; }.match-tool { min-height:40px; width:48px; }.match-theme { margin-left:auto; min-height:44px; width:44px; }

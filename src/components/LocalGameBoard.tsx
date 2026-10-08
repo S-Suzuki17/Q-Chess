@@ -4,6 +4,11 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { matchText } from '../locales/matchText';
 import { useBoardPreferences } from '../hooks/useBoardPreferences';
 import { useMoveHint } from '../hooks/useMoveHint';
+import { useTicketHint } from '../hooks/useTicketHint';
+import { canRequestHint } from '../lib/hintPolicy';
+import { PAID_HINTS_ENABLED, type CrownHintContext } from '../lib/paidHints';
+import { CrownHintRunClient, crownRunClocks, displayCrownRun, type CrownRunSnapshot } from '../lib/crownHintRun';
+import { moveHintText, hintErrorText } from '../locales/moveHintText';
 import { IdentityPool } from '../lib/IdentityPool';
 import { Token, deduceMoveTypes, isPlayerInCheck } from '../lib/GameEngine';
 import { QuantumPieceUI } from './QuantumPieceUI';
@@ -11,6 +16,7 @@ import { Board3D } from './Board3D';
 import { MatchResultDialog } from './MatchResultDialog';
 import { MatchIntro } from './MatchIntro';
 import { MatchLayout } from './MatchLayout';
+import { QubeTeacher } from './QubeTeacher';
 import { Board2D } from './Board2D';
 import { Language, dict } from '../locales/dict';
 import { User, TimeControl } from '../types/game';
@@ -22,13 +28,9 @@ import { cpuDifficulty } from '../config/cpuDifficulty';
 import { requestCPUSearch, requestQubeSearch } from '../lib/cpuClient';
 import { hintTimeAvailable } from '../../server/src/quantum-engine/ai/searchProfiles';
 import { adviceForMove } from '../../server/src/quantum-engine/ai/hintAdvice';
-import { randomCPUPersonality, cpuPersonalityForGame } from '../config/cpuPersonalities';
+import { randomCPUPersonality } from '../config/cpuPersonalities';
 import { cpuPersonalityText } from '../locales/cpuPersonalityText';
-import { hintAdviceText } from '../locales/hintAdviceText';
 import { legacyToQuantumState, quantumToLegacyMove, TYPE_TO_BIT } from '../quantum-engine/adapter';
-import { CPU_HINT_TICKETS_ENABLED, CpuPracticeClient, CpuPracticeClientError, displayCpuPractice, officialCpuPractice } from '../lib/cpuPractice';
-import type { CpuPracticeSnapshot } from '../quantum-engine/practice';
-import type { HintMove } from './boardPresentation';
 import { RANKED_SESSION_EVENT } from '../lib/rankedSession';
 import { getWinner } from '../quantum-engine/terminal';
 import { isCheckmateFinish } from '../lib/checkmatePresentation';
@@ -65,28 +67,37 @@ interface GameBoardProps {
     cpuSearchProfile?:CPUSearchProfile;
     opponentLabel?: string;
     campaignLabel?: string;
+    crownStageId?: number;
+    crownRunId?: string;
     onComplete?: (outcome:CampaignOutcome) => void;
     resultPanel?: React.ReactNode;
 }
 
-export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, matchMode, opponentId, timeControl = '10m', onHome, cpuPersonality, cpuSearchProfile, opponentLabel, campaignLabel, onComplete, resultPanel }: GameBoardProps) {
+export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, matchMode, opponentId, timeControl = '10m', onHome, cpuPersonality, cpuSearchProfile, opponentLabel, campaignLabel, crownStageId, crownRunId, onComplete, resultPanel }: GameBoardProps) {
     const playerSide = onlineRole === 'black' ? 'black' : 'white';
     const cpuSide = playerSide === 'white' ? 'black' : 'white';
     const t = { ...dict['en'], ...(dict[lang] || {}) } as any;
     const { is2DView, setIs2DView, boardDesign, boardFinish, pieceFinish, victoryEffect, avatarFrame } = useBoardPreferences();
     const hintsUsed=useRef(0);
     const [localPersonality] = useState(randomCPUPersonality);
-    const officialPractice=officialCpuPractice({roomId,matchMode,campaignLabel,cpuPersonality,cpuSearchProfile,onComplete,onlineRole});
-    const registeredPracticeUser=user?.type==='registered'&&!!user.id&&!/^(GUEST-|anon_)/i.test(user.id);
-    const ticketPractice=CPU_HINT_TICKETS_ENABLED&&officialPractice&&registeredPracticeUser;
-    const [practiceClient,setPracticeClient]=useState<CpuPracticeClient|null>(null);
-    const [practiceSession,setPracticeSession]=useState<CpuPracticeSnapshot|null>(null);
-    const activePersonality = cpuPersonality ?? (practiceSession ? cpuPersonalityForGame(practiceSession.sessionId) : localPersonality);
-    const [practicePending,setPracticePending]=useState(false);
-    const practiceBusy=useRef(false);
-    const [practiceAttempt,setPracticeAttempt]=useState(0);
-    const [pendingHintRevision,setPendingHintRevision]=useState<number|null>(null);
-    const [recoveredHint,setRecoveredHint]=useState<HintMove|null>(null);
+    const crownMode=!!(crownStageId||campaignLabel||onComplete);
+    const freePractice=!roomId&&!matchMode&&!crownMode;
+    const registeredUser=user?.type==='registered'&&!!user.id&&!/^(GUEST-|anon_)/i.test(user.id);
+    const paidCrown=PAID_HINTS_ENABLED&&crownMode&&registeredUser&&!!crownStageId&&!!crownRunId;
+    const crownClient=useMemo(()=>{
+        if(!paidCrown||!user?.id||!crownStageId||!crownRunId)return null;
+        try{return new CrownHintRunClient(user.id,{runId:crownRunId,stageId:crownStageId,playerSide});}catch{return null;}
+    },[paidCrown,user?.id,crownStageId,crownRunId,playerSide]);
+    const openedCrownRuns=useRef(new Set<string>());
+    const hintLanguage=useRef(lang);
+    useEffect(()=>{hintLanguage.current=lang;},[lang]);
+    const [crownSession,setCrownSession]=useState<CrownRunSnapshot|null>(null);
+    const activePersonality = cpuPersonality ?? localPersonality;
+    const [crownPending,setCrownPending]=useState(false);
+    const [crownNeedsSync,setCrownNeedsSync]=useState(false);
+    const crownBusy=useRef(false);
+    const [crownAttempt,setCrownAttempt]=useState(0);
+    const hintText=moveHintText(lang);
     const [introDone,setIntroDone]=useState(!!roomId);
     const finishIntro=useCallback(()=>setIntroDone(true),[]);
     const perMoveTime=useRef({turns:0,remaining:0});
@@ -142,6 +153,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
     const [showResignConfirm, setShowResignConfirm] = useState<boolean>(false);
 
     const handleResign = () => {
+        if(paidCrown&&(crownPending||crownNeedsSync||ticketHint.pending))return;
         setWinner(onlineRole === 'black' ? 'white_wins' : 'black_wins');
         setShowResignConfirm(false);
     };
@@ -187,20 +199,21 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
     }, [winner]);
 
     useEffect(()=>{
-        if(winner||!introDone||(ticketPractice&&!practiceSession))return;
-        const base=currentTurn==='white'?timeLeftWhite:timeLeftBlack;
+        if(winner||!introDone||(paidCrown&&!crownSession))return;
+        const clocks=paidCrown&&crownSession?crownRunClocks(crownSession):null;
+        const base=clocks?(currentTurn==='white'?clocks.whiteMs:clocks.blackMs)/1000:currentTurn==='white'?timeLeftWhite:timeLeftBlack;
         const start=performance.now();
         turnClock.current={start,base};
         const tick=()=>{
             const remaining=Math.max(0,base-(performance.now()-start)/1000);
             (currentTurn==='white'?setTimeLeftWhite:setTimeLeftBlack)(remaining);
-            if(remaining===0)setWinner(currentTurn==='white'?'black_wins':'white_wins');
+            if(remaining===0){if(paidCrown)setCrownNeedsSync(true);else setWinner(currentTurn==='white'?'black_wins':'white_wins');}
         };
         const timer=setInterval(tick,100);
         return()=>clearInterval(timer);
         // A turn has one fixed deadline; rerendering must not reset it.
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    },[currentTurn,winner,introDone,ticketPractice,practiceSession]);
+    },[currentTurn,winner,introDone,paidCrown,crownSession]);
 
     // Initial timeout if opponent never connects from the start
     useEffect(() => {
@@ -243,45 +256,48 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
     } | null>(null);
 
     const [moveHistory, setMoveHistory] = useState<MoveRecord[]>([]);
-    const acceptPractice=useCallback((session:CpuPracticeSnapshot)=>{
-        const display=displayCpuPractice(session);
-        setPracticeSession(session);setTokens(display.tokens);setPool(display.pool);
+    const acceptCrown=useCallback((session:CrownRunSnapshot)=>{
+        const display=displayCrownRun(session);
+        setCrownNeedsSync(false);setCpuFailed(false);
+        setCrownSession(session);setTokens(display.tokens);setPool(display.pool);
         setMoveHistory(display.history);setTurnCount(session.revision);setCurrentTurn(session.state.sideToMove);
-        setTimeLeftWhite(session.whiteMs/1000);setTimeLeftBlack(session.blackMs/1000);
+        const clocks=crownRunClocks(session);
+        setTimeLeftWhite(clocks.whiteMs/1000);setTimeLeftBlack(clocks.blackMs/1000);
         setIsCheck(isPlayerInCheck(session.state.sideToMove,display.tokens,display.pool));
         setSelectedTokenId(null);
         const result=session.state.winner;
-        setWinner(result==='draw'?'draw':result?`${result}_wins`:session.status==='finished'
+        setWinner(result==='draw'?'draw':result?`${result}_wins`:session.status!=='active'
             ?session.whiteMs===0?'black_wins':session.blackMs===0?'white_wins':'draw':null);
     },[]);
     useEffect(()=>{
-        const changed=()=>setPracticeAttempt(value=>value+1);
+        const changed=()=>setCrownAttempt(value=>value+1);
         window.addEventListener(RANKED_SESSION_EVENT,changed);
         return()=>window.removeEventListener(RANKED_SESSION_EVENT,changed);
     },[]);
     useEffect(()=>{
-        if(!ticketPractice||!introDone||!user?.id)return;
+        if(!crownClient||!introDone)return;
         const controller=new AbortController();
-        let client:CpuPracticeClient;
-        try {
-            client=new CpuPracticeClient(user.id,{playerSide,level:cpuLevel&&cpuLevel<=1?1:cpuLevel&&cpuLevel<=3?3:5,
-                seconds:timeControl==='10s'?10:timeControl==='3m'?180:600});
-            setPracticeClient(client);setPracticePending(true);
-            void client.open(controller.signal).then(session=>{
-                if(!controller.signal.aborted){acceptPractice(session);setErrorMsg(null);}
-            }).catch(error=>{
-                if(controller.signal.aborted)return;
-                if(error instanceof CpuPracticeClientError&&error.code==='AUTH_REQUIRED')setShowReplayLogin(true);
-                setErrorMsg(matchText(lang,'練習セッションを再接続してください。','Reconnect the practice session.'));
-            }).finally(()=>{if(!controller.signal.aborted)setPracticePending(false);});
-        } catch {setErrorMsg(matchText(lang,'練習セッションを保存できません。','The practice session could not be saved.'));}
+        setCrownPending(true);
+        const load=openedCrownRuns.current.has(crownClient.settings.runId)?crownClient.read(controller.signal):crownClient.open(controller.signal);
+        void load.then(session=>{
+            if(!controller.signal.aborted){openedCrownRuns.current.add(session.runId);acceptCrown(session);setErrorMsg(null);}
+        }).catch(error=>{
+            if(controller.signal.aborted)return;
+            setCrownNeedsSync(true);
+            if(error?.code==='AUTH_REQUIRED')setShowReplayLogin(true);
+            setErrorMsg(hintErrorText(hintLanguage.current,error));
+        }).finally(()=>{if(!controller.signal.aborted)setCrownPending(false);});
         return()=>controller.abort();
-    },[ticketPractice,introDone,user?.id,playerSide,cpuLevel,timeControl,practiceAttempt,acceptPractice,lang]);
+    },[crownClient,introDone,crownAttempt,acceptCrown]);
+    useEffect(()=>()=>{
+        // Leave/identity changes close only a run that actually opened. A denied
+        // close during an ambiguous hint purchase never cancels the saved receipt.
+        if(crownClient&&openedCrownRuns.current.has(crownClient.settings.runId))void crownClient.close().catch(()=>{});
+    },[crownClient]);
     useEffect(()=>{
-        if(!ticketPractice||!winner||!practiceClient)return;
-        // Ending a practice never debits; prior paid hints remain recoverable.
-        void practiceClient.close().catch(()=>{});
-    },[ticketPractice,winner,practiceClient]);
+        if(!paidCrown||!winner||!crownClient)return;
+        void crownClient.close().catch(()=>{});
+    },[paidCrown,winner,crownClient]);
     const anyModalOpen = !introDone || showGameOver || showRules || showReplayLogin || promotionPending !== null || castlingPending !== null;
     useEffect(() => {
         window.dispatchEvent(new CustomEvent('hide-settings', { detail: anyModalOpen }));
@@ -290,6 +306,19 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
 
     const moveHistoryRef = useRef<MoveRecord[]>([]);
     const [turnCount, setTurnCount] = useState(0);
+    const crownOperation=useRef<AbortController|null>(null);
+    useEffect(()=>()=>{crownOperation.current?.abort();},[user?.id,crownRunId]);
+    const paidHintContext=useMemo<CrownHintContext|null>(()=>crownSession&&crownClient?.userId===user?.id
+        &&crownSession.runId===crownRunId ? {kind:'crown',mode:'crown',runId:crownSession.runId,contextId:crownSession.hintContextId,rulesVersion:'quantum-crown-v1'} : null,
+        [crownSession,crownClient,user?.id,crownRunId]);
+    const hintEligible=canRequestHint({ready:introDone&&(!paidCrown||!!paidHintContext)&&!crownPending&&!crownNeedsSync,
+        finished:!!winner,spectator:onlineRole==='spectator',playerSide,currentTurn});
+    const freeHint=useMoveHint(`${user?.id??'guest'}:local:${currentTurn}:${moveHistory.length}:${winner??'playing'}:${hintEligible}`);
+    const ticketHint=useTicketHint({userId:registeredUser?user?.id:undefined,context:paidHintContext,
+        revision:crownSession?.revision??moveHistory.length,eligible:!freePractice&&PAID_HINTS_ENABLED&&hintEligible,
+        onDelivered:()=>{hintsUsed.current++;}});
+    const hint=freePractice?freeHint:ticketHint;
+    const {hintMove}=hint;
     const [savedRecordId, setSavedRecordId] = useState<string | null>(null);
     const [replaySave] = useState(() => new ReplaySaveSession());
     const [saveState, setSaveState] = useState<'idle' | 'saving' | 'failed'>('idle');
@@ -473,24 +502,10 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
 
     // A worker keeps the board responsive; cancellation discards stale replies.
     useEffect(() => {
-        if (!introDone || currentTurn !== cpuSide || winner || roomId || movingPiece || tokens.length === 0) return;
+        if (!introDone || currentTurn !== cpuSide || winner || roomId || movingPiece || tokens.length === 0 || cpuFailed) return;
         const controller = new AbortController();
         setCpuFailed(false);
-        if(ticketPractice){
-            if(!practiceClient||!practiceSession||practiceBusy.current)return;
-            practiceBusy.current=true;setPracticePending(true);
-            void practiceClient.advance(practiceSession.revision,'cpu',undefined,controller.signal).then(session=>{
-                if(!controller.signal.aborted)acceptPractice(session);
-            }).catch(async()=>{
-                if(controller.signal.aborted)return;
-                setCpuFailed(true);
-                try{const fresh=await practiceClient.read(controller.signal);
-                    if(!controller.signal.aborted&&(fresh.revision!==practiceSession.revision||fresh.status!=='active'))acceptPractice(fresh);
-                }catch{}
-            })
-                .finally(()=>{practiceBusy.current=false;if(!controller.signal.aborted)setPracticePending(false);});
-            return()=>controller.abort();
-        }
+        if(paidCrown&&(!crownClient||!crownSession||crownBusy.current||crownPending||crownNeedsSync))return;
         const state = legacyToQuantumState(tokens, pool, cpuSide, moveHistory.length, moveHistory.at(-1) ?? null);
         requestCPUSearch(state, controller.signal, cpuLevel, activePersonality, cpuSearchProfile).then(stats => {
             if (controller.signal.aborted) return;
@@ -510,7 +525,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
             setCpuFailed(true);
         });
         return () => controller.abort();
-    }, [currentTurn, winner, tokens, pool, roomId, moveHistory, cpuRetry, movingPiece, cpuLevel, cpuSide, activePersonality, cpuSearchProfile, introDone,ticketPractice,practiceClient,practiceSession,acceptPractice]);
+    }, [currentTurn, winner, tokens, pool, roomId, moveHistory, cpuRetry, cpuFailed, movingPiece, cpuLevel, cpuSide, activePersonality, cpuSearchProfile, introDone,paidCrown,crownClient,crownSession,crownPending,crownNeedsSync]);
 
     useEffect(() => {
         let timer1: NodeJS.Timeout | null = null;
@@ -606,18 +621,25 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
     }, [selectedTokenId, tokens, pool, winner, moveHistory]); // tokensが変わる（ターンが進む）か選択が切り替わったら再計算
 
     const executeMove = (token: Token, targetRow: number, targetCol: number, possibleTypesForMove: PieceType[], targetToken?: Token, isLocalMove: boolean = true, promotedTo?: PieceType) => {
-        if(ticketPractice){
-            if(!practiceClient||!practiceSession||practiceBusy.current||token.player!==playerSide)return;
-            practiceBusy.current=true;setPracticePending(true);
+        if(paidCrown){
+            if(!introDone||winner||!crownClient||!crownSession||crownBusy.current||crownNeedsSync||hint.pending||token.player!==currentTurn)return;
+            crownBusy.current=true;setCrownPending(true);
+            const controller=new AbortController();crownOperation.current=controller;
             const move={pieceId:token.id,target:{row:targetRow,col:targetCol},
                 chosenType:possibleTypesForMove.reduce((mask,type)=>mask|TYPE_TO_BIT[type],0),
                 ...(promotedTo?{promotionTarget:TYPE_TO_BIT[promotedTo]}:{})};
-            void practiceClient.advance(practiceSession.revision,'human',move).then(session=>{
-                acceptPractice(session);playMoveSound();setErrorMsg(null);
+            void crownClient.advance(crownSession.revision,token.player===playerSide?'human':'cpu',move,controller.signal).then(session=>{
+                if(controller.signal.aborted)return;
+                if(token.player===playerSide&&timeControl==='10s'){
+                    perMoveTime.current.turns++;perMoveTime.current.remaining+=(playerSide==='white'?session.whiteMs:session.blackMs)/1000;
+                }
+                acceptCrown(session);setMovingPiece({id:token.id,fromRow:token.row,fromCol:token.col,toRow:targetRow,toCol:targetCol});
+                playMoveSound();setErrorMsg(null);setCpuFailed(false);
             }).catch(async()=>{
-                setErrorMsg(t.errInvalidMove);
-                try{acceptPractice(await practiceClient.read());}catch{setCpuFailed(true);}
-            }).finally(()=>{practiceBusy.current=false;setPracticePending(false);});
+                if(controller.signal.aborted)return;
+                setErrorMsg(hintText.sync);setCrownNeedsSync(true);
+                try{const fresh=await crownClient.read(controller.signal);if(!controller.signal.aborted){acceptCrown(fresh);setErrorMsg(null);}}catch{}
+            }).finally(()=>{crownBusy.current=false;if(!controller.signal.aborted)setCrownPending(false);});
             return;
         }
         // Tutorial hint logic (VS CPU only)
@@ -695,7 +717,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
 
 
     const handleSquareClick = (targetRow: number, targetCol: number) => {
-        if (!introDone || winner || movingPiece || onlineRole === 'spectator'||(ticketPractice&&(practicePending||!practiceSession||hint.pending))) return;
+        if (!introDone || winner || movingPiece || onlineRole === 'spectator'||(paidCrown&&(crownPending||crownNeedsSync||!crownSession||hint.pending))) return;
         
         // Inspection is safe while the CPU thinks; only submitting a move is blocked.
         if (!roomId && currentTurn === cpuSide) {
@@ -804,32 +826,13 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
         const state = legacyToQuantumState(tokens, pool, currentTurn, moveHistory.length, moveHistory.at(-1) ?? null);
         return isCheckmateFinish(winner, state);
     }, [winner, tokens, pool, currentTurn, moveHistory]);
-    const hint = useMoveHint(`${practiceSession?.sessionId??'local'}:${currentTurn}:${moveHistory.length}:${winner ?? 'playing'}`);
-    const { hintMove } = hint;
     const requestHint = () => {
-        if (!introDone || winner || hint.pending || currentTurn !== myRole || !tokens.length || roomId||matchMode==='ranked'||matchMode==='random') return;
-        if(CPU_HINT_TICKETS_ENABLED){
-            if(!officialPractice)return;
-            if(!registeredPracticeUser){
-                setErrorMsg(matchText(lang,'ヒント券は登録アカウントでの練習で使えます。ホームに戻り、登録アカウントでログインしてください。',
-                    'Hint tickets require practice with a registered account. Return home and sign in to your registered account.'));
-                return;
-            }
-            if(!practiceClient||!practiceSession){setShowReplayLogin(true);return;}
-            if(practicePending)return;
-            setPendingHintRevision(practiceSession.revision);setRecoveredHint(null);
-            void hint.request(signal=>practiceClient.hint(practiceSession.revision,signal).catch(error=>{
-                if(error instanceof CpuPracticeClientError&&error.code==='INSUFFICIENT_FUNDS')
-                    setErrorMsg(matchText(lang,'ヒント券がありません。','No hint tickets remain.'));
-                if(error instanceof CpuPracticeClientError&&error.code==='AUTH_REQUIRED')setShowReplayLogin(true);
-                throw error;
-            }),()=>{hintsUsed.current++;});
-            return;
-        }
+        if (!hintEligible || hint.pending || !tokens.length) return;
+        if(!freePractice){void ticketHint.request();return;}
         const state = legacyToQuantumState(tokens, pool, myRole, moveHistory.length, moveHistory.at(-1) ?? null);
         const availableMs = hintTimeAvailable(turnClock.current.base * 1000,
             performance.now() - turnClock.current.start);
-        void hint.request(async signal => {
+        void freeHint.request(async signal => {
             const stats = await requestQubeSearch(state, signal, availableMs);
             if (!stats.move || signal.aborted) return null;
             return adviceForMove(state, stats.move);
@@ -858,7 +861,11 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
             checkNotice={showCheckWarning&&!winner?t.check:undefined} checkEvent={moveHistory.length}
             tokens={tokens} selectedTokenId={selectedTokenId} candidatesMap={pool.piecePossibilities} history={moveHistory}
             validMoveCount={validMoves.length} onClearSelection={() => setSelectedTokenId(null)}
-            onHint={!roomId&&matchMode!=='ranked'&&matchMode!=='random'&&(!CPU_HINT_TICKETS_ENABLED||officialPractice) ? requestHint : undefined} hintPending={hint.pending||practicePending} hintMove={hintMove} hintFailed={hint.failed} onClearHint={hint.clear} feedback={tutorialHint}
+            onHint={!roomId ? requestHint : undefined} hintAccess={freePractice?'free':'ticket'}
+            hintDisabled={!hintEligible||(!freePractice&&!PAID_HINTS_ENABLED)} hintPending={hint.pending}
+            hintMove={hintMove} hintFailed={hint.failed} hintError={ticketHint.error?hintErrorText(lang,ticketHint.error):undefined}
+            onRecoverHint={crownMode&&onlineRole!=='spectator'&&ticketHint.hasRecovery?()=>void ticketHint.recover():undefined}
+            savedHint={ticketHint.recovered?.hint} onClearHint={hint.clear} feedback={tutorialHint}
             is2D={is2DView} onViewChange={setIs2DView}
             onResetView={() => setViewResetKey(key => key + 1)}
             onHome={() => setShowHomeConfirm(true)} onRules={() => setShowRules(true)} onResign={() => setShowResignConfirm(true)}
@@ -932,21 +939,10 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
             {showReplayLogin && user && <RankedLoginDialog lang={lang} userId={user.id} title={t.login} onCancel={() => setShowReplayLogin(false)}
                 onVerified={() => { setShowReplayLogin(false); setSaveAttempt(attempt => attempt + 1); }} />}
 
-            {cpuFailed && <button onClick={() => setCpuRetry(value => value + 1)} className="match-retry">
+            {cpuFailed && <button onClick={() => {setCpuFailed(false);setCpuRetry(value => value + 1);}} className="match-retry">
                 {matchText(lang, 'CPUの思考を再試行', 'Retry CPU turn')}
             </button>}
-            {CPU_HINT_TICKETS_ENABLED&&officialPractice&&practiceClient&&<button className="match-retry" onClick={()=>{
-                const revision=pendingHintRevision??practiceSession?.revision??0;
-                void practiceClient.recover(revision).then(move=>{
-                    setRecoveredHint(move);
-                    if(!move)setErrorMsg(matchText(lang,'保存済みヒントはありません。','No saved hint is available.'));
-                }).catch(()=>setErrorMsg(matchText(lang,'ヒントを再取得できませんでした。もう一度お試しください。','The saved hint could not be retrieved. Please retry.')));
-            }}>{matchText(lang,'ヒントを再取得（追加消費なし）','Retrieve saved hint (no extra ticket)')}</button>}
-            {recoveredHint&&<div role="status" className="match-retry">
-                {matchText(lang,'保存済みヒント','Saved hint')}: {String.fromCharCode(97+recoveredHint.fromCol)}{8-recoveredHint.fromRow}
-                {' → '}{String.fromCharCode(97+recoveredHint.toCol)}{8-recoveredHint.toRow}
-                {hintAdviceText(lang, recoveredHint) && <small>{hintAdviceText(lang, recoveredHint)}</small>}
-            </div>}
+            {paidCrown&&(!crownSession||crownNeedsSync)&&!crownPending&&<button className="match-retry" onClick={()=>setCrownAttempt(value=>value+1)}>{hintText.sync}</button>}
             {/* Resign Confirmation Modal */}
             {showResignConfirm && (
                 <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4 backdrop-blur-sm animate-fade-in">
@@ -955,9 +951,9 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
                         <h3 className="text-lg font-bold text-[#E8E2D7] mb-2">
                             {matchText(lang, 'リザインしますか？', 'Resign Match?')}
                         </h3>
-                        <p className="text-sm text-gray-400 mb-6">
+                        <QubeTeacher lang={lang} variant="compact"><p className="text-sm text-gray-400 mb-6">
                             {matchText(lang, 'リザインすると相手の勝利となります。本当に対局を終了しますか？', 'Resigning will forfeit the match to your opponent. Are you sure?')}
-                        </p>
+                        </p></QubeTeacher>
                         <div className="flex gap-3 w-full">
                             <button
                                 onClick={() => setShowResignConfirm(false)}
@@ -986,11 +982,11 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
                         <h3 className="text-xl font-bold text-[#E8E2D7] tracking-widest uppercase">
                             {matchText(lang, '遊び方', 'How to Play')}
                         </h3>
-                        <div className="text-sm text-gray-400 text-left space-y-3">
+                        <QubeTeacher lang={lang} variant="compact" className="text-sm text-gray-400 text-left space-y-3">
                             <p>• <strong>{matchText(lang, '勝利条件:', 'Victory:')}</strong> {matchText(lang, '相手のキングを取るか、チェックメイトすると勝利です。', 'Capture the enemy King or Checkmate them.')}</p>
                             <p>• <strong>{matchText(lang, '重ね合わせ:', 'Superposition:')}</strong> {matchText(lang, '駒は初期状態では複数の正体（可能性）を持っています。駒を動かすことで、その動き方に基づいて可能性が絞り込まれていきます。', 'All pieces start with multiple possible identities. Moving a piece collapses its possibilities based on how it moved.')}</p>
                             <p>• <strong>{matchText(lang, '正体の確定:', 'Discovery:')}</strong> {matchText(lang, '正体が確定していない敵の駒は、実はキングかもしれません。慎重に攻めましょう！', 'Be careful! Any unknown enemy piece could turn out to be their King when revealed.')}</p>
-                        </div>
+                        </QubeTeacher>
                         <div className="flex gap-3 w-full mt-4">
                             <button
                                 onClick={() => setShowRules(false)}
@@ -1044,9 +1040,9 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
                         <h2 className="text-[#B39A62] text-2xl font-serif font-bold mb-6">
                             {t.castlingConfirmTitle || 'Castling or Normal Move?'}
                         </h2>
-                        <p className="text-[#E8E2D7]/80 mb-8 font-serif">
+                        <QubeTeacher lang={lang} variant="compact"><p className="text-[#E8E2D7]/80 mb-8 font-serif">
                             {t.castlingConfirmDesc || 'This move can be interpreted as Castling or a normal Rook/Queen move. Please select your intention.'}
-                        </p>
+                        </p></QubeTeacher>
                         <div className="flex flex-col gap-4">
                             <button
                                 className="px-6 py-4 bg-[#D4B872] hover:bg-[#F2D794] text-[#1A1814] font-serif font-bold rounded-lg transition-colors"
@@ -1091,7 +1087,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
                 <div className="fixed inset-0 z-50 bg-black/80 flex flex-col items-center justify-center p-4">
                     <div className="bg-[#161513] border border-[#B39A62]/30 p-8 rounded-lg max-w-sm w-full text-center shadow-2xl">
                         <h3 className="text-xl tracking-[0.2em] font-serif text-[#E8E2D7] mb-2">{t.promotionTitle}</h3>
-                        <p className="text-[#A89C86] text-xs tracking-widest mb-6 font-serif">{t.promotionDesc}</p>
+                        <QubeTeacher lang={lang} variant="compact"><p className="text-[#A89C86] text-xs tracking-widest mb-6 font-serif">{t.promotionDesc}</p></QubeTeacher>
                         <div className="grid grid-cols-2 gap-3 mb-6">
                             {(['Queen', 'Rook', 'Bishop', 'Knight'] as PieceType[]).map(pt => (
                                 <button

@@ -9,7 +9,7 @@ vi.mock('react', async original => {
     const react = await original<typeof import('react')>();
     const hooks = {
         useState(initial: unknown) { const i = h.cursor++; return [i === 0 ? h.game : i === 1 ? h.receipt : i === 3 ? h.cancelled : typeof initial === 'function' ? initial() : initial, vi.fn()]; },
-        useEffect: () => {}, useMemo: (factory: () => unknown) => factory(), useCallback: (callback: unknown) => callback, useRef: (initial: unknown) => ({ current: initial }),
+        useEffect: () => {}, useLayoutEffect: () => {}, useMemo: (factory: () => unknown) => factory(), useCallback: (callback: unknown) => callback, useRef: (initial: unknown) => ({ current: initial }),
     };
     return { ...react, ...hooks, default: { ...react, ...hooks } };
 });

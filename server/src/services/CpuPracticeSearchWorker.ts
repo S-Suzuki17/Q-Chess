@@ -5,11 +5,15 @@ import { applyPracticeMove } from '../quantum-engine/practice';
 import { PERSONALITY_WEIGHTS, type CPUPersonality } from '../quantum-engine/ai/personalities';
 
 /** The bounded search retains its best evaluated legal root move even when no
- * deeper iteration finishes. That is a usable shallow hint, not a failed search.
- * Exceptions, missing moves and the parent worker watchdog remain failures. */
-export function searchCpuPracticePosition(state: GameState, budget: TacticalSearchOptions, hint: boolean, personality:CPUPersonality = 'balanced'): Move | null {
+ * deeper iteration finishes. Native online validation is supplied only by the
+ * server's separate online worker; free practice uses canonical rules. */
+export function searchCpuPracticePosition(state: GameState, budget: TacticalSearchOptions, hint: boolean,
+    personality: CPUPersonality = 'balanced', validateHint?: (move: Move) => unknown): Move | null {
     const result = searchBestMove(state, new EvalQoppelia(PERSONALITY_WEIGHTS[hint ? 'balanced' : personality]),
         { ...budget, playableRoot: hint || budget.playableRoot });
-    if (hint && result.move) applyPracticeMove(state, result.move);
+    if (hint && result.move) {
+        if (validateHint) validateHint(result.move);
+        else applyPracticeMove(state, result.move);
+    }
     return result.move;
 }

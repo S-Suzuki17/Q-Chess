@@ -1,5 +1,8 @@
 import { attemptLegalMove, checkGameOver, isCheckmate } from './quantumChess';
 import { recordReplayChanges, replayPieceId } from './replayHistory';
+import { randomUUID } from 'node:crypto';
+import { MatchHintError, type TrustedHintPosition } from '../services/MatchHintTypes';
+import { MATCH_HINT_RULES_VERSION, onlineHintAdvice, onlineHintHash, onlineHintState, publicHintPiece } from '../services/MatchHintPosition';
 
 export type GameOverReason = 'checkmate' | 'king_capture' | 'timeout' | 'resignation' | 'abandonment';
 
@@ -50,6 +53,7 @@ export interface InternalGameState {
 }
 
 export interface PublicGameState {
+    hintContextId: string;
     mode?: 'ranked'|'random';
     cpu?: {side:'host'|'joiner';rating:number;level:number};
     version: number;
@@ -104,6 +108,8 @@ export interface ActionResult {
 }
 
 export class GameEngine {
+    public readonly hintContextId = randomUUID();
+    private hintCommitLock?: symbol;
     private authority?: {canAdvance:()=>boolean;safeUntil:()=>number};
     private frozenAt?:number;
     public setAuthority(authority:NonNullable<GameEngine['authority']>) { this.authority=authority; }
@@ -259,6 +265,10 @@ export class GameEngine {
             return { success: false, message: `Version mismatch. Server: ${this.state.version}, Client: ${action.version}` };
         }
 
+        // Separate from ranked ownership: natural timeout and abandonment still
+        // progress while an ambiguous purchase fences explicit mutations.
+        if (this.hintCommitLock) return { success: false, message: 'HINT_PURCHASE_PENDING' };
+
         let result = false;
         const turnBefore = this.state.turn;
         // A synchronous search/rules calculation can outlive the lease while
@@ -355,22 +365,54 @@ export class GameEngine {
         return true;
     }
 
+    public hintContextFor(playerId: string): string {
+        if (![this.state.players.host, this.state.players.joiner].includes(playerId)) throw new MatchHintError('NOT_A_PARTICIPANT');
+        return this.hintContextId;
+    }
+    public hintPosition(playerId: string, revision: number): TrustedHintPosition {
+        this.hintContextFor(playerId);
+        if (!this.canAdvance()) throw new MatchHintError('MATCH_AUTHORITY_UNAVAILABLE');
+        this.checkTimeout();
+        if (revision !== this.state.version) throw new MatchHintError('STALE_REVISION');
+        if (this.state.gameOver) throw new MatchHintError('SESSION_FINISHED');
+        if (this.state.introPending || Date.now() < (this.state.startsAt ?? 0)) throw new MatchHintError('MATCH_PREPARING');
+        const side = playerId === this.state.players.host ? 'white' : 'black';
+        if ((side === 'white' ? 0 : 1) !== this.state.turn) throw new MatchHintError('NOT_YOUR_TURN');
+        const now = Date.now();
+        const remainingMs = Math.max(0, this.state.clock[side] - Math.max(0, now - this.state.clock.lastMoveAt));
+        if (!remainingMs) throw new MatchHintError('SEARCH_CLOCK_EXPIRED');
+        const online = { board: this.state.board.slice(), pieces: this.state.pieces.map(publicHintPiece), turn: this.state.turn };
+        const state = onlineHintState(online, this.state.moveCount);
+        const stateHash = onlineHintHash(online, this.state.moveCount);
+        return { contextId: this.hintContextId, kind: 'match', mode: this.metadata.mode ?? 'private', side,
+            revision, stateHash, rulesVersion: MATCH_HINT_RULES_VERSION, state, online, remainingMs,
+            validUntilMs: Math.min(now + remainingMs, this.authority?.safeUntil() ?? Infinity),
+            validateMove: move => onlineHintAdvice(online, state, move),
+            acquire: () => this.acquireHint(playerId, revision, stateHash) };
+    }
+    private acquireHint(playerId: string, revision: number, stateHash: string): () => void {
+        const current = this.hintPosition(playerId, revision);
+        if (current.stateHash !== stateHash) throw new MatchHintError('STALE_REVISION');
+        if (this.hintCommitLock) throw new MatchHintError('HINT_PURCHASE_PENDING');
+        const lock = Symbol(); this.hintCommitLock = lock;
+        return () => { if (this.hintCommitLock === lock) this.hintCommitLock = undefined; };
+    }
+
     // 2. Generate Public GameState with filtering
     public getPublicState(playerId: string): PublicGameState {
         const clockNow=this.clockNow();
-        const filteredPieces = this.state.pieces.map(p => ({
-            ...p
-        }));
+        const filteredPieces = this.state.pieces.map(publicHintPiece);
 
         return {
             ...this.metadata,
+            hintContextId: this.hintContextId,
             version: this.state.version,
             matchId: this.state.matchId,
             players: this.state.players,
             playerNames: this.state.playerNames,
             playerAvatars: this.state.playerAvatars,
             playerRatings: this.state.playerRatings,
-            board: this.state.board,
+            board: this.state.board.slice(),
             pieces: filteredPieces,
             turn: this.state.turn,
             moveCount: this.state.moveCount,

@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { randomUUID, randomBytes } from 'node:crypto';
-import { readdir, writeFile } from 'node:fs/promises';
+import { writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { setupSessionBaseline, combinedPendingMigrations, applySessionFile, sessionBaselineEvidence } from './fixtures/session-postgres-baseline.mjs';
+import { setupSessionBaseline, combinedPendingMigrations, applySessionFile, sessionBaselineEvidence, assertReviewedMigrationInventory } from './fixtures/session-postgres-baseline.mjs';
 import { connect, scalar, account, contended, bind, member, snapshot, LEGACY_PRICE, HASH } from './commerce-postgres-support.mjs';
 
 const CROWN='20261006172232_dormant_crown_first_attempt.sql';
@@ -33,9 +33,7 @@ test('Crown first attempt: actual shared ledger on combined native PostgreSQL up
         legacy={user,checkout,subscription:'sub_CROWNPREUPGRADE',price:LEGACY_PRICE,live:true,
             start:new Date(Date.now()-86400000).toISOString(),end:new Date(Date.now()+29*86400000).toISOString()};
         await admin.query('delete from public.stripe_billing_mode_pin');
-        const discovered=(await readdir(new URL('../../supabase/migrations/',import.meta.url)))
-            .filter(name=>name.endsWith('.sql')&&name>=pending[0]).sort();
-        assert.deepEqual(discovered,pending,'Every pending migration must be covered by the combined fixture');
+        await assertReviewedMigrationInventory();
         assert.equal(pending.includes('20261006171148_shared_match_admission.sql'),true);
         for(const name of pending)await applySessionFile(admin,name);
         assert.deepEqual(await scalar(a,'select public.stripe_commerce_protocol_version() as result'),

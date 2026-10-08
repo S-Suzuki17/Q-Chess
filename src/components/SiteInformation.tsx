@@ -9,6 +9,8 @@ import {siteCopy,learningLabels} from '../locales/siteContent';
 import { AccountDataGuide } from './AccountDataGuide';
 import {termsText} from '../locales/termsText';
 import {aboutContent} from '../locales/aboutContent';
+import {QubeTeacher} from './QubeTeacher';
+import {qubeTeaching} from '../locales/qubeTeaching';
 
 export function SiteLinks({lang,newTab=false}:{lang:Language;newTab?:boolean}) {
  const {labels:t}=siteCopy(lang);
@@ -21,7 +23,7 @@ export function SiteLinks({lang,newTab=false}:{lang:Language;newTab?:boolean}) {
 export function LearningEntry({lang}:{lang:Language}) {
  const t=learningLabels[lang];
  return <section data-learning-entry className="my-6 rounded-xl border border-[#6E614C] bg-[#101610] p-5">
-  <h3 className="mb-3 text-xl text-[#D4B872]">{t[2]}</h3><p>{t[3]}</p>
+  <h3 className="mb-3 text-xl text-[#D4B872]">{t[2]}</h3><QubeTeacher lang={lang} variant="compact"><p>{t[3]}</p></QubeTeacher>
   <div className="mt-4 flex flex-wrap gap-3">{([['/guide/',t[0]],['/faq/',t[1]]] as const).map(([href,label])=><Link key={href} href={href} className="inline-flex min-h-11 items-center rounded border border-[#6E614C] px-4 py-2 text-[#D4B872] underline underline-offset-4">{label} →</Link>)}</div>
  </section>;
 }
@@ -29,27 +31,28 @@ export function SiteIntroduction({lang}:{lang:Language}) {
  const {labels:t,paragraphs:p}=siteCopy(lang);
  return <article lang={lang} className="mx-auto w-full max-w-4xl px-6 py-12 leading-relaxed text-[#BEB6A8]" data-site-introduction>
   <h2 className="mb-5 text-2xl font-semibold text-[#E8E2D7]">{t[0]}</h2>
-  <p>{rulesDict[lang].sec5p1}</p><p className="mt-3">{p[0]}</p>
+  <QubeTeacher lang={lang}><p className="mb-3">{qubeTeaching[lang].welcome}</p><p>{rulesDict[lang].sec5p1}</p><p className="mt-3">{p[0]}</p></QubeTeacher>
   <LearningEntry lang={lang}/>
   <div className="mt-8 grid gap-8 md:grid-cols-2">
-   <section><h3 className="mb-3 text-xl text-[#D4B872]">{t[2]}</h3><p>{p[2]}</p><Link href="/rules" className="mt-4 inline-block text-[#E8E2D7] underline">{rulesDict[lang].title} →</Link></section>
-   <section className="border-l-2 border-[#B39A62] pl-5"><h3 className="mb-3 text-xl text-[#D4B872]">{t[6]}</h3><p>{p[1]}</p><p aria-hidden="true" className="mt-4 text-3xl tracking-widest text-[#E8E2D7]">♝ ♜ ♛ → ♝ ♛</p></section>
+   <section><h3 className="mb-3 text-xl text-[#D4B872]">{t[2]}</h3><QubeTeacher lang={lang} variant="compact"><p>{p[2]}</p><Link href="/rules" className="mt-4 inline-block text-[#E8E2D7] underline">{rulesDict[lang].title} →</Link></QubeTeacher></section>
+   <section className="border-l-2 border-[#B39A62] pl-5"><h3 className="mb-3 text-xl text-[#D4B872]">{t[6]}</h3><QubeTeacher lang={lang} variant="compact"><p>{p[1]}</p><p aria-hidden="true" className="mt-4 text-3xl tracking-widest text-[#E8E2D7]">♝ ♜ ♛ → ♝ ♛</p></QubeTeacher></section>
   </div>
-  <section className="mt-8 border-t border-[#3B342C] pt-6"><h3 className="mb-3 text-xl text-[#D4B872]">{t[3]}</h3><p>{stageText(lang,'intro')} {stageText(lang,'rules')}</p></section>
+  <section className="mt-8 border-t border-[#3B342C] pt-6"><h3 className="mb-3 text-xl text-[#D4B872]">{t[3]}</h3><QubeTeacher lang={lang} variant="compact"><p>{stageText(lang,'intro')} {stageText(lang,'rules')}</p></QubeTeacher></section>
  </article>;
 }
 export function AboutArticle({lang}:{lang:Language}) {
  const {labels:t}=siteCopy(lang);
  const p=aboutContent[lang];
  return <article lang={lang} data-about-article className="my-8 space-y-8 leading-loose text-[#BEB6A8]">
-  <p className="max-w-3xl text-lg text-[#E8E2D7]">{p[0]}</p>
+  <QubeTeacher lang={lang}><p className="mb-3">{qubeTeaching[lang].welcome}</p><p className="max-w-3xl text-lg text-[#E8E2D7]">{p[0]}</p></QubeTeacher>
   <section className="rounded-xl border border-[#6E614C] bg-[#191714] p-5 sm:p-8">
    <h2 className="mb-4 text-xl font-semibold text-[#E8E2D7]">{t[6]}</h2>
-   <p aria-hidden="true" className="mb-4 break-words text-2xl text-[#D4B872] sm:text-3xl">♝ ♜ ♛ → ♝ ♛ → ♛</p>
+   <QubeTeacher lang={lang} variant="compact"><p aria-hidden="true" className="mb-4 break-words text-2xl text-[#D4B872] sm:text-3xl">♝ ♜ ♛ → ♝ ♛ → ♛</p>
    <p>{p[1]}</p>
+   </QubeTeacher>
   </section>
-  <section><h2 className="mb-3 text-xl font-semibold text-[#E8E2D7]">{t[2]}</h2><p>{p[2]}</p><Link href="/rules" className="mt-3 inline-flex min-h-11 items-center text-[#D4B872] underline">{rulesDict[lang].title} →</Link></section>
-  <section className="border-t border-[#3B342C] pt-6"><h2 className="mb-3 text-xl font-semibold text-[#E8E2D7]">{t[3]}</h2><p>{p[3]}</p></section>
+  <section><h2 className="mb-3 text-xl font-semibold text-[#E8E2D7]">{t[2]}</h2><QubeTeacher lang={lang} variant="compact"><p>{p[2]}</p><Link href="/rules" className="mt-3 inline-flex min-h-11 items-center text-[#D4B872] underline">{rulesDict[lang].title} →</Link></QubeTeacher></section>
+  <section className="border-t border-[#3B342C] pt-6"><h2 className="mb-3 text-xl font-semibold text-[#E8E2D7]">{t[3]}</h2><QubeTeacher lang={lang} variant="compact"><p>{p[3]}</p></QubeTeacher></section>
  </article>;
 }
 export function SiteInfoPage({kind}:{kind:'about'|'contact'}) {

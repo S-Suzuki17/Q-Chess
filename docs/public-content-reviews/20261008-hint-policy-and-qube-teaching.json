@@ -1,0 +1,324 @@
+{
+  "schemaVersion": 1,
+  "status": "completed",
+  "baseRevision": "93acd813cf723c2b833f74418874f3a88da5966b",
+  "reviewer": "Codex (integration), with independent UI/server/content engineering review",
+  "changes": [
+    {
+      "path": "server/src/game/GameEngine.ts",
+      "gitBlob": "635148407329d2c0a335815449a88b355a47576e"
+    },
+    {
+      "path": "server/src/quantum-engine/ai/search.ts",
+      "gitBlob": "3445a78462d7955da450276c84a80a5f62ba7ad7"
+    },
+    {
+      "path": "server/src/services/AccountCurrentTerms.ts",
+      "gitBlob": "021ab991f964a2fdd083b6aa439da7057e2d32a3"
+    },
+    {
+      "path": "server/src/services/CpuPracticeRoutes.ts",
+      "gitBlob": "d6d6cb2a97f5bb6949b4d4d9d000cf32af2b73d2"
+    },
+    {
+      "path": "server/src/services/CpuPracticeSearch.ts",
+      "gitBlob": "3ea3d2124ccb2239082ad7223291a79fde0e6197"
+    },
+    {
+      "path": "server/src/services/CpuPracticeSearchWorker.ts",
+      "gitBlob": "87b4e2ef0ad104732d94ab5b0d4920c7cbeb8d77"
+    },
+    {
+      "path": "server/src/services/CpuPracticeService.ts",
+      "gitBlob": "24fedb6f94abbe8ce878d7c5043047de1c2f0ccb"
+    },
+    {
+      "path": "server/src/services/CrownHintRegistry.ts",
+      "gitBlob": "6d4cfca42568d61a08f5592ed58ed172941ee403"
+    },
+    {
+      "path": "server/src/services/CrownHintRoutes.ts",
+      "gitBlob": "63d1c5608ff9144ac7fdd57580047ca005aab3e7"
+    },
+    {
+      "path": "server/src/services/HintTicketStore.ts",
+      "gitBlob": "134b1cf37eb7ec2552c3abbb642883e024635bb4"
+    },
+    {
+      "path": "server/src/services/MatchHintPosition.ts",
+      "gitBlob": "36d9800a86402a90b81d5028f402da084cac01f0"
+    },
+    {
+      "path": "server/src/services/MatchHintRegistry.ts",
+      "gitBlob": "f4ec9c8ea2cfc4de450d2fb5ea63026cc92e964b"
+    },
+    {
+      "path": "server/src/services/MatchHintRoutes.ts",
+      "gitBlob": "34f219e05b56638a8c82c2987a375b6b6b12df3f"
+    },
+    {
+      "path": "server/src/services/MatchHintService.ts",
+      "gitBlob": "4a161056051a8d91eda2b29e350f88878055104c"
+    },
+    {
+      "path": "server/src/services/MatchHintTypes.ts",
+      "gitBlob": "b5c04b2c8a6a9a1de0328b2e27747439c520606c"
+    },
+    {
+      "path": "server/src/services/OnlineHintBoard.ts",
+      "gitBlob": "282eacd3b1c7c1a9222139b515925aa3343cd74b"
+    },
+    {
+      "path": "server/src/services/OnlineHintSearchWorker.ts",
+      "gitBlob": "9b8891cba06cdea489b0bd1b946cf031894eea1c"
+    },
+    {
+      "path": "server/src/services/SupabaseService.ts",
+      "gitBlob": "b4fb6cf141313d255b06bf350ccfb22f87dae0ac"
+    },
+    {
+      "path": "src/app/rules/page.tsx",
+      "gitBlob": "f67957079e393ac48ab044fb2205c4aae85d8130"
+    },
+    {
+      "path": "src/components/CampaignMode.tsx",
+      "gitBlob": "c0238104f3c44250a8ad1247ccb7144c9236f074"
+    },
+    {
+      "path": "src/components/ChampionshipCollection.tsx",
+      "gitBlob": "4c2db44a3b291fa5bbce8963064e5138db2895fd"
+    },
+    {
+      "path": "src/components/CosmeticsSettings.tsx",
+      "gitBlob": "13ba1a5796a4763bdbcbe4b2b961e0797ab621be"
+    },
+    {
+      "path": "src/components/DailyLoginRewardsPanel.tsx",
+      "gitBlob": "6c1f8ede1d559a17113bdf0ad5e597e0f64ec62f"
+    },
+    {
+      "path": "src/components/InteractiveTutorial.tsx",
+      "gitBlob": "c5e2a6cd67a16933bdd3f9801fa2ce6699f65b1b"
+    },
+    {
+      "path": "src/components/LearningPage.tsx",
+      "gitBlob": "c39ea2c15b1e412a61544fc87698f94e85338f2c"
+    },
+    {
+      "path": "src/components/LevelSelect.tsx",
+      "gitBlob": "e429400d9dbb7aaf8c0a31c05a61ac2cc1953e88"
+    },
+    {
+      "path": "src/components/LocalGameBoard.tsx",
+      "gitBlob": "b4c6bc3d38e5ccdd40c06e42582d4c7a6c8dc00e"
+    },
+    {
+      "path": "src/components/MatchLayout.tsx",
+      "gitBlob": "fb7f3b8fd69bccf2fafda25b4ca731a0261e5ead"
+    },
+    {
+      "path": "src/components/MemberTicketsPanel.tsx",
+      "gitBlob": "9cd8562975e8b54470fd1888c1733b3caa9f8dad"
+    },
+    {
+      "path": "src/components/OnlineGameBoard.tsx",
+      "gitBlob": "666a5ad75d5de3b4c970cd0c29138be1e2308792"
+    },
+    {
+      "path": "src/components/QubeTeacher.tsx",
+      "gitBlob": "fbffaed2bc42b5fa48db687c8171e1b3af43dbb3"
+    },
+    {
+      "path": "src/components/RewardPreview.tsx",
+      "gitBlob": "2526678ffd22d6e2c3424c58de250a1b8a6150fe"
+    },
+    {
+      "path": "src/components/SharedMatchAdmissionChoice.tsx",
+      "gitBlob": "d5efa67176cceffdf05957b78e3ce750b3f92538"
+    },
+    {
+      "path": "src/components/SiteInformation.tsx",
+      "gitBlob": "1b54b58fa01b8802f51635861ec74ea29f9e8921"
+    },
+    {
+      "path": "src/config/commerceCatalog.ts",
+      "gitBlob": "6d58a4c08067188024f912091e9814a5fbde6ccb"
+    },
+    {
+      "path": "src/config/currentTerms.ts",
+      "gitBlob": "ed5919b6d1e69bf6664e8268667a57fb963c7fb0"
+    },
+    {
+      "path": "src/hooks/useTicketHint.ts",
+      "gitBlob": "f6b96d61280af4bd816692fe4fc2a8fe7f896b97"
+    },
+    {
+      "path": "src/lib/crownHintRun.ts",
+      "gitBlob": "b6b9cdec65b5a5a860f3d08d270c99b3380aa00c"
+    },
+    {
+      "path": "src/lib/hintPolicy.ts",
+      "gitBlob": "8238a281c6617825f7229616b36b35cfe0095ba2"
+    },
+    {
+      "path": "src/lib/paidHints.ts",
+      "gitBlob": "9a4975af58a8824c979e455b8e3af2cd8160461c"
+    },
+    {
+      "path": "src/locales/commerceText.ts",
+      "gitBlob": "debc4ead8736622aa812654130a4c80f70e65a31"
+    },
+    {
+      "path": "src/locales/hintScopeText.ts",
+      "gitBlob": "b1362f17cb0cd40f72b7a057995e3c038d53537a"
+    },
+    {
+      "path": "src/locales/moveHintText.ts",
+      "gitBlob": "fffc6addd1d425c059e23c5e44d331661fc9a4b6"
+    },
+    {
+      "path": "src/locales/qubeTeaching.ts",
+      "gitBlob": "f1e3865c2cdea6d6b28cc35cb0c170f378a2495a"
+    },
+    {
+      "path": "src/locales/siteContent.ts",
+      "gitBlob": "0fc59c3bed5b83f103bed0ae79c7107baa2ba6fc"
+    },
+    {
+      "path": "src/locales/stripeMembershipText.ts",
+      "gitBlob": "2d9436a2e52dc31b989e3a04fbed4fef2a64a4de"
+    },
+    {
+      "path": "supabase/migrations/20261008054904_match_hint_tickets_and_free_practice.sql",
+      "gitBlob": "12fe904b10bf41a9a9481f7c5e334ce614b008d6"
+    }
+  ],
+  "reviews": [
+    {
+      "group": "start-and-controls",
+      "decision": "updated",
+      "reason": "The guide and guest FAQ match the real Guest -> first-visit consent -> lobby -> tutorial/practice sequence. QUBE introduces the steps. The existing White/Black, difficulty and 10-minute/3-minute/per-move choices remain accurate.",
+      "checkedPages": [
+        "/guide/#start",
+        "/faq/#guest"
+      ],
+      "evidence": [
+        "scratch/hints-public-guides-20261008/results.json; SHA256 c3a540cbc629337532c34e6837a36fdb12da90ea7a3567df2205ba4637b11733",
+        "scratch/hints-lobby-20261008.log; SHA256 4185d628b453050e6d1110cd5e8d71b75fb259968cee0558ef998748a4946363",
+        "check-public-guides: Japanese tutorial completed all 12 steps on desktop and mobile; real keyboard a2 -> a3 move and return to lobby; authentication and external services blocked."
+      ]
+    },
+    {
+      "group": "candidates-and-outcomes",
+      "decision": "updated",
+      "reason": "QUBE presents the existing candidate-removal, outcome and chain explanations. This release does not change the movement rules or victory conditions. The public whitelist preserves optional flags and excludes hidden identities; native online hints are validated against playable moves. Guide exercises still demonstrate the same rules.",
+      "checkedPages": [
+        "/rules/",
+        "/guide/#candidates",
+        "/guide/#outcomes",
+        "/guide/#practice",
+        "/guide/#chain",
+        "/faq/#move",
+        "/faq/#win"
+      ],
+      "evidence": [
+        "scratch/hints-public-guides-20261008/results.json; SHA256 c3a540cbc629337532c34e6837a36fdb12da90ea7a3567df2205ba4637b11733",
+        "scratch/hints-integration-repaired-20261008.json; SHA256 bf5e79326e2352ec4e76acb6f315bbba097a39358deb7926da485755420f7317",
+        "UI owner 11+4 browser cases: real White/Black coordinate conversion, Knight promotion, help dialog and mobile details; synthetic socket/receipt boundary. Root inspected guide-ja-390.png and first-game-ja-390.png."
+      ]
+    },
+    {
+      "group": "hints-and-clock",
+      "decision": "updated",
+      "reason": "Guide and FAQ now state that practice hints are free and use no tickets, while each new non-practice hint explicitly uses one ticket; re-showing the same result costs nothing. Current terms explicitly include tutorial, ranked/random/private/Crown and original-mode CPU fallback. The free local worker still respects the available clock. No clock-pause or offline guarantee is made.",
+      "checkedPages": [
+        "/guide/#start",
+        "/faq/#clock",
+        "/faq/#hints"
+      ],
+      "evidence": [
+        "scratch/hints-lobby-20261008.log; SHA256 4185d628b453050e6d1110cd5e8d71b75fb259968cee0558ef998748a4946363",
+        "scratch/hints-integration-repaired-20261008.json; SHA256 bf5e79326e2352ec4e76acb6f315bbba097a39358deb7926da485755420f7317",
+        "Root production-flag browser: 1920/1280/390/320, zero-balance registered free hint, guest free hint at 390, legal move plus CPU reply, zero practice purchase requests; Crown remains ticket-labelled.",
+        "UI owner ea0721d browser proof includes caller private + legacy random snapshot + private receipt, delayed Crown 10-second clock and interrupted move recovery."
+      ]
+    },
+    {
+      "group": "accounts-connections-and-saves",
+      "decision": "no-change-needed",
+      "reason": "The existing FAQ and privacy/contact instructions remain accurate: reconnect with the same account/browser, preserve local state until recovery, verify save status, use account deletion or contact support, and retain only the latest 10 replay entries. New hint receipts remain private account/game operational records and cascade on profile deletion. No new provider, public disclosure, account identifier or off-device progress guarantee is introduced. Terms already distinguish payment/account operational records.",
+      "checkedPages": [
+        "/faq/#connection",
+        "/faq/#save",
+        "/faq/#privacy",
+        "/contact/",
+        "/privacy/"
+      ],
+      "evidence": [
+        "scratch/hints-public-guides-20261008/results.json; SHA256 c3a540cbc629337532c34e6837a36fdb12da90ea7a3567df2205ba4637b11733",
+        "scratch/hints-integration-repaired-20261008.json; SHA256 bf5e79326e2352ec4e76acb6f315bbba097a39358deb7926da485755420f7317",
+        "Read src/locales/siteContent.ts connection/save/privacy sections, src/locales/privacyReview.ts, src/components/AccountDataGuide.tsx, src/config/currentTerms.ts and the forward migration profile cascades/service-role-only ACLs.",
+        "Native ledger 42 scenarios/43 tests and HintTicketStore 20 tests passed; production schema and account smoke remain separate deployment checks."
+      ]
+    },
+    {
+      "group": "commerce-and-disclosures",
+      "decision": "updated",
+      "reason": "FAQ, current terms 2026-10-08.1 and product explanations agree on free practice/tutorial and explicit one-ticket non-practice use. Prices, pack quantities, renewal, source-specific stock, legacy membership and historical terms/SQL are preserved. The current terms page reads the new version; legacy terms continue using the immutable legacy document.",
+      "checkedPages": [
+        "/faq/#hints",
+        "/contact/",
+        "/privacy/",
+        "/terms/"
+      ],
+      "evidence": [
+        "scratch/hints-commerce-browser-20261008.log; SHA256 0ca4eb20fadcb1a4d10b5798ad1bdd64d7dc5c4e797fde5fe31309f378753d26",
+        "scratch/hints-integration-repaired-20261008.json; SHA256 bf5e79326e2352ec4e76acb6f315bbba097a39358deb7926da485755420f7317",
+        "check-commerce-browser --sales=on: Japanese/English at 390/1280, current sales status, all products and legacy USD 2.99 contract, no overflow or runtime errors; no checkout performed.",
+        "Read currentTerms.ts, TermsDocument.tsx, commerceCatalog.ts, hintScopeText.ts and current SQL version 8.1; real compiled commerce/PostgREST adapter 11 checks passed on the forward policy."
+      ]
+    },
+    {
+      "group": "public-guidance-and-navigation",
+      "decision": "updated",
+      "reason": "The eight public pages retain navigable guide/FAQ links, metadata, headings and readable initial HTML. QUBE teaching uses the retained character image. Retired diary links/routes are not reintroduced, and no advertising SDK is enabled. Contact/privacy/terms remain readable before game sign-in.",
+      "checkedPages": [
+        "/",
+        "/guide/",
+        "/faq/",
+        "/rules/",
+        "/about/",
+        "/contact/",
+        "/privacy/",
+        "/terms/"
+      ],
+      "evidence": [
+        "scratch/hints-public-guides-20261008/results.json; SHA256 c3a540cbc629337532c34e6837a36fdb12da90ea7a3567df2205ba4637b11733",
+        "check-public-guides: 8 initial HTML pages; 4 Japanese/English desktop/mobile interaction cases and 2 JavaScript-disabled reading cases passed; relevant information-page navigation checked.",
+        "check-public-content and content-maintenance Node suites: 20/20 passed."
+      ]
+    },
+    {
+      "group": "qube-teaching",
+      "decision": "updated",
+      "reason": "The common QubeTeacher supplies the visible QUBE name, localized caption and existing decorative portrait. It wraps public learning/rules explanations, all tutorial steps, in-game help and feedback, promotion/castling guidance, stage/setup information, reward/equipment explanations and selected ticket/login/admission explanations. Explanatory content remains available with keyboard/native controls; the retired QUBE post section stays absent.",
+      "checkedPages": [
+        "/",
+        "/about/",
+        "/rules/",
+        "/guide/",
+        "/faq/",
+        "game: tutorial, help dialogs, move hints and feedback, promotion/castling, stage/setup explanations, cosmetic preview/equipment guidance"
+      ],
+      "evidence": [
+        "scratch/hints-public-guides-20261008/results.json; SHA256 c3a540cbc629337532c34e6837a36fdb12da90ea7a3567df2205ba4637b11733",
+        "scratch/hints-lobby-20261008.log; SHA256 4185d628b453050e6d1110cd5e8d71b75fb259968cee0558ef998748a4946363",
+        "scratch/hints-integration-repaired-20261008.json; SHA256 bf5e79326e2352ec4e76acb6f315bbba097a39358deb7926da485755420f7317",
+        "QUBE loading/accessibility browser passed at 390/1280: status and busy semantics, repeat-click prevention, reduced motion, old-position/replacement-result isolation.",
+        "Independent supervisors reviewed UI and Content commits; UI browser 11+4 cases verified help dialog open/close and mobile explanation scrolling above fixed footer. Root integrated lobby exercised practice, settings, previews and Crown entrance."
+      ]
+    }
+  ],
+  "reviewedAt": "2026-10-08T07:39:44.439Z",
+  "scope": "Editorial and behavior alignment for the exact recorded source blobs. Browser authentication/socket/payment replies are synthetic; real production deployment, payments, Android devices and AdSense approval are not claimed."
+}

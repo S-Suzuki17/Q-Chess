@@ -28,6 +28,9 @@ import { SettingsDialog } from './SettingsDialog';
 import { formatFriendRating } from '../lib/friendDirectory';
 import { LiveMatchesMenu } from './LiveMatchesMenu';
 import { CPU_LEVELS, cpuDifficulty, type CPULevel } from '../config/cpuDifficulty';
+import { QubeTeacher } from './QubeTeacher';
+import { LatestMatchHintRecovery } from './CrownHintRecovery';
+import { hintScopeText } from '../locales/hintScopeText';
 import { InteractiveTutorial } from './InteractiveTutorial';
 import { ArrowUpRight, Swords, Dices, UsersRound, LogIn, Crown } from 'lucide-react';
 import { LobbyShowcase } from './LobbyShowcase';
@@ -426,7 +429,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
                             </button>)}</div>
                         </fieldset>}
                         <h3 className="text-xl tracking-[0.2em] text-[#E8E2D7] mb-2">{t.selectTimeLimit}</h3>
-                        <p className="text-[#A89C86] text-xs tracking-widest mb-8">{t.timeLimit}</p>
+                        <QubeTeacher lang={lang} variant="compact"><p className="text-[#A89C86] text-xs tracking-widest mb-8">{t.timeLimit}</p>{pendingAction.type==='cpu'&&<p>{hintScopeText(lang)}</p>}</QubeTeacher>
                         <div className="flex flex-col gap-4">
                             {(['10s', '3m', '10m'] as TimeControl[]).map(tc => (
                                 <button
@@ -544,7 +547,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
                             <button onClick={() => setShowReplays(false)} className="text-[#A89C86] hover:text-[#E8E2D7] text-2xl">✕</button>
                         </div>
 
-                        <p className="mb-6 text-sm text-[#A89C86]">{historyCopy.historyOnly}</p>
+                        <QubeTeacher lang={lang} variant="compact"><p className="mb-6 text-sm text-[#A89C86]">{historyCopy.historyOnly}</p></QubeTeacher>
 
                         {historyError || user.type === 'guest' ? (
                             <div role="status" className="flex-grow flex flex-col items-center justify-center gap-4 text-[#A89C86] text-sm">
@@ -685,6 +688,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
                 </div>
 
                 <div className="lobby-recent flex flex-col w-full">
+                    {user.type==='registered'&&<LatestMatchHintRecovery key={user.id} userId={user.id} lang={lang}/>}
                     <div className="border-b border-[#A89C86]/20 pb-2 mb-2 flex justify-between items-end">
                         <span className="text-[10px] tracking-[0.2em] text-[#A89C86] uppercase">{(t as any).recentGames}</span>
                     </div>

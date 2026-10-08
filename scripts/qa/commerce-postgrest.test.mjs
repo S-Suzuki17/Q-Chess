@@ -14,8 +14,9 @@ import net from 'node:net';
 import { createClient } from '@supabase/supabase-js';
 import { connect, connection, account, scalar, HASH } from './commerce-postgres-support.mjs';
 import { setupBaseline, applyPending, pending } from './fixtures/commerce-postgres-baseline.mjs';
+import { applySessionFile, hintPolicyMigrations } from './fixtures/session-postgres-baseline.mjs';
 
-test('commerce adapter through native PostgREST and pending SQL upgrade', { timeout: 180_000 }, async t => {
+test('current commerce adapter through native PostgREST and the hint-policy upgrade', { timeout: 180_000 }, async t => {
     const executable = process.env.QG_TEST_POSTGREST_BIN;
     assert.ok(executable && isAbsolute(executable), 'Set QG_TEST_POSTGREST_BIN to the verified local PostgREST executable');
     const version = spawnSync(executable, ['--version'], { encoding:'utf8', windowsHide:true, timeout:10_000 });
@@ -50,7 +51,7 @@ test('commerce adapter through native PostgREST and pending SQL upgrade', { time
         }
         await admin.end();
         for(const [name,value] of savedFlags) { if(value === undefined)delete process.env[name]; else process.env[name]=value; }
-        for(const file of [...pending.map(name=>'supabase/migrations/'+name),
+        for(const file of [...[...pending,...hintPolicyMigrations].map(name=>'supabase/migrations/'+name),
             'scripts/qa/commerce-postgrest.test.mjs','scripts/qa/commerce-postgres-support.mjs',
             'scripts/qa/fixtures/commerce-postgres-baseline.mjs','scripts/qa/fixtures/session-postgres-baseline.mjs',
             'scripts/qa/fixtures/hosted-release-overlay.sql',
@@ -67,7 +68,8 @@ test('commerce adapter through native PostgREST and pending SQL upgrade', { time
             postgrestVersion:version.stdout.trim(), sourceSha256, nativePostgreSQL:true,
             actualCompiledAdapter:true, loopbackOnly:true, hostedProductionEquivalent:false,
             realStripeVerified:false, productionData:false,
-            observedHostedCatalogOverlay:{before:overlayBefore,after:overlayAfter},
+            historicalReleaseMigrations:pending,forwardPolicyMigrations:hintPolicyMigrations,
+            observedHostedCatalogOverlay:{before:overlayBefore,after:overlayAfter,afterScope:'PR19 raw thirteen-file upgrade, before new policy'},
         },null,2)+'\n');
     });
     await check('public baseline starts with the new RPC unavailable', async () => {
@@ -104,14 +106,17 @@ test('commerce adapter through native PostgREST and pending SQL upgrade', { time
     await check('explicit raw migrations become visible after schema-cache reload', async () => {
         await applyPending(admin);
         overlayAfter=await scalar(admin,'select qg_fixture.assert_stage(true) as result');
+        // Current compiled adapters require the new terms. The fixed PR19
+        // overlay is asserted first; already-released SQL remains unchanged.
+        for(const name of hintPolicyMigrations)await applySessionFile(admin,name);
         await admin.query("notify pgrst, 'reload schema'");
         const deadline=Date.now()+10_000; let ready=false;
         while(Date.now()<deadline) {
             // Wait for the last forward migration, not an earlier catalog.
-            ready=await http('/stripe_retired_commerce_checkouts?select=checkout_id&limit=0').then(r=>r.ok);
+            ready=await http('/match_hint_receipts?select=request_id&limit=0').then(r=>r.ok);
             if(ready)break; await delay(100);
         }
-        assert.ok(ready,'Final Checkout retirement table not visible after schema reload');
+        assert.ok(ready,'New hint receipts not visible after schema reload');
         api=createClient(origin,serviceToken,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false},
             global:{fetch:(input,init)=>{
                 const url=new URL(typeof input==='string'?input:input.url??String(input));
@@ -170,19 +175,19 @@ test('commerce adapter through native PostgREST and pending SQL upgrade', { time
     });
     await check('compiled current-terms adapter requires explicit acceptance of the new published version',async()=>{
         const oldUser=await account(admin,{oldTermsOnly:true});
-        await admin.query("insert into public.account_terms_consents(user_id,version) values($1,'2026-10-03.1')",[oldUser]);
+        await admin.query("insert into public.account_terms_consents(user_id,version) values($1,'2026-10-03.1'),($1,'2026-10-07.1')",[oldUser]);
         const before=await currentTerms.readCurrentTerms(api,oldUser);
-        assert.equal(before.currentVersion,'2026-10-07.1');
-        assert.equal(before.effectiveDate,'2026-10-07');
+        assert.equal(before.currentVersion,'2026-10-08.1');
+        assert.equal(before.effectiveDate,'2026-10-08');
         assert.equal(before.consent,null);
         assert.equal(await store.hasCurrentTerms(oldUser),false);
-        const stale=await api.rpc('accept_current_account_terms',{p_user_id:oldUser,p_version:'2026-10-03.1'});
+        const stale=await api.rpc('accept_current_account_terms',{p_user_id:oldUser,p_version:'2026-10-07.1'});
         assert.ok(stale.error,'Old-version acceptance must be rejected');
         assert.equal(await store.hasCurrentTerms(oldUser),false);
-        await rpc('accept_current_account_terms',{p_user_id:oldUser,p_version:'2026-10-07.1'});
-        assert.equal((await currentTerms.readCurrentTerms(api,oldUser)).consent.version,'2026-10-07.1');
+        await rpc('accept_current_account_terms',{p_user_id:oldUser,p_version:'2026-10-08.1'});
+        assert.equal((await currentTerms.readCurrentTerms(api,oldUser)).consent.version,'2026-10-08.1');
         assert.equal(await store.hasCurrentTerms(oldUser),true);
-        assert.equal(await scalar(admin,"select count(*)::integer as result from public.account_terms_consents where user_id=$1 and version='2026-10-03.1'",[oldUser]),1);
+        assert.equal(await scalar(admin,"select count(*)::integer as result from public.account_terms_consents where user_id=$1 and version in ('2026-10-03.1','2026-10-07.1')",[oldUser]),2);
     });
     await check('compiled store registers consent and fulfills a known 13-hint source exactly once',async()=>{
         user=await account(admin);
@@ -200,16 +205,18 @@ test('commerce adapter through native PostgREST and pending SQL upgrade', { time
         const sources=await api.from('stripe_commerce_sources').select('available,quantity,state').eq('user_id',user);
         assert.equal(sources.error,null); assert.deepEqual(sources.data,[{available:13,quantity:13,state:'active'}]);
     });
-    await check('HTTP hint receipts debit five units from that exact purchase',async()=>{
+    await check('current HTTP hint receipts debit five units from that purchase while fresh practice purchases stop',async()=>{
         for(let i=0;i<5;i++) {
-            const session=await rpc('cpu_practice_open',{p_session_id:randomUUID(),p_user_id:user,p_player_side:'white',
-                p_level:1,p_seconds:600,p_rules_version:'quantum-practice-v1',p_state_hash:HASH,
-                p_state:{sideToMove:'white',ply:0,winner:null,pieces:Array.from({length:32},()=>({}))}});
-            const receipt=await rpc('buy_cpu_hint_v2',{p_request_id:randomUUID(),p_user_id:user,p_session_id:session.sessionId,
-                p_revision:session.revision,p_state_hash:session.stateHash,p_move:{pieceId:'w_1',target:{row:5,col:0}},
+            const databaseTime=await rpc('match_hint_clock',{});
+            const receipt=await rpc('buy_match_hint',{p_request_id:randomUUID(),p_user_id:user,p_context_id:randomUUID(),
+                p_kind:'match',p_mode:'private',p_side:'white',p_revision:0,p_state_hash:HASH,p_rules_version:'match-hint-v1',
+                p_valid_until:new Date(Date.parse(databaseTime)+5000).toISOString(),p_move:{pieceId:'w_1',target:{row:5,col:0}},
                 p_hint:{fromRow:6,fromCol:0,toRow:5,toCol:0}});
             assert.ok(receipt.receiptId); firstReceipt??=receipt;
         }
+        const practice=await api.rpc('buy_cpu_hint_v2',{p_request_id:randomUUID(),p_user_id:user,p_session_id:randomUUID(),
+            p_revision:0,p_state_hash:HASH,p_move:{pieceId:'w_1',target:{row:5,col:0}},p_hint:{fromRow:6,fromCol:0,toRow:5,toCol:0}});
+        assert.equal(practice.error?.message,'PRACTICE_HINTS_FREE');
         assert.equal(await scalar(admin,'select purchased_hint_tickets as result from public.ticket_wallets where user_id=$1',[user]),'8');
     });
     await check('full refund reclaims only the remaining eight and restoration cannot resurrect refunded stock',async()=>{
@@ -217,7 +224,7 @@ test('commerce adapter through native PostgREST and pending SQL upgrade', { time
             paymentSource:{...evidence.paymentSource,amountRefunded:1000,riskState:'refunded'}};
         assert.equal((await store.applySourceRisk(risk)).recovered,8);
         assert.equal((await store.applySourceRisk(risk)).duplicate,true);
-        assert.equal(await rpc('restore_cpu_hint_credit',{p_receipt_id:firstReceipt.receiptId,p_user_id:user,p_reason:'unrecoverable_delivery'}),0);
+        assert.equal(await rpc('restore_match_hint_credit',{p_receipt_id:firstReceipt.receiptId,p_user_id:user,p_reason:'unrecoverable_delivery'}),0);
         assert.equal(await scalar(admin,'select purchased_hint_tickets as result from public.ticket_wallets where user_id=$1',[user]),'0');
     });
     await check('released HTTP reconciliation authority cannot be replayed',async()=>{

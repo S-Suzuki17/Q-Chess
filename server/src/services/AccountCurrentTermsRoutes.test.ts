@@ -8,7 +8,7 @@ import { createCurrentTermsRouter } from './AccountCurrentTermsRoutes';
 import { createAccountTermsRouter } from './AccountTermsRoutes';
 import { CURRENT_TICKET_TERMS_VERSION, parseCurrentTerms } from './AccountCurrentTerms';
 let server:http.Server, base:string, token:string, auth:RankedAuth;
-const value={userId:'Alice',currentVersion:CURRENT_TICKET_TERMS_VERSION,effectiveDate:'2026-10-07',effective:true,consent:null as {version:string;acceptedAt:string}|null};
+const value={userId:'Alice',currentVersion:CURRENT_TICKET_TERMS_VERSION,effectiveDate:'2026-10-08',effective:true,consent:null as {version:string;acceptedAt:string}|null};
 const current={verifyUser:vi.fn(),blocked:vi.fn(),read:vi.fn(),accept:vi.fn()};
 const legacy={verifyUser:vi.fn(),blocked:vi.fn(),read:vi.fn(),accept:vi.fn()};
 const options=(body?:unknown,proof=token)=>({headers:{Authorization:`Bearer ${proof}`,'Content-Type':'application/json'},...(body===undefined?{}:{method:'POST',body:JSON.stringify(body)})});
