@@ -105,10 +105,13 @@ async function setup(sku: Parameters<typeof commerceEvidenceFixture>[0], registe
     return { ...f, deliver, deliverHttp, route, portal };
 }
 describe('signed synthetic webhook through provider reader and adapter into actual PostgreSQL', () => {
-    beforeAll(async () => { db = await historicalCommerceDatabase(); await applyMigrations(db, releaseCommerceMigrations); }, 60_000);
+    beforeAll(async () => {
+        db = await historicalCommerceDatabase();
+        await applyMigrations(db, [...releaseCommerceMigrations, '20261008054904_match_hint_tickets_and_free_practice.sql']);
+    }, 60_000);
     afterAll(async () => { await db?.close(); });
     beforeEach(async () => { await db.exec(`begin; insert into public.profiles(id) values('Alice');
-        insert into public.account_terms_consents(user_id,version) values('Alice','2026-10-07.1'); set role service_role;`); });
+        insert into public.account_terms_consents(user_id,version) values('Alice','2026-10-08.1'); set role service_role;`); });
     afterEach(async () => {
         for (const server of servers.splice(0)) { server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())); }
         await db.exec('rollback; reset role');

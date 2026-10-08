@@ -50,6 +50,9 @@ vi.mock('./AccountSecurityRoutes', () => ({ createAccountSecurityRouter: vi.fn((
 vi.mock('./AccountProgressRoutes', () => ({ createAccountProgressRouter: vi.fn(() => () => {}) }));
 vi.mock('./DailyLoginRoutes', () => ({ createDailyLoginRouter: vi.fn(() => () => {}) }));
 vi.mock('./CpuPracticeRoutes', () => ({ createCpuPracticeRouter: vi.fn(() => () => {}) }));
+// Hint authority is covered by its real routers and the native HTTP/socket suite.
+vi.mock('./MatchHintRoutes', () => ({ createMatchHintRouter: vi.fn(() => () => {}) }));
+vi.mock('./CrownHintRoutes', () => ({ createCrownHintRouter: vi.fn(() => () => {}) }));
 // Crown HTTP authority has its own real-router and mounted-HTTP tests.
 vi.mock('./CrownAdmissionRoutes', () => ({ createCrownAdmissionRouter: vi.fn(() => () => {}) }));
 // HTTP inspection has its own real-router suite; this fixture isolates socket admission.
