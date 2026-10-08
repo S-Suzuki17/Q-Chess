@@ -1,4 +1,5 @@
 import express from 'express';
+import { recoveryEmail } from './AccountRecovery';
 import { type RankedSessionAuthority } from './RankedAuth';
 import { AccountWriteGate } from './AccountDeletion';
 import { validRegistration,type AccountSecurityStore } from './AccountSecurity';
@@ -22,8 +23,10 @@ export function createAccountSecurityRouter(auth:RankedSessionAuthority,store:Ac
     router.get('/account/sessions/capabilities',async(_req,res)=>{res.json({enabled:await store.ready()});});
     const json=express.json({limit:'2kb',inflate:false});
     router.post('/auth/register',json,async(req,res)=>{
-        const {username,password}=req.body??{};
-        if(!req.is('application/json')||!req.body||Object.keys(req.body).sort().join(',')!=='password,username'||!validRegistration(username,password)){
+        const {username,password,email}=req.body??{};
+        const fields=Object.keys(req.body??{}).sort().join(',');
+        const withEmail=fields==='email,password,username';
+        if(!req.is('application/json')||!req.body||(!withEmail&&fields!=='password,username')||!validRegistration(username,password)||(withEmail&&!recoveryEmail(email))){
             res.status(400).json({code:'INVALID_REGISTRATION'});return;
         }
         const ip=req.socket.remoteAddress??'unknown';
@@ -34,7 +37,7 @@ export function createAccountSecurityRouter(auth:RankedSessionAuthority,store:Ac
         registering++;
         try{
             if(!await store.ready()){res.status(503).json({code:'UNAVAILABLE'});return;}
-            if(!await store.register(username,password)){res.status(409).json({code:'REGISTRATION_UNAVAILABLE'});return;}
+            if(!await (withEmail?store.register(username,password,recoveryEmail(email)!):store.register(username,password))){res.status(409).json({code:'REGISTRATION_UNAVAILABLE'});return;}
             await audit('registration','success',username);res.status(201).json({registered:true});
         }catch{res.status(503).json({code:'UNAVAILABLE'});}finally{registering--;}
     });

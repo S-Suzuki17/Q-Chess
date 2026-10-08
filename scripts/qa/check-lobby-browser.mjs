@@ -34,7 +34,7 @@ let browser;
 const results = [];
 try {
     await mkdir(artifacts, { recursive:true });
-    browser = await chromium.launch({ headless:true });
+    browser = await chromium.launch({ headless:true, ...(process.env.QG_TEST_CHROMIUM?{executablePath:process.env.QG_TEST_CHROMIUM}:{}) });
     for (const [width,height] of [[1920,1080],[1280,800],[390,844],[320,568]]) {
         const context = await browser.newContext({ viewport:{ width,height } });
         const errors = [], remoteRequests = [];
@@ -157,16 +157,16 @@ try {
             await verifyFreePractice('guest');
             await page.locator('.lobby-campaign-action').click();
             await page.getByRole('button',{name:'ログインしてプレイ',exact:true}).waitFor();
-            assert.equal(await page.locator('.campaign-boss-card .campaign-primary').count(),0,'guest cannot start account-bound Crown progress');
+            assert.equal(await page.locator('.crown-encounter .campaign-primary').count(),0,'guest cannot start account-bound Crown progress');
             // Reload restores the explicitly owned synthetic registered fixture
             // through the same real session-status route, without live sign-in.
             await page.reload({waitUntil:'domcontentloaded'});await lobby.waitFor();
         }
         await page.locator('.lobby-campaign-action').click();
-        await page.locator('.campaign-boss-card .campaign-primary').waitFor();
-        const boss=await page.locator('.campaign-boss-card').boundingBox(),stages=await page.locator('.campaign-rounds').boundingBox();
+        await page.locator('.crown-encounter .campaign-primary').waitFor();
+        const boss=await page.locator('.crown-encounter').boundingBox(),stages=await page.locator('.crown-journey').boundingBox();
         if(width<=700)assert.ok(boss.y<stages.y,'mobile puts the selected challenge before the stage list');
-        await page.locator('.campaign-boss-card .campaign-primary').click();
+        await page.locator('.crown-encounter .campaign-primary').click();
         await page.locator('.match-layout').waitFor();
         await page.locator('[data-hint-access="ticket"]').waitFor();
         assert.equal(await page.locator('[data-hint-access="ticket"]').innerText(),'ヒント券を使用（1枚）');
@@ -174,7 +174,7 @@ try {
         await page.getByRole('button',{name:'ホームに戻る',exact:true}).click();
         await page.getByRole('button',{name:'戻る',exact:true}).click();
         await page.locator('.campaign-screen').waitFor();
-        await page.locator('.campaign-header button').click();await lobby.waitFor();
+        await page.locator('.campaign-header button').first().click();await lobby.waitFor();
         assert.deepEqual(errors, [], `runtime errors ${width}`);
         assert.ok(remoteRequests.includes('/auth/ranked-session/status'));
         results.push({ width,height, history:10, releaseFlagsOn, preview:true, settings:true, nativeDialogs:true, zeroBalancePracticeLegalHint:true, guestFreePractice:width===390, practiceHintNetworkCalls:0, cpuReply:true, crownTicketLabel:true, crownGuestLoginGate:width===390, liveTraffic:false });

@@ -49,13 +49,12 @@ describe('Profile rank cosmetics',()=>{
     });
     it.each(['avatar-frame-05','avatar-frame-10','avatar-frame-15'])('keeps the %s crown symmetric above the portrait',frame=>{
         const html=renderToStaticMarkup(createElement(AccountAvatar,{name:'Player',frame}));
-        const crown=html.match(/<path d="(M31 15[^"]+)"/);
+        const crown=html.match(/<path data-frame-crest="true" d="([^"]+)"/);
         expect(crown).not.toBeNull();
         const values=crown![1].match(/-?\d+/g)!.map(Number);
         const points=Array.from({length:values.length/2},(_,i)=>[values[i*2],values[i*2+1]]);
         for(let i=0;i<points.length;i++) {
-            expect(points[i][0]+points[points.length-1-i][0]).toBe(120);
-            expect(points[i][1]).toBe(points[points.length-1-i][1]);
+            expect(points).toContainEqual([120-points[i][0],points[i][1]]);
             expect(points[i][0]).toBeGreaterThanOrEqual(25);
             expect(points[i][0]).toBeLessThanOrEqual(95);
         }

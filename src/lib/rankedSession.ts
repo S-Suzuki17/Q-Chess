@@ -137,6 +137,10 @@ export function forgetRevokedRankedSession(proof: RankedSession, expectedRevisio
     return true;
 }
 
+export class RankedLoginError extends Error {
+    constructor(public readonly status:number) { super('Ranked login failed'); }
+}
+
 /** Credentials are sent once over HTTPS and never written to browser storage. */
 export async function requestRankedSession(username: string, password: string, keepLoggedIn: boolean, signal?: AbortSignal): Promise<RankedSession> {
     const attempt = ++generation;
@@ -150,7 +154,7 @@ export async function requestRankedSession(username: string, password: string, k
         body: JSON.stringify({ username, password, keepLoggedIn }), signal,
         credentials: 'omit', cache: 'no-store', redirect: 'error',
     });
-    if (!response.ok) throw new Error('Ranked login failed');
+    if (!response.ok) throw new RankedLoginError(response.status);
     const payload: unknown = await response.json();
     const proof = parseRankedSessionCandidate(payload);
     const serverNow = (payload as {serverNow?: unknown} | null)?.serverNow;

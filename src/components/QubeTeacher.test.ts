@@ -7,6 +7,7 @@ import {qubeTeaching} from '../locales/qubeTeaching';
 import {LearningArticle} from './LearningPage';
 import {AboutArticle, SiteIntroduction} from './SiteInformation';
 import {learningCopy} from '../locales/siteContent';
+import {readFileSync} from 'node:fs';
 
 describe('QUBE teaching presentation', () => {
     it('falls back to English for an unsupported runtime language', () => {
@@ -21,6 +22,8 @@ describe('QUBE teaching presentation', () => {
         expect(html).toMatch(/data-qube-speaker="[^"]*">QUBE/);
         expect(html).toContain(qubeTeaching[lang].caption);
         expect(html).toContain('alt=""');
+        expect(html).toContain('src="/assets/qube-companion/qube-neutral.svg"');
+        expect(html).not.toContain('data-qube-state');
         expect(html).not.toContain('alt="QUBE"');
         expect(html).toContain('role="status"');
         expect(html).toContain('Keep the actual instruction');
@@ -30,6 +33,12 @@ describe('QUBE teaching presentation', () => {
             expect(article).toContain(qubeTeaching[lang].welcome);
             expect(article).not.toContain('undefined');
         }
+    });
+    it('uses the approved static portrait without default sweat or gesture animation', () => {
+        const svg=readFileSync('public/assets/qube-companion/qube-neutral.svg','utf8');
+        expect(svg).toContain('viewBox="0 0 300 310"');
+        expect(svg.match(/<g[^>]*data-qube-part="sweat"[^>]*>/)?.[0]).toContain('opacity="0"');
+        expect(svg).not.toMatch(/<animate\b|@keyframes/);
     });
     it.each(['ja', 'en'] as const)('keeps hints and native answers within QUBE explanations in %s', lang => {
         const guide = renderToStaticMarkup(createElement(LearningArticle, {kind: 'guide', lang}));

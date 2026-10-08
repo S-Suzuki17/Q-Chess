@@ -1,6 +1,8 @@
 .victory-fx{position:fixed;inset:0;z-index:80;overflow:hidden;pointer-events:none;color:var(--fx-color);contain:layout paint}
 .victory-fx[data-contained=true],.reward-preview-board .victory-fx{position:absolute}
 .victory-fx canvas{display:block;width:100%;height:100%}
+.victory-fx canvas[data-victory-layer=cinematic]{position:absolute;inset:0;visibility:hidden}
+.victory-fx[data-cinematic=ready] canvas[data-victory-layer=cinematic]{visibility:visible}
 .victory-fx[data-effect-preview=false][data-finished=true]{opacity:0;transition:opacity .2s ease-out}
 .victory-fx-fallback{position:absolute;inset:20%;display:grid;place-items:center}
 .victory-fx-fallback svg{height:100%;max-width:100%}
@@ -43,4 +45,4 @@
 .campaign-result[data-result] .campaign-primary{background:#d6e4ef;color:#101e2b;border-color:#d6e4ef}
 .campaign-result[data-result] .campaign-stars{font-size:28px;color:#f0cf86;letter-spacing:.2em}
 @media(max-width:480px){.reward-preview-dialog[data-reward-kind=effect]{padding:18px}.reward-preview-dialog[data-reward-kind=effect] .reward-preview-board{margin-inline:-18px;height:280px}.campaign-result .campaign-result-cinema{height:170px}}
-@media(prefers-reduced-motion:reduce){.victory-fx-fallback{animation:none!important}.victory-fx:not([data-effect-preview=true]){display:none}}
+@media(prefers-reduced-motion:reduce){.victory-fx-fallback{animation:none!important}.victory-fx:not([data-effect-preview=true]):not([data-contained=true]){display:none}}

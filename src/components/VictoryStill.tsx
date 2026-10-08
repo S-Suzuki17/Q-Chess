@@ -7,13 +7,16 @@ export function VictoryStill({preset}:{preset:ChampionEffect}) {
     const canvas=useRef<HTMLCanvasElement>(null);
     useEffect(()=>{
         const node=canvas.current,ctx=node?.getContext('2d');if(!node||!ctx)return;
+        const motion=window.matchMedia('(prefers-reduced-motion: reduce)');
         const draw=()=>{
             const width=node.clientWidth,height=node.clientHeight,dpr=Math.min(window.devicePixelRatio||1,2);
             node.width=Math.round(width*dpr);node.height=Math.round(height*dpr);ctx.setTransform(dpr,0,0,dpr,0,0);
-            // Show the eruption, not the already-dissipated tail, in the reward catalogue.
-            renderVictoryFrame(ctx,createVictoryPlan(preset,true),width,height,.95,true);
+            // The readable hero hold matches the actual preview and live composition.
+            renderVictoryFrame(ctx,createVictoryPlan(preset,true),width,height,1.6,true,undefined,true,motion.matches);
         };
-        draw();const observer=new ResizeObserver(draw);observer.observe(node);return()=>observer.disconnect();
+        draw();const observer=new ResizeObserver(draw);observer.observe(node);
+        motion.addEventListener('change',draw);
+        return()=>{observer.disconnect();motion.removeEventListener('change',draw);};
     },[preset]);
     return <canvas ref={canvas} aria-hidden="true" style={{width:'100%',height:'100%',display:'block'}}/>;
 }

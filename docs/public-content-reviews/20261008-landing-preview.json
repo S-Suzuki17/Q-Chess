@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 1,
+  "status": "completed",
+  "baseRevision": "2be9c0efbe9858049c66c7bcfddbc003e89fc805",
+  "reviewer": "Codex",
+  "changes": [
+    {
+      "path": "src/app/page.tsx",
+      "gitBlob": "75839a53a9adefae2bfd7167bd77644268f6c9ea"
+    },
+    {
+      "path": "src/components/TitleScreen.tsx",
+      "gitBlob": "ebf1dc393c7f865a2b8507cd23de781ead02b23e"
+    }
+  ],
+  "reviews": [
+    {
+      "group": "start-and-controls",
+      "decision": "no-change-needed",
+      "reason": "The entry screen gains a clearly labeled sample screenshot and places the existing Guest action before the rules shortcut. The guest handler, first-visit terms gate, lobby, tutorial/practice entry, login requirements and free-practice/ticket policy are unchanged. Japanese and English start/guest guidance still matches these source paths.",
+      "checkedPages": [
+        "/guide/#start",
+        "/faq/#guest"
+      ],
+      "evidence": [
+        "Source review: src/components/TitleScreen.tsx guest handler and existing link destinations; src/app/page.tsx only adds a settings-control CSS hook.",
+        "Japanese and English learningCopy start steps and FAQ guest answers reviewed in src/locales/siteContent.ts; guidance still describes Guest, first-visit consent, lobby tutorial/practice and sign-in restrictions accurately.",
+        "npm test -- src/components/homeEntry.test.ts src/components/landingGamePreview.test.ts src/components/boardAcceptance.test.ts: 24 tests passed, covering twelve locales, entry order, read-only sample labeling, exact PNG hash/dimensions and no live preview renderer.",
+        "npm run typecheck passed; focused lint passed with three existing no-img-element warnings in TitleScreen.tsx.",
+        "PNG pixels inspected; original 1600x1000 asset hash is locked by landingGamePreview.test.ts. Full-size link has a real local asset, preserves all screenshot context, and opens in a separate tab.",
+        "Browser layout, scrolling, focus, forced-colors rendering and full-size-link interaction were not executed in this workspace. CSS/SSR checks are not visual or interaction verification.",
+        "Final npm run build passed. The local static export passed all eight public-page checks, navigation/anchors/search metadata, and a HEAD check of the exact PNG (HTTP 200, image/png). Production HTML places the screenshot before Play and contains no live board squares.",
+        "npm run test:board: 73 tests passed. Public-content and content-maintenance Node tests: 22 passed, including negative checks for unknown/missing image targets and non-image responses."
+      ]
+    },
+    {
+      "group": "public-guidance-and-navigation",
+      "decision": "no-change-needed",
+      "reason": "Existing public navigation targets and educational/legal copy are unchanged. The only added destination is the verified full-size PNG sample, opening separately for mobile readability. The image and all twelve localized captions identify a sample position rather than a live or recorded match. No article or game-rule update is needed.",
+      "checkedPages": [
+        "/",
+        "/guide/",
+        "/faq/",
+        "/rules/",
+        "/about/",
+        "/contact/",
+        "/privacy/",
+        "/terms/"
+      ],
+      "evidence": [
+        "Source review: src/components/TitleScreen.tsx guest handler and existing link destinations; src/app/page.tsx only adds a settings-control CSS hook.",
+        "Japanese and English learningCopy start steps and FAQ guest answers reviewed in src/locales/siteContent.ts; guidance still describes Guest, first-visit consent, lobby tutorial/practice and sign-in restrictions accurately.",
+        "npm test -- src/components/homeEntry.test.ts src/components/landingGamePreview.test.ts src/components/boardAcceptance.test.ts: 24 tests passed, covering twelve locales, entry order, read-only sample labeling, exact PNG hash/dimensions and no live preview renderer.",
+        "npm run typecheck passed; focused lint passed with three existing no-img-element warnings in TitleScreen.tsx.",
+        "PNG pixels inspected; original 1600x1000 asset hash is locked by landingGamePreview.test.ts. Full-size link has a real local asset, preserves all screenshot context, and opens in a separate tab.",
+        "Browser layout, scrolling, focus, forced-colors rendering and full-size-link interaction were not executed in this workspace. CSS/SSR checks are not visual or interaction verification.",
+        "Final npm run build passed. The local static export passed all eight public-page checks, navigation/anchors/search metadata, and a HEAD check of the exact PNG (HTTP 200, image/png). Production HTML places the screenshot before Play and contains no live board squares.",
+        "npm run test:board: 73 tests passed. Public-content and content-maintenance Node tests: 22 passed, including negative checks for unknown/missing image targets and non-image responses."
+      ]
+    }
+  ],
+  "assets": [
+    {
+      "path": "public/previews/game-screen-sample.png",
+      "sourceCommit": "2be9c0efbe9858049c66c7bcfddbc003e89fc805",
+      "components": [
+        "src/components/Board3D.tsx",
+        "src/components/MatchLayout.tsx"
+      ],
+      "position": "Synthetic sample position rendered in the actual game UI; not a played match or recorded game.",
+      "dimensions": {
+        "width": 1600,
+        "height": 1000
+      },
+      "bytes": 260535,
+      "sha256": "5fbeb3311a17a7329ae4d257e7ca9b3c7f7cdac40814a8a15adb38f9d935744f",
+      "processing": "Original PNG copied without pixel edits, cropping or resizing. Documents sourceCommit only; subsequent artwork changes are not represented."
+    }
+  ]
+}

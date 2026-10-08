@@ -8,14 +8,15 @@ beforeEach(()=>{vi.clearAllMocks();h.origin.mockReturnValue('https://game.exampl
 afterEach(()=>vi.unstubAllGlobals());
 it('registers only via the HTTPS API without retaining passwords',async()=>{
     const fetcher=vi.fn().mockResolvedValue(new Response('{"registered":true}',{status:201}));vi.stubGlobal('fetch',fetcher);
-    await registerAccount('Alice','correct-horse-123');expect(fetcher.mock.calls[0][0].pathname).toBe('/auth/register');
+    await registerAccount('Alice','correct-horse-123','alice@example.test');expect(fetcher.mock.calls[0][0].pathname).toBe('/auth/register');
+    expect(JSON.parse(fetcher.mock.calls[0][1].body)).toEqual({username:'Alice',password:'correct-horse-123',email:'alice@example.test'});
     expect(fetcher.mock.calls[0][1]).toMatchObject({credentials:'omit',redirect:'error',cache:'no-store'});
-    h.origin.mockReturnValue('http://game.example');await expect(registerAccount('Alice','password')).rejects.toThrow();expect(fetcher).toHaveBeenCalledOnce();
+    h.origin.mockReturnValue('http://game.example');await expect(registerAccount('Alice','password','alice@example.test')).rejects.toThrow();expect(fetcher).toHaveBeenCalledOnce();
 });
 it('fails closed for registration failures and never fabricates a session',async()=>{
     const fetcher=vi.fn();vi.stubGlobal('fetch',fetcher);
-    for(const status of [400,409,429,503]){fetcher.mockResolvedValue(new Response('{}',{status}));await expect(registerAccount('Alice','correct-horse-123')).rejects.toThrow();}
-    fetcher.mockResolvedValue(new Response('{}'));await expect(registerAccount('Alice','correct-horse-123')).rejects.toThrow();
+    for(const status of [400,409,429,503]){fetcher.mockResolvedValue(new Response('{}',{status}));await expect(registerAccount('Alice','correct-horse-123','alice@example.test')).rejects.toThrow();}
+    fetcher.mockResolvedValue(new Response('{}'));await expect(registerAccount('Alice','correct-horse-123','alice@example.test')).rejects.toThrow();
 });
 it('global logout posts no selectable account and requires an acknowledged result',async()=>{
     h.request.mockResolvedValue({userId:'Alice',revoked:true});await revokeAllAccountSessions('Alice');

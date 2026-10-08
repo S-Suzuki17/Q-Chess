@@ -68,6 +68,7 @@ createRoot(document.getElementById('root')).render(<Fixture/>);
         console.log('PASS: isolated fixture bundle built; browser checks were not run');
     } else {
         const icon = await readFile(resolve(root, 'public/qube_icon.jpg'));
+        const portrait = await readFile(resolve(root, 'public/assets/qube-companion/qube-neutral.svg'));
         browser = await chromium.launch({headless:true, executablePath:process.env.QUBE_QA_CHROMIUM_EXECUTABLE || undefined});
         for (const width of [390,1280]) {
             const context = await browser.newContext({viewport:{width,height:900}, reducedMotion:'no-preference', serviceWorkers:'block'});
@@ -78,6 +79,7 @@ createRoot(document.getElementById('root')).render(<Fixture/>);
                 if (route.request().url() === 'https://qube-fixture.invalid/qube_icon.jpg') {
                     return route.fulfill({contentType:'image/jpeg',body:icon});
                 }
+                if(route.request().url()==='https://qube-fixture.invalid/assets/qube-companion/qube-neutral.svg')return route.fulfill({contentType:'image/svg+xml',body:portrait});
                 blocked.push(route.request().url()); return route.abort();
             });
             await context.routeWebSocket('**/*', socket => socket.close());
