@@ -62,3 +62,53 @@ jobs:
           path: /tmp/${{ matrix.report }}
           if-no-files-found: error
           retention-days: 7
+
+  match-hint-runtime:
+    name: Hint policy HTTP and socket runtime
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17.11-bookworm
+        env:
+          POSTGRES_DB: commerce_upgrade
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: qgambit-ephemeral-only
+          POSTGRES_INITDB_ARGS: --locale=C --encoding=UTF8
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d commerce_upgrade"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            server/package-lock.json
+      - run: npm ci
+      - run: npm ci --prefix server
+      - run: npm run build --prefix server
+      - name: Install checksum-pinned official PostgREST
+        run: |
+          curl --fail --location --retry 3 --output "$RUNNER_TEMP/postgrest.tar.xz" https://github.com/PostgREST/postgrest/releases/download/v16.4/postgrest-v16.4-linux-static-x86-64.tar.xz
+          echo "b47ecc82fce1dcebbbc4183d839e52f07f7630c9d7ad0f54db753d1939299354  $RUNNER_TEMP/postgrest.tar.xz" | sha256sum --check
+          tar -xJf "$RUNNER_TEMP/postgrest.tar.xz" -C "$RUNNER_TEMP"
+          echo "QG_TEST_POSTGREST_BIN=$RUNNER_TEMP/postgrest" >> "$GITHUB_ENV"
+      - name: Verify actual hint purchase and recovery entrypaths
+        run: node --test --test-timeout=240000 scripts/qa/match-hint-runtime-postgres.test.mjs
+      - name: Retain synthetic runtime verification report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: match-hint-runtime-postgres-results
+          path: /tmp/match-hint-runtime-postgres-results.json
+          if-no-files-found: error
+          retention-days: 7
