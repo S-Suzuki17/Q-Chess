@@ -49,6 +49,7 @@ describe('Stripe live-mode boundary (mocked; never contacts Stripe)', () => {
         expect(form.get('line_items[0][price]')).toBe(QG_LIVE_MONTHLY_PRICE_ID);
         expect(form.get('automatic_tax[enabled]')).toBe('false');
         expect(form.get('managed_payments[enabled]')).toBe('false');
+        expect(form.get('adaptive_pricing[enabled]')).toBe('false');
         expect(form.get('integration_identifier')).toMatch(/^qg_web_membership_[a-z]{8}$/);
     });
 

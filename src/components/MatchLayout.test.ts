@@ -19,6 +19,17 @@ const base: ComponentProps<typeof MatchLayout> = {
 const render = (overrides: Partial<typeof base> = {}) => renderToStaticMarkup(createElement(MatchLayout, {...base,...overrides}));
 
 describe('Match decision feedback', () => {
+    it('states every promotion and special choice needed to replay the hint', () => {
+        const hintMove = { fromRow: 1, fromCol: 4, toRow: 0, toCol: 4 };
+        for (const [promotionTarget, name] of [[16, 'クイーン'], [8, 'ルーク'], [4, 'ビショップ'], [2, 'ナイト']] as const) {
+            const html = render({ hintMove: { ...hintMove, promotionTarget } });
+            expect(html).toContain(`data-testid="hint-choice">プロモーション（昇格）: ${name}`);
+        }
+        expect(render({ hintMove: { ...hintMove, declinePromotion: true } })).toContain('キャンセル（ポーンではない）');
+        for (const intention of ['castle', 'normal'] as const) {
+            expect(render({ lang: 'en', hintMove: { ...hintMove, intention } })).toContain(intention === 'castle' ? 'Castling (King)' : 'Normal Move (Rook/Queen)');
+        }
+    });
     it('keeps view controls but never offers cosmetic changes during a match',()=>{
         const html=render();
         expect(html).not.toContain('match-theme');

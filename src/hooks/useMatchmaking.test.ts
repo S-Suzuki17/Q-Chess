@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-const h=vi.hoisted(()=>({slots:[] as any[],cursor:0,cleanups:[] as (()=>void)[],listeners:new Map<string,(data:any)=>void>(),emit:vi.fn()}));
+const h=vi.hoisted(()=>({slots:[] as any[],cursor:0,cleanups:[] as (()=>void)[],listeners:new Map<string,(data:any)=>void>(),emit:vi.fn(),isAuthenticated:true,connectionError:null as string|null}));
 vi.mock('react',()=>({
     useRef:(value:unknown)=>{const i=h.cursor++;return h.slots[i]??={current:value};},
     useState:(value:unknown)=>{const i=h.cursor++;if(!(i in h.slots))h.slots[i]=value;return [h.slots[i],(next:unknown)=>{h.slots[i]=next;}];},
@@ -11,14 +11,20 @@ vi.mock('react',()=>({
 }));
 vi.mock('../lib/SocketContext',()=>{
     const socket={emit:h.emit,on:(event:string,fn:(data:any)=>void)=>h.listeners.set(event,fn),off:(event:string)=>h.listeners.delete(event)};
-    return {useSocket:()=>({socket,isConnected:true,isAuthenticated:true,connectionError:null})};
+    return {useSocket:()=>({socket,isConnected:true,isAuthenticated:h.isAuthenticated,connectionError:h.connectionError})};
 });
 import { useMatchmaking } from './useMatchmaking';
 import type { User } from '../types/game';
 const user={id:'human',name:'Player'} as User;
 const render=()=>{h.cursor=0;return useMatchmaking(user);};
-beforeEach(()=>{h.slots=[];h.cursor=0;h.cleanups=[];h.listeners.clear();h.emit.mockReset();vi.useFakeTimers();});
+beforeEach(()=>{h.slots=[];h.cursor=0;h.cleanups=[];h.listeners.clear();h.emit.mockReset();h.isAuthenticated=true;h.connectionError=null;vi.useFakeTimers();});
 afterEach(()=>{h.cleanups.forEach(fn=>fn());vi.useRealTimers();});
+it('retains retryable authority failure instead of replacing it with AUTH_REQUIRED',()=>{
+    h.isAuthenticated=false;h.connectionError='AUTH_UNAVAILABLE';
+    expect(render().startMatchmaking(600,'ranked')).toBe(false);expect(render().error).toBe('AUTH_UNAVAILABLE');expect(h.emit).not.toHaveBeenCalled();
+    h.isAuthenticated=true;h.connectionError=null;
+    expect(render().startMatchmaking(600,'ranked')).toBe(true);expect(render().cpuFallbackAt).toBe(Date.now()+10000);
+});
 
 it('defers admission until the board has installed listeners, avoiding a lost immediate limit response',()=>{
     expect(render().startMatchmaking(600,'ranked')).toBe(true);

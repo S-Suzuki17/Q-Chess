@@ -1,5 +1,10 @@
 # Dormant new-SKU fulfillment boundary
 
+Historical preparation record. The current release candidate adds source
+accounting, risk reconciliation, retirement and shared entitlement admission.
+See [deployment sequence](commerce-production-release-20261008.md); the gate
+state and incomplete scope below describe the original 2026-10-06 checkpoint.
+
 Local implementation only. No deployment, new sales, price registration, payment,
 tax registration, refund, dispute decision or legacy migration was performed.
 All new SKU sales remain source-gated by `readyCommerceSkus() === []`; the SQL

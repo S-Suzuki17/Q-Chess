@@ -4,7 +4,7 @@ import {randomUUID,createHash} from 'node:crypto';
 import {readFile,writeFile} from 'node:fs/promises';
 import {join} from 'node:path';
 import {tmpdir} from 'node:os';
-import {connect,scalar,wallet,account,bind,member,snapshot,contended,HASH,LEGACY_PRICE,unique} from './commerce-postgres-support.mjs';
+import {connect,scalar,wallet,account,bind,member,snapshot,paidPeriod,contended,HASH,LEGACY_PRICE,unique} from './commerce-postgres-support.mjs';
 import {setupBaseline,applyPending,baselineEvidence} from './fixtures/commerce-postgres-baseline.mjs';
 
 // All provider rows here are explicitly SYNTHETIC. Real PostgreSQL transactions
@@ -35,11 +35,11 @@ test('native shared online/ranked start, consent, refund and entitlement', {time
     };
     const used=(c,user)=>scalar(c,"select count(*)::integer as result from public.shared_match_allocations a join public.ranked_match_admissions m using(match_id) where user_id=$1 and utc_day=(clock_timestamp() at time zone 'UTC')::date and m.state in ('active','settled')",[user]);
     const exhausted=()=>account(admin,{quota:3,ranked:2});
-    await check('all ten pending raw files apply over the explicit public baseline',async()=>{
+    await check('all twelve pending raw files apply over the explicit public baseline',async()=>{
         await setupBaseline(admin);await applyPending(admin);a=await open('service_role');b=await open('service_role');
         assert.notEqual(a.fixturePid,b.fixturePid);await bind(admin);
         assert.equal(await scalar(a,'select public.shared_match_admission_protocol_version() as result'),1);
-        assert.equal(baselineEvidence.pending.length,10);
+        assert.equal(baselineEvidence.pending.length,12);
     });
     await check('three combined random and ranked STARTED matches then explicit choice without automatic ticket spend',async()=>{
         const user=await account(admin,{ranked:7}),epoch=await owner();
@@ -140,13 +140,13 @@ test('native shared online/ranked start, consent, refund and entitlement', {time
         const record=c=>scalar(c,'select public.record_verified_rewarded_ad($1,$2,$3,$4,$5,$6,$7,$8) as result',args);
         await assert.rejects(record(a),{code:'42501',message:'CURRENT_TICKET_TERMS_REQUIRED'});
         assert.equal(await scalar(a,'select count(*)::integer as result from public.verified_rewarded_ad_grants where grant_id=$1',[id]),0);
-        await admin.query("insert into public.account_terms_consents(user_id,version) values($1,'2026-10-03.1')",[user]);
+        await admin.query("insert into public.account_terms_consents(user_id,version) values($1,'2026-10-07.1')",[user]);
         assert.equal((await record(a)).duplicate,false);
-        await admin.query("delete from public.account_terms_consents where user_id=$1 and version='2026-10-03.1'",[user]);
+        await admin.query("delete from public.account_terms_consents where user_id=$1 and version='2026-10-07.1'",[user]);
         assert.equal((await record(b)).duplicate,true);
-        await admin.query("insert into public.account_terms_consents(user_id,version) values($1,'2026-10-03.1')",[user]);
+        await admin.query("insert into public.account_terms_consents(user_id,version) values($1,'2026-10-07.1')",[user]);
         const next=await member(a,user,'plus_monthly',true);await snapshot(a,next);
-        await admin.query("delete from public.account_terms_consents where user_id=$1 and version='2026-10-03.1'",[user]);
+        await admin.query("delete from public.account_terms_consents where user_id=$1 and version='2026-10-07.1'",[user]);
         assert.equal((await record(a)).duplicate,true); // A receipt read never requests an ad for a now-paid account.
     });
     await check('one verified ad pays exactly one match and never spends a ticket; duplicate void restores reusable credit',async()=>{
@@ -173,7 +173,7 @@ test('native shared online/ranked start, consent, refund and entitlement', {time
         assert.equal(await scalar(a,'select consumed_by as result from public.verified_rewarded_ad_grants where grant_id=$1',[e.id]),null);
     });
     for(const plan of ['standard_monthly','plus_monthly'])await check(`${plan} canonical live entitlement is unlimited and ad-free with zero asset spend`,async()=>{
-        const user=await exhausted(),memb=await member(a,user,plan,true);await snapshot(a,memb);
+        const user=await exhausted(),memb=await member(a,user,plan,true);const paid=await snapshot(a,memb);await paidPeriod(a,memb,paid.event);
         const ent=await scalar(a,'select public.get_shared_match_entitlement($1) as result',[user]);assert.equal(ent.unlimitedOnlineRanked,true);assert.equal(ent.noAds,true);
         const epoch=await owner();for(let i=0;i<5;i++){const m=cpu(user,epoch);assert.equal((await admit(a,m)).state,'active');await finish(a,m);}
         assert.equal((await wallet(a,user)).ranked_tickets,2);
@@ -183,7 +183,7 @@ test('native shared online/ranked start, consent, refund and entitlement', {time
     await check('test-mode, expired, off-price, canceled and refund-blocked memberships do not confer new paid access',async()=>{
         for(const kind of ['test','expired','offprice','canceled','refund']){
             if(kind==='test')await admin.query('delete from public.stripe_billing_mode_pin'); // disposable synthetic mode pin only
-            const user=await exhausted(),memb=await member(a,user,'plus_monthly',kind!=='test');await snapshot(a,memb);
+            const user=await exhausted(),memb=await member(a,user,'plus_monthly',kind!=='test');const paid=await snapshot(a,memb);await paidPeriod(a,memb,paid.event);
             if(kind==='expired')await admin.query("update public.stripe_memberships set period_end=clock_timestamp()-interval '1 second' where user_id=$1",[user]);
             if(kind==='offprice')await admin.query("update public.stripe_memberships set current_price_id='price_OFFPRICE' where user_id=$1",[user]);
             if(kind==='canceled')await admin.query("update public.stripe_memberships set status='canceled' where user_id=$1",[user]);

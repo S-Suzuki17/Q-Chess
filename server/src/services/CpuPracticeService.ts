@@ -5,10 +5,13 @@ import { applyPracticeMove, CPU_PRACTICE_RULES_VERSION, type CpuPracticeSnapshot
 import type { GameState, Move } from '../quantum-engine/types';
 import { searchCpuPracticeMove } from './CpuPracticeSearch';
 import { cpuHintPurchaseRpc, type CpuHintPurchaseRpc } from './CpuHintOriginProtocol';
+import { cpuPersonalityForGame } from '../quantum-engine/ai/personalities';
+import { hintTimeAvailable } from '../quantum-engine/ai/searchProfiles';
+import { adviceForMove, type HintAdvice } from '../quantum-engine/ai/hintAdvice';
 
 export type PracticeContext = { signal: AbortSignal; check(): Promise<void> | void };
 export type PaidHint = { receiptId: string; sessionId: string; revision: number; stateHash: string; rulesVersion: string;
-    hint: { fromRow: number; fromCol: number; toRow: number; toCol: number }; move: Move; deliveryState: 'paid_retrievable' };
+    hint: HintAdvice; move: Move; deliveryState: 'paid_retrievable' };
 export class CpuPracticeError extends Error {
     constructor(public readonly code: string) { super(code); }
 }
@@ -123,9 +126,12 @@ export class CpuPracticeService {
                 p_revision: revision, p_intent_hash: intentHash };
             const existing = await this.rpc('cpu_practice_operation', parameters);
             if (existing) return this.read(userId,sessionId,context);
+            const readStarted = performance.now();
             const session = await this.read(userId, sessionId, context);
             this.playable(session, revision, actor);
-            const move = humanMove ?? await this.search(session.state, session.level, context.signal, false);
+            const remainingMs = session.state.sideToMove === 'white' ? session.whiteMs : session.blackMs;
+            const move = humanMove ?? await this.search(session.state, session.level, context.signal, false,
+                cpuPersonalityForGame(session.sessionId), hintTimeAvailable(remainingMs, performance.now() - readStarted));
             if (!move) throw new CpuPracticeError('NO_LEGAL_HINT');
             let next: GameState;
             try { next = applyPracticeMove(session.state, move); }
@@ -146,19 +152,24 @@ export class CpuPracticeService {
         return this.holding(userId, async () => {
             const existing = await this.receipt(userId, sessionId, revision, requestId, context);
             if (existing) return existing;
-            const session = await this.read(userId, sessionId, context);
-            this.playable(session, revision, 'human');
             const paidValue = await this.rpc('cpu_practice_existing_hint', {
                 p_session_id: sessionId, p_user_id: userId, p_revision: revision });
+            // Read the clock last, so earlier receipt lookups cannot consume
+            // the analysis budget unnoticed. DB purchase still rechecks time.
+            const readStarted = performance.now();
+            const session = await this.read(userId, sessionId, context);
+            this.playable(session, revision, 'human');
             const paid = paidValue ? this.hint(paidValue, sessionId, revision) : null;
             if (paid && paid.stateHash !== session.stateHash) throw new CpuPracticeError('CPU_PRACTICE_UNAVAILABLE');
-            const move = paid?.move ?? await this.search(session.state, 5, context.signal, true);
+            const remainingMs = session.state.sideToMove === 'white' ? session.whiteMs : session.blackMs;
+            const availableMs = hintTimeAvailable(remainingMs, performance.now() - readStarted);
+            if (!paid && availableMs <= 0) throw new Error('SEARCH_CLOCK_EXPIRED');
+            const move = paid?.move ?? await this.search(session.state, 5, context.signal, true, 'balanced', availableMs);
             if (!move) throw new CpuPracticeError('NO_LEGAL_HINT');
             const piece = session.state.pieces.find(p => p.id === move.pieceId && p.alive && p.owner === session.playerSide);
-            try { if (!piece) throw new Error(); applyPracticeMove(session.state, move); }
+            try { if (!piece) throw new Error(); applyPracticeMove(session.state, parsePracticeMove(move)); }
             catch { throw new CpuPracticeError('NO_LEGAL_HINT'); }
-            const hint = { fromRow: piece!.position.row, fromCol: piece!.position.col,
-                toRow: move.target.row, toCol: move.target.col };
+            const hint = adviceForMove(session.state, move);
             // Cancellation still prevents dispatch at this final check. Once the
             // purchase RPC is dispatched, its commit may outlive the request;
             // recover the immutable receipt after cancellation/response loss.

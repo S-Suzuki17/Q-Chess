@@ -68,20 +68,37 @@ export function commerceEvidenceFixture(sku: CommerceSku = 'plus_monthly', livem
         [`invoice_payments:${invoiceId}`]: payments,
         [`payment_intents/${paymentId}`]: payment,
         [`charges/${chargeId}`]: charge,
+        refunds: { has_more: false, data: [] },
+        disputes: { has_more: false, data: [] },
+        'radar/early_fraud_warnings': { has_more: false, data: [] },
     };
     const request = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
         const url = new URL(String(input));
         if ((init?.method ?? 'GET') !== 'GET') throw new Error('Fixture allows reads only');
         const path = url.pathname.replace('/v1/', '');
-        const key = path === 'invoice_payments' ? `${path}:${url.searchParams.get('invoice')}` : path;
-        if (!(key in records)) throw new Error(`Unexpected fixture request ${key}`);
-        return new Response(JSON.stringify(records[key]), { status: 200, headers: { 'Content-Type': 'application/json' } });
+        const key = path === 'invoice_payments' ? `${path}:${url.searchParams.get('invoice')}`
+            : url.searchParams.has('charge') && `${path}:${url.searchParams.get('charge')}` in records
+                ? `${path}:${url.searchParams.get('charge')}` : path;
+        let value = records[key];
+        if (path === 'checkout/sessions' && value?.has_more === false) value = { ...value,
+            data: value.data.filter((item: any) => url.searchParams.has('subscription')
+                ? item.subscription === url.searchParams.get('subscription')
+                : item.payment_intent === url.searchParams.get('payment_intent')) };
+        if (path === 'invoice_payments' && !url.searchParams.has('invoice') && !(key in records)) {
+            value = product.checkoutMode === 'subscription' ? payments : { has_more: false, data: [] };
+        }
+        if (!value) throw new Error(`Unexpected fixture request ${key}`);
+        return new Response(JSON.stringify(value), { status: 200, headers: { 'Content-Type': 'application/json' } });
     });
     const intent: CommerceCheckoutIntent = { checkoutId, userId: 'Alice', sku, priceId, amountTotal: amount, currency: 'usd', livemode };
     const store: StripeCommerceStore = {
         checkoutIntent: vi.fn(async () => intent), hasCurrentTerms: vi.fn(async () => true),
         acquireReconciliation: vi.fn(async () => ({ token: '11111111-1111-4111-8111-111111111111', retired: false })),
         releaseReconciliation: vi.fn(async () => {}),
+        acquireCommerceReconciliation: vi.fn(async () => ({ token: '22222222-2222-4222-8222-222222222222', retired: false })),
+        releaseCommerceReconciliation: vi.fn(async () => {}),
+        applySourceRisk: vi.fn(async () => ({ applied: true, duplicate: false, credited: 0,
+            recovered: 0, held: 0, released: 0, manualReview: false })),
         fulfillOneTime: vi.fn(async () => ({ applied: true, duplicate: false, credited: product.hintTickets })),
         fulfillSubscription: vi.fn(async () => ({ applied: true, duplicate: false, credited: product.hintTickets })),
     };

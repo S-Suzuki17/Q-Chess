@@ -32,6 +32,9 @@ export const releaseCommerceMigrations = [
     '20261006155010_atomic_commerce_fulfillment.sql',
     '20261006171022_dormant_hint_origin_consumption.sql',
     '20261006192347_durable_commerce_checkout_consent.sql',
+    '20261007105937_dormant_commerce_source_ledger.sql',
+    '20261007124401_commerce_terms_release_20261007.sql',
+    '20261007141624_dormant_commerce_checkout_retirement.sql',
 ];
 export async function applyMigrations(db: PGlite, files: readonly string[]) {
     for (const file of files) {

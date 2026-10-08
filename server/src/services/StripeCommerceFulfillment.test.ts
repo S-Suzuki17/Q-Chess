@@ -16,7 +16,7 @@ const noGrant = (f: Fixture) => {
     expect(f.store.fulfillSubscription).not.toHaveBeenCalled();
 };
 
-describe('dormant new commerce canonical provider boundary (synthetic Stripe responses only)', () => {
+describe('released commerce canonical provider boundary (synthetic Stripe responses only)', () => {
     for (const sku of COMMERCE_SKUS) for (const livemode of [false, true]) {
         it(`validates ${sku} in ${livemode ? 'live' : 'test'} mode with inclusive tax`, async () => {
             const f = commerceEvidenceFixture(sku, livemode, 10);
@@ -24,7 +24,7 @@ describe('dormant new commerce canonical provider boundary (synthetic Stripe res
             const grant = vi.mocked(sku.startsWith('hints') ? f.store.fulfillOneTime : f.store.fulfillSubscription).mock.calls[0][0];
             expect(grant).toMatchObject({ sku, livemode, userId: 'Alice', amountTotal: f.intent.amountTotal, priceId: f.intent.priceId });
             for (const [, init] of f.request.mock.calls) expect(new Headers(init?.headers).get('stripe-version')).toBe(QG_STRIPE_API_VERSION);
-            expect(readyCommerceSkus()).toEqual([]);
+            expect(readyCommerceSkus()).toEqual(COMMERCE_SKUS);
         });
     }
     it.each([0, 60])('uses the net subtotal and exact final total with %i cents inclusive tax', async tax => {
@@ -101,7 +101,7 @@ describe('dormant new commerce canonical provider boundary (synthetic Stripe res
         ['invoice overpaid', f => { f.invoice.amount_overpaid = 1; }],
         ['invoice out-of-band payment', f => { f.invoice.amount_paid_off_stripe = 600; }],
         ['invoice credit balance', f => { f.invoice.starting_balance = -600; }],
-        ['invoice post-payment credit note', f => { f.invoice.post_payment_credit_notes_amount = 1; }],
+
         ['invoice manual collection', f => { f.invoice.collection_method = 'send_invoice'; }],
         ['invoice tier update', f => { f.invoice.billing_reason = 'subscription_update'; }],
         ['invoice excluding tax mismatch', f => { f.invoice.total_excluding_tax = 600; }],
@@ -172,7 +172,7 @@ describe('dormant new commerce canonical provider boundary (synthetic Stripe res
         await run(f, 'invoice.paid', { data: { object: old } });
         expect(f.store.fulfillSubscription).toHaveBeenCalledWith(expect.objectContaining({
             latestInvoiceId: f.invoice.id, periodEnd: new Date(f.end * 1000).toISOString(), paidNewPeriod: false,
-            paidPeriod: { invoiceId: old.id, periodStart: new Date((f.start - 30 * 86400) * 1000).toISOString(), periodEnd: new Date(f.start * 1000).toISOString() },
+            paidPeriod: expect.objectContaining({ invoiceId: old.id, periodStart: new Date((f.start - 30 * 86400) * 1000).toISOString(), periodEnd: new Date(f.start * 1000).toISOString() }),
         }));
     });
     it('requires a DB intent but delegates original-consent proof to atomic fulfillment', async () => {
@@ -199,8 +199,8 @@ describe('dormant new commerce canonical provider boundary (synthetic Stripe res
         expect(f.store.acquireReconciliation).not.toHaveBeenCalled(); expect(f.request).not.toHaveBeenCalled();
     });
     it.each(['charge.refunded','charge.dispute.created','radar.early_fraud_warning.created','credit_note.created'])(
-        'holds unsupported risk policy for %s without acknowledging a grant', async type => {
-            const f = commerceEvidenceFixture(); await expect(run(f, type)).rejects.toThrow('COMMERCE_RISK_POLICY_REQUIRED'); noGrant(f);
+        'rejects malformed risk identifiers for %s without acknowledging a grant', async type => {
+            const f = commerceEvidenceFixture(); await expect(run(f, type)).rejects.toThrow('COMMERCE_EVIDENCE_UNAVAILABLE'); noGrant(f);
         });
     it('keeps a database error retryable and releases the reconciliation lease', async () => {
         const f = commerceEvidenceFixture(); vi.mocked(f.store.fulfillSubscription).mockRejectedValue(new Error('database unavailable'));

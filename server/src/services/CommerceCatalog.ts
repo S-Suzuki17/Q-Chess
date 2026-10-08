@@ -49,10 +49,11 @@ export function isCommerceSku(value: unknown): value is CommerceSku {
 
 /**
  * Source gate, deliberately independent of prices and environment sales flags.
- * New-SKU canonical fulfillment, risk/deletion handling and genuine sandbox
- * purchase-to-consumption evidence must all be complete before changing this.
+ * Activation requires genuine provider canonical/risk/deletion proof plus
+ * native live-only consumption/recovery proof on matching ledger SQL.
+ * Sandbox sources stay test-only; verify the final integrated release artifact.
  */
-export function readyCommerceSkus(): readonly CommerceSku[] { return []; }
+export function readyCommerceSkus(): readonly CommerceSku[] { return COMMERCE_SKUS; }
 
 /** Take an immutable mode-specific snapshot; an authority cannot change product terms. */
 export function snapshotCommerceAuthority(authority: CommerceCheckoutAuthority, livemode: boolean): CommerceCheckoutAuthority {

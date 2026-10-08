@@ -1,6 +1,6 @@
-/** Candidate mappings are testable, but neither is selected for release. */
+/** Approved policy: clock variants share one CPU-strength authorization. */
 export type CrownRankMapping = 'stage_v1' | 'strength_v1';
-export const CROWN_RANK_MAPPING: CrownRankMapping | null = null;
+export const CROWN_RANK_MAPPING: CrownRankMapping | null = 'strength_v1';
 export const CROWN_VERIFIED_PROVIDER_READY = false;
 export const crownAdmissionEnabled = () => CROWN_RANK_MAPPING !== null && CROWN_VERIFIED_PROVIDER_READY;
 export function crownRankKey(stageId: unknown, mapping: CrownRankMapping | null = CROWN_RANK_MAPPING): string | null {

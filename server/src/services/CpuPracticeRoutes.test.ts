@@ -18,7 +18,7 @@ describe('verified CPU practice HTTP API with actual PostgreSQL',()=>{
     beforeAll(async()=>{
         fixture=await createCpuPracticeFixture();
         const auth=new RankedAuth(async()=>true);token=(await auth.issueLegacySession('Alice','password'))!.token;
-        practice=new CpuPracticeService(fixture.client as never,true,(state,_level,signal)=>search(state,signal));
+        practice=new CpuPracticeService(fixture.client as never,true,(state,_level,signal)=>search(state,signal),()=> 'buy_cpu_hint');
         const app=express();app.use(createCpuPracticeRouter(auth,practice,async()=>null,new AccountWriteGate(),()=>busy,()=>enabled));
         server=http.createServer(app);await new Promise<void>(resolve=>server.listen(0,'127.0.0.1',resolve));
         base=`http://127.0.0.1:${(server.address() as AddressInfo).port}`;

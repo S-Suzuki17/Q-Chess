@@ -10,6 +10,7 @@ import type { HintMove } from './boardPresentation';
 import './match-layout.css';
 import './checkmate.css';
 import { matchText } from '../locales/matchText';
+import { hintAdviceText } from '../locales/hintAdviceText';
 import type { VictoryFinish } from '../config/campaign';
 import { VictoryCelebration } from './VictoryCelebration';
 
@@ -53,6 +54,7 @@ export function MatchLayout(props: Props) {
     const enemySelected = selected && selected.player !== props.bottomSide;
     const hintPending = isMyTurn && !!props.hintPending;
     const hint = isMyTurn && !hintPending ? props.hintMove : null;
+    const hintChoice = hintAdviceText(props.lang, hint ?? null);
     const hasAdvice = isMyTurn && !!(hint || hintPending || props.hintFailed);
     const instruction = props.finished ? label('対局が終了しました', 'Match complete')
         : props.spectator ? label('観戦中', 'Spectating')
@@ -125,6 +127,7 @@ export function MatchLayout(props: Props) {
                     <span className="advice-arrow" aria-hidden="true">→</span>
                     <span className="advice-to">{label('移動先', 'Move to')} <strong data-testid="hint-destination">{square(hint.toRow,hint.toCol)}</strong></span>
                     <small>{label('青の駒を選び、金色のマスへ', 'Select blue, then move to gold')}</small>
+                    {hintChoice && <small className="advice-choice" data-testid="hint-choice">{hintChoice}</small>}
                 </div> : <span>{hintPending ? label('QUBEが考え中…', 'QUBE is thinking…') : label('ヒントを取得できませんでした。もう一度お試しください。', 'Hint unavailable. Please try again.')}</span>}
                 {props.onClearHint && <button onClick={props.onClearHint} aria-label={label('ヒントを閉じる', 'Dismiss hint')}><X size={16}/></button>}</>}
             </section>

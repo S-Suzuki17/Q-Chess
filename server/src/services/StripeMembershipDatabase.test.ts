@@ -81,15 +81,15 @@ describe('actual isolated PostgreSQL commerce migration chain', () => {
         await db.exec(`begin;
             insert into public.profiles(id) values('Alice'),('Bob');
             insert into public.account_terms_consents(user_id,version) values
-                ('Alice','2026-09-25.1'),('Alice','2026-10-03.1'),('Bob','2026-09-25.1'),('Bob','2026-10-03.1');
+                ('Alice','2026-09-25.1'),('Alice','2026-10-07.1'),('Bob','2026-09-25.1'),('Bob','2026-10-07.1');
             set role service_role;`);
     });
     afterEach(async () => { await db.exec('rollback; reset role'); });
 
-    it('executes all 23 raw migrations in the focused commerce fixture and keeps all new sale gates closed', async () => {
+    it('executes all 26 raw migrations in the focused commerce fixture and requires reviewed price bindings', async () => {
         expect(historicalCommerceMigrations).toHaveLength(17);
-        expect(releaseCommerceMigrations).toHaveLength(6);
-        expect(releaseCommerceMigrations.at(-1)).toBe('20261006192347_durable_commerce_checkout_consent.sql');
+        expect(releaseCommerceMigrations).toHaveLength(9);
+        expect(releaseCommerceMigrations.at(-1)).toBe('20261007141624_dormant_commerce_checkout_retirement.sql');
         expect(await scalar("select to_regclass('public.users')::text as result")).toBeNull();
         expect(await scalar('select public.stripe_commerce_protocol_version() as result')).toEqual({ version: 1, newSalesEnabled: false, spendingEnabled: false, reversalsReady: false });
         expect(await scalar('select count(*)::integer as result from public.stripe_commerce_price_bindings')).toBe(0);

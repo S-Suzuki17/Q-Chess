@@ -29,6 +29,7 @@ import { RankedCancellationNotice } from './RankedCancellationNotice';
 import { RankedLoginDialog } from './RankedLoginDialog';
 import { soundManager } from '../lib/SoundService';
 import { acceptsOnlineSnapshot, isNewOnlineMove } from '../lib/onlineSnapshot';
+import { reconnectDeadline, reconnectSecondsLeft } from '../lib/reconnectCountdown';
 import { recordMatchCompleted, recordMatchStarted } from '../lib/engagementMetrics';
 
 export type EmoteType = 'hello' | 'well_played' | 'wow' | 'thinking' | 'resign';
@@ -224,6 +225,11 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
 
     const [disconnectTimeLeft, setDisconnectTimeLeft] = useState<number | null>(null);
     const disconnectTimerRef = useRef<NodeJS.Timeout | null>(null);
+    const disconnectDeadlineRef = useRef<number | null>(null);
+    useEffect(() => {
+        disconnectDeadlineRef.current = null;
+        setDisconnectTimeLeft(null);
+    }, [roomId]);
 
     const [showEmoteMenu, setShowEmoteMenu] = useState(false);
     const [activeEmotes, setActiveEmotes] = useState<{ white: EmoteType | null, black: EmoteType | null }>({ white: null, black: null });
@@ -297,45 +303,50 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
             // Update synchronously: duplicate events can arrive before React renders.
             prevGameStateRef.current = state;
             setGameState({...state, receivedAt: performance.now()});
-            if (disconnectTimerRef.current) {
+            if (state.gameOver && disconnectTimerRef.current) {
                 clearInterval(disconnectTimerRef.current);
                 disconnectTimerRef.current = null;
             }
-            setDisconnectTimeLeft(null);
+            // Moves and snapshots do not prove the missing opponent rejoined.
+            if (state.gameOver) {
+                disconnectDeadlineRef.current = null;
+                setDisconnectTimeLeft(null);
+            }
         };
         const onActionError = (err: any) => {
             setErrorMsg(err.message || 'Action error');
         };
         const onOpponentDisconnected = (data: any) => {
             console.log('[OnlineGameBoard] Opponent disconnected:', data);
+            if (prevGameStateRef.current?.gameOver) return;
+            const deadline = reconnectDeadline(roomId, data, performance.now(), disconnectDeadlineRef.current);
+            if (deadline === null) return;
+            disconnectDeadlineRef.current = deadline;
             if (disconnectTimerRef.current) clearInterval(disconnectTimerRef.current);
-            let timeLeft = data?.gracePeriodSeconds || 120;
-            setDisconnectTimeLeft(timeLeft);
-            disconnectTimerRef.current = setInterval(() => {
-                timeLeft--;
-                setDisconnectTimeLeft(timeLeft);
-                if (timeLeft <= 0) {
-                    if (disconnectTimerRef.current) clearInterval(disconnectTimerRef.current);
-                    disconnectTimerRef.current = null;
-                    setDisconnectTimeLeft(null);
-                }
-            }, 1000);
+            const tick = () => setDisconnectTimeLeft(reconnectSecondsLeft(deadline, performance.now()));
+            tick();
+            // Zero remains visible until the server confirms a result/rejoin.
+            disconnectTimerRef.current = setInterval(tick, 250);
         };
-        const onOpponentReconnected = () => {
+        const onOpponentReconnected = (data?: { matchId?: string }) => {
+            if (data?.matchId && data.matchId !== roomId) return;
             console.log('[OnlineGameBoard] Opponent reconnected!');
             if (disconnectTimerRef.current) {
                 clearInterval(disconnectTimerRef.current);
                 disconnectTimerRef.current = null;
             }
             setDisconnectTimeLeft(null);
+            disconnectDeadlineRef.current = null;
         };
         const onMatchForfeited = (data: any) => {
+            if (data?.matchId && data.matchId !== roomId) return;
             console.log('[OnlineGameBoard] Match forfeited:', data);
             if (disconnectTimerRef.current) {
                 clearInterval(disconnectTimerRef.current);
                 disconnectTimerRef.current = null;
             }
             setDisconnectTimeLeft(null);
+            disconnectDeadlineRef.current = null;
         };
 
         const onEmote = (data: any) => {

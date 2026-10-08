@@ -23,9 +23,10 @@ describe('publisher site quality and navigation', () => {
     });
     it.each(LANGUAGES.map(l => l.code))('keeps help links independent of sign-in in %s', lang => {
         const html = renderToStaticMarkup(createElement(SiteLinks, {lang, newTab:true}));
-        for (const path of ['rules','about','contact','updates','privacy','terms']) expect(html).toContain(`href="/${path}"`);
-        expect(html.match(/target="_blank"/g)).toHaveLength(6);
-        expect(html.match(/rel="noopener noreferrer"/g)).toHaveLength(6);
+        for (const path of ['rules','about','contact','privacy','terms']) expect(html).toContain(`href="/${path}"`);
+        for (const path of ['guide','faq']) expect(html).toContain(`href="/${path}"`);
+        expect(html.match(/target="_blank"/g)).toHaveLength(7);
+        expect(html.match(/rel="noopener noreferrer"/g)).toHaveLength(7);
         expect(renderToStaticMarkup(createElement(SiteLinks, {lang}))).not.toContain('target="_blank"');
     });
     it('makes settings links available without leaving the live game or affecting Android support', () => {

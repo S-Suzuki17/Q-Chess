@@ -42,6 +42,8 @@ vi.mock('socket.io-client', () => ({ io: h.io }));
 
 import { SocketProvider } from './SocketContext';
 import { RANKED_SESSION_EVENT } from './rankedSession';
+import { canShowVerifiedAccountAdsFor } from './sharedAdEligibility';
+import { ticketWalletText } from '../locales/ticketWalletText';
 
 class Transport {
     connected = false;
@@ -64,6 +66,7 @@ function render(userId: string | undefined = 'alice') {
     return result.props.value as {
         isConnected: boolean; isAuthenticated: boolean; authPending: boolean;
         connectionError: string | null; queueStats: Record<number, number>;
+        sharedAdmissionEnabled: boolean | null;
     };
 }
 const flush = async () => { await vi.advanceTimersByTimeAsync(0); };
@@ -96,6 +99,43 @@ beforeEach(() => {
 afterEach(() => { unmount(); vi.useRealTimers(); vi.unstubAllGlobals(); });
 
 describe('socket account handoff lifecycle', () => {
+    it.each(['response','rejection'])('keeps a live OAuth match connected after temporary getSession %s',async kind=>{
+        h.proof.mockReturnValue(null);
+        h.session.mockResolvedValue({data:{session:{user:{id:'alice'},access_token:'oauth-token'}}});
+        render();await flush();expect(render().isConnected).toBe(true);
+        if(kind==='response')h.session.mockResolvedValue({data:{session:null},error:new Error('temporary')});
+        else h.session.mockRejectedValue(new Error('temporary'));
+        authChanged();await flush();
+        expect(render()).toMatchObject({isConnected:true,isAuthenticated:false,connectionError:'AUTH_UNAVAILABLE'});
+        expect(transport.disconnect).not.toHaveBeenCalled();expect(h.forget).not.toHaveBeenCalled();
+        h.session.mockResolvedValue({data:{session:{user:{id:'alice'},access_token:'oauth-token'}}});
+        await vi.advanceTimersByTimeAsync(2000);
+        expect(render()).toMatchObject({isConnected:true,isAuthenticated:true,connectionError:null});
+        expect(h.io).toHaveBeenCalledOnce();expect(transport.disconnect).not.toHaveBeenCalled();
+    });
+    it('retries a structured authority outage with the same proof and preserves explicit invalid denial',async()=>{
+        render();const original=transport;
+        transport.connected=false;
+        transport.emit('connect_error',Object.assign(new Error('Authentication Error: Account check unavailable'),{data:{code:'AUTH_UNAVAILABLE'}}));
+        expect(render().connectionError).toBe('AUTH_UNAVAILABLE');expect(h.forget).not.toHaveBeenCalled();
+        await vi.advanceTimersByTimeAsync(1999);expect(transport.connect).toHaveBeenCalledTimes(1);
+        await vi.advanceTimersByTimeAsync(1);expect(transport).toBe(original);expect(transport.connect).toHaveBeenCalledTimes(2);
+        transport.connected=false;
+        transport.emit('connect_error',Object.assign(new Error('Account unavailable'),{data:{code:'AUTH_REQUIRED'}}));
+        expect(render().connectionError).toBe('AUTH_REQUIRED');
+        await vi.advanceTimersByTimeAsync(2000);expect(transport.connect).toHaveBeenCalledTimes(2);
+    });
+    it('recognizes an older server authority outage before its Authentication prefix',()=>{
+        render();transport.emit('connect_error',new Error('Authentication Error: Account check unavailable'));
+        expect(render().connectionError).toBe('AUTH_UNAVAILABLE');
+    });
+    it('clears a queued outage retry when a later response positively denies the proof',async()=>{
+        render();transport.connected=false;
+        transport.emit('connect_error',Object.assign(new Error('retry'),{data:{code:'AUTH_UNAVAILABLE'}}));
+        transport.emit('connect_error',Object.assign(new Error('denied'),{data:{code:'AUTH_REQUIRED'}}));
+        await vi.advanceTimersByTimeAsync(2000);expect(transport.connect).toHaveBeenCalledOnce();
+        expect(render().connectionError).toBe('AUTH_REQUIRED');
+    });
     it('does not connect a signed-out player', () => {
         SocketProvider({ userId: undefined, children: null });
         h.effects.splice(0).forEach(effect => effect());
@@ -115,6 +155,29 @@ describe('socket account handoff lifecycle', () => {
         await vi.advanceTimersByTimeAsync(45_000);
         expect(transport.emit.mock.calls.filter(([event])=>event==='request_shared_entitlement'))
             .toEqual([['request_shared_entitlement',{}],['request_shared_entitlement',{}]]);
+    });
+    it('uses authenticated server rules and keeps paid ads suppressed across refresh and disconnect',async()=>{
+        h.proof.mockReturnValue({...proof(),expiresAt:Date.now()+120_000});render();
+        const entitlement={plan:'standard',unlimitedOnlineRanked:true,noAds:true,periodEnd:'2099-01-01T00:00:00Z'};
+        transport.emit('shared_entitlement',{userId:'bob',entitlement,sharedAdmissionEnabled:true});
+        expect(render().sharedAdmissionEnabled).toBeNull();
+        transport.emit('shared_entitlement',{userId:'alice',entitlement,sharedAdmissionEnabled:true});
+        expect(render().sharedAdmissionEnabled).toBe(true);expect(canShowVerifiedAccountAdsFor('alice')).toBe(false);
+        expect(ticketWalletText('ja',render().sharedAdmissionEnabled===true).rule).toContain('オンライン対戦とランク戦');
+        expect(ticketWalletText('en',true).rule).toContain('choose to use 1 match ticket');
+        await vi.advanceTimersByTimeAsync(45_000);expect(render().sharedAdmissionEnabled).toBeNull();
+        transport.emit('shared_entitlement',{userId:'alice',entitlement,sharedAdmissionEnabled:false});
+        expect(render().sharedAdmissionEnabled).toBe(false);expect(canShowVerifiedAccountAdsFor('alice')).toBe(false);
+        transport.disconnect();expect(render().sharedAdmissionEnabled).toBeNull();
+    });
+    it('hides unknown rules after authority failure and rejects shared rules without entitlement',()=>{
+        render();
+        transport.emit('shared_entitlement',{userId:'alice',entitlement:null,sharedAdmissionEnabled:false});
+        expect(render().sharedAdmissionEnabled).toBe(false);
+        transport.emit('shared_entitlement',{userId:'alice',entitlement:null,sharedAdmissionEnabled:true});
+        expect(render().sharedAdmissionEnabled).toBeNull();
+        transport.emit('shared_entitlement',{userId:'alice',entitlement:null,sharedAdmissionEnabled:null});
+        expect(render().sharedAdmissionEnabled).toBeNull();expect(canShowVerifiedAccountAdsFor('alice')).toBe(false);
     });
     it('refuses an expired proof and an OAuth session belonging to another user', async () => {
         h.proof.mockReturnValue({ ...proof(), expiresAt: Date.now() - 1 });

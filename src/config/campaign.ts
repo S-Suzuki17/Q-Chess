@@ -1,5 +1,7 @@
 import { cpuDifficulty, type CPULevel, type CPUSearchProfile } from './cpuDifficulty';
-import type { QoppeliaWeights } from '../quantum-engine/ai/evalQoppelia';
+import type { CPUPersonality } from './cpuPersonalities';
+export type { CPUPersonality } from './cpuPersonalities';
+export { PERSONALITY_WEIGHTS } from './cpuPersonalities';
 import { championshipReward, CHAMPIONSHIP_REWARDS, referencePieceForBoard, type ChampionBoardId, type ChampionEffectId, type ChampionPieceId, type ChampionMusicId } from './championshipRewards';
 import { circuitMusic, type MusicReward } from './circuitMusic';
 import { avatarFrame,type AvatarFrameId } from './avatarFrames';
@@ -8,16 +10,10 @@ import type { TimeControl } from '../types/game';
 import {isFoundersItem,FOUNDERS_PIECE_ID} from './founders';
 
 export type BossId = 'nox' | 'ember' | 'oracle' | 'sovereign';
-export type CPUPersonality = 'balanced' | 'attacker' | 'guardian';
 export type BoardFinish = 'standard' | 'slate' | 'obsidian' | 'walnut' | 'mahogany' | 'marble' | ChampionBoardId;
 export type PieceFinish = 'standard' | 'iceglass' | 'neonglass' | 'copper' | 'jade' | 'boxwood' | 'ebony' | 'alabaster' | 'bronze' | 'silver' | 'gold' | 'crystal' | ChampionPieceId;
 export type VictoryFinish = 'standard' | ChampionEffectId;
 export const CAMPAIGN_STORAGE_KEY = 'qg_campaign_v1';
-export const PERSONALITY_WEIGHTS: Record<CPUPersonality, Partial<QoppeliaWeights>> = {
-    balanced: {},
-    attacker: {pieceValue:1.35, originValue:.09, mobility:.055, safety:.4, candidateAllocation:.55},
-    guardian: {pieceValue:1, originValue:.015, mobility:.025, safety:1.25, candidateAllocation:1.15, kingCandidate:1.6},
-};
 export const BOSSES: readonly {id:BossId; name:string; symbol:string; level:CPULevel; personality:CPUPersonality; reward:BoardFinish | PieceFinish; rewardKind:'board'|'piece'}[] = [
     {id:'nox', name:'CPU 01', symbol:'♞', level:1, personality:'balanced', reward:'mahogany', rewardKind:'board'},
     {id:'ember', name:'CPU 02', symbol:'♜', level:3, personality:'attacker', reward:'ebony', rewardKind:'piece'},

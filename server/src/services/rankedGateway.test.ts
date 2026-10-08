@@ -13,7 +13,8 @@ const h = vi.hoisted(() => {
     const mm = { registerSocket: vi.fn((userId, socketId) => sessions.set(userId, { userId, socketId, state: 'IDLE' })),
         getPlayerSession: vi.fn(id => sessions.get(id)), clearDisconnectTimer: vi.fn(), getQueueStats: vi.fn(() => ({})),
         takeCpuFallbacks: vi.fn(() => []), joinQueue: vi.fn(), leaveQueue: vi.fn(), removeSocket: vi.fn(), getMatch: vi.fn(),
-        reserveMatch: vi.fn(), connectMatch: vi.fn() };
+        reserveMatch: vi.fn(), connectMatch: vi.fn(),
+        opponentDisconnect: vi.fn(() => null), awaitingReconnect: vi.fn(() => false), authenticationUnavailable:vi.fn(),authorityCheckPending:vi.fn(()=>false) };
     const app = { use: vi.fn(), get: vi.fn((path, handler) => routes.set(path, handler)), post: vi.fn((path, handler) => routes.set(path, handler)) };
     const io = { emit: vi.fn(), use: vi.fn(), on: vi.fn((event, handler) => listeners.set(event, handler)),
         sockets: { sockets, adapter: { rooms: new Map() } }, to: vi.fn(() => ({ emit: vi.fn() })) };
@@ -100,6 +101,8 @@ beforeEach(async () => {
     (h.service as any).accountDeletionStore = () => ({ blocked: h.blocked });
     (h.service as any).stripeDeletionLinks = () => vi.fn(async () => ({ intents: [], memberships: [] }));
     (h.service as any).stripeRetireSubscriptions = () => vi.fn(async () => {});
+    (h.service as any).stripeRetireCommerceCheckouts = () => vi.fn(async () => { throw new Error('Commerce retirement forbidden in gateway fixture'); });
+    (h.service as any).stripeCommercePrerequisites = () => ({ enabled: () => false, check: async () => false });
     (h.service as any).accountRecoveryStore = () => ({});
     (h.service as any).accountProfileStore = () => ({});
     (h.service as any).accountSecurityStore = () => ({restricted:async()=>false});
@@ -338,7 +341,7 @@ describe('awaited authority at the socket/login boundary', () => {
         expect(h.mm.joinQueue).not.toHaveBeenCalled();
         if (outcome === 'null') finish(null); else reject(new Error('private-password-and-token'));
         await pending;
-        const code = outcome === 'null' ? 'AUTH_REQUIRED' : 'RANKED_UNAVAILABLE';
+        const code = outcome === 'null' ? 'AUTH_REQUIRED' : 'AUTH_UNAVAILABLE';
         expect(connected.s.emit).toHaveBeenCalledWith('queue_error', { code, message: code });
         expect(h.mm.joinQueue).not.toHaveBeenCalled(); expect(connected.s.disconnect).not.toHaveBeenCalled();
     });

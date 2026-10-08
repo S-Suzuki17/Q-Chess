@@ -12,13 +12,31 @@ export interface StripeCommerceCheckoutStore {
 }
 export interface CommerceOneTimeEvidence extends CommerceCheckoutIntent {
     eventId: string; payloadHash: string; paymentStatus: 'paid';
+    token?: string; observedAt?: string; paymentSource?: CommercePaymentSource;
 }
-export interface CommercePaidPeriod { invoiceId: string; periodStart: string; periodEnd: string; }
+export interface CommercePaymentSource {
+    paymentIntentId: string; chargeId: string; customerId: string | null; amountRefunded: number;
+    riskState: 'clear' | 'partial_refund' | 'refunded' | 'disputed' | 'dispute_lost' | 'manual_review';
+    disputeId: string | null; disputeStatus: string | null;
+}
+/** Optional only for dormant rolling-deployment compatibility; never infer lineage from a wallet. */
+export interface CommercePaidPeriod {
+    invoiceId: string; periodStart: string; periodEnd: string; paymentSource?: CommercePaymentSource;
+}
 export interface CommerceSubscriptionEvidence extends CommerceCheckoutIntent {
     eventId: string; payloadHash: string; eventType: string; eventCreated: number; observedAt: string;
     subscriptionId: string; customerId: string; status: string; periodEnd: string;
     latestInvoiceId: string | null; paidNewPeriod: boolean; cancelAtPeriodEnd: boolean; token: string;
     paidPeriod: CommercePaidPeriod | null;
+    currentPaidPeriod?: CommercePaidPeriod | null;
+}
+export interface CommerceSourceRiskEvidence extends CommerceCheckoutIntent {
+    eventId: string; payloadHash: string; observedAt: string; token: string;
+    subscriptionId: string | null; invoiceId: string | null;
+    periodStart: string | null; periodEnd: string | null; paymentSource: CommercePaymentSource;
+}
+export interface CommerceSourceRiskResult extends CommerceFulfillmentResult {
+    recovered: number; held: number; released: number; manualReview: boolean;
 }
 export interface CommerceFulfillmentResult {
     applied: boolean; duplicate: boolean; credited: number; retired?: boolean;
@@ -28,6 +46,9 @@ export interface StripeCommerceStore {
     hasCurrentTerms(userId: string): Promise<boolean>;
     acquireReconciliation: StripeMembershipStore['acquireReconciliation'];
     releaseReconciliation: StripeMembershipStore['releaseReconciliation'];
+    acquireCommerceReconciliation: StripeMembershipStore['acquireReconciliation'];
+    releaseCommerceReconciliation: StripeMembershipStore['releaseReconciliation'];
+    applySourceRisk(evidence: CommerceSourceRiskEvidence): Promise<CommerceSourceRiskResult>;
     fulfillOneTime(evidence: CommerceOneTimeEvidence): Promise<CommerceFulfillmentResult>;
     fulfillSubscription(evidence: CommerceSubscriptionEvidence): Promise<CommerceFulfillmentResult>;
 }
@@ -58,6 +79,9 @@ function result(data: unknown, expectedCredit: number): CommerceFulfillmentResul
         || (data.retired === true && (data.applied || data.credited !== 0))) throw unavailable();
     return data as unknown as CommerceFulfillmentResult;
 }
+
+const usableCredit = (source: CommercePaymentSource | undefined, credit: number) =>
+    source && ['refunded', 'disputed', 'dispute_lost'].includes(source.riskState) ? 0 : credit;
 
 /** Server-owned registration and fulfillment. Never creates a price binding or opens sales. */
 export function createStripeCommerceStore(client: SupabaseClient,
@@ -90,6 +114,21 @@ export function createStripeCommerceStore(client: SupabaseClient,
         },
         acquireReconciliation: (...args) => reconciliation.acquireReconciliation(...args),
         releaseReconciliation: (...args) => reconciliation.releaseReconciliation(...args),
+        async acquireCommerceReconciliation(checkoutId, livemode) {
+            const { data, error } = await client.rpc('acquire_stripe_commerce_reconciliation', {
+                p_checkout_id: checkoutId, p_livemode: livemode,
+            }).abortSignal(AbortSignal.timeout(5000));
+            if (error || !object(data) || typeof data.retired !== 'boolean'
+                || !(data.token === null || (typeof data.token === 'string' && /^[0-9a-f-]{36}$/.test(data.token)))) throw unavailable();
+            if (!data.retired && !data.token) throw new Error('RECONCILIATION_BUSY');
+            return { token: data.token as string | null, retired: data.retired };
+        },
+        async releaseCommerceReconciliation(checkoutId, livemode, token) {
+            const { error } = await client.rpc('release_stripe_commerce_reconciliation', {
+                p_checkout_id: checkoutId, p_livemode: livemode, p_token: token,
+            }).abortSignal(AbortSignal.timeout(5000));
+            if (error) throw unavailable();
+        },
         hasCurrentTerms: userId => hasCurrentTicketTerms(client, userId),
         async checkoutIntent(checkoutId, livemode) {
             const { data, error } = await client.from('stripe_commerce_checkout_intents')
@@ -104,8 +143,19 @@ export function createStripeCommerceStore(client: SupabaseClient,
                 || binding.data.price_id !== intent.priceId || binding.data.livemode !== livemode) throw unavailable();
             return intent;
         },
-        fulfillOneTime: evidence => apply('fulfill_stripe_commerce_one_time', evidence, COMMERCE_CATALOG[evidence.sku].hintTickets),
+        fulfillOneTime: evidence => apply('fulfill_stripe_commerce_one_time', evidence,
+            usableCredit(evidence.paymentSource, COMMERCE_CATALOG[evidence.sku].hintTickets)),
         fulfillSubscription: evidence => apply('fulfill_stripe_commerce_subscription', evidence,
-            evidence.paidPeriod ? COMMERCE_CATALOG[evidence.sku].hintTickets : 0),
+            evidence.paidPeriod ? usableCredit(evidence.paidPeriod.paymentSource, COMMERCE_CATALOG[evidence.sku].hintTickets) : 0),
+        async applySourceRisk(evidence) {
+            const { data, error } = await client.rpc('apply_stripe_commerce_source_risk', { p_evidence: evidence })
+                .abortSignal(AbortSignal.timeout(5000));
+            if (error) throw unavailable();
+            result(data, 0);
+            if (!object(data) || typeof data.manualReview !== 'boolean'
+                || ['recovered', 'held', 'released'].some(key => !Number.isSafeInteger(data[key])
+                    || (data[key] as number) < 0 || (data[key] as number) > COMMERCE_CATALOG[evidence.sku].hintTickets)) throw unavailable();
+            return data as unknown as CommerceSourceRiskResult;
+        },
     };
 }

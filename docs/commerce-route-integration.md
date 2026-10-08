@@ -1,5 +1,14 @@
 # Dormant commerce HTTP integration
 
+Historical preparation record. The current release candidate enables the eight
+reviewed SKUs, canonical source-risk processing, hint-origin consumption and
+Checkout retirement. New sales also require shared entitlement/admission,
+both version-1 protocols and exact provider price/Portal readiness. Keep
+processing, Portal, retirement and recovery active when pausing sales. Follow
+[the current release sequence](commerce-production-release-20261008.md).
+The closed gates and incomplete risk behavior below describe the initial
+checkpoint, not current source or proof of any hosted deployment.
+
 This checkpoint connects the prepared new-SKU contracts without activating
 sales or production reconciliation. It preserves the legacy USD 2.99 path.
 

@@ -77,7 +77,7 @@ describe('atomic new-SKU commerce RPCs in actual isolated PostgreSQL', () => {
         await db.exec(`begin;
             insert into public.profiles(id) values('Alice'),('Bob');
             insert into public.account_terms_consents(user_id,version) values
-                ('Alice','2026-10-03.1'),('Bob','2026-10-03.1');
+                ('Alice','2026-10-07.1'),('Bob','2026-10-07.1');
             set role service_role;`);
     });
     afterEach(async () => { await db.exec('rollback; reset role'); });
@@ -134,7 +134,7 @@ describe('atomic new-SKU commerce RPCs in actual isolated PostgreSQL', () => {
     it('fulfills an originally consented paid Checkout and deduplicates after current policy changes', async () => {
         const e = await payment();
         const consent = await scalar('select to_jsonb(i) as result from public.stripe_commerce_checkout_intents i where checkout_id=$1', [e.checkoutId]);
-        expect(consent).toMatchObject({ terms_version: '2026-10-03.1', terms_effective_date: '2026-10-03' });
+        expect(consent).toMatchObject({ terms_version: '2026-10-07.1', terms_effective_date: '2026-10-07' });
         expect(Date.parse(consent.terms_accepted_at)).toBeLessThanOrEqual(Date.parse(consent.created_at));
         await owner('update public.current_terms_policy set effective_date=null');
         expect(await scalar("select public.has_current_ticket_terms('Alice') as result")).toBe(false);

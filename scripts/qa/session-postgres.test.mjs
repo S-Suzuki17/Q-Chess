@@ -35,7 +35,7 @@ test('dormant durable sessions on native PostgreSQL, public-source baseline only
         from pg_proc where pronamespace='public'::regnamespace and proname in
         ('login_user','reset_legacy_account_password','begin_account_deletion')`);
 
-    await check('combined ten-file raw upgrade preserves public auth functions, native pgcrypto and atomic profile backfill', async () => {
+    await check('combined explicit raw upgrade preserves public auth functions, native pgcrypto and atomic profile backfill', async () => {
         nativeVersion = await setupSessionBaseline(admin);
         assert.equal(await scalar(admin, "select extname as result from pg_extension where extname='pgcrypto'"), 'pgcrypto');
         assert.equal(await scalar(admin, `select l.lanname as result from pg_proc p join pg_language l on l.oid=p.prolang
@@ -53,7 +53,8 @@ test('dormant durable sessions on native PostgreSQL, public-source baseline only
         const expected = original.replace(oldLock, oldLock.replace(' for update;', ';')).replace(profileLock, `${profileLock}\n${recheck}`);
         await applySessionPending(admin);
         assert.deepEqual(await definitions(), unchanged);
-        assert.equal(await scalar(admin, "select prosrc as result from pg_proc where oid='public.erase_account_data(text)'::regprocedure"), expected,
+        // Git checkouts may retain CRLF; compare SQL text apart from line endings.
+        assert.equal((await scalar(admin, "select prosrc as result from pg_proc where oid='public.erase_account_data(text)'::regprocedure")).replace(/\r\n/g,'\n'), expected.replace(/\r\n/g,'\n'),
             'Erasure changed outside the reviewed public-source lock prelude');
         assert.equal(await rowCount('qg_private.legacy_session_accounts', preexisting), 1);
         a = await open('service_role'); b = await open('service_role'); assert.notEqual(a.fixturePid, b.fixturePid);
@@ -426,15 +427,19 @@ test('dormant durable sessions on native PostgreSQL, public-source baseline only
     for (const name of [...sessionBaselineEvidence.historical, ...sessionBaselineEvidence.pending].map(name => `supabase/migrations/${name}`).concat([
         'scripts/qa/fixtures/session-postgres-baseline.mjs',
         'scripts/qa/session-runtime-postgres.mjs','scripts/qa/session-runtime-rpc.mjs','scripts/qa/session-runtime-reuse.mjs',
+        'scripts/qa/session-reconnect-postgres.mjs','server/src/matchmaking/MatchmakingService.ts','server/src/game/RankedRuntime.ts',
+        'server/src/services/RankedAdmissionCoordinator.ts','server/src/services/RankedAdmissionStore.ts','server/src/services/SessionAuthorityError.ts',
         'server/src/services/DurableRankedAuth.ts','server/src/services/LegacySocketAuthority.ts',
         ...['test','support','reuse','local'].map(n => `scripts/qa/session-postgres-${n}.mjs`)])) {
         // The test itself uses the conventional .test.mjs filename.
         const source = name.replace('session-postgres-test.mjs', 'session-postgres.test.mjs');
         sourceSha256[source] = createHash('sha256').update(await readFile(new URL(`../../${source}`, import.meta.url))).digest('hex');
     }
+    const runtimeScenarios = results.filter(name => name.startsWith('runtime:')).length;
+    const reconnectScenarios = results.filter(name => name.startsWith('reconnect:')).length;
     const report = { completed: failures === 0 && results.length === EXPECTED_CHECKS, verifiedAt: new Date().toISOString(),
         nativePostgreSQL: true, nativeVersion, independentBackends: true, nativePgcrypto: true, productionData: false,
-        applicationActivation: false, socketTransportVerified: results.some(name=>name.startsWith('runtime: real loopback')), nativeTypeScriptAdapterVerified: results.filter(name=>name.startsWith('runtime:')).length===RUNTIME_CHECKS, postgrestVerified: false, originalAuthScenarios: 35, runtimeScenarios: RUNTIME_CHECKS, baseline: sessionBaselineEvidence, sourceSha256,
+        applicationActivation: false, socketTransportVerified: results.some(name=>name.startsWith('runtime: real loopback')), nativeTypeScriptAdapterVerified: runtimeScenarios+reconnectScenarios===RUNTIME_CHECKS, postgrestVerified: false, originalAuthScenarios: 35, runtimeScenarios, reconnectScenarios, baseline: sessionBaselineEvidence, sourceSha256,
         passed: results.length, failed: failures, tests: results };
     await writeFile(join(tmpdir(), 'session-postgres-results.json'), JSON.stringify(report, null, 2) + '\n'); console.log(JSON.stringify(report));
     assert.equal(failures, 0, 'Native session verification has failures');

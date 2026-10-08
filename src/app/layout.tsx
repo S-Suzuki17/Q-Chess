@@ -37,6 +37,7 @@ export const metadata: Metadata = {
   description: "Q-GAMBIT (キュー・ギャンビット) は駒の正体が隠された量子チェス風の新感覚ボードゲーム。CPU対戦、オンライン対局、クラウンサーキットなど豊富なモードで遊べるブラウザチェスゲームです。A chess variant with hidden piece identities. Play CPU practice, online matches and Crown Circuit.",
   keywords: ["Q-Gambit", "q-gambit", "キューギャンビット", "チェス", "量子チェス", "ボードゲーム", "ブラウザゲーム", "オンライン対戦", "chess", "quantum chess", "board game"],
   metadataBase: new URL("https://q-gambit.com"),
+  alternates: { canonical: "https://q-gambit.com/" },
   manifest: "/manifest.json",
   robots: {
     index: true,

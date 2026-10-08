@@ -26,7 +26,6 @@ vi.mock('../components/TitleScreen',()=>({default:()=>null,TitleScreen:()=>null}
 vi.mock('../components/LevelSelect',()=>({default:()=>null,LevelSelect:()=>null}));
 vi.mock('../components/SettingsDialog',()=>({default:()=>null,SettingsDialog:()=>null}));
 vi.mock('../components/CampaignMode',()=>({default:()=>null,CampaignMode:()=>null}));
-vi.mock('../components/DevDiaryTimeline',()=>({default:()=>null,DevDiaryTimeline:()=>null}));
 vi.mock('../components/OptionalMetricsSettings',()=>({default:()=>null,OptionalMetricsSettings:()=>null}));
 vi.mock('../components/ReplayBoard',()=>({default:()=>null,ReplayBoard:()=>null}));
 vi.mock('../components/RankedMatchmakingManager',()=>({default:()=>null,RankedMatchmakingManager:()=>null}));

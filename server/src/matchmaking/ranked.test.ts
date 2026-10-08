@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { CPU_FALLBACK_MS, MatchmakingService } from './MatchmakingService';
+import { CPU_FALLBACK_MS, DISCONNECT_GRACE_MS, MatchmakingService } from './MatchmakingService';
 
 function fixture() {
     const io = { emit: vi.fn(), to: vi.fn(() => ({ emit: vi.fn() })), sockets: { sockets: new Map() } };
@@ -13,6 +13,129 @@ function fixture() {
 
 beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(1_000_000); vi.spyOn(Math, 'random').mockReturnValue(0.8); });
 afterEach(() => { vi.clearAllTimers(); vi.useRealTimers(); vi.restoreAllMocks(); });
+
+describe('30-second reconnect deadline', () => {
+    function started() {
+        const f = fixture(); f.register('first'); f.register('second');
+        f.mm.joinQueue('first', 600, undefined, 'ranked', 1000);
+        const match = f.mm.joinQueue('second', 600, undefined, 'ranked', 1000).match!;
+        f.mm.connectMatch('first', match.matchId); f.mm.connectMatch('second', match.matchId);
+        expect(match.state).toBe('IN_GAME');
+        f.mm.onForfeit = vi.fn();
+        return { ...f, match };
+    }
+    it('retains the approved 30 seconds and does not extend on duplicate disconnects', () => {
+        const { mm, match, io } = started();
+        const start = Date.now();
+        mm.removeSocket('socket:first');
+        expect(DISCONNECT_GRACE_MS).toBe(30_000);
+        expect(io.sockets.sockets.get('socket:second')!.emit).toHaveBeenCalledWith('opponent_disconnected', {
+            matchId: match.matchId, gracePeriodSeconds: 30, serverNow: start, deadline: start + 30_000,
+        });
+        vi.advanceTimersByTime(29_000); mm.removeSocket('socket:first');
+        vi.advanceTimersByTime(999);
+        expect(match.engine!.getPublicState('first').gameOver).toBeNull();
+        vi.advanceTimersByTime(1);
+        expect(match.engine!.getPublicState('first')).toMatchObject({ gameOver: 'BLACK', gameOverReason: 'abandonment' });
+        expect(mm.onForfeit).toHaveBeenCalledOnce();
+        vi.advanceTimersByTime(30_000);
+        expect(mm.onForfeit).toHaveBeenCalledOnce();
+    });
+    it('voids a known authority outage during the grace period without a clock or abandonment result',async()=>{
+        const {mm,match}=started();
+        mm.removeSocket('socket:first',async()=>{throw Error('unavailable');});
+        await vi.advanceTimersByTimeAsync(1);
+        expect(match.state).toBe('CANCELLED');expect(mm.awaitingReconnect('first',match.matchId)).toBe(false);
+        await vi.advanceTimersByTimeAsync(600000);
+        expect(match.engine!.getPublicState('first').gameOver).toBeNull();expect(mm.onForfeit).not.toHaveBeenCalled();
+    });
+    it('rechecks infrastructure at the fixed deadline and cancels if the authority stopped later',async()=>{
+        const {mm,match}=started(),check=vi.fn().mockResolvedValue(null);
+        mm.removeSocket('socket:first',check);await vi.advanceTimersByTimeAsync(29000);
+        check.mockRejectedValue(Error('RPC stopped'));await vi.advanceTimersByTimeAsync(1000);
+        expect(check).toHaveBeenCalledTimes(2);expect(match.state).toBe('CANCELLED');expect(mm.onForfeit).not.toHaveBeenCalled();
+    });
+    it('retains 30 seconds for explicit expired or revoked proofs and settles both disconnects once',async()=>{
+        const {mm,match}=started(),check=vi.fn().mockResolvedValue(null);
+        mm.removeSocket('socket:first',check);mm.removeSocket('socket:second',check);
+        await vi.advanceTimersByTimeAsync(29999);expect(mm.onForfeit).not.toHaveBeenCalled();
+        await vi.advanceTimersByTimeAsync(1);expect(mm.onForfeit).toHaveBeenCalledOnce();
+        expect(match.engine!.getPublicState('first').gameOverReason).toBe('abandonment');
+    });
+    it('does not let a delayed unavailable check cancel a successfully rejoined game',async()=>{
+        const {mm,match,register}=started();let reject!:(error:Error)=>void;
+        mm.removeSocket('socket:first',()=>new Promise((_,no)=>{reject=no;}));await vi.advanceTimersByTimeAsync(29000);
+        register('first','replacement');expect(mm.connectMatch('first',match.matchId).success).toBe(true);
+        reject(Error('old check'));await vi.advanceTimersByTimeAsync(1000);
+        expect(match.state).toBe('IN_GAME');expect(mm.onForfeit).not.toHaveBeenCalled();
+    });
+    it('voids server suspension rather than assigning an abandonment result',()=>{
+        const {mm,match}=started();mm.removeSocket('socket:first');mm.serverResponsive=()=>false;
+        vi.advanceTimersByTime(30000);
+        expect(match.state).toBe('CANCELLED');expect(mm.onForfeit).not.toHaveBeenCalled();
+    });
+    it('keeps an earlier normal clock timeout ahead of a later abandonment callback',()=>{
+        const {mm,match}=started();
+        // White clock expires while Black is absent; Black must not lose by abandonment.
+        (match.engine as any).state.clock.white=1000;
+        mm.removeSocket('socket:second');vi.advanceTimersByTime(30000);
+        expect(match.engine!.getPublicState('first')).toMatchObject({gameOver:'BLACK',gameOverReason:'timeout'});
+        expect(mm.onForfeit).toHaveBeenCalledOnce();
+    });
+    it('does not extend a reconnect deadline after the server wall clock moves backwards',()=>{
+        const {mm,match}=started();mm.removeSocket('socket:first');
+        vi.advanceTimersByTime(29999);vi.setSystemTime(Date.now()-60000);
+        const mono=vi.spyOn(performance,'now').mockReturnValue(performance.now()+1);
+        expect(mm.connectMatch('first',match.matchId).success).toBe(false);mono.mockRestore();
+    });
+    it('does not forgive a disconnect merely because a replacement socket registers', () => {
+        const { mm, match, register } = started();
+        mm.removeSocket('socket:first');
+        vi.advanceTimersByTime(10_000); register('first', 'replacement');
+        expect(mm.awaitingReconnect('first', match.matchId)).toBe(true);
+        vi.advanceTimersByTime(20_000);
+        expect(mm.onForfeit).toHaveBeenCalledOnce();
+    });
+    it('clears the old deadline only when connectMatch actually rejoins, then starts a new absence', () => {
+        const { mm, match, register } = started();
+        mm.removeSocket('socket:first'); vi.advanceTimersByTime(20_000);
+        register('first', 'replacement'); mm.connectMatch('first', match.matchId);
+        expect(mm.awaitingReconnect('first', match.matchId)).toBe(false);
+        // A replaced old transport cannot disconnect the current participant.
+        mm.removeSocket('socket:first'); vi.advanceTimersByTime(20_000);
+        expect(mm.onForfeit).not.toHaveBeenCalled();
+        mm.removeSocket('replacement'); vi.advanceTimersByTime(29_999);
+        expect(mm.onForfeit).not.toHaveBeenCalled();
+        vi.advanceTimersByTime(1); expect(mm.onForfeit).toHaveBeenCalledOnce();
+    });
+    it('cancels pending disconnect settlement after the match has already ended', () => {
+        const { mm, match } = started();
+        mm.removeSocket('socket:first'); mm.finishMatch(match);
+        vi.advanceTimersByTime(60_000);
+        expect(mm.awaitingReconnect('first', match.matchId)).toBe(false);
+        expect(mm.onForfeit).not.toHaveBeenCalled();
+    });
+    it('replays the same deadline to a reconnecting opponent without renewing it', () => {
+        const { mm, match } = started();
+        mm.removeSocket('socket:first');
+        const original = mm.opponentDisconnect('second', match.matchId)!;
+        vi.advanceTimersByTime(11000);
+        expect(mm.opponentDisconnect('second', match.matchId)).toEqual({
+            ...original, serverNow: original.serverNow + 11000,
+        });
+        expect(mm.opponentDisconnect('outsider', match.matchId)).toBeNull();
+        mm.connectMatch('first', match.matchId);
+        expect(mm.opponentDisconnect('second', match.matchId)).toBeNull();
+    });
+    it('rejects a late rejoin even if the event loop has not dispatched the expiry timer', () => {
+        const { mm, match } = started();
+        mm.removeSocket('socket:first');
+        vi.setSystemTime(Date.now() + DISCONNECT_GRACE_MS);
+        expect(mm.connectMatch('first', match.matchId).success).toBe(false);
+        expect(mm.awaitingReconnect('first', match.matchId)).toBe(true);
+        expect(match.connected.host).toBe(false);
+    });
+});
 
 describe('ranked matchmaking fallback', () => {
     it('waits the full 10 seconds and reserves exactly one CPU match', () => {

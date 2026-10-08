@@ -7,6 +7,7 @@ import http from 'node:http';
 import { once } from 'node:events';
 import { io as socketClient } from 'socket.io-client';
 import { nativeSessionRpc } from './session-runtime-rpc.mjs';
+import { runReconnectPostgresChecks, RECONNECT_CHECKS } from './session-reconnect-postgres.mjs';
 import { PASSWORD, account, scalar, recovery, reset, beginDeletion } from './session-postgres-support.mjs';
 const require=createRequire(import.meta.url);
 const { DurableRankedAuth }=require('../../server/dist/services/DurableRankedAuth.js');
@@ -17,7 +18,7 @@ const { createRankedSessionInspectionRouter }=require('../../server/dist/service
 const { AccountWriteGate }=require('../../server/dist/services/AccountDeletion.js');
 const { Server }=require('../../server/node_modules/socket.io');
 const express=require('../../server/node_modules/express');
-export const RUNTIME_CHECKS=10;
+export const RUNTIME_CHECKS=10+RECONNECT_CHECKS;
 const hash=token=>createHash('sha256').update(token).digest('hex');
 const live=proof=>({token:proof.token,userId:proof.userId,fence:proof.fence});
 // Preserve exact microsecond lifetime by deriving expiry from the SAME timestamp.
@@ -28,6 +29,7 @@ const waiting=(socket,event)=>new Promise((resolve,reject)=>{
     const listener=value=>{clearTimeout(timer);resolve(value);};socket.once(event,listener);
 });
 export async function runSessionRuntimeChecks({check,admin,a,b,open}) {
+    await runReconnectPostgresChecks({check,admin,a,b,open});
     const authA=new DurableRankedAuth(nativeSessionRpc(a)),authB=new DurableRankedAuth(nativeSessionRpc(b));
     const issue=async(auth=authA)=>{
         const user=await account(admin,'Runtime'+randomUUID()),proof=await auth.issueLegacySession(user,PASSWORD);

@@ -37,7 +37,7 @@ describe('RankedAuth password proof', () => {
         const error = vi.spyOn(console, 'error').mockImplementation(() => {});
         const log = vi.spyOn(console, 'log').mockImplementation(() => {});
         const auth = new RankedAuth(async () => { throw new Error('upstream password details'); });
-        expect(await auth.issueLegacySession('Alice', 'password')).toBeNull();
+        await expect(auth.issueLegacySession('Alice', 'password')).rejects.toThrow('Session authority unavailable');
         expect(auth.activeSessionCount).toBe(0);
         expect(error).not.toHaveBeenCalled();
         expect(log).not.toHaveBeenCalled();
@@ -157,7 +157,7 @@ describe('RankedAuth session lifetime and capacity', () => {
         const verify = vi.fn().mockResolvedValue(true);
         const auth = new RankedAuth(verify, { maxSessions: 1, sessionTtlMs: 100 });
         const first = (await auth.issueLegacySession('Alice', 'password'))!;
-        expect(await auth.issueLegacySession('Bob', 'password')).toBeNull();
+        await expect(auth.issueLegacySession('Bob', 'password')).rejects.toThrow('Session authority unavailable');
         expect(verify).toHaveBeenCalledTimes(1);
         expect((await auth.verifySession(first.token))?.userId).toBe('Alice');
         vi.setSystemTime(100);
@@ -174,7 +174,7 @@ describe('RankedAuth session lifetime and capacity', () => {
         const second = auth.issueLegacySession('Bob', 'password');
         completions.forEach(resolve => resolve(true));
         expect((await first)?.userId).toBe('Alice');
-        expect(await second).toBeNull();
+        await expect(second).rejects.toThrow('Session authority unavailable');
         expect(auth.activeSessionCount).toBe(1);
     });
 

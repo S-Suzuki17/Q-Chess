@@ -4,6 +4,7 @@ import type { StripeMembershipStatus } from '../lib/stripeMembership';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 const harness = vi.hoisted(() => ({ native: false, web: true, membership: true, portal: true, checkout: true, ready: true, revision: 1, account: 'Alice', cursor: 0,
+    sharedAdmissionEnabled: false as boolean | null,
     states: [] as unknown[], cleanups: [] as Array<()=>void>, read: vi.fn(), memberRead: vi.fn(), rewardRead: vi.fn(), prepare: vi.fn(), billing: vi.fn(), claim: vi.fn() }));
 vi.mock('react', async original => {
     const react = await original<typeof import('react')>();
@@ -20,6 +21,7 @@ vi.mock('next/link', async () => { const react = await import('react'); return {
 vi.mock('@capacitor/core', () => ({ Capacitor: { isNativePlatform: () => harness.native } }));
 vi.mock('../hooks/useAppPlatform', () => ({ useAppPlatform: () => ({ webContent: harness.web }) }));
 vi.mock('../hooks/useCircuitAccess', () => ({ useCircuitAccess: () => ({ allowed: true, revision: harness.revision }) }));
+vi.mock('../lib/SocketContext', () => ({ useSocket: () => ({ sharedAdmissionEnabled: harness.sharedAdmissionEnabled }) }));
 vi.mock('../lib/circuitAccess', () => ({ circuitAccess: { canPlay: (user: {id:string}) => user.id === harness.account, getSnapshot: () => ({revision:harness.revision}) } }));
 vi.mock('../lib/dailyLoginRewards', () => ({ DAILY_LOGIN_REWARDS_ENABLED:true, DAILY_LOGIN_REWARD_CHANGED_EVENT:'daily-changed', readDailyLoginStatus:harness.rewardRead }));
 vi.mock('../config/webCommerce', async original => ({ ...await original<typeof import('../config/webCommerce')>(),
@@ -34,6 +36,7 @@ vi.mock('../lib/stripeMembership', () => ({
 import { StripeMembershipPanel } from './StripeMembershipPanel';
 import { MemberTicketsPanel, MemberTicketClaimController } from './MemberTicketsPanel';
 import { CommercePage } from './CommercePage';
+import { CommerceDisclosureDocument } from './CommerceDisclosureDocument';
 import { DailyLoginRewardsPanel } from './DailyLoginRewardsPanel';
 import { stripeMembershipText } from '../locales/stripeMembershipText';
 import { rewardsHubText } from '../locales/rewardsHubText';
@@ -55,6 +58,7 @@ const elements = (node: ReactNode): ReactElement[] => {
     return [element,...elements(element.props?.children)];
 };
 beforeEach(() => {
+    harness.sharedAdmissionEnabled=false;
     harness.native=false; harness.web=true; harness.membership=true; harness.portal=true; harness.checkout=true; harness.ready=true;
     harness.revision=1; harness.account='Alice';
     harness.cursor=0; harness.states=panelStates(); harness.cleanups=[];
@@ -179,6 +183,18 @@ it('does not display a reward preview when the server has disabled rewards', () 
     expect(markup).not.toContain(rewardsHubText('en').today);
 });
 
+it.each(['ja','en'] as const)('renders the active server match rules for %s and hides unknown rules',lang=>{
+    const reward={userId:'Alice',enabled:true,rewardPolicyVersion:2,streakDays:7,tickets:{ranked:25,hint:21},lastClaimUtcDay:'2026-10-03',currentUtcDay:'2026-10-03'};
+    harness.rewardRead.mockReturnValue(new Promise(()=>{}));
+    for(const enabled of [true,false,null]){
+        harness.sharedAdmissionEnabled=enabled;harness.cursor=0;harness.states=[{revision:1,status:reward},null,null];
+        const markup=html(DailyLoginRewardsPanel({user,lang}));
+        if(enabled===null){expect(markup).not.toContain(ticketWalletText(lang,true).rule);expect(markup).not.toContain(ticketWalletText(lang).rule);}
+        else expect(markup).toContain(ticketWalletText(lang,enabled).rule);
+        expect(markup).not.toContain('limit 20');
+    }
+});
+
 it('provides the navigation and disclosure copy for all twelve supported languages', () => {
     expect(LANGUAGES).toHaveLength(12);
     for (const {code} of LANGUAGES) {
@@ -195,6 +211,32 @@ it('keeps planned products unavailable when the authenticated server advertises 
     const products=elements(tree).filter(element=>element.type==='input');
     expect(products).toHaveLength(8);
     for(const product of products) expect((product.props as {disabled:boolean}).disabled).toBe(true);
+});
+it('keeps one-time hint purchase review free of monthly subscription billing', () => {
+    const inactive = {...status, active:false, canManageBilling:false, periodEnd:null};
+    harness.states=panelStates(inactive,true,'hints_1');
+    const markup=html(StripeMembershipPanel({user,lang:'en'}));
+    // Scope the selected offer separately from the complete linked terms,
+    // which also disclose other products and existing monthly contracts.
+    const review=markup.split('data-purchase-review')[1].split('<a href="/commerce/"')[0];
+    expect(review).toContain('Charged once at purchase. No automatic renewal.');
+    expect(review).not.toContain('each monthly renewal');
+    expect(review).not.toContain('2.99');
+    expect(markup).toContain('Products and prices'); expect(markup).not.toContain('Planned products and prices');
+});
+
+it('matches disclosure headings to readiness and keeps old contract benefits in their own section', () => {
+    for (const ready of [false,true]) {
+        harness.ready=ready;
+        const markup=html(CommerceDisclosureDocument({lang:'ja'}));
+        expect(markup).toContain(`data-commerce-sales="${ready?'open':'closed'}"`);
+        expect(markup.includes('新商品（販売準備中）')).toBe(!ready);
+        const newProducts=markup.split('data-commerce-products')[1].split('</section>')[0];
+        const legacy=markup.split('data-legacy-commerce-terms')[1].split('</section>')[0];
+        expect(newProducts).toContain('USD $3.00'); expect(newProducts).toContain('USD $6.00');
+        expect(newProducts).toContain('QUBEヒント 166枚'); expect(newProducts).not.toContain('2.99');
+        expect(legacy).toContain('2.99'); expect(legacy).toContain('毎日ランク戦チケット3枚');
+    }
 });
 it('resets explicit purchase consent when the selected product changes', () => {
     harness.states=panelStates({...status,active:false,canManageBilling:false,periodEnd:null},true);

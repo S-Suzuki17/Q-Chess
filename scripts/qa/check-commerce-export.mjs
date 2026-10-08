@@ -15,7 +15,20 @@ export function checkCommerceExport(target, sales, html) {
         const closed = '現在、新規購入は受け付けていません。';
         assert.ok(markup.includes(`data-commerce-sales="${sales === 'on' ? 'open' : 'closed'}"`), 'Sales marker does not match requested configuration');
         assert.equal(markup.includes(closed), sales === 'off', 'Sales availability text does not match requested configuration');
-        if (sales === 'on') assert.ok(markup.includes('USD 2.99'), 'Open sales must show the final price');
+        assert.equal(markup.includes('新商品（販売準備中）'), sales === 'off', 'Catalog heading must agree with sales readiness');
+        assert.ok(markup.includes('data-legacy-commerce-terms'), 'Legacy terms must be explicitly scoped');
+        const products = [...markup.matchAll(/<li\b[^>]*data-commerce-sku=["']([^"']+)["'][^>]*>([\s\S]*?)<\/li>/g)];
+        const catalog = [
+            ['standard_monthly','3.00',null], ['plus_monthly','6.00',null],
+            ['hints_1','1.00',1], ['hints_13','10.00',13], ['hints_27','20.00',27],
+            ['hints_44','30.00',44], ['hints_77','50.00',77], ['hints_166','100.00',166],
+        ];
+        assert.deepEqual(products.map(match => match[1]), catalog.map(([sku]) => sku), 'All eight approved products must appear exactly once');
+        for (const [sku, total, hints] of catalog) {
+            const body = products.find(match => match[1] === sku)[2];
+            assert.ok(body.includes(`USD $${total}`), `${sku}: wrong or missing final price`);
+            if (hints !== null) assert.ok(body.includes(`QUBEヒント ${hints}枚`), `${sku}: wrong hint quantity`);
+        }
     } else {
         assert.ok(!/data-commerce-(?:disclosure|sales)|鈴木 壮太|内宿台2-184-1|070-7660-1602|2\.99|Q-Gambit Plus|USD/.test(markup), 'Android must have no sales disclosure or price');
     }

@@ -5,6 +5,7 @@ import type { User } from '../types/game';
 import type { Language } from '../locales/dict';
 import { dailyLoginText } from '../locales/dailyLoginText';
 import { ticketWalletText } from '../locales/ticketWalletText';
+import { useSocket } from '../lib/SocketContext';
 import { rewardsHubText } from '../locales/rewardsHubText';
 import { dailyRewardPreview } from '../lib/dailyRewardPreview';
 import { useCircuitAccess } from '../hooks/useCircuitAccess';
@@ -12,6 +13,7 @@ import { DAILY_LOGIN_REWARD_CHANGED_EVENT, DAILY_LOGIN_REWARDS_ENABLED, readDail
 
 /** Read-only wallet display; the login controller owns the silent claim. */
 export function DailyLoginRewardsPanel({ user, lang }: { user: User; lang: Language }) {
+    const { sharedAdmissionEnabled } = useSocket();
     const { allowed, revision } = useCircuitAccess(user);
     const [loaded, setLoaded] = React.useState<{ revision: number; status: DailyLoginStatus } | null>(null);
     const [failedRevision, setFailedRevision] = React.useState<number | null>(null);
@@ -48,13 +50,13 @@ export function DailyLoginRewardsPanel({ user, lang }: { user: User; lang: Langu
 
     if (!DAILY_LOGIN_REWARDS_ENABLED || !allowed || user.type !== 'registered' || disabledRevision === revision) return null;
     const text = dailyLoginText(lang);
-    const wallet = ticketWalletText(lang);
+    const wallet = ticketWalletText(lang, sharedAdmissionEnabled === true);
     const hub = rewardsHubText(lang);
     const status = loaded?.revision === revision && loaded.status.userId === user.id ? loaded.status : null;
     const preview = status ? dailyRewardPreview(status) : null;
     return <section aria-label={text.title} className="reward-card">
         <h4 className="reward-title">{hub.balance}</h4>
-        <p className="reward-caption mt-2">{wallet.rule}</p>
+        {typeof sharedAdmissionEnabled === 'boolean' && <p className="reward-caption mt-2">{wallet.rule}</p>}
         {failedRevision === revision || status?.enabled === false
             ? <p role="status" className="mt-2 text-sm text-[#A89C86]">{text.unavailable}</p>
             : !status

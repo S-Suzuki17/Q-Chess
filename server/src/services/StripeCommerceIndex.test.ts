@@ -27,6 +27,14 @@ vi.mock('./StripeMembership', async original => ({
     // Provider reads are controlled; raw webhook signature verification stays real.
     StripeMembershipApi: class { constructor() { return h.api; } },
 }));
+// Preserve the pre-release legacy-only composition as an explicit fixture.
+// The released index uses the real default gate; do not turn off receipt
+// processing or retirement when pausing sales in production.
+vi.mock('./StripeBillingRuntime', async original => {
+    const actual = await original<typeof import('./StripeBillingRuntime')>();
+    return { ...actual, createStripeBillingRouters: (options: Parameters<typeof actual.createStripeBillingRouters>[0]) =>
+        actual.createStripeBillingRouters(options, false) };
+});
 vi.mock('./SupabaseService', () => ({ SupabaseService: class {
     constructor() { return new Proxy(this, { get: (_target, key) => ({
         stripeMembershipStore: () => h.membership,
@@ -114,7 +122,7 @@ afterAll(async () => {
     vi.restoreAllMocks(); vi.unstubAllGlobals(); vi.unstubAllEnvs();
 });
 
-describe('actual index with legacy billing enabled and pending commerce schema absent', () => {
+describe('actual index with an explicitly legacy-only billing fixture and pending commerce schema absent', () => {
     it('serves the owned legacy status without constructing or reading new commerce stores', async () => {
         const reply = await request('/membership/stripe/status');
         expect(reply.status).toBe(200);

@@ -19,11 +19,12 @@ export function RankedMatchmakingManager({lang,user,onMatchFound,cancelSearchGlo
     const [loginOpen,setLoginOpen]=useState(false),[retry,setRetry]=useState(0);
     const dialog=useRef<HTMLDialogElement>(null);
     useEffect(()=>{const node=dialog.current;node?.showModal();return()=>node?.close();},[]);
-    const requiresLogin=!authPending&&!!user&&!user.id.startsWith('GUEST-')&&(!isAuthenticated||connectionError==='AUTH_REQUIRED');
+    const requiresLogin=!authPending&&!!user&&!user.id.startsWith('GUEST-')&&
+        (connectionError==='AUTH_REQUIRED'||(!isAuthenticated&&isConnected&&!connectionError));
     useEffect(()=>{
-        if(attempted.current||authPending||!isConnected||(mode==='ranked'&&!isAuthenticated)||requiresLogin)return;
+        if(attempted.current||authPending||connectionError==='AUTH_UNAVAILABLE'||!isConnected||(mode==='ranked'&&!isAuthenticated)||requiresLogin)return;
         attempted.current=true;startMatchmaking(timeControlTarget,mode);
-    },[authPending,isConnected,isAuthenticated,requiresLogin,timeControlTarget,mode,startMatchmaking,retry]);
+    },[authPending,connectionError,isConnected,isAuthenticated,requiresLogin,timeControlTarget,mode,startMatchmaking,retry]);
     useEffect(()=>{
         if(matchedRoom&&delivered.current!==matchedRoom.id){delivered.current=matchedRoom.id;onMatchFound(matchedRoom);}
     },[matchedRoom,onMatchFound]);

@@ -17,7 +17,8 @@ export class LegacySocketAuthority {
     private polling = false;
     constructor(private readonly authority: LiveAuthority, private readonly io: Pick<Server, 'sockets'>,
         private readonly owns: (userId: string, socketId: string) => boolean,
-        private readonly stopWaiting: (userId: string) => void) {}
+        private readonly stopWaiting: (userId: string) => void,
+        private readonly unavailable: (userId: string) => void = () => {}) {}
 
     capture(socket: Socket, token: string, proof: RankedIdentity): void {
         socket.data.legacyAdmissionDeadline = proof.admissionDeadline ?? performance.now() + proof.expiresAt - (proof.serverNow ?? Date.now());
@@ -57,6 +58,7 @@ export class LegacySocketAuthority {
                             const socket = this.io.sockets.sockets.get(id);
                             if (socket && this.current(socket, binding)) {
                                 socket.data.legacyAdmissionDeadline = 0;
+                                this.unavailable(binding.userId);
                                 this.stopWaiting(binding.userId);
                             }
                         }
@@ -67,9 +69,11 @@ export class LegacySocketAuthority {
                         if (!socket || !this.current(socket, binding)) continue;
                         const status = statuses[i];
                         if (status === 'revoked') {
+                            socket.data.explicitlyRevoked=true;
                             socket.emit('session_revoked', { reason: 'revoked' }); socket.disconnect(true);
                         } else if (status !== 'valid') {
                             socket.data.legacyAdmissionDeadline = 0;
+                            if(status==='evidence_lost')this.unavailable(binding.userId);
                             this.stopWaiting(binding.userId);
                         }
                     }

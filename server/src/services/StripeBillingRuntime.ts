@@ -10,7 +10,7 @@ import { StripeCommerceFulfillment } from './StripeCommerceFulfillment';
 import { createStripeMembershipRouter, createStripeWebhookRouter } from './StripeMembershipRoutes';
 
 /** Independent of sales readiness: future receipt processing must survive paused sales. */
-export const COMMERCE_RUNTIME_RELEASE_VERIFIED = false;
+export const COMMERCE_RUNTIME_RELEASE_VERIFIED = true;
 interface BillingRuntimeOptions {
     auth: RankedSessionAuthority;
     api: StripeMembershipApi | null;

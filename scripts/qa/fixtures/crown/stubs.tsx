@@ -3,9 +3,9 @@
 import React from 'react';
 import {emptyCampaign} from '../../../../src/config/campaign';
 import type {CampaignOutcome} from '../../../../src/config/campaign';
+export {crownRankKey} from '../../../../src/config/crownAdmission';
 declare global { interface Window {qaEnabled?:boolean;qaMembershipHold?:boolean;qaReleaseMembership?:()=>void;qaMembershipCalls?:number;} }
 export const crownAdmissionEnabled=()=>window.qaEnabled===true;
-export const crownRankKey=(stage:number)=>`crown:stage:v1:${stage}`;
 export const useCampaignProgress=()=>({progress:{...emptyCampaign(),stageStars:[1,1,1]},loaded:true,storageError:false,update:()=>{}});
 export const soundManager={playBGM:()=>{},stopBGM:()=>{}};
 export const readStripeMembershipStatus=async()=>{

@@ -120,6 +120,7 @@ export class RankedRuntime {
                 continue;
             }
             if(match.state!=='IN_GAME'||!match.engine)continue;
+            if(this.matchmaking.authorityCheckPending(match))continue;
             if(match.engine.checkTimeout()){this.afterAction(match);continue;}
             const state=match.engine.getPublicState(match.players.host);
             if(state.gameOver){this.afterAction(match);continue;}
@@ -128,6 +129,7 @@ export class RankedRuntime {
             this.cpuBusy.add(match.matchId);
             void this.runCpu(state,match.cpu.profile).then(response=>{
                 if(match.state!=='IN_GAME'||!match.engine||!match.cpu||(match.admission&&!this.admission?.canAdvance(match)))return;
+                if(this.matchmaking.authorityCheckPending(match))return;
                 const current=match.engine.getPublicState(match.cpu.id);
                 if(current.gameOver||current.version!==state.version||current.turn!==state.turn)return;
                 if(response.error||response.version!==state.version||!response.move)throw new Error('CPU unavailable');

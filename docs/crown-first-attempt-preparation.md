@@ -2,16 +2,16 @@
 
 This change is dormant. It does not deploy SQL, publish a build, enable a provider, or add a new public game limit.
 
-The selected rank mapping is null on both the server and client, and verified-provider readiness is false. Neither environment variables nor client request fields can select a mapping. The route returns FEATURE_DISABLED before authentication or database access while either release gate is closed. Campaign retains its existing membership/interstitial behavior while the gate is closed.
+As of the 2026-10-07 takeover, the owner selected `strength_v1` on both the server and client. Verified-provider readiness remains false. Neither environment variables nor client request fields can override that mapping. The route returns FEATURE_DISABLED before authentication or database access while the provider release gate is closed. Campaign retains its existing membership/interstitial behavior while the gate is closed.
 
-## Unresolved rank policy
+## Approved rank policy (2026-10-07)
 
-The existing campaign has 100 stable stage IDs, with CPU strengths 1–34 repeated across three time controls. The approved per-rank requirement does not specify whether the authorization belongs to one stage or to a CPU-strength group. Both candidate mappings have isolated tests, but neither is selected:
+The existing campaign has 100 stable stage IDs, with CPU strengths 1–34 repeated across three time controls (the final group contains only stage 100). The approved authorization belongs to the CPU-strength group, not a time-control variant. Repeated attempts and other time controls in the same group do not require another ad. The candidate mappings remain versioned:
 
-- stage_v1: crown:stage:v1:<stage ID>, 100 possible keys
-- strength_v1: crown:strength:v1:<strength>, 34 possible keys
+- stage_v1: crown:stage:v1:<stage ID>, 100 possible keys (not selected)
+- strength_v1: crown:strength:v1:<strength>, 34 possible keys (selected)
 
-Before activation, obtain the rank mapping decision, verify a real provider proof flow with its account/target binding and replay tests, then review coordinated server/client activation. Existing 100-stage descriptions are not evidence of a selected ad frequency. This preparation cannot validate a real provider signature or claim an ad completed.
+Before activation, verify a real provider proof flow with its account/target binding and replay tests, then review coordinated server/client activation. The takeover test compares all 100 actual stage records with both mapping implementations and asserts 34 groups. This mapping check cannot validate a real provider signature or claim an ad completed; no advertising gate is enabled by it.
 
 ## Durable contract
 

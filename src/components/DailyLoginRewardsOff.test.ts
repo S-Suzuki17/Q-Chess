@@ -7,6 +7,7 @@ vi.mock('react', async original => {
     return { ...react, ...hooks, default: { ...react, ...hooks } };
 });
 vi.mock('../hooks/useCircuitAccess', () => ({ useCircuitAccess: () => ({ allowed: true, revision: 1 }) }));
+vi.mock('../lib/SocketContext', () => ({ useSocket: () => ({ sharedAdmissionEnabled: null }) }));
 vi.mock('../lib/supabaseClient', () => ({ supabase: {} }));
 vi.mock('../lib/dailyLoginRewards', async original => ({
     ...await original<typeof import('../lib/dailyLoginRewards')>(),

@@ -18,7 +18,7 @@ afterEach(async () => {
     server = undefined;
 });
 describe('actual index billing composition preserves legacy while new commerce schema is unavailable', () => {
-    it('mounts the default closed runtime without constructing or reading a commerce adapter', async () => {
+    it('supports an explicitly closed rollback runtime without constructing or reading a commerce adapter', async () => {
         vi.stubEnv('STRIPE_MEMBERSHIP_LIVE_ENABLED', 'true');
         vi.stubEnv('STRIPE_MEMBERSHIP_TEST_ENABLED', 'true');
         vi.stubEnv('STRIPE_MEMBERSHIP_CHECKOUT_ENABLED', 'true');
@@ -38,7 +38,7 @@ describe('actual index billing composition preserves legacy while new commerce s
         const routers = createStripeBillingRouters({ auth, api: api as unknown as StripeMembershipApi,
             store: store as unknown as StripeMembershipStore, gate: new AccountWriteGate(), webhookSecret: f.secret,
             processingEnabled: () => true, portalApi: null, portalEnabled: () => false, checkoutEnabled: () => true,
-            commerce: { config: f.config, createStore, createStatusStore } });
+            commerce: { config: f.config, createStore, createStatusStore } }, false);
         const app = express(); app.use(routers.webhook); app.use(routers.membership);
         server = http.createServer(app); await new Promise<void>(resolve => server!.listen(0, '127.0.0.1', resolve));
         const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}/membership/stripe/`;
@@ -49,7 +49,7 @@ describe('actual index billing composition preserves legacy while new commerce s
         expect((await fetch(base + 'webhook', { method: 'POST', headers: { 'content-type': 'application/json', ...signed.headers }, body: signed.body.toString() })).status).toBe(200);
         expect(store.applySnapshot).toHaveBeenCalledExactlyOnceWith({ ...snapshot, reconciliationToken: '11111111-1111-4111-8111-111111111111' });
         expect((await fetch(base + 'checkout', { method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` }, body: '{"sku":"standard_monthly"}' })).status).toBe(503);
-        expect(COMMERCE_RUNTIME_RELEASE_VERIFIED).toBe(false);
+        expect(COMMERCE_RUNTIME_RELEASE_VERIFIED).toBe(true);
         expect(createStore).not.toHaveBeenCalled(); expect(createStatusStore).not.toHaveBeenCalled();
         expect(f.request).not.toHaveBeenCalled();
     });

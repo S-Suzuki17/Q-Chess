@@ -1,4 +1,5 @@
 import { createHash, randomBytes } from 'node:crypto';
+import { SessionAuthorityUnavailable } from './SessionAuthorityError';
 
 export const MAX_RANKED_SESSION_TTL_MS = 60 * 60 * 1000;
 export const MAX_RANKED_SESSIONS = 10_000;
@@ -102,7 +103,7 @@ export class RankedAuth implements RankedSessionAuthority {
     async issueLegacySession(userId: unknown, password: unknown, keepLoggedIn: boolean = false): Promise<RankedSession | null> {
         if (!isRankedUserId(userId) || !isPassword(password)) return null;
         this.cleanupExpiredSessions();
-        if (this.sessions.size >= this.maxSessions) return null;
+        if (this.sessions.size >= this.maxSessions) throw new SessionAuthorityUnavailable();
 
         const check = { revoked: false };
         const checks = this.pendingChecks.get(userId) ?? new Set<{ revoked: boolean }>();
@@ -112,7 +113,7 @@ export class RankedAuth implements RankedSessionAuthority {
             if (await this.verifyLegacy(userId, password) !== true || check.revoked) return null;
             this.cleanupExpiredSessions();
             // Another verification may have filled the store while this one awaited.
-            if (this.sessions.size >= this.maxSessions) return null;
+            if (this.sessions.size >= this.maxSessions) throw new SessionAuthorityUnavailable();
 
             for (let attempt = 0; attempt < 3; attempt += 1) {
                 const token = `ranked_${randomBytes(32).toString('base64url')}`;
@@ -125,7 +126,7 @@ export class RankedAuth implements RankedSessionAuthority {
             }
         } catch {
             // Do not log the verifier error: upstream errors may contain credentials.
-            return null;
+            throw new SessionAuthorityUnavailable();
         } finally {
             checks.delete(check); if (!checks.size) this.pendingChecks.delete(userId);
         }

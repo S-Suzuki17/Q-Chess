@@ -19,6 +19,7 @@ import { soundManager } from '../lib/SoundService';
 import { RewardPreview, type VisualReward } from './RewardPreview';
 import { CIRCUIT_STAGES, finishStage, stageUnlocked } from '../config/circuitStages';
 import { stageText } from '../locales/stageText';
+import { randomCPUPersonality } from '../config/cpuPersonalities';
 import { requestCircuitInterstitial } from '../lib/adPolicy';
 import { circuitAccess } from '../lib/circuitAccess';
 import { useCircuitAccess } from '../hooks/useCircuitAccess';
@@ -45,6 +46,7 @@ function MemberCircuit({lang,user,onBack,onPlayingChange}:CampaignProps) {
     const [chosenPage,setPage]=useState<number|null>(null);
     const [firstClear,setFirstClear]=useState(false);
     const [run,setRun]=useState(0);
+    const [runPersonality,setRunPersonality]=useState(randomCPUPersonality);
     const [side,setSide]=useState<'white'|'black'>('white');
     const [preview,setPreview]=useState<VisualReward|null>(null);
     const [outcome,setOutcome]=useState<CampaignOutcome|null>(null);
@@ -95,6 +97,7 @@ function MemberCircuit({lang,user,onBack,onPlayingChange}:CampaignProps) {
         if(result.state!=='ready'){setEntryError(true);return;}
         if(!result.canActivate())return;
         runPermit.current=permit;
+        setRunPersonality(randomCPUPersonality());
         setRunDesign({music:progress.music,effect:progress.effect});setRunMusic(CIRCUIT_MUSIC.filter(track=>rewardUnlocked(progress,track.id)).map(track=>track.id));onPlayingChange?.(true);
         setFirstClear(!progress.stageStars?.[id-1]);setSelected(id);setOutcome(null);setRun(value=>value+1);setActiveId(id);
     };
@@ -107,7 +110,7 @@ function MemberCircuit({lang,user,onBack,onPlayingChange}:CampaignProps) {
     if(activeId) {
         const active=CIRCUIT_STAGES[activeId-1];
         return <LocalGameBoard key={`${activeId}-${run}`} lang={lang} user={user} cpuLevel={active.strength<12?1:active.strength<23?3:5}
-            cpuPersonality={active.personality} cpuSearchProfile={active.search} campaignLabel={`${stageText(lang,'stage')} ${activeId} / 100 · ${loop('strength')} ${active.strength}`} opponentLabel={active.opponent}
+            cpuPersonality={runPersonality} cpuSearchProfile={active.search} campaignLabel={`${stageText(lang,'stage')} ${activeId} / 100 · ${loop('strength')} ${active.strength}`} opponentLabel={active.opponent}
             onlineRole={side} timeControl={active.timeControl} onComplete={complete} onHome={leaveStage}
             resultPanel={outcome&&<CampaignResult lang={lang} stageId={activeId} firstClear={firstClear} effect={runDesign.effect} outcome={outcome} saveError={storageError}
                 newMusic={CIRCUIT_MUSIC.filter(track=>!runMusic.includes(track.id)&&rewardUnlocked(progress,track.id)).map(track=>track.id)}
@@ -124,14 +127,6 @@ function MemberCircuit({lang,user,onBack,onPlayingChange}:CampaignProps) {
             <div className="campaign-circuit-nav"><button disabled={page===0} onClick={()=>{cancelEntry();setPage(page-1);}}>{loop('previous')}</button><strong>{stageText(lang,'stage')} {page*10+1}–{page*10+10}</strong><button disabled={page===9} onClick={()=>{cancelEntry();setPage(page+1);}}>{loop('next')}</button></div>
         </section>
         <div className="campaign-journey">
-            <nav className="campaign-rounds" aria-label={t('title')}>{CIRCUIT_STAGES.slice(page*10,page*10+10).map(item=>{
-                const unlocked=stageUnlocked(progress,item.id),stars=progress.stageStars?.[item.id-1]??0;
-                return <button key={item.id} className="campaign-round" aria-pressed={selected===item.id} onClick={()=>{cancelEntry();setSelected(item.id);}} data-stage={item.id}>
-                    <span className="campaign-round-number">{String(item.id).padStart(3,'0')}</span>
-                    <span><strong>{item.opponent}</strong><small>{item.timeControl==='10m'?dict[lang].tc10m:item.timeControl==='3m'?dict[lang].tc3m:dict[lang].tc10s}</small></span>
-                    <span className="campaign-round-status">{stars?<span aria-label={`${stars}/3`}>{'★'.repeat(stars)}</span>:unlocked?<ArrowUpRight size={18}/>:<LockKeyhole size={17}/>}</span>
-                </button>;
-            })}</nav>
             <article className="campaign-boss-card">
                 <div className="campaign-boss-heading"><span className="campaign-boss-seal" aria-hidden="true"><RewardSigil motif="corona" tier={Math.ceil(selected/10)}/></span><div><p>{stageText(lang,'stage')} {selected} / 100</p><h2>{stage.opponent}</h2></div></div>
                 <p>{stageText(lang,'rules')}</p>
@@ -142,6 +137,14 @@ function MemberCircuit({lang,user,onBack,onPlayingChange}:CampaignProps) {
                 <button className="campaign-primary" disabled={starting||!loaded||!stageUnlocked(progress,selected)} onClick={()=>start(selected)}>{starting||!loaded?dict[lang].loading:stageUnlocked(progress,selected)?t('challenge'):t('locked')}<ArrowUpRight size={20}/></button>
                 <p className="campaign-medal-help">★ {t('win')} · ★ {t('noHints')} · ★ {stage.timeControl==='10s'?stageText(lang,'quickMoves'):t('quick')}</p>
             </article>
+            <nav className="campaign-rounds" aria-label={t('title')}>{CIRCUIT_STAGES.slice(page*10,page*10+10).map(item=>{
+                const unlocked=stageUnlocked(progress,item.id),stars=progress.stageStars?.[item.id-1]??0;
+                return <button key={item.id} className="campaign-round" aria-pressed={selected===item.id} onClick={()=>{cancelEntry();setSelected(item.id);}} data-stage={item.id}>
+                    <span className="campaign-round-number">{String(item.id).padStart(3,'0')}</span>
+                    <span><strong>{item.opponent}</strong><small>{item.timeControl==='10m'?dict[lang].tc10m:item.timeControl==='3m'?dict[lang].tc3m:dict[lang].tc10s}</small></span>
+                    <span className="campaign-round-status">{stars?<span aria-label={`${stars}/3`}>{'★'.repeat(stars)}</span>:unlocked?<ArrowUpRight size={18}/>:<LockKeyhole size={17}/>}</span>
+                </button>;
+            })}</nav>
         </div>
         <section className="campaign-collection" aria-label={t('rewards')}><h2>{t('rewards')}</h2>
             {(['board','piece'] as const).map(kind=><div className="campaign-equipment-group" key={kind}><h3>{t(kind)}</h3><div className="campaign-equipment">

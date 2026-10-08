@@ -1,5 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { SessionAuthorityUnavailable } from './SessionAuthorityError';
+export { SessionAuthorityUnavailable } from './SessionAuthorityError';
 import { isRankedUserId, MAX_RANKED_PASSWORD_BYTES, type RankedIdentity, type RankedSession } from './RankedAuth';
 
 export const DURABLE_SESSION_PROTOCOL = 2;
@@ -13,10 +15,6 @@ type RpcName = 'legacy_session_runtime_version' | 'issue_legacy_session' | 'insp
 export type DurableSessionRpc = (name: RpcName, parameters: Record<string, unknown>, signal: AbortSignal)
     => PromiseLike<{ data: unknown; error: unknown }>;
 
-/** Never attach the provider error as a cause: it may contain credentials. */
-export class SessionAuthorityUnavailable extends Error {
-    constructor() { super('Session authority unavailable'); this.name = 'SessionAuthorityUnavailable'; }
-}
 const unavailable = (): never => { throw new SessionAuthorityUnavailable(); };
 const object = (value: unknown): Record<string, unknown> | null =>
     value !== null && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : null;

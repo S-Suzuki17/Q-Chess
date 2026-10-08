@@ -27,3 +27,14 @@ export function commerceProductBenefits(product: CommerceProduct, japanese = fal
     const base = japanese ? 'オンライン・ランク戦が無制限、広告なし。' : 'Unlimited online and ranked matches, no ads.';
     return base + (product.hints ? (japanese ? '支払済みの購読期間ごとにヒント10枚。' : ' 10 hints per paid monthly subscription period.') : '');
 }
+
+export function commercePaymentTerms(product: CommerceProduct, japanese = false) {
+    const methods = japanese
+        ? '支払方法はStripe Checkoutに表示します。為替換算・カード会社手数料が発生する場合があります。'
+        : 'Payment methods are shown at Stripe Checkout. Currency conversion and card-provider fees may apply. ';
+    const schedule = product.kind === 'payment'
+        ? (japanese ? '購入時に1回だけ請求します。自動更新はありません。' : 'Charged once at purchase. No automatic renewal.')
+        : (japanese ? '初回購入時と毎月の更新時に請求します。解約すると次回の更新を停止し、支払済み期間の終了まで利用できます。'
+            : 'Charged at purchase and each monthly renewal. Cancellation stops the next renewal; access continues through the paid period.');
+    return methods + schedule;
+}

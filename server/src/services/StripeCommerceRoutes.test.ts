@@ -132,13 +132,16 @@ describe('mounted shared Stripe webhook routes canonical new commerce before leg
         expect(acquire.mock.invocationCallOrder[1]).toBeLessThan(m.legacy.snapshot.mock.invocationCallOrder[0]);
         expect(f.store.fulfillSubscription).not.toHaveBeenCalled(); expect(m.membership.applySnapshot).toHaveBeenCalledOnce();
     });
-    it('blocks one-time refunds until an approved new-commerce reversal policy exists', async () => {
+    it('routes canonical one-time risk through the source ledger before acknowledgement', async () => {
         const f = commerceEvidenceFixture('hints_13'); const m = await mount(f);
         f.records['invoice_payments:null'] = { has_more: false, data: [] };
-        expect((await m.deliver('charge.refunded', { data: { object: f.charge } })).status).toBe(503);
+        expect((await m.deliver('charge.refunded', { data: { object: f.charge } })).status).toBe(200);
+        expect(f.store.applySourceRisk).toHaveBeenCalledWith(expect.objectContaining({
+            invoiceId: null, paymentSource: expect.objectContaining({ chargeId: f.charge.id, riskState: 'clear' }),
+        }));
         expect(m.legacy.resolveReversal).not.toHaveBeenCalled(); expect(f.store.fulfillOneTime).not.toHaveBeenCalled();
     });
-    it('blocks subscription refunds and credit notes before touching the legacy reversal path', async () => {
+    it('rejects incomplete canonical credit notes before touching the legacy reversal path', async () => {
         const f = commerceEvidenceFixture(); const m = await mount(f);
         f.records['credit_notes/cn_FIXTURECREDITNOTE'] = { id: 'cn_FIXTURECREDITNOTE', livemode: false, invoice: f.invoice.id };
         expect((await m.deliver('credit_note.created', { data: { object: { id: 'cn_FIXTURECREDITNOTE' } } })).status).toBe(503);

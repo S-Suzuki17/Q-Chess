@@ -19,7 +19,12 @@ import { supabase } from '../lib/supabaseClient';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import { MoveRecord, saveGameRecord, GameRecord } from '../lib/gameRecordService';
 import { cpuDifficulty } from '../config/cpuDifficulty';
-import { requestCPUSearch } from '../lib/cpuClient';
+import { requestCPUSearch, requestQubeSearch } from '../lib/cpuClient';
+import { hintTimeAvailable } from '../../server/src/quantum-engine/ai/searchProfiles';
+import { adviceForMove } from '../../server/src/quantum-engine/ai/hintAdvice';
+import { randomCPUPersonality, cpuPersonalityForGame } from '../config/cpuPersonalities';
+import { cpuPersonalityText } from '../locales/cpuPersonalityText';
+import { hintAdviceText } from '../locales/hintAdviceText';
 import { legacyToQuantumState, quantumToLegacyMove, TYPE_TO_BIT } from '../quantum-engine/adapter';
 import { CPU_HINT_TICKETS_ENABLED, CpuPracticeClient, CpuPracticeClientError, displayCpuPractice, officialCpuPractice } from '../lib/cpuPractice';
 import type { CpuPracticeSnapshot } from '../quantum-engine/practice';
@@ -70,10 +75,13 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
     const t = { ...dict['en'], ...(dict[lang] || {}) } as any;
     const { is2DView, setIs2DView, boardDesign, boardFinish, pieceFinish, victoryEffect, avatarFrame } = useBoardPreferences();
     const hintsUsed=useRef(0);
+    const [localPersonality] = useState(randomCPUPersonality);
     const officialPractice=officialCpuPractice({roomId,matchMode,campaignLabel,cpuPersonality,cpuSearchProfile,onComplete,onlineRole});
-    const ticketPractice=CPU_HINT_TICKETS_ENABLED&&officialPractice&&!!user?.id&&!/^(GUEST-|anon_)/i.test(user.id);
+    const registeredPracticeUser=user?.type==='registered'&&!!user.id&&!/^(GUEST-|anon_)/i.test(user.id);
+    const ticketPractice=CPU_HINT_TICKETS_ENABLED&&officialPractice&&registeredPracticeUser;
     const [practiceClient,setPracticeClient]=useState<CpuPracticeClient|null>(null);
     const [practiceSession,setPracticeSession]=useState<CpuPracticeSnapshot|null>(null);
+    const activePersonality = cpuPersonality ?? (practiceSession ? cpuPersonalityForGame(practiceSession.sessionId) : localPersonality);
     const [practicePending,setPracticePending]=useState(false);
     const practiceBusy=useRef(false);
     const [practiceAttempt,setPracticeAttempt]=useState(0);
@@ -484,7 +492,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
             return()=>controller.abort();
         }
         const state = legacyToQuantumState(tokens, pool, cpuSide, moveHistory.length, moveHistory.at(-1) ?? null);
-        requestCPUSearch(state, controller.signal, cpuLevel, cpuPersonality, cpuSearchProfile).then(stats => {
+        requestCPUSearch(state, controller.signal, cpuLevel, activePersonality, cpuSearchProfile).then(stats => {
             if (controller.signal.aborted) return;
             if (!stats.move) {
                 const result = getWinner(state);
@@ -502,7 +510,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
             setCpuFailed(true);
         });
         return () => controller.abort();
-    }, [currentTurn, winner, tokens, pool, roomId, moveHistory, cpuRetry, movingPiece, cpuLevel, cpuSide, cpuPersonality, cpuSearchProfile, introDone,ticketPractice,practiceClient,practiceSession,acceptPractice]);
+    }, [currentTurn, winner, tokens, pool, roomId, moveHistory, cpuRetry, movingPiece, cpuLevel, cpuSide, activePersonality, cpuSearchProfile, introDone,ticketPractice,practiceClient,practiceSession,acceptPractice]);
 
     useEffect(() => {
         let timer1: NodeJS.Timeout | null = null;
@@ -789,7 +797,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
 
     const playerName = user?.name || 'Player';
     const fallbackOpponent = (opponentId && opponentId.startsWith('GUEST-')) ? 'Guest' : 'Opponent';
-    const opponentName = roomId ? (fetchedOpponentName || fallbackOpponent) : opponentLabel || `CPU (${matchText(lang,cpuDifficulty(cpuLevel).ja,cpuDifficulty(cpuLevel).en)})`;
+    const opponentName = roomId ? (fetchedOpponentName || fallbackOpponent) : `${opponentLabel || `CPU (${matchText(lang,cpuDifficulty(cpuLevel).ja,cpuDifficulty(cpuLevel).en)})`} · ${cpuPersonalityText(lang, activePersonality)}`;
     const myRole = onlineRole === 'spectator' ? 'white' : (onlineRole || 'white');
     const checkmate = useMemo(() => {
         if (!winner || winner === 'draw') return false;
@@ -802,6 +810,11 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
         if (!introDone || winner || hint.pending || currentTurn !== myRole || !tokens.length || roomId||matchMode==='ranked'||matchMode==='random') return;
         if(CPU_HINT_TICKETS_ENABLED){
             if(!officialPractice)return;
+            if(!registeredPracticeUser){
+                setErrorMsg(matchText(lang,'ヒント券は登録アカウントでの練習で使えます。ホームに戻り、登録アカウントでログインしてください。',
+                    'Hint tickets require practice with a registered account. Return home and sign in to your registered account.'));
+                return;
+            }
             if(!practiceClient||!practiceSession){setShowReplayLogin(true);return;}
             if(practicePending)return;
             setPendingHintRevision(practiceSession.revision);setRecoveredHint(null);
@@ -814,12 +827,12 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
             return;
         }
         const state = legacyToQuantumState(tokens, pool, myRole, moveHistory.length, moveHistory.at(-1) ?? null);
+        const availableMs = hintTimeAvailable(turnClock.current.base * 1000,
+            performance.now() - turnClock.current.start);
         void hint.request(async signal => {
-            const stats = await requestCPUSearch(state, signal, 5);
+            const stats = await requestQubeSearch(state, signal, availableMs);
             if (!stats.move || signal.aborted) return null;
-            const legacy = quantumToLegacyMove(stats.move, state);
-            const fromToken = tokens.find(token => !token.isCaptured && token.id === legacy.tokenId);
-            return fromToken ? {fromRow:fromToken.row, fromCol:fromToken.col, toRow:legacy.targetRow, toCol:legacy.targetCol} : null;
+            return adviceForMove(state, stats.move);
         },()=>{hintsUsed.current++;});
     };
     const whiteName = onlineRole === 'spectator' ? 'White Player' : (myRole === 'white' ? playerName : opponentName);
@@ -932,6 +945,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
             {recoveredHint&&<div role="status" className="match-retry">
                 {matchText(lang,'保存済みヒント','Saved hint')}: {String.fromCharCode(97+recoveredHint.fromCol)}{8-recoveredHint.fromRow}
                 {' → '}{String.fromCharCode(97+recoveredHint.toCol)}{8-recoveredHint.toRow}
+                {hintAdviceText(lang, recoveredHint) && <small>{hintAdviceText(lang, recoveredHint)}</small>}
             </div>}
             {/* Resign Confirmation Modal */}
             {showResignConfirm && (

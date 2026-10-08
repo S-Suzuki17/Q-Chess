@@ -187,6 +187,8 @@ export class StripeMembershipApi {
         // Managed Payments enables tax by default in some accounts. Tax policy
         // is explicit and independent of sales; never change account settings.
         form.set('managed_payments[enabled]', 'false');
+        // Fixed USD contracts must not inherit account-level localized pricing.
+        form.set('adaptive_pricing[enabled]', 'false');
         const suffix = Array.from({ length: 8 }, () => String.fromCharCode(97 + randomInt(26))).join('');
         form.set('integration_identifier', `qg_web_membership_${suffix}`);
         const data = await this.call('checkout/sessions', {

@@ -27,6 +27,7 @@ function sqlClient(): SupabaseClient {
         rpc(name: string, args: Record<string, unknown>) {
             if (!['fulfill_stripe_commerce_one_time','fulfill_stripe_commerce_subscription',
                 'acquire_stripe_reconciliation','release_stripe_reconciliation','current_account_terms_status',
+                'acquire_stripe_commerce_reconciliation','release_stripe_commerce_reconciliation','apply_stripe_commerce_source_risk',
                 'register_stripe_commerce_checkout_intent','assert_stripe_billing_mode','stripe_checkout_preflight',
                 'stripe_member_status_with_schedule','stripe_commerce_status','stripe_portal_customer_for_user'].includes(name)) throw new Error('Unsupported fixture RPC');
             return { async abortSignal() {
@@ -107,7 +108,7 @@ describe('signed synthetic webhook through provider reader and adapter into actu
     beforeAll(async () => { db = await historicalCommerceDatabase(); await applyMigrations(db, releaseCommerceMigrations); }, 60_000);
     afterAll(async () => { await db?.close(); });
     beforeEach(async () => { await db.exec(`begin; insert into public.profiles(id) values('Alice');
-        insert into public.account_terms_consents(user_id,version) values('Alice','2026-10-03.1'); set role service_role;`); });
+        insert into public.account_terms_consents(user_id,version) values('Alice','2026-10-07.1'); set role service_role;`); });
     afterEach(async () => {
         for (const server of servers.splice(0)) { server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())); }
         await db.exec('rollback; reset role');

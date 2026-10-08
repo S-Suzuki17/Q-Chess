@@ -72,7 +72,7 @@ export async function account(admin, { quota = 0, ranked = 0, oldTermsOnly = fal
     const user = unique('Native');
     await admin.query('insert into public.profiles(id,name) values($1,$1)', [user]);
     await admin.query("insert into public.account_terms_consents(user_id,version) values($1,'2026-09-25.1')", [user]);
-    if (!oldTermsOnly) await admin.query("insert into public.account_terms_consents(user_id,version) values($1,'2026-10-03.1')", [user]);
+    if (!oldTermsOnly) await admin.query("insert into public.account_terms_consents(user_id,version) select $1,version from public.current_terms_policy where singleton", [user]);
     await admin.query('insert into public.ticket_wallets(user_id,ranked_tickets) values($1,$2)', [user, ranked]);
     for (let i = 0; i < quota; i++) await admin.query(`insert into public.ticket_spend_receipts(event_kind,event_id,user_id,pool)
         values('ranked_match_start',$1,$2,'quota')`, [randomUUID(), user]);

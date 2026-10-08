@@ -22,6 +22,15 @@ const paidReceipt = (client: CpuPracticeClient) => ({ sessionId: client.sessionI
     rulesVersion: CPU_PRACTICE_RULES_VERSION, deliveryState: 'paid_retrievable',
     hint: { fromRow: 6, fromCol: 0, toRow: 5, toCol: 0 } });
 describe('durable CPU practice transport and engine display',()=>{
+    it('retains special choices when a paid hint is recovered, including earlier receipts with only move metadata', async () => {
+        const send = vi.fn(), client = new CpuPracticeClient('Alice', settings, send, storage());
+        const receipt = { ...paidReceipt(client), move: { pieceId: 'w_1', target: { row: 0, col: 0 }, promotionTarget: 2 } };
+        send.mockResolvedValue(receipt);
+        expect((await client.recover(2))?.promotionTarget).toBe(2);
+        send.mockResolvedValue({ ...receipt, hint: { ...receipt.hint, intention: 'normal', declinePromotion: true }, move: undefined });
+        expect(await client.recover(2)).toMatchObject({ intention: 'normal', declinePromotion: true });
+        expect(send.mock.calls.every(call => call[2] === undefined)).toBe(true);
+    });
     it('reuses request/session IDs after lost response and component reconstruction',async()=>{
         const saved=storage();const seen:unknown[]=[];
         const send=vi.fn(async (_user:string,_path:string,body:unknown)=>{seen.push(body);throw new Error('response lost');});

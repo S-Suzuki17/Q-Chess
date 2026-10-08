@@ -42,8 +42,27 @@ export async function stripeRequest(client: Stripe, path: string, init?: Request
         ? await client.subscriptions.cancel(parts[1], { invoice_now: false, prorate: false })
         : await client.subscriptions.retrieve(parts[1]);
     else if (parts[0] === 'invoices' && parts[1]) data = await client.invoices.retrieve(parts[1]);
+    else if (parts[0] === 'credit_notes' && parts[1]) data = await client.creditNotes.retrieve(parts[1]);
     else if (parts[0] === 'charges' && parts[1]) data = await client.charges.retrieve(parts[1]);
     else if (parts[0] === 'payment_intents' && parts[1]) data = await client.paymentIntents.retrieve(parts[1]);
+    else if (['refunds', 'disputes'].includes(parts[0])) {
+        if (method !== 'GET') throw new Error('STRIPE_RISK_READ_ONLY');
+        if (parts[1]) data = parts[0] === 'refunds' ? await client.refunds.retrieve(parts[1]) : await client.disputes.retrieve(parts[1]);
+        else {
+            const charge = url.searchParams.get('charge');
+            if (!charge || !/^ch_[A-Za-z0-9]{8,200}$/.test(charge)) throw new Error('STRIPE_CHARGE_SELECTOR_REQUIRED');
+            data = parts[0] === 'refunds' ? await client.refunds.list({ charge, limit: 100 })
+                : await client.disputes.list({ charge, limit: 100 });
+        }
+    } else if (parts[0] === 'radar' && parts[1] === 'early_fraud_warnings') {
+        if (method !== 'GET') throw new Error('STRIPE_RISK_READ_ONLY');
+        if (parts[2]) data = await client.radar.earlyFraudWarnings.retrieve(parts[2]);
+        else {
+            const charge = url.searchParams.get('charge');
+            if (!charge || !/^ch_[A-Za-z0-9]{8,200}$/.test(charge)) throw new Error('STRIPE_CHARGE_SELECTOR_REQUIRED');
+            data = await client.radar.earlyFraudWarnings.list({ charge, limit: 100 });
+        }
+    }
     else if (parts[0] === 'invoice_payments') data = await client.invoicePayments.list({
         limit: 100, status: 'paid',
         ...(url.searchParams.has('invoice') ? { invoice: url.searchParams.get('invoice')! } : {}),
@@ -57,7 +76,19 @@ export async function stripeRequest(client: Stripe, path: string, init?: Request
         else if (parts[3] === 'line_items') data = await client.checkout.sessions.listLineItems(parts[2], { limit: 2 });
         else if (parts[2]) data = await client.checkout.sessions.retrieve(parts[2]);
         else if (method === 'POST') data = await client.checkout.sessions.create(body as unknown as Stripe.Checkout.SessionCreateParams, options);
-        else data = await client.checkout.sessions.list({ subscription: url.searchParams.get('subscription')!, limit: 100 });
+        else {
+            const subscription = url.searchParams.get('subscription');
+            const paymentIntent = url.searchParams.get('payment_intent');
+            // A one-time refund/dispute is routed by PaymentIntent, not subscription.
+            // Never silently turn a scoped lookup into an account-wide list.
+            if ((!subscription && !paymentIntent) || (subscription && paymentIntent)) {
+                throw new Error('STRIPE_CHECKOUT_SELECTOR_REQUIRED');
+            }
+            data = await client.checkout.sessions.list({
+                ...(subscription ? { subscription } : { payment_intent: paymentIntent! }),
+                limit: 100,
+            });
+        }
     } else if (parts[0] === 'billing_portal' && parts[1] === 'configurations') {
         data = await client.billingPortal.configurations.list({ limit: 100 });
     } else if (parts[0] === 'billing_portal' && parts[1] === 'sessions' && method === 'POST') {

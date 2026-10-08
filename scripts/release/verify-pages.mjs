@@ -4,6 +4,7 @@ import {readFileSync} from 'node:fs';
 import path from 'node:path';
 import {get as httpsGet} from 'node:https';
 import {isIP} from 'node:net';
+import {SEARCH_ROUTES, checkSearchMetadata, checkSearchFiles} from './search-metadata.mjs';
 
 // Read-only public verification. Never creates users, signs in, or starts a match.
 const [originArg, manifestArg, resolvedIp] = process.argv.slice(2);
@@ -37,23 +38,29 @@ async function request(route, init = {}) {
         });
         req.on('error', reject);
     }) : await fetch(url, {...init, signal: AbortSignal.timeout(30000)});
+    // Pages applies redirects before _headers. Inspect their raw response;
+    // ordinary HTML/assets must still satisfy every header assertion below.
+    if (init.redirect === 'manual' && response.status >= 300 && response.status < 400) return response;
     assert.equal(response.headers.get('x-content-type-options'), 'nosniff', route);
     if (preview) assert.equal(response.headers.get('x-robots-tag'), 'noindex', route);
     else assert.ok(!/noindex/i.test(response.headers.get('x-robots-tag') ?? ''), route);
     return response;
 }
 
-for (const route of ['/', '/about/', '/rules/', '/contact/', '/privacy/', '/terms/', '/updates/']) {
+for (const route of SEARCH_ROUTES) {
     const response = await request(route);
     assert.equal(response.status, 200, route);
     assert.match(response.headers.get('content-type'), /text\/html/i, route);
     assert.equal(response.headers.get('x-frame-options'), null, 'Do not break the official itch embed');
     const html = await response.text();
+    checkSearchMetadata(html, route);
+    if (route === '/guide/' || route === '/faq/') assert.match(html, /data-learning-article=/, `${route}: initial article HTML`);
+    assert.doesNotMatch(html, /QUBIT4x|devDiaryTweets|開発AIのぼやき部屋|href=["']\/updates\/?["']/i, route);
     assert.match(html, /name="google-adsense-account" content="ca-pub-1116866075179199"/, route);
     assert.doesNotMatch(html, /<script[^>]*src=["'][^"']*(?:googlesyndication|googleadservices|doubleclick)/i, route);
-    if (route !== '/') assert.ok(html.includes(`href="https://q-gambit.com${route}"`), `${route}: canonical`);
     checks++;
 }
+checkSearchFiles(await (await request('/robots.txt')).text(), await (await request('/sitemap.xml')).text());
 for (const route of ['/ads.txt', '/app-ads.txt']) {
     const response = await request(route);
     assert.equal(response.status, 200, route);
@@ -63,6 +70,13 @@ for (const route of ['/ads.txt', '/app-ads.txt']) {
 }
 for (const route of ['/teaser/', '/teaser2/', '/migration-check-not-found/']) {
     assert.equal((await request(route)).status, 404, route);
+    checks++;
+}
+for (const route of ['/updates', '/updates/', '/updates.html', '/updates.txt', '/updates/index.html', '/updates/old-bookmark']) {
+    const response = await request(route, {redirect: 'manual'});
+    assert.equal(response.status, 301, route);
+    assert.equal(new URL(response.headers.get('location'), origin).href, new URL('/', origin).href, route);
+    assert.doesNotMatch(await response.text(), /QUBIT4x|devDiaryTweets|開発AIのぼやき部屋/i, route);
     checks++;
 }
 // Byte equality for executable assets, metadata, models, and one complete reward MP3.

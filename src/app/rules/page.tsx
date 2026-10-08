@@ -8,6 +8,7 @@ import { PUBLIC_SUPPORT_EMAIL } from '../../config/publicContact';
 import { rulesVisualDict } from '@/locales/rulesVisualDict';
 import { MAX_PIECES } from '@/quantum-engine/constants';
 import type { PieceType } from '@/config/gameConfig';
+import { LearningEntry, SiteLinks } from '../../components/SiteInformation';
 
 const pieceTypes: PieceType[] = ['King', 'Queen', 'Rook', 'Bishop', 'Knight', 'Pawn'];
 const pieceSymbols: Record<PieceType, string> = { King: '♔', Queen: '♕', Rook: '♖', Bishop: '♗', Knight: '♘', Pawn: '♙' };
@@ -82,13 +83,13 @@ export default function RulesPage() {
     }
   }, []);
 
-    const c = {...rulesDict[lang], sec1p2: siteCopy(lang).paragraphs[1]};
+    const c = {...rulesDict[lang], sec1p2: siteCopy(lang).paragraphs[1], sec4p1: rulesVisualDict[lang].captureHelp};
     const v = rulesVisualDict[lang];
 
   return (
-    <div className="h-[100dvh] w-full bg-[#050505] text-gray-300 font-mono p-6 md:p-12 overflow-y-auto">
-      <div className="max-w-4xl mx-auto pb-16">
-        <div className="flex flex-wrap gap-4 justify-between items-center mb-8">
+    <main className="game-page" lang={lang}>
+      <div className="game-page-content">
+        <header className="game-page-header">
             <Link href="/" className="text-[#D4B872] hover:text-white transition-colors text-sm inline-block tracking-widest font-bold">
             {c.back}
             </Link>
@@ -102,7 +103,7 @@ export default function RulesPage() {
                     {LANGUAGES.map(({code,label}) => <option key={code} value={code}>{label}</option>)}
                 </select>
             </div>
-        </div>
+        </header>
 
         <h1 className="text-4xl md:text-5xl font-extrabold text-[#D4B872] mb-6 tracking-wider">
           {c.title}
@@ -111,6 +112,7 @@ export default function RulesPage() {
         <p className="text-gray-400 text-lg mb-12 leading-relaxed">
           {c.intro}
         </p>
+        <LearningEntry lang={lang}/>
 
         <section className="mb-16">
           <h2 className="text-2xl font-bold text-white mb-4 border-b border-gray-800 pb-2">{c.sec1Title}</h2>
@@ -220,9 +222,10 @@ export default function RulesPage() {
             {PUBLIC_SUPPORT_EMAIL}
           </a>
         </div>
+        <SiteLinks lang={lang}/>
 
       </div>
-    </div>
+    </main>
 
   );
 }

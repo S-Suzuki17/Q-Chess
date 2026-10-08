@@ -1,0 +1,141 @@
+/* Shared brass-and-slate interface for information and billing screens. */
+.game-page {
+  --page-ink: #f0eee7;
+  --page-muted: #b7bcae;
+  --page-gold: #d3bc87;
+  height: 100dvh;
+  min-height: 0;
+  width: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior-y: contain;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: #756849 #111511;
+  padding: max(20px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(32px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  color: var(--page-ink);
+  font-family: var(--font-sans);
+  background-color: #111511;
+  background-image: radial-gradient(ellipse at 15% 0%, #5a51302b, transparent 55%),
+    linear-gradient(135deg, #222a2040 25%, transparent 25%, transparent 75%, #222a2040 75%),
+    linear-gradient(135deg, #222a2040 25%, transparent 25%, transparent 75%, #222a2040 75%);
+  background-size: auto, 96px 96px, 96px 96px;
+  background-position: 0 0, 0 0, 48px 48px;
+}
+.game-page-content {
+  width: 100%;
+  max-width: 960px;
+  margin-inline: auto;
+  padding: clamp(18px, 4vw, 40px);
+  border: 1px solid #3b4336;
+  border-radius: 24px;
+  background: #171d17f5;
+  box-shadow: 0 24px 72px #0005, inset 0 1px #ead8ab0a;
+  overflow-wrap: anywhere;
+}
+.game-page-header {
+  position: sticky;
+  top: -1px;
+  z-index: 10;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0 16px;
+  margin-bottom: 24px;
+  border-bottom: 1px solid #414a3b;
+  background: #171d17fa;
+}
+.game-page-header > a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 8px 14px;
+  border: 1px solid #5f654b;
+  border-radius: 12px;
+  background: #252d22;
+  color: var(--page-gold);
+  text-decoration: none;
+  font-size: 14px;
+}
+.game-page select {
+  min-height: 44px;
+  max-width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #5f654b;
+  border-radius: 12px;
+  background: #101610;
+  color: var(--page-ink);
+  font: inherit;
+  font-size: 14px;
+}
+.game-page h1 {
+  margin-block: 24px;
+  color: var(--page-ink);
+  font-family: var(--font-serif);
+  font-size: clamp(26px, 4vw, 42px);
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: 0;
+}
+.game-page h2 { color: var(--page-gold); line-height: 1.45; }
+.game-page p, .game-page li, .game-page dd { line-height: 1.8; }
+.game-page a:focus-visible, .game-page select:focus-visible, .game-page summary:focus-visible {
+  outline: 2px solid var(--page-gold);
+  outline-offset: 4px;
+}
+.game-page summary { cursor: pointer; min-height: 44px; padding-block: 10px; }
+.game-page-links { border-top: 1px solid #414a3b; margin-top: 32px; }
+.game-page-links a { border: 1px solid #414a3b; background: #20291f; border-radius: 10px; text-decoration: none; }
+.game-page-links a:hover, .game-page-header > a:hover { background: #303b2c; border-color: #8a7b55; }
+.game-page [data-commerce-disclosure] > dl {
+  padding: 20px;
+  border: 1px solid #414a3b;
+  border-radius: 16px;
+  background: #101610;
+  gap: 12px 24px;
+}
+.game-page [data-commerce-disclosure] dt { color: var(--page-gold); font-size: 13px; }
+.game-page [data-commerce-disclosure] dd { min-width: 0; }
+.game-page [data-commerce-disclosure] > section {
+  padding: 20px;
+  border: 1px solid #736646;
+  border-radius: 16px;
+  background: linear-gradient(145deg, #323323, #1b231b);
+}
+.game-page [data-commerce-disclosure] > section h2 { margin-bottom: 14px; font-weight: 600; }
+.game-page [data-commerce-disclosure] > section li { padding-block: 10px; border-top: 1px solid #a4956e26; }
+.game-page [data-commerce-disclosure] [role="status"] {
+  padding: 12px 16px;
+  border-left: 3px solid var(--page-gold);
+  border-radius: 0 10px 10px 0;
+  background: #d3bc870d;
+}
+.game-scroll { scrollbar-width: thin; scrollbar-color: #756849 transparent; overscroll-behavior: contain; scrollbar-gutter: stable; }
+.store-product-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.store-product {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  align-content: start;
+  gap: 8px 10px;
+  min-height: 100px;
+  padding: 16px;
+  border: 1px solid #414a3b;
+  border-radius: 14px;
+  background: linear-gradient(145deg, #242d22, #151c16);
+  cursor: pointer;
+}
+.store-product input { margin-top: 4px; accent-color: #d3bc87; width: 18px; height: 18px; }
+.store-product-title { color: #f0eee7; line-height: 1.5; font-weight: 600; overflow-wrap: anywhere; }
+.store-product-benefits { grid-column: 2; color: #b7bcae; font-size: 12px; line-height: 1.65; }
+.store-product.selected { border-color: #d3bc87; background: linear-gradient(145deg, #3b3a26, #242d22); box-shadow: inset 0 0 0 1px #d3bc8740; }
+.store-product:has(input:disabled) { cursor: default; }
+.store-product:focus-within { outline: 2px solid #d3bc87; outline-offset: 3px; }
+@media (max-width: 480px) {
+  .game-page { padding: max(8px, env(safe-area-inset-top)) 8px max(16px, env(safe-area-inset-bottom)); }
+  .game-page-content { padding: 16px; border-radius: 16px; }
+  .game-page-header { gap: 8px; }
+  .game-page-header > a { padding-inline: 10px; }
+  .store-product-grid { grid-template-columns: minmax(0, 1fr); }
+}

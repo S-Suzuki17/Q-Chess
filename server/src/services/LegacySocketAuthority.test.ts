@@ -6,12 +6,12 @@ const fence={incarnation:'8f030a96-5736-4b29-a6f8-ed588775f738',generation:'0'};
 const token='ranked_'+'A'.repeat(43);
 const deferred=<T>()=>{let resolve!:(v:T)=>void;const promise=new Promise<T>(r=>resolve=r);return{resolve,promise};};
 const fixture=()=>{
-    const inspectLiveSessions=vi.fn(),owns=vi.fn().mockReturnValue(true),stopWaiting=vi.fn();
+    const inspectLiveSessions=vi.fn(),owns=vi.fn().mockReturnValue(true),stopWaiting=vi.fn(),unavailable=vi.fn();
     const socket:any={id:'socket-1',connected:true,data:{userId:'Alice',legacy:true},handshake:{auth:{token}},emit:vi.fn(),disconnect:vi.fn()};
     const sockets=new Map([[socket.id,socket]]);
-    const live=new LegacySocketAuthority({inspectLiveSessions} as any,{sockets:{sockets}} as any,owns,stopWaiting);
+    const live=new LegacySocketAuthority({inspectLiveSessions} as any,{sockets:{sockets}} as any,owns,stopWaiting,unavailable);
     live.capture(socket,token,{userId:'Alice',expiresAt:Date.now()+1000,fence});
-    return{live,socket,inspectLiveSessions,owns,stopWaiting};
+    return{live,socket,inspectLiveSessions,owns,stopWaiting,unavailable};
 };
 afterEach(()=>vi.restoreAllMocks());
 describe('live legacy socket ownership',()=>{
@@ -24,6 +24,7 @@ describe('live legacy socket ownership',()=>{
         const f=fixture();f.inspectLiveSessions.mockRejectedValue(Error('private-provider-error'));await f.live.poll();
         expect(f.socket.disconnect).not.toHaveBeenCalled();expect(f.stopWaiting).toHaveBeenCalledWith('Alice');
         expect(f.live.canAdmit(f.socket)).toBe(false);
+        expect(f.unavailable).toHaveBeenCalledWith('Alice');
     });
     it('disconnects only a positively revoked current binding',async()=>{
         const f=fixture();f.inspectLiveSessions.mockResolvedValue(['revoked']);await f.live.poll();
@@ -43,6 +44,12 @@ describe('live legacy socket ownership',()=>{
         const f=fixture(),pending=deferred<any>();f.inspectLiveSessions.mockReturnValue(pending.promise);const poll=f.live.poll();
         f.live.capture(f.socket,token,{userId:'Alice',expiresAt:Date.now()+1000,fence});pending.resolve(['revoked']);await poll;
         expect(f.socket.disconnect).toHaveBeenCalledWith(true);
+    });
+    it('ignores an old outage response after the socket owner has changed',async()=>{
+        const f=fixture();let reject!:(error:Error)=>void;
+        f.inspectLiveSessions.mockReturnValue(new Promise((_,no)=>{reject=no;}));const poll=f.live.poll();
+        f.owns.mockReturnValue(false);reject(Error('delayed provider outage'));await poll;
+        expect(f.unavailable).not.toHaveBeenCalled();expect(f.stopWaiting).not.toHaveBeenCalled();
     });
     it('does not overlap sweeps or query an empty registry',async()=>{
         const f=fixture(),pending=deferred<any>();f.inspectLiveSessions.mockReturnValue(pending.promise);

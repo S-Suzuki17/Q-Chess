@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { COMMERCE_PRODUCTS, commerceProductText, commerceProductBenefits, type CommerceSku } from '../config/commerceCatalog';
+import { COMMERCE_PRODUCTS, commerceProductText, commerceProductBenefits, commercePaymentTerms, type CommerceSku } from '../config/commerceCatalog';
 import { acceptCurrentAccountTerms } from '../lib/currentAccountTerms';
 import { TermsDocument } from './TermsDocument';
 import { Capacitor } from '@capacitor/core';
@@ -103,18 +103,23 @@ export function StripeMembershipPanel({ user, lang }: { user: User; lang: Langua
             ? <p className="mt-2 font-mono text-[#E8E2D7]">{lang === 'ja' ? '新商品の販売準備中' : 'New products are not on sale yet'}</p> : null}
         
         <details className="reward-details" data-product-catalog>
-            <summary>{lang === 'ja' ? '予定の商品と価格' : 'Planned products and prices'}</summary>
+            <summary>{checkoutReady && availableSkus.length > 0
+                ? (lang === 'ja' ? '商品と価格' : 'Products and prices')
+                : (lang === 'ja' ? '予定の商品と価格' : 'Planned products and prices')}</summary>
             <div className="reward-details__body">
                 {availableSkus.length === 0 && <p role="status">{lang === 'ja' ? '新商品の販売準備中です。現在は購入できません。' : 'New products are being prepared and cannot be purchased yet.'}</p>}
+                <fieldset className="store-product-grid mt-4">
+                <legend className="sr-only">{copy.title}</legend>
                 {COMMERCE_PRODUCTS.map(product => {
                     const enabled = checkoutReady && availableSkus.includes(product.sku) && !(hasSubscription && product.kind === 'subscription');
-                    return <label key={product.sku} className="block py-2">
+                    return <label key={product.sku} className={`store-product${selectedSku === product.sku ? ' selected' : ''}`}>
                         <input type="radio" name="store_item" value={product.sku} checked={selectedSku === product.sku}
                             disabled={!enabled || preparing} onChange={() => { setSelectedSku(product.sku); setAcceptedPurchaseTerms(false); }} />
-                        <span className="ml-2">{commerceProductText(product, lang === 'ja')}</span>
-                        <span className="block text-sm">{commerceProductBenefits(product, lang === 'ja')}</span>
+                        <span className="store-product-title">{commerceProductText(product, lang === 'ja')}</span>
+                        <span className="store-product-benefits">{commerceProductBenefits(product, lang === 'ja')}</span>
                     </label>;
                 })}
+                </fieldset>
             </div>
         </details>
         {actionFailed && <p role="status" className="mt-3 text-[#A89C86]">{copy.unavailable}</p>}
@@ -137,10 +142,10 @@ export function StripeMembershipPanel({ user, lang }: { user: User; lang: Langua
                 {status?.active && <p>{copy.webOnly}</p>}
         {STRIPE_WEB_CHECKOUT_ENABLED && webCommerceCheckoutReady() && status && selectionReady && failedRevision !== revision
             ? <div className="mt-3 space-y-3" data-purchase-review>
-                <p>{commerce.start}</p><p>{commerce.methods}</p>
+                <p>{commerce.start}</p>
                 <p>{selectedProduct && commerceProductText(selectedProduct, lang === 'ja')}</p>
                 <p>{selectedProduct && commerceProductBenefits(selectedProduct, lang === 'ja')}</p>
-                {selectedProduct?.kind === 'subscription' && <p>{lang === 'ja' ? '毎月自動更新。解約すると次回の更新を停止し、支払済み期間の終了まで利用できます。' : 'Renews automatically each month. Cancellation stops the next renewal; access continues through the paid period.'}</p>}
+                {selectedProduct && <p>{commercePaymentTerms(selectedProduct, lang === 'ja')}</p>}
                 <Link href="/commerce/" className="mr-4 inline-block underline">{commerce.title}</Link>
                 <Link href="/terms/" className="inline-block underline">{copy.terms}</Link>
                 <details><summary className="min-h-11 cursor-pointer underline">{copy.terms}</summary><TermsDocument initialLanguage={lang}/></details>

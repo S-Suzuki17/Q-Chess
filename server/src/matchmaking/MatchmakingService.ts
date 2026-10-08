@@ -5,6 +5,7 @@ import { createInitialBoard } from '../game/quantumChess';
 import { cpuProfileForRating, CpuProfile } from '../game/RankCpuSearch';
 
 export const CPU_FALLBACK_MS = 10_000;
+export const DISCONNECT_GRACE_MS = 30_000;
 export type QueueMode = 'ranked' | 'random';
 
 export type PlayerState = 'IDLE' | 'WAITING' | 'CONNECTING' | 'ADMITTING' | 'IN_GAME';
@@ -55,10 +56,12 @@ export class MatchmakingService {
     public canAdmitPlayer?: (userId: string) => boolean;
     public onForfeit?: (match:MatchSession)=>void;
     public onAdmissionCancel?: (match:MatchSession,reason:string)=>void;
+    public serverResponsive?: () => boolean;
     private players = new Map<string, PlayerSession>(); // userId -> PlayerSession
     private matches = new Map<string, MatchSession>(); // matchId -> MatchSession
     private waitingQueue = new Set<string>(); // userIds
     private disconnectTimers = new Map<string, NodeJS.Timeout>(); // userId -> Timer
+    private disconnectDeadlines = new Map<string, { matchId: string; expiresAt: number; monotonicExpiresAt: number; checking?: Promise<void> }>();
     private io: Server;
 
     constructor(io: Server, private requireRankedAdmission=false, private requireSharedAdmission=false) {
@@ -95,20 +98,20 @@ export class MatchmakingService {
         }
     }
 
-    public removeSocket(socketId: string) {
+    public removeSocket(socketId: string, checkAuthority?: () => Promise<unknown>) {
         for (const [userId, session] of this.players.entries()) {
             if (session.socketId === socketId) {
                 if (session.state === 'WAITING') {
                     this.leaveQueue(userId);
                 } else if (session.currentMatchId) {
-                    this.handleMatchDisconnect(userId, session.currentMatchId);
+                    this.handleMatchDisconnect(userId, session.currentMatchId, checkAuthority);
                 }
                 break;
             }
         }
     }
 
-    private handleMatchDisconnect(userId: string, matchId: string) {
+    private handleMatchDisconnect(userId: string, matchId: string, checkAuthority?: () => Promise<unknown>) {
         const match = this.matches.get(matchId);
         if (!match || match.state === 'FINISHED' || match.state === 'CANCELLED') return;
 
@@ -118,31 +121,94 @@ export class MatchmakingService {
         if (isHost) match.connected.host = false;
         else match.connected.joiner = false;
 
+        // Transport retries are still the same absence, not a new grace period.
+        const previous = this.disconnectDeadlines.get(userId);
+        if (previous?.matchId === matchId) return;
+        this.clearDisconnectTimer(userId);
+        const deadline: {matchId:string;expiresAt:number;monotonicExpiresAt:number;checking?:Promise<void>} =
+            { matchId, expiresAt: Date.now() + DISCONNECT_GRACE_MS, monotonicExpiresAt: performance.now() + DISCONNECT_GRACE_MS };
+        this.disconnectDeadlines.set(userId, deadline);
+
         // Notify opponent
         const oppSession = this.players.get(opponentId);
         if (oppSession) {
             const oppSock = this.io.sockets.sockets.get(oppSession.socketId);
             if (oppSock) {
-                oppSock.emit('opponent_disconnected',{gracePeriodSeconds:30});
+                oppSock.emit('opponent_disconnected',{
+                    matchId, gracePeriodSeconds: DISCONNECT_GRACE_MS / 1000,
+                    serverNow: Date.now(), deadline: deadline.expiresAt,
+                });
             }
         }
 
-        // Start disconnect timer (allow 30 seconds for reconnect)
-        const timer = setTimeout(() => {
+        const cancelUnavailable=()=>{
+            if(this.disconnectDeadlines.get(userId)===deadline)this.cancelInfrastructureMatch(match,'authentication_unavailable');
+        };
+        // A service outage known during the grace period must not become either
+        // abandonment or a clock loss while reauthentication is unavailable.
+        const check=()=>{
+            const pending=Promise.resolve().then(checkAuthority).then(()=>{},cancelUnavailable).finally(()=>{
+                if(deadline.checking===pending)deadline.checking=undefined;
+            });
+            deadline.checking=pending;return pending;
+        };
+        if(checkAuthority)void check();
+        const finish=async()=>{
+            const pending=[...this.disconnectDeadlines.values()].filter(d=>d.matchId===matchId&&d.checking).map(d=>d.checking!);
+            if(pending.length)await Promise.all(pending);
+            if (this.disconnectDeadlines.get(userId) !== deadline) return;
+            if(this.serverResponsive?.()===false){this.cancelInfrastructureMatch(match,'server_unavailable');return;}
             const currentMatch = this.matches.get(matchId);
             if (currentMatch && currentMatch.state === 'IN_GAME') {
-                if(currentMatch.engine?.forfeit(userId)) {
-                    this.io.to(matchId).emit('match_forfeited', { winner: isHost ? 'joiner' : 'host', reason: 'abandonment' });
+                if(currentMatch.engine?.checkTimeout())this.onForfeit?.(currentMatch);
+                else if(currentMatch.engine?.forfeit(userId)) {
+                    this.io.to(matchId).emit('match_forfeited', { matchId, winner: isHost ? 'joiner' : 'host', reason: 'abandonment' });
                     this.onForfeit?.(currentMatch);
                 }
             } else if(currentMatch?.state==='ADMITTING') {
                 this.onAdmissionCancel?.(currentMatch,'admission_abandoned');
             }
             this.disconnectTimers.delete(userId);
-        }, 30000);
+            this.disconnectDeadlines.delete(userId);
+        };
+        // The deadline remains fixed while checking infrastructure health.
+        // A null/expired proof is a user denial; a rejection is a service outage.
+        const timer = setTimeout(() => {
+            if(this.disconnectDeadlines.get(userId)!==deadline)return;
+            if(this.serverResponsive?.()===false||Date.now()>deadline.expiresAt+5000){
+                this.cancelInfrastructureMatch(match,'server_unavailable');return;
+            }
+            if(checkAuthority)void check().then(finish);
+            else void finish();
+        }, DISCONNECT_GRACE_MS);
 
-        this.clearDisconnectTimer(userId);
         this.disconnectTimers.set(userId, timer);
+    }
+
+    /** Infrastructure cancellation freezes play; paid admission owns durable refunds. */
+    public cancelInfrastructureMatch(match: MatchSession, reason: string) {
+        if(!['IN_GAME','ADMITTING','CONNECTING','WAITING_FOR_JOINER'].includes(match.state))return;
+        match.engine?.freeze();
+        for(const id of Object.values(match.players))this.clearDisconnectTimer(id);
+        if(this.requiresAdmission(match)||match.admission)this.onAdmissionCancel?.(match,reason);
+        else {
+            this.finishMatch(match,'CANCELLED');
+            this.io.to(match.matchId).emit('match_cancelled',{matchId:match.matchId,reason});
+        }
+    }
+
+    public authenticationUnavailable(userId: string) {
+        this.leaveQueue(userId);
+        const id=this.players.get(userId)?.currentMatchId,match=id?this.matches.get(id):undefined;
+        if(match&&(!match.connected.host||!match.connected.joiner))this.cancelInfrastructureMatch(match,'authentication_unavailable');
+    }
+
+    /** Preserve elapsed clock time, but do not decide a loss while health is unknown. */
+    public authorityCheckPending(match: MatchSession): boolean {
+        return Object.values(match.players).some(id=>{
+            const deadline=this.disconnectDeadlines.get(id);
+            return deadline?.matchId===match.matchId&&!!deadline.checking;
+        });
     }
 
     public joinQueue(userId: string, timeControl: number, userName?: string, mode:QueueMode='random', rating?:number): { success: boolean, match?: MatchSession } {
@@ -282,6 +348,10 @@ export class MatchmakingService {
             return { success: false };
         }
 
+        // A delayed timer callback must not let a late rejoin erase its deadline.
+        const absence = this.disconnectDeadlines.get(userId);
+        if (absence?.matchId === matchId && (Date.now() >= absence.expiresAt || performance.now() >= absence.monotonicExpiresAt)) return { success: false };
+
         if (match.state === 'CANCELLED' || match.state === 'FINISHED') {
             console.log(`[connectMatch] Match ${matchId} is ${match.state}`);
             return { success: false };
@@ -345,7 +415,7 @@ export class MatchmakingService {
             if (oppSession) {
                 const oppSock = this.io.sockets.sockets.get(oppSession.socketId);
                 if (oppSock) {
-                    oppSock.emit('opponent_reconnected');
+                    oppSock.emit('opponent_reconnected', { matchId });
                     oppSock.emit('sync_state', updatedMatch.engine.getPublicState(opponentId));
                 }
             }
@@ -389,12 +459,29 @@ export class MatchmakingService {
     }
 
     public clearDisconnectTimer(userId: string) {
+        this.disconnectDeadlines.delete(userId);
         const timer = this.disconnectTimers.get(userId);
         if (timer) {
             clearTimeout(timer);
             this.disconnectTimers.delete(userId);
             console.log('[RECONNECT] Disconnect timer cleared');
         }
+    }
+
+    /** Handshake/snapshot alone does not prove a participant has rejoined. */
+    public awaitingReconnect(userId: string, matchId: string): boolean {
+        return this.disconnectDeadlines.get(userId)?.matchId === matchId;
+    }
+
+    /** Snapshot requests must replay, not reset, a missed disconnect notice. */
+    public opponentDisconnect(userId: string, matchId: string) {
+        const match = this.matches.get(matchId);
+        if (!match || match.state !== 'IN_GAME' || !Object.values(match.players).includes(userId)) return null;
+        const opponentId = match.players.host === userId ? match.players.joiner : match.players.host;
+        const absence = this.disconnectDeadlines.get(opponentId);
+        return absence?.matchId === matchId ? {
+            matchId, deadline: absence.expiresAt, serverNow: Date.now(), gracePeriodSeconds: DISCONNECT_GRACE_MS / 1000,
+        } : null;
     }
 
 

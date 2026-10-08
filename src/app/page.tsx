@@ -19,7 +19,6 @@ import { TitleScreen } from '../components/TitleScreen';
 import { LevelSelect } from '../components/LevelSelect';
 import { SettingsDialog } from '../components/SettingsDialog';
 import { CampaignMode } from '../components/CampaignMode';
-import { DevDiaryTimeline } from '../components/DevDiaryTimeline';
 import { OptionalMetricsSettings } from '../components/OptionalMetricsSettings';
 import { recordVisit } from '../lib/engagementMetrics';
 import { circuitAccess, isSameCircuitIdentity } from '../lib/circuitAccess';
@@ -487,7 +486,7 @@ export default function Home() {
                 </div>
             )}
 
-            <div className="flex-grow w-full flex flex-col items-center justify-center relative z-10 shrink-0 mt-8">
+            <div className={`w-full flex flex-col items-center justify-center relative z-10 ${gameState==='level_select'?'flex-1 min-h-0':'flex-grow shrink-0 mt-8'}`}>
                 {gameState === 'title' && (
                     <TitleScreen lang={lang} onLogin={handleLogin} initialMode={loginMode} onOAuthStart={()=>{authOwner.current='oauth';oauthIntent.current=circuitAccess.beginAuthentication();}} onOAuthCancel={cancelOAuth}/>
                 )}
@@ -552,10 +551,6 @@ export default function Home() {
             {gameState === 'title' && webContent && (
                 <>
                     <SiteIntroduction lang={lang}/>
-
-
-                    <DevDiaryTimeline view="home" lang={lang}/>
-
                     {/* Footer */}
                     <footer className="w-full max-w-4xl mt-12 mb-8 text-center text-gray-500 text-xs font-sans relative z-40">
                         <SiteLinks lang={lang}/>

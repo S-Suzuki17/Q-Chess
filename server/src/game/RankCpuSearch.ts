@@ -1,5 +1,7 @@
 import type { ActionPayload, Piece, PublicGameState } from './GameEngine';
-import { attemptLegalMove, checkGameOver, filterPossibilities, getValidMoves, isCheckmate, isKingInCheck } from './quantumChess';
+import { attemptLegalMove, checkGameOver, filterPossibilities, getValidMoves, isCheckmate } from './quantumChess';
+import { PERSONALITY_WEIGHTS, randomCPUPersonality, type CPUPersonality } from '../quantum-engine/ai/personalities';
+import { evaluateRankedCandidates } from './RankCpuEvaluation';
 
 export type CpuMove = Extract<ActionPayload, { type: 'MOVE' }>['payload'];
 export interface CpuProfile {
@@ -8,10 +10,12 @@ export interface CpuProfile {
     level: number;
     thinkMs: number;
     maxDepth: number;
+    /** Selected by the server once at match creation, carried in the worker profile. */
+    personality?: CPUPersonality;
 }
 
 /** Rounded difficulty bands vary search depth, time and deterministic evaluation noise. */
-export function cpuProfileForRating(rating: number, timeControlSeconds: number): CpuProfile {
+export function cpuProfileForRating(rating: number, timeControlSeconds: number, personality:CPUPersonality = randomCPUPersonality()): CpuProfile {
     const rounded = Math.round((Number.isFinite(rating) ? rating : 1000) / 100) * 100;
     const approximateRating = Math.max(600, Math.min(2200, rounded));
     const level = 1 + Math.floor((approximateRating - 600) / 200);
@@ -22,12 +26,13 @@ export function cpuProfileForRating(rating: number, timeControlSeconds: number):
         level,
         thinkMs: Math.min(timeCap, 50 + level * level * 10),
         maxDepth: level <= 2 ? 1 : level <= 5 ? 2 : level <= 7 ? 3 : 4,
+        personality,
     };
 }
 
 type Position = Pick<PublicGameState, 'board' | 'pieces' | 'turn'>;
 interface Candidate { move: CpuMove; next: Position; order: number }
-interface SearchBudget { deadline: number; nodes: number; maxNodes: number }
+interface SearchBudget { deadline: number; nodes: number; maxNodes: number; personality:CPUPersonality }
 const STOP = Symbol('CPU search budget exhausted');
 const MATE = 1_000_000;
 const VALUE: Record<string, number> = { P: 100, N: 320, B: 335, R: 500, Q: 900, K: 1000 };
@@ -45,21 +50,8 @@ function checkBudget(budget: SearchBudget): void {
     if (outOfTime(budget)) throw STOP;
 }
 
-function evaluate(position: Position): number {
-    let score = 0;
-    for (const piece of position.pieces) {
-        if (piece.captured) continue;
-        const sign = piece.team === position.turn ? 1 : -1;
-        const confirmedKing = piece.possibilities.length === 1 && piece.possibilities[0] === 'K';
-        const centrality = 7 - Math.abs(piece.x - 3.5) - Math.abs(piece.y - 3.5);
-        const advance = piece.team === 0 ? piece.y : 7 - piece.y;
-        score += sign * (pieceValue(piece) + (confirmedKing ? -centrality * 4 : centrality * 8));
-        if (piece.possibilities.includes('P')) score += sign * advance * 5 / piece.possibilities.length;
-    }
-    // Legal simulation protects a confirmed king; checking the opponent remains tactically useful.
-    if (isKingInCheck(position.board, position.pieces, position.turn)) score -= 45;
-    if (isKingInCheck(position.board, position.pieces, 1 - position.turn)) score += 45;
-    return score;
+export function evaluateCpuPosition(position: Position, personality:CPUPersonality = 'balanced'): number {
+    return evaluateRankedCandidates(position, personality);
 }
 
 function terminalScore(position: Position, ply: number): number | null {
@@ -100,18 +92,21 @@ function candidates(position: Position, budget: SearchBudget): Candidate[] {
                 if (outOfTime(budget)) break;
                 const move: CpuMove = { pieceId: piece.id, toX: x, toY: y };
                 if (intention) move.intention = intention;
-                if (!piece.promoted && y === (piece.team === 0 ? 7 : 0)
-                    && filterPossibilities(piece, x, y, position.board, position.board[y * 8 + x] !== null, position.pieces).includes('P')) {
-                    move.promotedTo = 'Q';
+                const promotions = !piece.promoted && y === (piece.team === 0 ? 7 : 0)
+                    && filterPossibilities(piece, x, y, position.board, position.board[y * 8 + x] !== null, position.pieces).includes('P')
+                    ? ['Q', 'R', 'B', 'N'] : [undefined];
+                for (const promotedTo of promotions) {
+                    if (outOfTime(budget)) break;
+                    const choice = { ...move, ...(promotedTo ? { promotedTo } : {}) };
+                    budget.nodes++;
+                    const simulated = attemptLegalMove(position.pieces, position.board, piece.id, x, y, intention, promotedTo);
+                    if (!simulated.success) continue;
+                    const next: Position = { board: simulated.board, pieces: simulated.pieces, turn: 1 - position.turn };
+                    const winner = checkGameOver(simulated.pieces);
+                    const win = winner === (position.turn === 0 ? 'WHITE' : 'BLACK');
+                    const capture = simulated.capturedPiece ? pieceValue(simulated.capturedPiece) : 0;
+                    result.push({ move: choice, next, order: (win ? MATE : 0) + capture * 8 - evaluateCpuPosition(next,budget.personality) + (intention === 'castle' ? 30 : 0) });
                 }
-                budget.nodes++;
-                const simulated = attemptLegalMove(position.pieces, position.board, piece.id, x, y, intention, move.promotedTo);
-                if (!simulated.success) continue;
-                const next: Position = { board: simulated.board, pieces: simulated.pieces, turn: 1 - position.turn };
-                const winner = checkGameOver(simulated.pieces);
-                const win = winner === (position.turn === 0 ? 'WHITE' : 'BLACK');
-                const capture = simulated.capturedPiece ? pieceValue(simulated.capturedPiece) : 0;
-                result.push({ move, next, order: (win ? MATE : 0) + capture * 8 - evaluate(next) + (intention === 'castle' ? 30 : 0) });
             }
         }
     }
@@ -123,10 +118,10 @@ function negamax(position: Position, depth: number, alpha: number, beta: number,
     const terminal = terminalScore(position, ply);
     if (terminal !== null) return terminal;
     checkBudget(budget);
-    if (depth === 0) return evaluate(position);
+    if (depth === 0) return evaluateCpuPosition(position,budget.personality);
     const moves = candidates(position, budget);
     checkBudget(budget); // Never treat a partially generated move list as an exhaustive search.
-    if (moves.length === 0) return evaluate(position); // The server has no stalemate-draw rule.
+    if (moves.length === 0) return evaluateCpuPosition(position,budget.personality); // The server has no stalemate-draw rule.
     // A selective beam bounds the quantum game's unusually large branching factor.
     const width = depth >= 2 ? 8 + level * 3 : moves.length;
     let best = -Infinity;
@@ -161,6 +156,7 @@ export function chooseCpuMove(state: PublicGameState, profile: CpuProfile, deadl
         deadline: Math.min(Date.now() + thinkMs, Number.isFinite(deadline) ? deadline! : Infinity),
         nodes: 0,
         maxNodes: 1200 + level * 1400,
+        personality:profile.personality && profile.personality in PERSONALITY_WEIGHTS ? profile.personality : 'balanced',
     };
     if (outOfTime(budget) || checkGameOver(state.pieces)) return null;
     const rootMoves = candidates(state, budget);

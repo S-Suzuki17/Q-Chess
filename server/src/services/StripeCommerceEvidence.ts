@@ -3,7 +3,7 @@ import { COMMERCE_CATALOG, isCommerceSku, matchesCommercePrice, type CommercePro
 import { createStripeClient, stripeRequest } from './StripeClient';
 import type { StripeEvent } from './StripeMembership';
 import type { CommerceCheckoutIntent, CommerceOneTimeEvidence, CommercePaidPeriod,
-    CommerceSubscriptionEvidence } from './StripeCommerceStore';
+    CommerceSubscriptionEvidence, CommercePaymentSource, CommerceSourceRiskEvidence } from './StripeCommerceStore';
 
 type RecordValue = Record<string, unknown>;
 const object = (value: unknown): value is RecordValue => value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -40,6 +40,9 @@ export interface CommerceEvidenceConfig {
     automaticTaxEnabled: boolean;
 }
 export interface CommerceSubscriptionContext { subscription: RecordValue; checkout: RecordValue; }
+export interface CommerceRiskTarget {
+    checkout: RecordValue; invoiceId: string | null; chargeId: string | null; paymentIntentId: string | null;
+}
 
 /** Read-only provider boundary pinned by StripeClient. No Checkout/price/payment writes. */
 export class StripeCommerceEvidence {
@@ -77,47 +80,59 @@ export class StripeCommerceEvidence {
         if (value.id !== checkoutId || value.livemode !== this.config.livemode) return fail();
         return value;
     }
-    /** Routing aid only; fulfillment always re-reads and validates the full graph. */
-    async riskCheckouts(event: StripeEvent): Promise<RecordValue[]> {
+    /** Routing reads cannot change balances; the full graph is read again under the correct DB lease. */
+    async riskTargets(event: StripeEvent): Promise<CommerceRiskTarget[]> {
         const risk = event.data.object;
         if (event.type.startsWith('credit_note.')) {
             if (!id(risk.id, 'cn_')) return fail();
             const note = await this.call(`credit_notes/${encodeURIComponent(risk.id)}`);
             if (note.id !== risk.id || note.livemode !== this.config.livemode || !id(note.invoice, 'in_')) return fail();
-            return this.invoiceCheckouts(note.invoice);
+            return this.invoiceTargets(note.invoice);
         }
-        const chargeId = event.type === 'charge.refunded' ? risk.id : risk.charge;
+        let chargeId: unknown = risk.id;
+        if (event.type !== 'charge.refunded') {
+            const resource = event.type.startsWith('refund.') ? ['refunds', 're_']
+                : event.type.startsWith('charge.dispute.') ? ['disputes', '(?:dp|du)_']
+                    : event.type.startsWith('radar.early_fraud_warning.') ? ['radar/early_fraud_warnings', 'issfr_'] : null;
+            if (!resource || !id(risk.id, resource[1])) return fail();
+            const canonical = await this.call(`${resource[0]}/${encodeURIComponent(risk.id as string)}`);
+            if (canonical.id !== risk.id || !id(canonical.charge, 'ch_')) return fail();
+            chargeId = canonical.charge; // The signed event is a routing hint, not current risk evidence.
+        }
         if (!id(chargeId, 'ch_')) return fail();
         const charge = await this.call(`charges/${encodeURIComponent(chargeId)}`);
         if (charge.id !== chargeId || charge.livemode !== this.config.livemode) return fail();
         if (charge.payment_intent === null) return [];
         if (!id(charge.payment_intent, 'pi_')) return fail();
         const paymentId = charge.payment_intent;
-        const intent = await this.call(`payment_intents/${encodeURIComponent(paymentId)}`);
-        if (intent.id !== paymentId || intent.livemode !== this.config.livemode) return fail();
+        const payment = await this.call(`payment_intents/${encodeURIComponent(paymentId)}`);
+        if (payment.id !== paymentId || payment.livemode !== this.config.livemode
+            || payment.latest_charge !== chargeId || payment.customer !== charge.customer) return fail();
         const sessions = await this.call(`checkout/sessions?payment_intent=${encodeURIComponent(paymentId)}&limit=100`);
         if (sessions.has_more !== false || !Array.isArray(sessions.data)) return fail();
-        const checkouts: RecordValue[] = [];
+        const targets: CommerceRiskTarget[] = [];
         for (const session of sessions.data) {
             if (!object(session) || !id(session.id, this.config.livemode ? 'cs_live_' : 'cs_test_')) return fail();
             const checkout = await this.checkout(session.id);
-            if (checkout.payment_intent !== paymentId) return fail();
-            checkouts.push(checkout);
+            if (checkout.payment_intent !== paymentId || checkout.customer !== payment.customer) return fail();
+            targets.push({ checkout, invoiceId: null, chargeId, paymentIntentId: paymentId });
         }
         const query = new URLSearchParams({ 'payment[type]': 'payment_intent',
             'payment[payment_intent]': paymentId, status: 'paid', limit: '100' });
         const payments = await this.call(`invoice_payments?${query}`);
         if (payments.has_more !== false || !Array.isArray(payments.data)) return fail();
-        for (const payment of payments.data) {
-            if (!object(payment) || payment.livemode !== this.config.livemode || payment.status !== 'paid'
-                || !object(payment.payment) || payment.payment.type !== 'payment_intent'
-                || payment.payment.payment_intent !== paymentId || !id(payment.invoice, 'in_')) return fail();
-            checkouts.push(...await this.invoiceCheckouts(payment.invoice));
+        for (const linked of payments.data) {
+            if (!object(linked) || linked.livemode !== this.config.livemode || linked.status !== 'paid'
+                || !object(linked.payment) || linked.payment.type !== 'payment_intent'
+                || linked.payment.payment_intent !== paymentId || !id(linked.invoice, 'in_')) return fail();
+            for (const target of await this.invoiceTargets(linked.invoice)) {
+                targets.push({ ...target, chargeId, paymentIntentId: paymentId });
+            }
         }
-        if (!checkouts.length && object(intent.metadata) && isCommerceSku(intent.metadata.qgambit_sku)) return fail('COMMERCE_CHECKOUT_UNBOUND');
-        return checkouts;
+        if (!targets.length && object(payment.metadata) && isCommerceSku(payment.metadata.qgambit_sku)) return fail('COMMERCE_CHECKOUT_UNBOUND');
+        return targets;
     }
-    private async invoiceCheckouts(invoiceId: string): Promise<RecordValue[]> {
+    private async invoiceTargets(invoiceId: string): Promise<CommerceRiskTarget[]> {
         const invoice = await this.call(`invoices/${encodeURIComponent(invoiceId)}`);
         if (invoice.id !== invoiceId || invoice.livemode !== this.config.livemode) return fail();
         const parent = object(invoice.parent) ? invoice.parent : null;
@@ -125,7 +140,9 @@ export class StripeCommerceEvidence {
             ? parent.subscription_details : null;
         if (!details) return [];
         if (!id(details.subscription, 'sub_')) return fail();
-        return [(await this.subscriptionContext(details.subscription)).checkout];
+        const context = await this.subscriptionContext(details.subscription);
+        if (invoice.customer !== context.subscription.customer) return fail();
+        return [{ checkout: context.checkout, invoiceId, chargeId: null, paymentIntentId: null }];
     }
     /** Must run after acquiring the subscription reconciliation lease. */
     async subscriptionContext(subscriptionId: string): Promise<CommerceSubscriptionContext> {
@@ -168,7 +185,22 @@ export class StripeCommerceEvidence {
         if (!this.matchesPrice(canonicalPrice, expected)) return fail();
         return expected;
     }
-    private async payment(intentId: unknown, customerId: unknown, expected: CommerceProduct): Promise<void> {
+    private async scopedRisk(resource: string, prefix: string, chargeId: string): Promise<RecordValue[]> {
+        const page = await this.call(`${resource}?charge=${encodeURIComponent(chargeId)}&limit=100`);
+        if (page.has_more !== false || !Array.isArray(page.data) || page.data.length > 100) return fail();
+        const values: RecordValue[] = [];
+        const seen = new Set<string>();
+        for (const item of page.data) {
+            if (!object(item) || !id(item.id, prefix) || seen.has(item.id)) return fail();
+            seen.add(item.id);
+            const canonical = await this.call(`${resource}/${encodeURIComponent(item.id)}`);
+            if (canonical.id !== item.id || canonical.charge !== chargeId) return fail();
+            values.push(canonical);
+        }
+        return values;
+    }
+    private async payment(intentId: unknown, customerId: unknown, expected: CommerceProduct,
+        event?: StripeEvent): Promise<CommercePaymentSource> {
         if (!id(intentId, 'pi_') || !(customerId === null || id(customerId, 'cus_'))) return fail();
         const intent = await this.call(`payment_intents/${encodeURIComponent(intentId)}`);
         if (intent.id !== intentId || intent.livemode !== this.config.livemode || intent.status !== 'succeeded'
@@ -180,17 +212,66 @@ export class StripeCommerceEvidence {
             || charge.payment_intent !== intentId || charge.customer !== customerId || charge.paid !== true
             || charge.status !== 'succeeded' || charge.currency !== expected.currency
             || charge.amount !== expected.amount || charge.amount_captured !== expected.amount || charge.captured !== true
-            || charge.amount_refunded !== 0 || charge.refunded !== false || charge.disputed !== false) return fail();
+            || !cents(charge.amount_refunded) || charge.amount_refunded > expected.amount
+            || typeof charge.refunded !== 'boolean' || typeof charge.disputed !== 'boolean') return fail();
+        const refunds = await this.scopedRisk('refunds', 're_', intent.latest_charge);
+        const disputes = await this.scopedRisk('disputes', '(?:dp|du)_', intent.latest_charge);
+        const warnings = await this.scopedRisk('radar/early_fraud_warnings', 'issfr_', intent.latest_charge);
+        // A single source cannot silently select one of multiple incompatible chargeback lifecycles.
+        if (disputes.length > 1 || (charge.disputed && !disputes.length)) return fail();
+        let refunded = 0, pending = 0;
+        for (const refund of refunds) {
+            if (refund.payment_intent !== intentId || refund.currency !== expected.currency
+                || !cents(refund.amount) || refund.amount <= 0 || refund.amount > expected.amount
+                || !['succeeded', 'pending', 'requires_action', 'failed', 'canceled'].includes(String(refund.status))) return fail();
+            if (refund.status === 'succeeded') refunded += refund.amount;
+            if (refund.status === 'pending' || refund.status === 'requires_action') pending += refund.amount;
+        }
+        if (!cents(refunded) || !cents(pending) || refunded + pending > expected.amount
+            || charge.amount_refunded < refunded || charge.amount_refunded > refunded + pending
+            || (pending === 0 && charge.refunded !== (refunded === expected.amount))) return fail();
+        const dispute = disputes[0] ?? null;
+        if (dispute && (dispute.livemode !== this.config.livemode || dispute.payment_intent !== intentId
+            || dispute.currency !== expected.currency || !cents(dispute.amount) || dispute.amount <= 0
+            || dispute.amount > expected.amount || !['needs_response', 'under_review', 'warning_needs_response',
+                'warning_under_review', 'lost', 'won', 'warning_closed', 'prevented'].includes(String(dispute.status)))) return fail();
+        const open = dispute && ['needs_response', 'under_review', 'warning_needs_response', 'warning_under_review'].includes(String(dispute.status));
+        if (dispute && (open || dispute.status === 'lost') && !charge.disputed) return fail();
+        for (const warning of warnings) {
+            if (warning.livemode !== this.config.livemode || warning.payment_intent !== intentId
+                || typeof warning.actionable !== 'boolean') return fail();
+        }
+        if (event) {
+            const expectedList = event.type.startsWith('refund.') ? refunds
+                : event.type.startsWith('charge.dispute.') ? disputes
+                    : event.type.startsWith('radar.early_fraud_warning.') ? warnings : null;
+            if (expectedList && !expectedList.some(item => item.id === event.data.object.id)) return fail();
+            if (event.type === 'charge.refunded' && event.data.object.id !== charge.id) return fail();
+        }
+        // Refuse mixed observations if Stripe changed the charge while the graph was traversed.
+        const finalCharge = await this.call(`charges/${encodeURIComponent(intent.latest_charge)}`);
+        for (const key of ['id','livemode','payment_intent','customer','paid','status','currency','amount',
+            'amount_captured','captured','amount_refunded','refunded','disputed']) {
+            if (finalCharge[key] !== charge[key]) return fail();
+        }
+        return { paymentIntentId: intentId, chargeId: intent.latest_charge, customerId: customerId as string | null,
+            amountRefunded: refunded, disputeId: dispute?.id as string ?? null,
+            disputeStatus: dispute?.status as string ?? null,
+            riskState: refunded === expected.amount ? 'refunded' : dispute?.status === 'lost' ? 'dispute_lost'
+                : open ? 'disputed' : refunded > 0 ? 'partial_refund'
+                    : pending > 0 || warnings.some(value => value.actionable) ? 'manual_review' : 'clear' };
     }
-    async oneTime(event: StripeEvent, checkout: RecordValue, intent: CommerceCheckoutIntent): Promise<CommerceOneTimeEvidence> {
+    async oneTime(event: StripeEvent, checkout: RecordValue, intent: CommerceCheckoutIntent,
+        token: string): Promise<CommerceOneTimeEvidence> {
         const expected = await this.validateCheckout(checkout, intent);
         if (expected.checkoutMode !== 'payment' || checkout.subscription !== null || event.data.object.id !== checkout.id
             || event.livemode !== intent.livemode
             || !['checkout.session.completed', 'checkout.session.async_payment_succeeded'].includes(event.type)) return fail();
-        await this.payment(checkout.payment_intent, checkout.customer, expected);
-        return { ...intent, eventId: event.id, payloadHash: event.payloadHash, paymentStatus: 'paid' };
+        const paymentSource = await this.payment(checkout.payment_intent, checkout.customer, expected);
+        return { ...intent, eventId: event.id, payloadHash: event.payloadHash, paymentStatus: 'paid',
+            observedAt: new Date().toISOString(), token, paymentSource };
     }
-    private async paidInvoice(invoiceId: string, subscription: RecordValue, expected: CommerceProduct): Promise<CommercePaidPeriod> {
+    private async paidInvoice(invoiceId: string, subscription: RecordValue, expected: CommerceProduct, event?: StripeEvent): Promise<CommercePaidPeriod> {
         if (!id(invoiceId, 'in_')) return fail();
         const invoice = await this.call(`invoices/${encodeURIComponent(invoiceId)}`);
         const parent = object(invoice.parent) ? invoice.parent : null;
@@ -202,7 +283,8 @@ export class StripeCommerceEvidence {
             || invoice.total !== expected.amount || invoice.amount_paid !== expected.amount || invoice.amount_due !== expected.amount
             || invoice.amount_remaining !== 0 || invoice.amount_overpaid !== 0 || (invoice.amount_paid_off_stripe ?? 0) !== 0
             || invoice.starting_balance !== 0 || invoice.ending_balance !== 0
-            || invoice.pre_payment_credit_notes_amount !== 0 || invoice.post_payment_credit_notes_amount !== 0
+            || invoice.pre_payment_credit_notes_amount !== 0 || !cents(invoice.post_payment_credit_notes_amount)
+            || invoice.post_payment_credit_notes_amount > expected.amount
             || !empty(invoice.total_discount_amounts) || !empty(invoice.total_pretax_credit_amounts)
             || !empty(invoice.discounts) || invoice.shipping_cost != null || invoice.latest_revision != null) return fail();
         this.automaticTax(invoice.automatic_tax);
@@ -229,8 +311,11 @@ export class StripeCommerceEvidence {
         if (payment.invoice !== invoiceId || payment.livemode !== this.config.livemode || payment.status !== 'paid'
             || payment.currency !== expected.currency || payment.amount_paid !== expected.amount || payment.amount_requested !== expected.amount
             || !object(payment.payment) || payment.payment.type !== 'payment_intent') return fail();
-        await this.payment(payment.payment.payment_intent, subscription.customer, expected);
-        return { invoiceId, periodStart: iso(line.period.start), periodEnd: iso(line.period.end) };
+        const paymentSource = await this.payment(payment.payment.payment_intent, subscription.customer, expected, event);
+        // A credit note can credit the customer balance or represent an out-of-band refund.
+        // Only canonical successful cash refunds cause automatic recovery.
+        if (invoice.post_payment_credit_notes_amount > 0 && paymentSource.riskState === 'clear') paymentSource.riskState = 'manual_review';
+        return { invoiceId, periodStart: iso(line.period.start), periodEnd: iso(line.period.end), paymentSource };
     }
     async subscription(event: StripeEvent, context: CommerceSubscriptionContext, intent: CommerceCheckoutIntent,
         token: string): Promise<CommerceSubscriptionEvidence> {
@@ -265,6 +350,45 @@ export class StripeCommerceEvidence {
             eventCreated: event.created, observedAt: new Date().toISOString(), subscriptionId: subscription.id,
             customerId: subscription.customer, status: subscription.status as string, periodEnd, latestInvoiceId,
             paidNewPeriod: event.type === 'invoice.paid' && paidPeriod?.invoiceId === latestInvoiceId && paidPeriod?.periodEnd === periodEnd,
-            cancelAtPeriodEnd: subscription.cancel_at_period_end, token, paidPeriod };
+            cancelAtPeriodEnd: subscription.cancel_at_period_end, token, paidPeriod, currentPaidPeriod: currentPaid };
     }
+    /** Every provider proof here is obtained after the caller acquires the source/subscription fence. */
+    async risk(event: StripeEvent, routed: CommerceRiskTarget, intent: CommerceCheckoutIntent,
+        token: string): Promise<CommerceSourceRiskEvidence> {
+        const targets = await this.riskTargets(event);
+        const matches = targets.filter(target => target.checkout.id === intent.checkoutId && target.invoiceId === routed.invoiceId);
+        if (matches.length !== 1 || targets.length !== 1) return fail();
+        const target = matches[0];
+        const expected = await this.validateCheckout(target.checkout, intent);
+        let period: CommercePaidPeriod | null = null;
+        let subscriptionId: string | null = null;
+        let paymentSource: CommercePaymentSource;
+        if (expected.checkoutMode === 'subscription') {
+            if (!id(target.checkout.subscription, 'sub_') || !target.invoiceId) return fail();
+            subscriptionId = target.checkout.subscription;
+            const context = await this.subscriptionContext(subscriptionId);
+            if (context.checkout.id !== intent.checkoutId) return fail();
+            period = await this.paidInvoice(target.invoiceId, context.subscription, expected, event);
+            paymentSource = period.paymentSource!;
+        } else {
+            if (target.invoiceId !== null || target.checkout.subscription !== null) return fail();
+            paymentSource = await this.payment(target.checkout.payment_intent, target.checkout.customer, expected, event);
+        }
+        if ((target.chargeId !== null && target.chargeId !== paymentSource.chargeId)
+            || (target.paymentIntentId !== null && target.paymentIntentId !== paymentSource.paymentIntentId)
+            || (routed.chargeId !== null && routed.chargeId !== paymentSource.chargeId)
+            || (routed.paymentIntentId !== null && routed.paymentIntentId !== paymentSource.paymentIntentId)) return fail();
+        if (event.type.startsWith('credit_note.')) {
+            const note = await this.call(`credit_notes/${encodeURIComponent(event.data.object.id as string)}`);
+            if (note.id !== event.data.object.id || note.invoice !== period?.invoiceId
+                || note.customer !== paymentSource.customerId || note.livemode !== intent.livemode
+                || note.currency !== expected.currency || !cents(note.amount) || note.amount <= 0
+                || note.amount > expected.amount || !['issued', 'void'].includes(String(note.status))) return fail();
+            if (note.status === 'issued' && paymentSource.riskState === 'clear') paymentSource.riskState = 'manual_review';
+        }
+        return { ...intent, eventId: event.id, payloadHash: event.payloadHash, observedAt: new Date().toISOString(),
+            token, subscriptionId, invoiceId: period?.invoiceId ?? null,
+            periodStart: period?.periodStart ?? null, periodEnd: period?.periodEnd ?? null, paymentSource };
+    }
+
 }

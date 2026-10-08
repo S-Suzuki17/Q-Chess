@@ -79,4 +79,60 @@ describe('new commerce DB adapter fails closed', () => {
         const f = fixture(); f.results.push({ data: null, error: new Error('db') });
         await expect(f.subject.hasCurrentTerms('Alice')).rejects.toThrow('TERMS_UNAVAILABLE');
     });
+    it('acquires and releases the one-time checkout fence with exact mode and token', async () => {
+        const f = fixture(); const token = '22222222-2222-4222-8222-222222222222';
+        f.results.push({ data: { token, retired: false }, error: null }, { data: null, error: null });
+        await expect(f.subject.acquireCommerceReconciliation(f.checkout.id, false)).resolves.toEqual({ token, retired: false });
+        await f.subject.releaseCommerceReconciliation(f.checkout.id, false, token);
+        expect(f.rpc.mock.calls).toEqual([
+            ['acquire_stripe_commerce_reconciliation', { p_checkout_id: f.checkout.id, p_livemode: false }],
+            ['release_stripe_commerce_reconciliation', { p_checkout_id: f.checkout.id, p_livemode: false, p_token: token }],
+        ]);
+    });
+    it('recognizes a durable retirement fence and keeps busy acquisition retryable', async () => {
+        const f = fixture();
+        f.results.push({ data: { token: null, retired: true }, error: null },
+            { data: { token: null, retired: false }, error: null });
+        await expect(f.subject.acquireCommerceReconciliation(f.checkout.id, false)).resolves.toEqual({ token: null, retired: true });
+        await expect(f.subject.acquireCommerceReconciliation(f.checkout.id, false)).rejects.toThrow('RECONCILIATION_BUSY');
+    });
+    it.each([null, {}, { token: 'secret-invalid', retired: false }, { token: null, retired: 'true' }])(
+        'rejects malformed source lease response %j', async data => {
+            const f = fixture(); f.results.push({ data, error: null });
+            await expect(f.subject.acquireCommerceReconciliation(f.checkout.id, false)).rejects.toThrow('COMMERCE_STORE_UNAVAILABLE');
+        });
+    it.each(['clear','partial_refund','manual_review','disputed','refunded','dispute_lost'] as const)(
+        'validates net usable grant credit against %s canonical source state', async riskState => {
+            const f = fixture();
+            const evidence = { ...f.intent, eventId: 'evt_FIXTURECOMMERCE', payloadHash: 'a'.repeat(64), paymentStatus: 'paid' as const,
+                token: '22222222-2222-4222-8222-222222222222', paymentSource: {
+                    chargeId: f.charge.id, paymentIntentId: f.payment.id, customerId: f.checkout.customer,
+                    amountRefunded: riskState === 'refunded' ? 1000 : 0, riskState, disputeId: null, disputeStatus: null,
+                } };
+            const credited = ['clear','partial_refund','manual_review'].includes(riskState) ? 13 : 0;
+            f.results.push({ data: { applied: true, duplicate: false, credited }, error: null });
+            await expect(f.subject.fulfillOneTime(evidence)).resolves.toMatchObject({ credited });
+            f.results.push({ data: { applied: true, duplicate: false, credited: credited ? 0 : 13 }, error: null });
+            await expect(f.subject.fulfillOneTime(evidence)).rejects.toThrow('COMMERCE_STORE_UNAVAILABLE');
+        });
+    it('uses the exact atomic risk RPC and rejects invalid recovery results', async () => {
+        const f = fixture(); const evidence = { ...f.intent, eventId: 'evt_FIXTURERISK', payloadHash: 'b'.repeat(64),
+            observedAt: new Date().toISOString(), token: '22222222-2222-4222-8222-222222222222',
+            subscriptionId: null, invoiceId: null, periodStart: null, periodEnd: null, paymentSource: {
+                paymentIntentId: f.payment.id, chargeId: f.charge.id, customerId: f.checkout.customer,
+                amountRefunded: 1000, riskState: 'refunded' as const, disputeId: null, disputeStatus: null,
+            } };
+        const valid = { applied: true, duplicate: false, credited: 0, recovered: 8, held: 0, released: 0, manualReview: false };
+        f.results.push({ data: valid, error: null });
+        await expect(f.subject.applySourceRisk(evidence)).resolves.toEqual(valid);
+        expect(f.rpc).toHaveBeenCalledWith('apply_stripe_commerce_source_risk', { p_evidence: evidence });
+        for (const patch of [{ recovered: -1 }, { recovered: 14 }, { held: 0.2 }, { released: 14 },
+            { manualReview: 'false' }, { credited: 8 }, { applied: true, duplicate: true }]) {
+            f.results.push({ data: { ...valid, ...patch }, error: null });
+            await expect(f.subject.applySourceRisk(evidence)).rejects.toThrow('COMMERCE_STORE_UNAVAILABLE');
+        }
+        f.results.push({ data: null, error: new Error('transaction rolled back') });
+        await expect(f.subject.applySourceRisk(evidence)).rejects.toThrow('COMMERCE_STORE_UNAVAILABLE');
+    });
+
 });

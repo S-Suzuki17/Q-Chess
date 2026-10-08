@@ -15,4 +15,9 @@ const copy: Record<Language, Copy> = {
     pt: { free: 'Bilhetes gratuitos', member: 'Bilhetes da assinatura', next: 'Próxima recompensa de login (UTC)', day: 'Dia', rule: 'As primeiras 3 partidas ranqueadas iniciadas por dia UTC são grátis. Depois, cada partida custa 1 bilhete. Esperar ou cancelar antes do início não consome bilhetes.', cap: 'Até 20 bilhetes gratuitos de cada tipo. Só é creditado o espaço disponível.', streak: 'Receba a recompensa a cada dia UTC para avançar do dia 1 ao 7. O dia 7 se repete; perder um dia reinicia no dia 1.', expiry: 'Bilhetes da assinatura são separados. Os não usados expiram no fim da assinatura, no reembolso ou na reversão do pagamento e não passam para uma nova assinatura.', claimed: 'A recompensa de login de hoje já foi recebida.' },
     ta: { free: 'இலவசச் சீட்டுகள்', member: 'உறுப்பினர் சீட்டுகள்', next: 'அடுத்த உள்நுழைவு வெகுமதி (UTC)', day: 'நாள்', rule: 'ஒவ்வொரு UTC நாளிலும் தொடங்கும் முதல் 3 தரவரிசைப் போட்டிகள் இலவசம். அதன் பிறகு ஒவ்வொரு போட்டிக்கும் 1 சீட்டு தேவை. காத்திருப்பதும் தொடங்குமுன் ரத்து செய்வதும் சீட்டுகளைச் செலவிடாது.', cap: 'ஒவ்வொரு வகையிலும் அதிகபட்சம் 20 இலவசச் சீட்டுகள். மீதமுள்ள இடத்திற்கு மட்டுமே வழங்கப்படும்.', streak: 'ஒவ்வொரு UTC நாளும் பெற்று 1–7 நாட்களுக்கு முன்னேறுங்கள். 7ஆம் நாள் மீண்டும் தொடரும்; ஒரு நாள் தவறினால் 1ஆம் நாளுக்கு மீளும்.', expiry: 'உறுப்பினர் சீட்டுகள் தனியாக உள்ளன. உறுப்பினர் காலம் முடிதல், பணத் திருப்பம் அல்லது கட்டண ரத்தின்போது பயன்படுத்தாத சீட்டுகள் காலாவதியாகும்; மீண்டும் சேரும்போது மாற்றப்படாது.', claimed: 'இன்றைய உள்நுழைவு வெகுமதி பெறப்பட்டது.' },
 };
-export const ticketWalletText = (lang: Language): Copy => copy[lang];
+export const ticketWalletText = (lang: Language, sharedAdmission = false): Copy => sharedAdmission ? {
+    ...copy[lang],
+    rule: lang === 'ja'
+        ? 'オンライン対戦とランク戦は合計でUTC日付ごとに3試合まで無料。以降は対局ごとに対局券1枚の使用を選択します。待機・開始前キャンセルでは消費しません。有効なStandard／Plus会員は回数無制限・広告なしです。'
+        : 'The first 3 online and ranked games combined per UTC day are free. After that, choose to use 1 match ticket for each game. Waiting and canceled starts cost no tickets. Active Standard and Plus members have unlimited games and no ads.',
+} : copy[lang];

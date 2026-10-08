@@ -14,6 +14,7 @@ describe('server-owned commerce catalog (no real Stripe operations)', () => {
             const url = new URL(String(input));
             if (url.pathname === '/v1/checkout/sessions' && init?.method === 'POST') {
                 expect(new URLSearchParams(String(init.body)).get('line_items[0][price]')).toBe(f.intent.priceId);
+                expect(new URLSearchParams(String(init.body)).get('adaptive_pricing[enabled]')).toBe('false');
                 return new Response(JSON.stringify({ ...f.checkout, status: 'open',
                     expires_at: Math.floor(Date.now() / 1000) + 3600,
                     url: `https://checkout.stripe.com/c/pay/${f.intent.checkoutId}` }), { status: 200 });
@@ -30,7 +31,7 @@ describe('server-owned commerce catalog (no real Stripe operations)', () => {
         expect(await api.createCheckout('Alice', 'hints_13')).toMatchObject({ priceId: f.intent.priceId });
         await expect(api.createCheckout('Alice', 'plus_monthly')).rejects.toThrow('SKU_NOT_READY');
         expect(() => new StripeMembershipApi(config, request, { livemode: !livemode, products: {} })).toThrow('COMMERCE_CATALOG_INVALID');
-        expect(readyCommerceSkus()).toEqual([]);
+        expect(readyCommerceSkus()).toEqual(COMMERCE_SKUS);
     });
     it.each([{ amount: 999 }, { currency: 'eur' }, { hintTickets: 99 }, { taxBehavior: 'exclusive' },
         { interval: 'year' }, { checkoutMode: 'payment' }, { sku: 'plus_monthly' }, { priceId: LEGACY_MEMBERSHIP_PRODUCT.priceId }])(
@@ -91,17 +92,24 @@ describe('server-owned commerce catalog (no real Stripe operations)', () => {
         });
     }
 
-    it('keeps all new sales closed independently of legacy sales flags and known live IDs', async () => {
+    it('releases the exact reviewed catalog without treating a Price ID as a public SKU', async () => {
         vi.stubEnv('STRIPE_MEMBERSHIP_CHECKOUT_ENABLED', 'true');
         vi.stubEnv('STRIPE_MEMBERSHIP_PORTAL_ENABLED', 'true');
         const request = vi.fn();
         const api = new StripeMembershipApi({ mode: 'live', secretKey: 'sk_live_FAKEKEY12345',
             webhookSecret: 'whsec_FAKESECRET12345', priceId: LEGACY_MEMBERSHIP_PRODUCT.priceId,
             successUrl: 'https://q-gambit.com/', cancelUrl: 'https://q-gambit.com/' }, request);
-        expect(readyCommerceSkus()).toEqual([]);
-        expect(api.availableCheckoutSkus()).toEqual([]);
-        for (const sku of COMMERCE_SKUS) await expect(api.createCheckout('Alice', sku)).rejects.toThrow('SKU_NOT_READY');
+        expect(readyCommerceSkus()).toEqual(COMMERCE_SKUS);
+        expect(api.availableCheckoutSkus()).toEqual(COMMERCE_SKUS);
         await expect(api.createCheckout('Alice', COMMERCE_CATALOG.hints_1.priceId as never)).rejects.toThrow('INVALID_SKU');
+        expect(request).not.toHaveBeenCalled();
+    });
+    it('never uses released live prices for a test-mode checkout without reviewed test authority', async () => {
+        const request = vi.fn();
+        const api = new StripeMembershipApi({ mode: 'test', secretKey: 'sk_test_FAKEKEY12345',
+            webhookSecret: 'whsec_FAKESECRET12345', priceId: 'price_FIXTURELEGACY',
+            successUrl: 'https://q-gambit.com/', cancelUrl: 'https://q-gambit.com/' }, request);
+        for (const sku of COMMERCE_SKUS) await expect(api.createCheckout('Alice', sku)).rejects.toThrow('SKU_NOT_READY');
         expect(request).not.toHaveBeenCalled();
     });
 });

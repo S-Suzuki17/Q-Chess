@@ -64,6 +64,21 @@ test('native PostgreSQL public-baseline upgrade and concurrent commerce', { time
 
     // A failed setup must not masquerade as many ordinary assertion failures.
     assert.ok(a && b && upgrade, 'baseline setup did not finish');
+    await check('2026-10-07 terms require explicit re-consent while prior versions remain immutable', async () => {
+        for (const user of [upgrade, legacy.user]) {
+            const old = (await admin.query('select * from public.account_terms_consents where user_id=$1 order by version', [user])).rows;
+            assert.ok(old.some(row => row.version === '2026-10-03.1'));
+            const status = await scalar(a, 'select public.current_account_terms_status($1) as result', [user]);
+            assert.equal(status.currentVersion, '2026-10-07.1'); assert.equal(status.effectiveDate, '2026-10-07');
+            assert.equal(status.effective, true); assert.equal(status.consent, null);
+            await assert.rejects(a.query("select public.accept_current_account_terms($1,'2026-10-03.1')", [user]), /Current terms not effective/);
+            await assert.rejects(claim(a, user), /Reward account unavailable/);
+            const accepted = await scalar(a, "select public.accept_current_account_terms($1,'2026-10-07.1') as result", [user]);
+            assert.equal(accepted.consent.version, '2026-10-07.1');
+            assert.deepEqual(await scalar(a, "select public.accept_current_account_terms($1,'2026-10-07.1') as result", [user]), accepted);
+            assert.deepEqual((await admin.query("select * from public.account_terms_consents where user_id=$1 and version<>'2026-10-07.1' order by version", [user])).rows, old);
+        }
+    });
     await check('new source gates remain closed and price bindings start empty', async () => {
         assert.deepEqual(await scalar(a, 'select public.stripe_commerce_protocol_version() as result'),
             { version: 1, newSalesEnabled: false, spendingEnabled: false, reversalsReady: false });
@@ -89,7 +104,7 @@ test('native PostgreSQL public-baseline upgrade and concurrent commerce', { time
     await check('paid pack fulfillment preserves original consent after policy changes while new checkout and spend fail closed', async () => {
         const user = await account(admin), intent = await register(a, user), event = unique('evt_CONSENT');
         const before = await scalar(a, 'select to_jsonb(i) as result from public.stripe_commerce_checkout_intents i where checkout_id=$1', [intent.checkout]);
-        assert.equal(before.terms_version, '2026-10-03.1');
+        assert.equal(before.terms_version, '2026-10-07.1');
         const policyDate = await scalar(admin, 'select effective_date::text as result from public.current_terms_policy');
         try {
             await admin.query('update public.current_terms_policy set effective_date=null');
@@ -558,7 +573,7 @@ test('native PostgreSQL public-baseline upgrade and concurrent commerce', { time
     ])) {
         sourceSha256[source] = createHash('sha256').update(await readFile(new URL(`../../${source}`, import.meta.url))).digest('hex');
     }
-    const report = { completed: failures === 0 && results.length === 43, verifiedAt: new Date().toISOString(), sourceSha256,
+    const report = { completed: failures === 0 && results.length === 44, verifiedAt: new Date().toISOString(), sourceSha256,
         nativePostgreSQL: true, nativeVersion, independentBackends: true,
         productionData: false, providerHttpVerified: false, freshInstallVerified: false,
         baseline: baselineEvidence, passed: results.length, failed: failures, tests: results,
@@ -569,7 +584,7 @@ test('native PostgreSQL public-baseline upgrade and concurrent commerce', { time
     await writeFile(join(tmpdir(), 'commerce-postgres-results.json'), JSON.stringify(report, null, 2) + '\n');
     console.log(JSON.stringify(report));
     assert.equal(failures, 0, 'Native PostgreSQL verification contains failed checks');
-    assert.equal(results.length, 43, 'Native PostgreSQL verification contains omitted checks');
+    assert.equal(results.length, 44, 'Native PostgreSQL verification contains omitted checks');
 });
 
 async function protectedDefinitions(client) {

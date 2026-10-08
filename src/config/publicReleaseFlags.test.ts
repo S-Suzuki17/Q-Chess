@@ -31,8 +31,10 @@ it.each([undefined,'false','1','TRUE','yes',' true'])('defaults OFF unless the e
 it('independently enables all requested Web flags but keeps Checkout behind publication and consent',async()=>{
  enable();const m=await modules();expect(values(m)).toEqual(names.map(()=>true));
  expect(m.commerce.webCommerceCheckoutReady()).toBe(false);await expect(m.stripe.prepareStripeCheckout('Alice', 'standard_monthly')).rejects.toThrow('DISABLED');expect(h.fetch).not.toHaveBeenCalled();
- h.date='2026-01-01';expect(m.commerce.webCommerceCheckoutReady()).toBe(false);
- await expect(m.stripe.prepareStripeCheckout('Alice', 'standard_monthly')).rejects.toThrow('DISABLED');expect(h.fetch).not.toHaveBeenCalled();
+ h.date='2026-01-01';expect(m.commerce.webCommerceCheckoutReady()).toBe(true);
+ h.consent.mockRejectedValueOnce(new Error('CURRENT_TERMS_REQUIRED'));
+ await expect(m.stripe.prepareStripeCheckout('Alice', 'standard_monthly')).rejects.toThrow('UNAVAILABLE');expect(h.fetch).not.toHaveBeenCalled();
+ await expect(m.stripe.prepareStripeCheckout('Alice', 'standard_monthly')).resolves.toBe('https://checkout.stripe.com/c/pay/owned');
  await expect(m.daily.claimDailyLoginReward('Alice')).resolves.toMatchObject({tickets:{ranked:1,hint:2}});
  await expect(m.refund.readRankedRefundBalance('Alice')).resolves.toMatchObject({freeRankedRefunds:25,paidRankedRefunds:64});
  expect(h.consent).toHaveBeenCalledWith('Alice',undefined);
@@ -68,7 +70,7 @@ it.each(['on','checkout-off','offers-off','publication-pending'])('checks actual
  const {CommerceDisclosureDocument}=await import('../components/CommerceDisclosureDocument');
  const {checkCommerceExport}=await import('../../scripts/qa/check-commerce-export.mjs');
  const html=renderToStaticMarkup(createElement(CommerceDisclosureDocument,{lang:'ja'}));
- checkCommerceExport('web','off',html);
+ checkCommerceExport('web',mode==='on'?'on':'off',html);
 });
 it.each(['android-build','native-runtime'])('renders no commercial route, seller, price or purchase links on %s even with all flags ON',async(boundary)=>{
  enable();h.date='2026-01-01';if(boundary==='android-build')vi.stubEnv('NEXT_PUBLIC_APP_TARGET','android');else h.native=true;

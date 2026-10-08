@@ -9,7 +9,7 @@ import { connect, scalar, account, contended, bind, member, snapshot, LEGACY_PRI
 
 const CROWN='20261006172232_dormant_crown_first_attempt.sql';
 const pending=[...new Set([...combinedPendingMigrations,CROWN])].sort();
-const key='crown:fixture:v1:rank1'; // Generic stable key; neither candidate release mapping is chosen.
+const key='crown:strength:v1:1'; // Current release mapping, still behind closed provider gates.
 const authorize=(client,user,rank=key,id=randomUUID())=>scalar(client,'select public.authorize_crown_first_attempt($1,$2,$3) as result',[id,user,rank]);
 const grant=(user,rank=key)=>({id:randomUUID(),user,rank,purpose:'crown_first_attempt',provider:'fixture_verified',transaction:randomUUID(),hash:HASH});
 const record=(client,g)=>scalar(client,'select public.record_verified_rewarded_ad($1,$2,$3,$4,$5,$6,$7,null) as result',
@@ -67,15 +67,32 @@ test('Crown first attempt: actual shared ledger on combined native PostgreSQL up
         assert.equal(await count('verified_rewarded_ad_grants',user),0);
         assert.equal(await scalar(admin,'select ranked_tickets::text as result from public.ticket_wallets where user_id=$1',[user]),'0');
     });
+    await check('100 stage keys consume only 34 strength grants, with every time-control change and retry reused',async()=>{
+        const user=await account(admin),grants=[];
+        for(let strength=1;strength<=34;strength++){
+            const credit=grant(user,`crown:strength:v1:${strength}`);grants.push(credit);await record(a,credit);
+        }
+        const firstByKey=new Map();
+        for(let stage=1;stage<=100;stage++){
+            const rank=`crown:strength:v1:${Math.floor((stage-1)/3)+1}`,first=firstByKey.get(rank);
+            const receipt=await authorize(a,user,rank);
+            if(first)assert.deepEqual(receipt,{...first,reused:true});
+            else {assert.equal(receipt.reused,false);firstByKey.set(rank,receipt);}
+            assert.deepEqual(await authorize(b,user,rank),{...receipt,reused:true});
+        }
+        assert.equal(firstByKey.size,34);assert.equal(await count('crown_first_attempt_authorizations',user),34);
+        assert.equal((await Promise.all(grants.map(consumed))).filter(Boolean).length,34);
+        assert.equal(await scalar(admin,'select ranked_tickets::text as result from public.ticket_wallets where user_id=$1',[user]),'0');
+    });
     await check('current terms guard new monetized unlocks while existing no-charge retries retain their rights',async()=>{
         const user=await account(admin),earned=grant(user),spare=grant(user),newRank='crown:fixture:v1:newtermsrank',next=grant(user,newRank);
         for(const credit of [earned,spare,next])await record(a,credit);
-        await admin.query("delete from public.account_terms_consents where user_id=$1 and version='2026-10-03.1'",[user]);
+        await admin.query("delete from public.account_terms_consents where user_id=$1 and version='2026-10-07.1'",[user]);
         await assert.rejects(authorize(a,user),{code:'42501'});
         assert.equal(await count('crown_first_attempt_authorizations',user),0);assert.equal(await consumed(earned),null);
-        await admin.query("insert into public.account_terms_consents(user_id,version) values($1,'2026-10-03.1')",[user]);
+        await admin.query("insert into public.account_terms_consents(user_id,version) values($1,'2026-10-07.1')",[user]);
         const first=await authorize(a,user);
-        await admin.query("delete from public.account_terms_consents where user_id=$1 and version='2026-10-03.1'",[user]);
+        await admin.query("delete from public.account_terms_consents where user_id=$1 and version='2026-10-07.1'",[user]);
         assert.deepEqual(await authorize(b,user),{...first,reused:true});
         await assert.rejects(authorize(b,user,newRank),{code:'42501'});
         assert.equal(await count('crown_first_attempt_authorizations',user),1);
@@ -141,7 +158,7 @@ test('Crown first attempt: actual shared ledger on combined native PostgreSQL up
                 latestInvoiceId:`in_${user}`,paidPeriod:{invoiceId:`in_${user}`,periodStart:m.start,periodEnd:m.end}};
             assert.equal((await scalar(a,'select public.fulfill_stripe_commerce_subscription($1::jsonb) as result',[JSON.stringify(evidence)])).applied,true);
             assert.equal((await entitlement(a,user)).noAds,true);const first=await authorize(a,user);assert.equal(first.source,'subscription');
-            if(sku==='standard_monthly')standardMember={user,subscription:m.subscription};
+            if(sku==='standard_monthly')standardMember={user,subscription:m.subscription,paidEnd:m.end};
             assert.equal(await count('verified_rewarded_ad_grants',user),earned?1:0);
             if(earned)assert.equal(await consumed(earned),null,'Paid exemption must preserve previously earned credit');
             await assert.rejects(record(a,grant(user)),{code:'42501'});
@@ -160,6 +177,8 @@ test('Crown first attempt: actual shared ledger on combined native PostgreSQL up
         legacy.token=(await scalar(a,'select public.acquire_stripe_reconciliation($1,true) as result',[legacy.subscription])).token;
         assert.equal((await snapshot(a,legacy)).result.applied,true);
         assert.deepEqual(await entitlement(a,legacy.user),{plan:'legacy299',noAds:false,unlimitedOnlineRanked:false,periodEnd:null});
+        await assert.rejects(authorize(a,legacy.user),{code:'42501'});
+        await a.query("select public.accept_current_account_terms($1,'2026-10-07.1')",[legacy.user]);
         const first=await authorize(a,legacy.user);assert.equal(first.source,'legacy_campaign');
         await admin.query("update public.stripe_memberships set period_end=clock_timestamp()-interval '1 hour' where user_id=$1",[legacy.user]);
         assert.deepEqual(await authorize(b,legacy.user),{...first,reused:true});
@@ -200,7 +219,7 @@ test('Crown first attempt: actual shared ledger on combined native PostgreSQL up
 
             // Expiry after a paid snapshot must not establish a new free retry
             // authorization. An earlier legitimate authorization is untouched.
-            await admin.query("update public.stripe_memberships set period_end=clock_timestamp()+interval '1 hour' where subscription_id=$1",[standardMember.subscription]);
+            await admin.query('update public.stripe_memberships set period_end=$2 where subscription_id=$1',[standardMember.subscription,standardMember.paidEnd]);
             await a.query(`begin isolation level ${isolation}`);assert.equal((await entitlement(a,standardMember.user)).noAds,true);
             await admin.query("update public.stripe_memberships set period_end=clock_timestamp()-interval '1 hour' where subscription_id=$1",[standardMember.subscription]);
             const newRank='crown:fixture:v1:expiredsnapshot';
@@ -217,7 +236,7 @@ test('Crown first attempt: actual shared ledger on combined native PostgreSQL up
         assert.equal(await count('crown_first_attempt_authorizations',user),0);
         assert.equal(await scalar(admin,'select user_id as result from public.verified_rewarded_ad_grants where grant_id=$1',[g.id]),null);
         await admin.query('insert into public.profiles(id) values($1)',[user]);
-        await admin.query("insert into public.account_terms_consents(user_id,version) values($1,'2026-10-03.1')",[user]);
+        await admin.query("insert into public.account_terms_consents(user_id,version) values($1,'2026-10-07.1')",[user]);
         assert.equal((await authorize(b,user)).state,'reward_required');await assert.rejects(record(b,g),{code:'23505'});
         const fresh=grant(user);await record(a,fresh);assert.equal((await authorize(a,user)).source,'verified_ad');
     });
@@ -230,5 +249,5 @@ test('Crown first attempt: actual shared ledger on combined native PostgreSQL up
     await writeFile(join(tmpdir(),'crown-postgres-results.json'),JSON.stringify({passed:passed.length,failures,checks:passed,
         nativeVersion,baseline:{...sessionBaselineEvidence,pending},providerValidation:false,mappingActivated:false},null,2));
     assert.equal(failures,0);
-    assert.equal(passed.length,17,'Do not silently drop Crown verification scenarios');
+    assert.equal(passed.length,18,'Do not silently drop Crown verification scenarios');
 });

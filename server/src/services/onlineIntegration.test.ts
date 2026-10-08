@@ -36,6 +36,14 @@ vi.mock('./SupabaseService', () => ({ SupabaseService: class {
     foundersStore = () => ({});
     accountDeletionStore = () => ({ blocked: async () => false });
     accountRecoveryStore = () => ({ ready: async () => false });
+    // New, independently gated stores are mounted but must not be accessed by
+    // these online-only tests. An accidental monetization call fails loudly.
+    stripeMembershipStore = () => new Proxy({}, { get() { throw Error('Unexpected billing persistence'); } });
+    currentTermsStore = () => new Proxy({}, { get() { throw Error('Unexpected current terms persistence'); } });
+    dailyLoginStore = () => new Proxy({}, { get() { throw Error('Unexpected login reward persistence'); } });
+    engagementMetricsStore = () => new Proxy({}, { get() { throw Error('Unexpected metrics persistence'); } });
+    stripeDeletionLinks = () => async () => { throw Error('Unexpected billing deletion'); };
+    stripeRetireSubscriptions = () => async () => { throw Error('Unexpected billing retirement'); };
 } }));
 vi.mock('./PlayRewardVerifier', () => ({ createPlayRewardVerifier: () => () => { throw new Error('Play access forbidden'); } }));
 const clients: Socket[] = [], timers: ReturnType<typeof setTimeout>[] = [];
@@ -130,6 +138,12 @@ describe('loopback online match integration (no production data)', () => {
         const restored = io(endpoint, { auth: { token: tokenB }, transports: ['websocket'], autoConnect: false, reconnection: false });
         clients.push(restored); const synced = event(restored, 'sync_state'); restored.connect();
         expect(await synced).toMatchObject({ matchId, version: 1, board: white.board, introPending: false });
+        const resumeRequired = event(restored, 'action_error');
+        restored.emit('player_action', { actionId: `premature-${seconds}`, version: 1, action: { type: 'RESIGN', payload: {} } });
+        expect((await resumeRequired).code).toBe('RECONNECT_REQUIRED');
+        const rejoined = event(a, 'opponent_reconnected');
+        restored.emit('connect_match', { matchId, introVersion: 1 });
+        expect(await rejoined).toMatchObject({ matchId });
         const nextA = event(a, 'sync_state', s => s.version === 2), nextB = event(restored, 'sync_state', s => s.version === 2);
         restored.emit('player_action', { actionId: `black-${seconds}`, version: 1, action: { type: 'MOVE', payload: { pieceId: start.board[48], toX: 0, toY: 5 } } });
         const [reply, same] = await Promise.all([nextA, nextB]); expect(reply.board).toEqual(same.board); expect(reply.moveCount).toBe(2);

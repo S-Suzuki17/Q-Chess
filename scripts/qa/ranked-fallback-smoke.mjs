@@ -20,7 +20,7 @@ await mkdir(output, { recursive: true });
 const user = { id: 'qa-ranked-user', name: 'Ranked QA', type: 'registered' };
 const token = `ranked_${'q'.repeat(43)}`;
 const password = 'fixture-password-never-store';
-const fallbackText = '60秒間対戦相手が見つからない場合、近い強さのCPUとレート変動ありで対戦します。';
+const fallbackText = '10秒間対戦相手が見つからない場合、近い強さのCPUとレート変動ありで対戦します。';
 const proof = { token, userId: user.id, expiresAt: Date.now() + 3600000 };
 const campaign = { version: 2, stars: {}, ascensions: [], stageStars: Array(100).fill(3), board: 'standard', piece: 'standard', effect: 'standard', music: 'standard', avatar: 'avatar-frame-15' };
 const scenarios = [
@@ -98,7 +98,7 @@ try {
                     assert(verified, 'Application event requires verified namespace');
                     if (event === 'join_queue') {
                         queueEvents.push(data);
-                        deadline = Date.now() + 60000;
+                        deadline = Date.now() + 10000;
                         send('queue_joined', { mode: data.mode, timeControl: data.timeControl, cpuFallbackAt: data.mode === 'ranked' ? deadline : null });
                     }
                     if (event === 'cancel_queue') cancelCount++;
@@ -180,9 +180,9 @@ try {
             await queue.getByText(fallbackText, { exact: true }).waitFor();
             await eventually(() => queueEvents.length === 1, 'Expected one initial ranked queue');
             assert.deepEqual(queueEvents[0], { timeControl: 600, userName: user.name, mode: 'ranked' });
-            assert(deadline > Date.now() + 50000, 'Fixture supplies actual 60-second deadline');
-            assert(/\b(?:5\d|60)s\b/.test(await queue.innerText()), 'Queue shows deadline countdown');
-            // Prove server deadline replaces the local 60-second estimate.
+            assert(deadline > Date.now() + 5000 && deadline <= Date.now() + 10000, 'Fixture supplies actual 10-second deadline');
+            assert(/\b(?:[6-9]|10)s\b/.test(await queue.innerText()), 'Queue shows deadline countdown');
+            // Prove server deadline replaces the local 10-second estimate.
             activeSend('queue_joined', { mode: 'ranked', timeControl: 600, cpuFallbackAt: Date.now() + 17000 });
             await eventually(async () => /\b1[567]s\b/.test(await queue.innerText()), 'Queue uses server deadline');
             await noOverflow(queue, `${scenario.name} queue`);

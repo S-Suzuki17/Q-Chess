@@ -1,5 +1,9 @@
 # Dormant hint-origin consumption
 
+Historical preparation record. The current release candidate enables the
+reviewed source-ledger consumer; see [deployment sequence](commerce-production-release-20261008.md).
+The initial gate state below describes the 2026-10-06 checkpoint, not current source.
+
 This preparation extends public commit `8442c610909c0758b4f56f96cb48b9ac2a1c037b`.
 It does not publish, run payments, migrate a hosted database, or open sales or
 spending. `CPU_HINT_ORIGIN_CONSUMPTION_RELEASE_READY` remains source-hard false.
