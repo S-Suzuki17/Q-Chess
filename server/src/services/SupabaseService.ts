@@ -27,6 +27,7 @@ import { createStripeCommerceStatusStore } from './StripeCommerceStatus';
 import {createStripeDeletionLinkSource, createStripeRetireSubscriptions} from './StripeCancellation';
 import { createStripeRetireCommerceCheckouts } from './StripeCommerceDeletion';
 import { CpuPracticeService } from './CpuPracticeService';
+import { HintTicketStore } from './HintTicketStore';
 import { cpuHintTicketsEnabled, rankedTicketAdmissionEnabled, rankedAdmissionRecoveryEnabled } from './TicketFeatureGates';
 import { createRankedAdmissionStore } from './RankedAdmissionStore';
 import type {SecurityEvent,SecurityOutcome} from './SecurityAudit';
@@ -91,6 +92,7 @@ export class SupabaseService {
     }
     public accountSecurityStore() {return createAccountSecurityStore(this.supabase,token=>this.verifyUser(token));}
     public cpuPracticeService() { return new CpuPracticeService(this.supabase, cpuHintTicketsEnabled); }
+    public hintTicketStore() { return new HintTicketStore(this.supabase); }
     public crownAdmissionStore() { return createCrownAdmissionStore(this.supabase); }
     public sharedMatchEntitlement = (userId: string) => createSharedMatchEntitlements(this.supabase)(userId);
     public async sharedMatchAdChoice(userId:string,matchId:string):Promise<string|null> {

@@ -44,6 +44,12 @@ import { RankedAdmissionCoordinator } from './services/RankedAdmissionCoordinato
 import type { AdmissionOutcome } from './services/RankedAdmissionStore';
 import { createCpuPracticeRouter } from './services/CpuPracticeRoutes';
 import { createCrownAdmissionRouter } from './services/CrownAdmissionRoutes';
+import { MatchHintService } from './services/MatchHintService';
+import { MatchHintRegistry, crownHintAuthority } from './services/MatchHintRegistry';
+import { createMatchHintRouter } from './services/MatchHintRoutes';
+import { CrownHintRegistry } from './services/CrownHintRegistry';
+import { createCrownHintRouter } from './services/CrownHintRoutes';
+import { MatchHintError } from './services/MatchHintTypes';
 import {stripeDeploymentModeAllowed} from './services/StripeDeploymentMode';
 
 const app = express();
@@ -54,6 +60,21 @@ const rankedAuth: RankedSessionAuthority = createRankedSessionAuthority(supabase
 const accountGate = new AccountWriteGate();
 let cpuPractice:ReturnType<SupabaseService['cpuPracticeService']>|undefined;
 const getCpuPractice=()=>cpuPractice??=supabaseService.cpuPracticeService();
+const crownHints = new CrownHintRegistry();
+let matchHints: MatchHintService | undefined, crownHintService: MatchHintService | undefined;
+const hintBusy = (id: string) => !!matchHints?.isBusy(id) || !!crownHintService?.isBusy(id) || crownHints.isBusy(id);
+const getMatchHints = () => matchHints ??= new MatchHintService(supabaseService.hintTicketStore(),
+    new MatchHintRegistry(matchmaking, match => !match.admission || !!admission?.canAdvance(match), id => {
+        const session = matchmaking.getPlayerSession(id);
+        return !!session && !!io.sockets.sockets.get(session.socketId)?.connected;
+    }));
+const getCrownHints = () => crownHintService ??= new MatchHintService(supabaseService.hintTicketStore(), crownHintAuthority(crownHints));
+const hintConnection = (id: string, token: string) => {
+    const proof = knownSocketProofs.get(id), session = matchmaking.getPlayerSession(id);
+    if (!proof || proof.hash !== proofHash(token) || session?.socketId !== proof.socketId
+        || !io.sockets.sockets.get(proof.socketId)?.connected) throw new MatchHintError('RECONNECT_REQUIRED');
+    return proof.socketId;
+};
 const stripeMembershipStore = supabaseService.stripeMembershipStore();
 // Billing reconciliation and cancellation must stay available after the first
 // purchase, even when new checkouts are paused. Source readiness is verified;
@@ -140,13 +161,13 @@ app.get('/service/status',async(_req,res)=>{
 });
 const deletionStore = supabaseService.accountDeletionStore();
 app.use(createAccountDeletionRouter(rankedAuth,deletionStore,accountGate,
-    id=>matchmaking.accountBusy(id)||runtime.isSavingAccount(id),
+    id=>matchmaking.accountBusy(id)||runtime.isSavingAccount(id)||hintBusy(id),
     id=>{
         runtime.forgetReceipts(matchmaking.forgetAccount(id));
         for(const socket of io.sockets.sockets.values())if(socket.data.userId===id){socket.data.explicitlyRevoked=true;socket.emit('session_revoked',{reason:'revoked'});socket.disconnect(true);}
     },cancelStripeBeforeErase));
 app.use(createAccountRecoveryRouter(rankedAuth,supabaseService.accountRecoveryStore(),accountGate,
-    id=>matchmaking.accountBusy(id)||runtime.isSavingAccount(id),
+    id=>matchmaking.accountBusy(id)||runtime.isSavingAccount(id)||hintBusy(id),
     id=>{ for(const socket of io.sockets.sockets.values())if(socket.data.userId===id){socket.data.explicitlyRevoked=true;socket.emit('session_revoked',{reason:'revoked'});socket.disconnect(true);} },
     process.env.ACCOUNT_RECOVERY_ENABLED==='true'));
 // Identity restoration must remain available to restricted users for recovery
@@ -164,6 +185,13 @@ app.use(createCrownAdmissionRouter(rankedAuth,{
 },token=>supabaseService.verifyUser(token),accountGate));
 app.use(createCpuPracticeRouter(rankedAuth,getCpuPractice,token=>supabaseService.verifyUser(token),accountGate,
     id=>matchmaking.accountBusy(id)||matchmaking.getPlayerSession(id)?.state==='WAITING'));
+app.use(createMatchHintRouter(rankedAuth,{service:getMatchHints,verifyUser:token=>supabaseService.verifyUser(token),
+    accountGate,connection:hintConnection}));
+app.use(createCrownHintRouter(rankedAuth,{registry:crownHints,accountGate,enabled:cpuHintTicketsEnabled,
+    verifyUser:token=>supabaseService.verifyUser(token),
+    accountBusy:id=>matchmaking.accountBusy(id)||matchmaking.getPlayerSession(id)?.state==='WAITING'||!!cpuPractice?.isBusy(id)||!!matchHints?.isBusy(id),
+    requestHint:(u,r,v,q,c)=>getCrownHints().requestHint(u,r,v,q,c),
+    readReceipt:(u,r,v,q,c)=>getCrownHints().receipt(u,r,v,q,c)}));
 app.use(createRankedRefundRouter(rankedAuth, {
     verifyUser: token => supabaseService.verifyUser(token),
     blocked: id => deletionStore.blocked(id),
@@ -497,6 +525,7 @@ io.on('connection', (socket: Socket) => {
     const timeControl=data?.timeControl,mode=data?.mode??'random';
     const fail=(code:string)=>{if(attempt===queueAttempt&&socket.connected&&matchmaking.getPlayerSession(userId)?.socketId===socket.id)socket.emit('queue_error',{code,message:code});};
     if(cpuPractice?.isBusy(userId))return fail('CPU_PRACTICE_PENDING');
+    if(hintBusy(userId))return fail('HINT_PURCHASE_PENDING');
     if(![10,180,600].includes(timeControl)||!['random','ranked'].includes(mode))return fail('INVALID_QUEUE');
     const unavailable=await operations.admission(socket.handshake.auth.client);
     if(unavailable)return fail(unavailable);
@@ -520,6 +549,7 @@ io.on('connection', (socket: Socket) => {
     catch{return fail('AUTH_UNAVAILABLE');}
     if(attempt!==queueAttempt||!currentOwner())return;
     if(cpuPractice?.isBusy(userId))return fail('CPU_PRACTICE_PENDING');
+    if(hintBusy(userId))return fail('HINT_PURCHASE_PENDING');
     const name=typeof data?.userName==='string'?data.userName.slice(0,80):undefined;
     const result=matchmaking.joinQueue(userId,timeControl,name,mode,rating??undefined);
     if(!result.success)return fail('QUEUE_BUSY');
@@ -594,6 +624,7 @@ io.on('connection', (socket: Socket) => {
     if(data.userName)data.userName=data.userName.slice(0,80);
     if(cpuPractice?.isBusy(userId)){socket.emit('queue_error',{code:'CPU_PRACTICE_PENDING'});return;}
     const existingGame=matchmaking.getMatch(data.matchId)?.state==='IN_GAME';
+    if(!existingGame&&hintBusy(userId)){socket.emit('queue_error',{code:'HINT_PURCHASE_PENDING'});return;}
     const restoringDisconnectedGame = existingGame && matchmaking.awaitingReconnect(userId, data.matchId);
     if(!existingGame || restoringDisconnectedGame){
         try{if(!await verifyAdmission()){socket.emit('queue_error',{code:'AUTH_REQUIRED'});return;}}
@@ -704,7 +735,8 @@ io.on('connection', (socket: Socket) => {
       };
 
     const result = match.engine.processAction(action);
-    if (!result.success)socket.emit('action_error', { message: result.message });
+    if (!result.success)socket.emit('action_error', { message: result.message,
+        ...(result.message==='HINT_PURCHASE_PENDING'?{code:'HINT_PURCHASE_PENDING'}:{}) });
     // A failed move can still have triggered timeout: terminal handling must run either way.
     runtime.afterAction(match);
   });
@@ -768,6 +800,7 @@ io.on('connection', (socket: Socket) => {
 
   socket.on('disconnect', () => {
     queueAttempt++;
+    matchHints?.cancelAnalysis(userId,socket.id);
     console.log('[socket] disconnected');
     const token=socket.handshake.auth.token,legacy=socket.data.legacy;
     if(socket.data.explicitlyRevoked&&knownSocketProofs.get(userId)?.socketId===socket.id)knownSocketProofs.delete(userId);

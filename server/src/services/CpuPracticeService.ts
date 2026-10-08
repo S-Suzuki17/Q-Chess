@@ -143,13 +143,15 @@ export class CpuPracticeService {
         });
     }
     async receipt(userId: string, sessionId: string, revision: number, requestId: string, context = defaultContext()) {
-        await this.checked(context); this.ids(sessionId, revision, requestId);
+        context.signal.throwIfAborted(); await context.check(); context.signal.throwIfAborted();
+        this.ids(sessionId, revision, requestId);
         const value = await this.rpc('read_cpu_hint_receipt', { p_request_id: requestId, p_user_id: userId,
             p_session_id: sessionId, p_revision: revision });
         return value ? this.hint(value, sessionId, revision) : null;
     }
     async requestHint(requestId: string, userId: string, sessionId: string, revision: number, context = defaultContext()) {
         return this.holding(userId, async () => {
+            await this.checked(context);
             const existing = await this.receipt(userId, sessionId, revision, requestId, context);
             if (existing) return existing;
             const paidValue = await this.rpc('cpu_practice_existing_hint', {

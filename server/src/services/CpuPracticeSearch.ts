@@ -4,10 +4,11 @@ import path from 'node:path';
 import type { GameState, Move } from '../quantum-engine/types';
 import { qubeSearchProfile } from '../quantum-engine/ai/searchProfiles';
 import type { CPUPersonality } from '../quantum-engine/ai/personalities';
+import type { OnlineHintBoard } from './MatchHintTypes';
 
 let activeWorkers = 0;
 /** A cancellable worker lets disconnect and ranked-entry guards run during search. */
-export function searchCpuPracticeMove(state: GameState, level: number, signal: AbortSignal, hint = false, personality:CPUPersonality = 'balanced', availableMs?: number): Promise<Move | null> {
+export function searchCpuPracticeMove(state: GameState, level: number, signal: AbortSignal, hint = false, personality:CPUPersonality = 'balanced', availableMs?: number, online?: OnlineHintBoard): Promise<Move | null> {
     signal.throwIfAborted();
     if (activeWorkers >= 2) return Promise.reject(new Error('SEARCH_BUSY'));
     const budget = hint ? qubeSearchProfile(availableMs) :
@@ -25,11 +26,11 @@ export function searchCpuPracticeMove(state: GameState, level: number, signal: A
             if (workerData.tsx) require(workerData.tsx);
             try {
                 const { searchCpuPracticePosition } = require(workerData.search);
-                parentPort.postMessage({ move: searchCpuPracticePosition(workerData.state, workerData.budget, workerData.hint, workerData.personality) });
+                parentPort.postMessage({ move: searchCpuPracticePosition(workerData.state, workerData.budget, workerData.hint, workerData.personality, workerData.online) });
             } catch { parentPort.postMessage({ error: 'SEARCH_FAILED' }); }
         `, { eval: true, execArgv: [], workerData: {
             search: path.join(__dirname, 'CpuPracticeSearchWorker' + suffix),
-            tsx, state, budget, hint, personality:hint ? 'balanced' : personality,
+            tsx, state, budget, hint, personality:hint ? 'balanced' : personality, online,
         } }); } catch {
             activeWorkers--; reject(new Error('SEARCH_FAILED')); return;
         }

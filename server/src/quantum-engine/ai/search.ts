@@ -3,7 +3,7 @@ import type { Evaluator } from './eval';
 import { getConcreteMoveChildren } from './random';
 import { isPlayerInCheck } from '../terminal';
 
-export interface TacticalSearchOptions { timeLimitMs?: number; maxDepth?: number; tieBreakSeed?:number; quiescenceDepth?:number; transpositionEntries?:number; playableRoot?: boolean }
+export interface TacticalSearchOptions { timeLimitMs?: number; maxDepth?: number; tieBreakSeed?:number; quiescenceDepth?:number; transpositionEntries?:number; playableRoot?: boolean; rootMoves?: readonly Move[] }
 export interface TacticalSearchResult { move: Move | null; depth: number; nodes: number; timeMs: number; score: number; cacheHits?:number; quiescenceDepth?: number }
 const MATE = 10000;
 const TIMEOUT = Symbol('search deadline');
@@ -109,7 +109,8 @@ export function searchBestMove(state: GameState, evaluator: Evaluator, options: 
     };
     if (state.winner) return { move: null, depth: 0, nodes, timeMs: 0, score: terminal(state, 0) };
     // Always retain a legal fallback even if the budget expires during ordering.
-    const legal = getConcreteMoveChildren(state, { allPromotions: true, playable: options.playableRoot });
+    const legal = getConcreteMoveChildren(state, { allPromotions: true, playable: options.playableRoot })
+        .filter(child => options.rootMoves === undefined || options.rootMoves.some(move => sameMove(move, child.move)));
     let bestMove = legal[0]?.move ?? null;
     let bestScore = 0;
     let completedDepth = 0;
