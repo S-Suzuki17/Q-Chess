@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { learningChain, learningCopy, learningLabels, learningMoves, learningPieceNames, siteCopy, type LearningLanguage } from '../locales/siteContent';
 import { useAppPlatform } from '../hooks/useAppPlatform';
 import { SiteLinks } from './SiteInformation';
+import { QubeTeacher } from './QubeTeacher';
+import { qubeTeaching } from '../locales/qubeTeaching';
 
 const linkStyle = 'inline-flex min-h-11 items-center rounded-lg border border-[#6E614C] px-4 py-2 text-[#D4B872] underline underline-offset-4';
 const sectionStyle = { scrollMarginTop: '170px' };
@@ -12,7 +14,7 @@ export function LearningArticle({ kind, lang }: { kind: 'guide' | 'faq'; lang: L
     const c = learningCopy[lang];
     return <article lang={lang} data-learning-article={kind} className="space-y-8">
         <h1>{kind === 'guide' ? c.title : c.faqTitle}</h1>
-        <p className="max-w-3xl text-lg">{kind === 'guide' ? c.intro : c.faqIntro}</p>
+        <QubeTeacher lang={lang}><p className="mb-3">{qubeTeaching[lang].welcome}</p><p className="max-w-3xl text-lg">{kind === 'guide' ? c.intro : c.faqIntro}</p></QubeTeacher>
         {kind === 'guide' ? <>
             <nav aria-label={c.contents} className="rounded-xl border border-[#6E614C] bg-[#101610] p-5">
                 <h2 className="mb-3 font-semibold">{c.contents}</h2>
@@ -22,30 +24,36 @@ export function LearningArticle({ kind, lang }: { kind: 'guide' | 'faq'; lang: L
             </nav>
             <section id="start" style={sectionStyle} aria-labelledby="start-heading">
                 <h2 id="start-heading" className="mb-5 text-2xl">{c.startTitle}</h2>
+                <QubeTeacher lang={lang} variant="compact">
                 <ol className="grid gap-4 md:grid-cols-2">
                     {c.steps.map((step, index) => <li key={step.title} className="rounded-xl border border-[#414a3b] bg-[#101610] p-5">
                         <h3 className="mb-3 font-semibold text-[#E8E2D7]">{index + 1}. {step.title}</h3><p>{step.text}</p>
                     </li>)}
                 </ol>
+                <p className="mt-5">{c.hintHelp}</p>
                 <Link href="/" className={`${linkStyle} mt-5`}>{siteCopy(lang).labels[5]} →</Link>
+                </QubeTeacher>
             </section>
             {c.sections.map(s => <section key={s.id} id={s.id} style={sectionStyle} aria-labelledby={`${s.id}-heading`}>
                 <h2 id={`${s.id}-heading`} className="mb-4 text-2xl">{s.title}</h2>
+                <QubeTeacher lang={lang} variant="compact">
                 <div className="space-y-4">{s.paragraphs.map(p => <p key={p}>{p}</p>)}</div>
                 {s.id === 'candidates' && <Link href="/rules/" className={`${linkStyle} mt-4`}>{siteCopy(lang).labels[2]} →</Link>}
+                </QubeTeacher>
             </section>)}
             <section id="practice" style={sectionStyle} aria-labelledby="practice-heading">
-                <h2 id="practice-heading" className="mb-4 text-2xl">{c.practiceTitle}</h2><p>{c.practiceIntro}</p>
+                <h2 id="practice-heading" className="mb-4 text-2xl">{c.practiceTitle}</h2><QubeTeacher lang={lang} variant="compact"><p>{c.practiceIntro}</p>
                 <ol className="mt-5 space-y-5">
                     {c.exercises.map((exercise, index) => <li key={exercise.question} className="rounded-xl border border-[#6E614C] bg-[#101610] p-5" data-learning-exercise>
                         <p aria-hidden="true" className="mb-3 text-lg text-[#D4B872]">{learningMoves[index].from} → {learningMoves[index].to}</p>
                         <h3 className="font-semibold">{index + 1}. {exercise.question}</h3>
                         <details className="mt-3"><summary className="text-[#D4B872]">{c.answerLabel}</summary><p className="pt-3">{exercise.answer}</p></details>
                     </li>)}
-                </ol>
+                </ol></QubeTeacher>
             </section>
             <section id="chain" style={sectionStyle} aria-labelledby="chain-heading" className="space-y-4">
                 <h2 id="chain-heading" className="text-2xl">{c.chainTitle}</h2>
+                <QubeTeacher lang={lang} variant="compact">
                 <p>{c.chainIntro}</p><p>{c.chainFixed}</p>
                 <figure data-learning-chain className="rounded-xl border border-[#6E614C] bg-[#101610] p-5">
                     <figcaption className="mb-5 text-sm">{c.chainCaption}</figcaption>
@@ -61,11 +69,13 @@ export function LearningArticle({ kind, lang }: { kind: 'guide' | 'faq'; lang: L
                 </figure>
                 <ol className="list-decimal space-y-3 pl-6">{c.chainReasons.map(reason => <li key={reason}>{reason}</li>)}</ol>
                 <p>{c.chainTakeaway}</p>
+                </QubeTeacher>
             </section>
         </> : <div className="space-y-4">
             {c.faqs.map(faq => <details key={faq.id} id={faq.id} style={sectionStyle} className="rounded-xl border border-[#414a3b] bg-[#101610] p-5" data-learning-faq>
-                <summary className="font-semibold text-[#D4B872]">{faq.question}</summary><p className="mt-3">{faq.answer}</p>
+                <summary className="font-semibold text-[#D4B872]">{faq.question}</summary><QubeTeacher lang={lang} variant="compact" className="mt-4"><p>{faq.answer}</p>
                 <Link href={faq.href} className={`${linkStyle} mt-4`}>{faq.link} →</Link>
+                </QubeTeacher>
             </details>)}
         </div>}
         <nav aria-label={siteCopy(lang).labels[4]} className="flex flex-wrap gap-3 border-t border-[#414a3b] pt-5">

@@ -10,6 +10,7 @@ import { cosmeticsSettingsText } from '../locales/cosmeticsSettingsText';
 import { battleMusicTitle } from '../config/circuitMusic';
 import type { Language } from '../locales/dict';
 import { acquiredCosmetics, boardTheme, BOARD_THEME_KEY, chooseCosmetic, type BoardTheme, type CosmeticKind } from '../lib/cosmeticOptions';
+import {QubeTeacher} from './QubeTeacher';
 
 const kinds: CosmeticKind[] = ['board', 'piece', 'effect', 'avatar', 'music'];
 const icons = { board: Grid2X2, piece: Diamond, effect: Sparkles, avatar: CircleUserRound, music: Music2 };
@@ -24,8 +25,8 @@ export function CosmeticsSettings({ lang, progress, update, loaded, locked }: {
     const name = (value: string) => value.startsWith('theme:') ? `${campaignText(lang, 'standard')} · ${text(boardTheme(value.slice(6)))}`
         : battleMusicTitle(value) ?? rewardName(lang, value);
     return <section data-testid="cosmetics-settings" className="mt-5 border-t border-[#B39A62]/25 pt-5" aria-labelledby={`${id}-title`}>
-        <header className="mb-4"><h3 id={`${id}-title`} className="text-sm font-semibold tracking-wide text-[#E8E2D7]">{text('title')}</h3><p className="mt-1 text-xs leading-relaxed text-[#A89C86]">{text('help')}</p></header>
-        {locked ? <p role="status" data-testid="cosmetics-match-locked" className="flex gap-3 rounded-lg border border-[#B39A62]/20 bg-[#11100E]/50 p-3 text-xs leading-relaxed text-[#C4B8A4]"><LockKeyhole size={18} className="shrink-0" aria-hidden="true"/>{text('locked')}</p> :
+        <header className="mb-4"><h3 id={`${id}-title`} className="text-sm font-semibold tracking-wide text-[#E8E2D7]">{text('title')}</h3><QubeTeacher lang={lang} variant="compact" className="mt-3"><p className="text-xs leading-relaxed text-[#A89C86]">{text('help')}</p></QubeTeacher></header>
+        {locked ? <QubeTeacher lang={lang} variant="compact"><p role="status" data-testid="cosmetics-match-locked" className="flex gap-3 rounded-lg border border-[#B39A62]/20 bg-[#11100E]/50 p-3 text-xs leading-relaxed text-[#C4B8A4]"><LockKeyhole size={18} className="shrink-0" aria-hidden="true"/>{text('locked')}</p></QubeTeacher> :
             <div className="grid gap-2">{kinds.map(kind => {
                 const Icon = icons[kind];
                 const acquired = acquiredCosmetics(progress, kind);

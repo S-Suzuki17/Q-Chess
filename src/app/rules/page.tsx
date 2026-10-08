@@ -9,6 +9,8 @@ import { rulesVisualDict } from '@/locales/rulesVisualDict';
 import { MAX_PIECES } from '@/quantum-engine/constants';
 import type { PieceType } from '@/config/gameConfig';
 import { LearningEntry, SiteLinks } from '../../components/SiteInformation';
+import { QubeTeacher } from '../../components/QubeTeacher';
+import { qubeTeaching } from '../../locales/qubeTeaching';
 
 const pieceTypes: PieceType[] = ['King', 'Queen', 'Rook', 'Bishop', 'Knight', 'Pawn'];
 const pieceSymbols: Record<PieceType, string> = { King: '♔', Queen: '♕', Rook: '♖', Bishop: '♗', Knight: '♘', Pawn: '♙' };
@@ -109,20 +111,20 @@ export default function RulesPage() {
           {c.title}
         </h1>
         
-        <p className="text-gray-400 text-lg mb-12 leading-relaxed">
+        <QubeTeacher lang={lang} className="mb-8"><p className="mb-3">{qubeTeaching[lang].welcome}</p><p className="text-gray-400 text-lg leading-relaxed">
           {c.intro}
-        </p>
+        </p></QubeTeacher>
         <LearningEntry lang={lang}/>
 
-        <section className="mb-16">
+        <QubeTeacher lang={lang} variant="compact"><section className="mb-16">
           <h2 className="text-2xl font-bold text-white mb-4 border-b border-gray-800 pb-2">{c.sec1Title}</h2>
           <div className="text-gray-300 leading-relaxed space-y-4">
             <p>{c.sec1p1}</p>
             <p>{c.sec1p2}</p>
           </div>
-        </section>
+        </section></QubeTeacher>
 
-        <section className="mb-16" aria-labelledby="movement-guide">
+        <QubeTeacher lang={lang} variant="compact"><section className="mb-16" aria-labelledby="movement-guide">
           <h2 id="movement-guide" className="text-2xl font-bold text-white mb-4 border-b border-gray-800 pb-2">{v.movementTitle}</h2>
           <p className="mb-6 leading-relaxed">{v.movementHelp}</p>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -130,9 +132,9 @@ export default function RulesPage() {
           </div>
           <p className="mt-5 rounded-lg border border-[#3A3224] bg-[#1A1814] p-4 text-sm leading-relaxed">{v.pawnHelp}</p>
           <p className="mt-3 text-sm text-gray-400 leading-relaxed">{v.specialMoves}</p>
-        </section>
+        </section></QubeTeacher>
 
-        <section className="mb-16">
+        <QubeTeacher lang={lang} variant="compact"><section className="mb-16">
           <h2 className="text-2xl font-bold text-white mb-4 border-b border-gray-800 pb-2">{c.sec2Title}</h2>
           <div className="text-gray-300 leading-relaxed space-y-4">
             <p>{c.sec2p1}</p>
@@ -143,9 +145,9 @@ export default function RulesPage() {
             </ul>
             <p className="mt-4"><RuleLine text={c.sec2rule}/></p>
           </div>
-        </section>
+        </section></QubeTeacher>
 
-        <section className="mb-16 grid gap-6 md:grid-cols-2" aria-labelledby="deduction-guide">
+        <QubeTeacher lang={lang} variant="compact"><section className="mb-16 grid gap-6 md:grid-cols-2" aria-labelledby="deduction-guide">
           <div className="rounded-xl border border-[#3A3224] bg-[#141410] p-5">
             <h2 id="deduction-guide" className="text-xl font-bold text-[#D4B872] mb-4">{v.deductionTitle}</h2>
             <ExampleBoard kind="deduction" label={v.deductionHelp}/>
@@ -167,9 +169,9 @@ export default function RulesPage() {
               <p className="mt-2">{v.chainHelp}</p>
             </div>
           </div>
-        </section>
+        </section></QubeTeacher>
 
-        <section className="mb-16">
+        <QubeTeacher lang={lang} variant="compact"><section className="mb-16">
           <h2 className="text-2xl font-bold text-white mb-4 border-b border-gray-800 pb-2">{c.sec3Title}</h2>
           <div className="text-gray-300 leading-relaxed space-y-4">
             <p>{c.sec3p1}</p>
@@ -182,9 +184,9 @@ export default function RulesPage() {
               </ul>
             </div>
           </div>
-        </section>
+        </section></QubeTeacher>
 
-        <section className="mb-16" aria-labelledby="outcome-guide">
+        <QubeTeacher lang={lang} variant="compact"><section className="mb-16" aria-labelledby="outcome-guide">
           <h2 id="outcome-guide" className="text-2xl font-bold text-white mb-5 border-b border-gray-800 pb-2">{v.outcomeTitle}</h2>
           <div className="grid gap-5 md:grid-cols-2">
             <figure className="rounded-xl border border-[#3A3224] bg-[#141410] p-5">
@@ -198,23 +200,23 @@ export default function RulesPage() {
               <p className="mt-5 leading-relaxed">{v.mateHelp}</p>
             </figure>
           </div>
-        </section>
+        </section></QubeTeacher>
 
-        <section className="mb-16">
+        <QubeTeacher lang={lang} variant="compact"><section className="mb-16">
           <h2 className="text-2xl font-bold text-white mb-4 border-b border-gray-800 pb-2">{c.sec4Title}</h2>
           <div className="text-gray-300 leading-relaxed space-y-4">
             <p><RuleLine text={c.sec4p1}/></p>
             <p><RuleLine text={c.sec4p2}/></p>
           </div>
-        </section>
+        </section></QubeTeacher>
 
-        <section className="mb-16">
+        <QubeTeacher lang={lang} variant="compact"><section className="mb-16">
           <h2 className="text-2xl font-bold text-white mb-4 border-b border-gray-800 pb-2">{c.sec5Title}</h2>
           <div className="text-gray-300 leading-relaxed space-y-4">
             <p>{c.sec5p1}</p>
             <p>{c.sec5p2}</p>
           </div>
-        </section>
+        </section></QubeTeacher>
 
         <div className="mt-16 pt-8 border-t border-[#3A3224] text-center text-sm text-gray-500">
           <p className="mb-4">{siteCopy(lang).labels[5]}</p>

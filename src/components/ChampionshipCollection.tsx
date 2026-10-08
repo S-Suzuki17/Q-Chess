@@ -16,6 +16,7 @@ import { rewardCraftText } from '../locales/rewardCraftText';
 import { cosmeticsSettingsText } from '../locales/cosmeticsSettingsText';
 import { circuitIconForFrame } from '../config/circuitIcons';
 import { iconEditorText } from '../locales/iconEditorText';
+import {QubeTeacher} from './QubeTeacher';
 
 export function ChampionshipCollection({lang,progress}:{lang:Language;progress:CampaignProgress;onEquip?:(kind:'board'|'effect'|'piece'|'music'|'avatar',id:string)=>void}) {
     const [preview,setPreview]=useState<VisualReward|null>(null);
@@ -47,7 +48,7 @@ export function ChampionshipCollection({lang,progress}:{lang:Language;progress:C
             </article>;
         })}</div>
         <div className="championship-pager"><button disabled={grade===1} onClick={()=>setGrade(grade-1)}>{t('previous')}</button><span>{grade} / 10</span><button disabled={grade===10} onClick={()=>setGrade(grade+1)}>{t('next')}</button></div>
-        <p>{cosmeticsSettingsText(lang,'settingsOnly')}</p>
+        <QubeTeacher lang={lang} variant="compact"><p>{cosmeticsSettingsText(lang,'settingsOnly')}</p></QubeTeacher>
         {ARCHIVED_REWARDS.some(reward=>rewardUnlocked(progress,reward.id))&&<details className="campaign-legacy-collection"><summary>{campaignText(lang,'rewards')} · {cosmeticsSettingsText(lang,'acquired')}</summary><div className="campaign-equipment">{ARCHIVED_REWARDS.filter(reward=>rewardUnlocked(progress,reward.id)).map(reward=><div key={reward.id}><strong>{rewardName(lang,reward.id)}</strong><small>{cosmeticsSettingsText(lang,'acquired')}</small>{reward.kind!=='music'&&<button data-preview-reward={reward.id} onClick={()=>setPreview({kind:reward.kind,id:reward.id})}>{circuitText(lang,'preview')}</button>}</div>)}</div></details>}
         <div className="championship-effect-actions">
             <button data-testid="preview-victory-effect" disabled={progress.effect==='standard'} onClick={()=>setPreviewRun(value=>value+1)}>{effectPreviewLabel(lang)} ▷</button></div>

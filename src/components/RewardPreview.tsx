@@ -17,6 +17,7 @@ import { MusicPreview } from './MusicPreview';
 import { battleMusicTitle } from '../config/circuitMusic';
 import { victoryText } from '../locales/victoryText';
 import {FOUNDERS_BOARD_ID,FOUNDERS_PIECE_ID} from '../config/founders';
+import {QubeTeacher} from './QubeTeacher';
 
 export type VisualReward={kind:'board'|'piece'|'effect'|'avatar'|'music';id:string};
 const types:PieceType[]=['Rook','Knight','Bishop','Queen','King','Pawn'];
@@ -38,7 +39,7 @@ export function RewardPreview({lang,reward,progress,onClose}:{
     return <dialog ref={dialog} className="reward-preview-dialog" data-reward-kind={reward.kind} data-reward-motif={design?.motif} aria-labelledby="reward-preview-title" onCancel={event=>{event.preventDefault();onClose();}}>
         <header><div><small>{circuitText(lang,'preview')}</small><h2 id="reward-preview-title">{reward.kind==='music'?battleMusicTitle(reward.id)??rewardName(lang,reward.id):rewardName(lang,reward.id)}</h2></div>
             <button autoFocus onClick={onClose}>{circuitText(lang,'close')}</button></header>
-        <p>{cosmeticsSettingsText(lang,'previewOnly')}</p>
+        <QubeTeacher lang={lang} variant="compact"><p>{cosmeticsSettingsText(lang,'previewOnly')}</p></QubeTeacher>
         {design?.kind==='board' && <div className="reward-material-note"><span aria-hidden="true">{[design.frameColor,design.light,design.rim].map(color=><i key={color} style={{background:color}}/>)}</span>{reward.id===FOUNDERS_BOARD_ID?rewardName(lang,reward.id):rewardCraftText(lang,design.motif)}</div>}
         {reward.kind==='music'?<MusicPreview key={reward.id} id={reward.id} lang={lang}/>:<div className="reward-preview-board" data-testid="reward-preview-board">
             {reward.kind==='effect'?<div className="effect-preview-arena"/>:reward.kind==='avatar'?<div className="avatar-reward-preview"><AccountAvatar name="Q" url={circuitIconForFrame(reward.id)?.url} frame={reward.id} size={180}/></div>:<Board3D lang={lang} quietLayout presentation="collection" boardFinish={(reward.kind==='board'?reward.id:progress.board) as BoardFinish}
@@ -51,7 +52,7 @@ export function RewardPreview({lang,reward,progress,onClose}:{
         <footer>
             {reward.kind==='effect' && <button onClick={()=>setRun(value=>value+1)}>{victoryText(lang,'replay')} ↻</button>}
             <span data-testid="preview-acquisition">{cosmeticsSettingsText(lang,unlocked?'acquired':'notAcquired')}</span>
-            <p className="text-xs">{cosmeticsSettingsText(lang,'settingsOnly')}</p>
+            <QubeTeacher lang={lang} variant="compact" className="w-full"><p className="text-xs">{cosmeticsSettingsText(lang,'settingsOnly')}</p></QubeTeacher>
         </footer>
     </dialog>;
 }

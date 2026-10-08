@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "groups": [
+    {
+      "id": "start-and-controls",
+      "sources": ["^src/app/page\\.tsx$", "^src/locales/(dict|additionalTutorial)\\.ts$", "^src/components/(TitleScreen|LobbyShowcase|LevelSelect|InteractiveTutorial)\\.tsx$"],
+      "pages": ["/guide/#start", "/faq/#guest"],
+      "guidance": ["src/locales/siteContent.ts", "src/components/LearningPage.tsx"]
+    },
+    {
+      "id": "candidates-and-outcomes",
+      "sources": ["^(server/)?src/quantum-engine/", "^src/(lib/)?gameLogic\\.ts$", "^src/components/(Board2D|Board3D|MatchLayout)\\.tsx$"],
+      "pages": ["/rules/", "/guide/#candidates", "/guide/#outcomes", "/guide/#practice", "/guide/#chain", "/faq/#move", "/faq/#win"],
+      "guidance": ["src/locales/siteContent.ts", "src/locales/rulesDict.ts", "src/locales/rulesVisualDict.ts", "src/app/rules/page.tsx"]
+    },
+    {
+      "id": "hints-and-clock",
+      "sources": ["^src/(hooks|lib)/.*([Hh]int|[Tt]icket)", "^src/(config|locales)/([Hh]int|moveHint)", "^src/components/(LocalGameBoard|OnlineGameBoard)\\.tsx$", "^src/lib/cpuPractice\\.ts$", "^src/config/gameConfig\\.ts$", "^server/src/services/Cpu", "^server/src/(services|protocol)/.*Hint", "^server/src/game/GameEngine\\.ts$"],
+      "pages": ["/guide/#start", "/faq/#clock", "/faq/#hints"],
+      "guidance": ["src/locales/siteContent.ts", "src/locales/rulesDict.ts", "src/app/rules/page.tsx"]
+    },
+    {
+      "id": "accounts-connections-and-saves",
+      "sources": ["^src/(hooks|lib)/.*(Auth|auth|OnlineGame|reconnect|Circuit|Storage|storage)", "^src/components/(SettingsDialog|AccountDataGuide|CircuitLoginGate)\\.tsx$", "^server/src/services/(LegacySocketAuthority|SupabaseService|Account|Ranked)", "^server/src/protocol/.*Admission", "^supabase/migrations/"],
+      "pages": ["/faq/#connection", "/faq/#save", "/faq/#privacy", "/contact/", "/privacy/"],
+      "guidance": ["src/locales/siteContent.ts", "src/locales/privacyReview.ts", "src/components/AccountDataGuide.tsx", "src/app/privacy/page.tsx"]
+    },
+    {
+      "id": "commerce-and-disclosures",
+      "sources": ["^src/components/(Commerce|Stripe|Terms|CurrentTerms|AccountData)", "^src/config/(salesTermsDraft|currentTerms|webCommerce|publicContact)\\.ts$", "^src/locales/(terms|privacy|engagementPrivacy|commerce)", "^server/src/services/(Stripe|Commerce|AccountCurrentTerms)", "^supabase/migrations/"],
+      "pages": ["/faq/#hints", "/contact/", "/privacy/", "/terms/"],
+      "guidance": ["src/locales/siteContent.ts", "src/locales/privacyReview.ts", "src/locales/termsText.ts", "src/components/TermsDocument.tsx", "src/config/salesTermsDraft.ts", "src/app/privacy/page.tsx", "src/app/terms/page.tsx"]
+    },
+    {
+      "id": "public-guidance-and-navigation",
+      "sources": ["^src/app/(guide|faq|rules|about|contact|privacy|terms)/", "^src/components/(LearningPage|SiteInformation|QubeTeacher|game-page)", "^src/locales/(siteContent|aboutContent|rulesDict|rulesVisualDict|stageText|qubeTeaching)\\.ts$", "^src/config/siteMetadata\\.ts$", "^public/(sitemap\\.xml|robots\\.txt)$", "^scripts/release/(search-metadata|check-web-review|verify-pages)\\.mjs$"],
+      "pages": ["/", "/guide/", "/faq/", "/rules/", "/about/", "/contact/", "/privacy/", "/terms/"],
+      "guidance": ["src/locales/siteContent.ts", "src/components/LearningPage.tsx", "src/components/SiteInformation.tsx", "src/components/QubeTeacher.tsx", "src/locales/qubeTeaching.ts", "public/sitemap.xml", "public/robots.txt", "src/config/siteMetadata.ts"]
+    },
+    {
+      "id": "qube-teaching",
+      "sources": ["^src/components/(QubeTeacher|InteractiveTutorial|LearningPage|SiteInformation|LevelSelect|MatchLayout|LocalGameBoard|OnlineGameBoard|CampaignMode|RewardPreview|ChampionshipCollection|CosmeticsSettings)\\.tsx$", "^src/app/rules/page\\.tsx$", "^src/locales/(qubeTeaching|additionalTutorial|matchText|rulesDict|rulesVisualDict|siteContent|stageText|cosmeticsSettingsText)\\.ts$"],
+      "pages": ["/", "/about/", "/rules/", "/guide/", "/faq/", "game: tutorial, help dialogs, move hints and feedback, promotion/castling, stage/setup explanations, cosmetic preview/equipment guidance"],
+      "guidance": ["src/components/QubeTeacher.tsx", "src/components/InteractiveTutorial.tsx", "src/components/LearningPage.tsx", "src/components/SiteInformation.tsx", "src/components/RewardPreview.tsx", "src/components/ChampionshipCollection.tsx", "src/components/CosmeticsSettings.tsx", "src/app/rules/page.tsx", "src/locales/qubeTeaching.ts", "src/locales/siteContent.ts", "src/locales/rulesDict.ts", "src/locales/rulesVisualDict.ts"]
+    }
+  ]
+}

@@ -30,13 +30,19 @@ try {
         assert.doesNotMatch(html, /<script[^>]*src=["'][^"']*(?:googlesyndication|googleadservices|doubleclick)/i);
     }
     checkSearchFiles(await readFile(resolve(root, 'robots.txt'), 'utf8'), await readFile(resolve(root, 'sitemap.xml'), 'utf8'));
-    browser = await chromium.launch({ headless: true });
+    browser = await chromium.launch({ headless: true, ...(process.env.QG_TEST_CHROMIUM ? {executablePath: process.env.QG_TEST_CHROMIUM} : {}) });
     for (const [width, height] of [[390, 844], [1280, 800]]) {
         for (const lang of ['ja', 'en']) {
             const context = await browser.newContext({ viewport: { width, height }, locale: lang === 'ja' ? 'ja-JP' : 'en-US' });
             const errors = [];
+            let modelRequestsBlocked = 0;
             await context.routeWebSocket('**/*', socket => socket.close());
-            await context.route('**/*', route => new URL(route.request().url()).origin === origin ? route.continue() : route.fulfill({ status: 503, json: { code: 'QA_EXTERNAL_BLOCKED' } }));
+            await context.route('**/*', route => {
+                const url = new URL(route.request().url());
+                // Block before module-level model preload so the real 2D fallback stays operable.
+                if (url.pathname.endsWith('.glb')) { modelRequestsBlocked++; return route.abort(); }
+                return url.origin === origin ? route.continue() : route.fulfill({ status: 503, json: { code: 'QA_EXTERNAL_BLOCKED' } });
+            });
             await context.addInitScript(lang => localStorage.setItem('qg_language', lang), lang);
             const page = await context.newPage();
             page.on('pageerror', e => errors.push(e.message));
@@ -68,7 +74,7 @@ try {
                 await page.locator('article nav a[href="/faq/"]').click();
                 await page.locator(`[data-learning-article="faq"][lang="${lang}"]`).waitFor();
                 const move = page.locator('details#move'); await move.locator('summary').click();
-                assert.ok(await move.locator('p').isVisible());
+                assert.ok(await move.locator('[data-qube-explanation] > p').isVisible());
                 await page.screenshot({ path: resolve(artifacts, `faq-${lang}-${width}.png`) });
                 await move.locator('a').click(); await page.locator('.game-page').waitFor();
                 await page.locator('[data-learning-entry] a[href="/guide/"]').click();
@@ -93,8 +99,25 @@ try {
                     await page.getByRole('checkbox').check();
                     await page.getByRole('button', { name: '同意して続ける', exact: true }).click();
                     await page.locator('.lobby-studio').waitFor();
+                    // Exercise the real tutorial through its supported 2D fallback.
+                    // Model failure is deliberate here; no backend or 3D assertion is made.
                     await page.getByRole('button', { name: '遊び方', exact: true }).click();
-                    await page.locator('.interactive-tutorial [role="dialog"]').waitFor();
+                    const tutorial = page.locator('.interactive-tutorial [role="dialog"]');
+                    await tutorial.waitFor();
+                    assert.equal(await tutorial.locator('[data-qube-teacher]').count(), 1);
+                    assert.equal(await tutorial.locator('[data-qube-speaker]').innerText(), 'QUBE');
+                    const squares = {0: 'e2', 1: 'h5', 3: 'h7', 4: 'h5', 6: 'e1', 7: 'f3', 9: 'h5', 10: 'f3'};
+                    for (let step = 0; step < 12; step++) {
+                        await tutorial.locator(`[data-tutorial-step="${step}"]`).waitFor();
+                        assert.ok(await tutorial.locator('[data-qube-explanation]').innerText(), `tutorial instruction ${step}`);
+                        if (squares[step]) {
+                            const square = tutorial.locator('.board-render-fallback').getByRole('button', {name: squares[step], exact: true});
+                            await square.focus(); await page.keyboard.press('Enter');
+                        } else await tutorial.locator('[data-tutorial-next]').click();
+                    }
+                    await tutorial.waitFor({state: 'detached'});
+                    await page.getByRole('button', { name: '遊び方', exact: true }).click();
+                    await tutorial.waitFor();
                     await page.getByRole('button', { name: '閉じる', exact: true }).click();
                     await page.getByRole('button', { name: '練習', exact: true }).click();
                     await page.getByRole('button', { name: '弱い', exact: true }).click();
@@ -116,8 +139,9 @@ try {
                     await page.getByRole('button', { name: '戻る', exact: true }).click();
                     await page.locator('.lobby-studio').waitFor();
                 }
-                assert.deepEqual(errors, [], `runtime errors ${lang} ${width}`);
-                results.push({ width, height, lang, entry: true, keyboardAnswer: true, candidateChain: true, faqLink: true, languageSwitch: true, informationNavigation: true, firstGame: lang === 'ja', liveWrites: false });
+                const expectedModelFailures = errors.filter(error => modelRequestsBlocked > 0 && /^Could not load \/models\/(?:king|queen|rook|bishop|knight|pawn)\.glb: Failed to fetch$/.test(error));
+                assert.deepEqual(errors.filter(error => !expectedModelFailures.includes(error)), [], `unexpected runtime errors ${lang} ${width}`);
+                results.push({ width, height, lang, entry: true, keyboardAnswer: true, candidateChain: true, faqLink: true, languageSwitch: true, informationNavigation: true, tutorialSteps: lang === 'ja' ? 12 : 0, tutorialRenderer: lang === 'ja' ? 'real 2D fallback' : null, modelRequestsBlocked, expectedModelFailures, firstGame: lang === 'ja', liveWrites: false });
             } catch (error) { await page.screenshot({ path: resolve(artifacts, `failure-${lang}-${width}.png`) }); throw error; }
             finally { await context.close(); }
         }
@@ -127,7 +151,7 @@ try {
             await page.goto(`${origin}/${kind}/`);
             assert.equal(await page.locator(`[data-learning-article="${kind}"]`).count(), 1);
             const details = page.locator('article details').first(); await details.locator('summary').click();
-            assert.ok(await details.locator('p').isVisible(), `${kind} answers without JS`);
+            assert.ok(await details.locator(kind === 'faq' ? '[data-qube-explanation] > p' : 'p').isVisible(), `${kind} answers without JS`);
         }
         results.push({ width, javaScript: false, readable: true, nativeAnswers: true });
         await noJs.close();
