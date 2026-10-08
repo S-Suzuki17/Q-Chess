@@ -1,0 +1,6 @@
+# The retired diary has no page, client route, navigation entry or sitemap entry.
+# Old bookmarks return to the game; never render a removed post or dead-end page.
+/updates / 301
+/updates.html / 301
+/updates.txt / 301
+/updates/* / 301

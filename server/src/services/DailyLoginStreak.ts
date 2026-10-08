@@ -5,6 +5,7 @@ export interface TicketAmounts {
 }
 
 export interface DailyLoginState {
+    rewardPolicyVersion?: 1 | 2;
     lastClaimUtcDay: string | null;
     streakDays: number;
     tickets: TicketAmounts;

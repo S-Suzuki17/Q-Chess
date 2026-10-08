@@ -19,12 +19,16 @@ import { soundManager } from '../lib/SoundService';
 import { RewardPreview, type VisualReward } from './RewardPreview';
 import { CIRCUIT_STAGES, finishStage, stageUnlocked } from '../config/circuitStages';
 import { stageText } from '../locales/stageText';
+import { randomCPUPersonality } from '../config/cpuPersonalities';
 import { requestCircuitInterstitial } from '../lib/adPolicy';
 import { circuitAccess } from '../lib/circuitAccess';
 import { useCircuitAccess } from '../hooks/useCircuitAccess';
 import { CircuitLoginGate } from './CircuitLoginGate';
 import { cosmeticsSettingsText } from '../locales/cosmeticsSettingsText';
 import {cloudText} from '../locales/cloudText';
+import { crownAdmissionEnabled } from '../config/crownAdmission';
+import { authorizeCrownStage } from '../lib/crownAdmission';
+import { createCrownEntryController } from '../lib/crownEntry';
 import './campaign.css';
 
 
@@ -42,14 +46,30 @@ function MemberCircuit({lang,user,onBack,onPlayingChange}:CampaignProps) {
     const [chosenPage,setPage]=useState<number|null>(null);
     const [firstClear,setFirstClear]=useState(false);
     const [run,setRun]=useState(0);
+    const [runPersonality,setRunPersonality]=useState(randomCPUPersonality);
     const [side,setSide]=useState<'white'|'black'>('white');
     const [preview,setPreview]=useState<VisualReward|null>(null);
     const [outcome,setOutcome]=useState<CampaignOutcome|null>(null);
     const [runMusic,setRunMusic]=useState<readonly string[]>([]);
     const [runDesign,setRunDesign]=useState(()=>({music:progress.music,effect:progress.effect}));
-    const adBreakHandled=useRef('');
+    const [starting,setStarting]=useState(false);
+    const [entryError,setEntryError]=useState(false);
+    const [entry]=useState(()=>createCrownEntryController({
+        enabled:crownAdmissionEnabled,authorize:authorizeCrownStage,
+        legacyPaid:async(userId,signal)=>{
+            const {readStripeMembershipStatus}=await import('../lib/stripeMembership');
+            return (await readStripeMembershipStatus(userId,signal)).active;
+        },
+        legacyInterstitial:requestCircuitInterstitial,
+    }));
     const runPermit=useRef<(()=>boolean)|null>(null);
-    useEffect(()=>()=>{runPermit.current=null;onPlayingChange?.(false);},[onPlayingChange]);
+    useEffect(()=>()=>{entry.cancel();runPermit.current=null;onPlayingChange?.(false);},[entry,onPlayingChange]);
+    useEffect(()=>{
+        const cancel=()=>{entry.cancel();setStarting(false);};
+        window.addEventListener('popstate',cancel);
+        return()=>window.removeEventListener('popstate',cancel);
+    },[entry]);
+    const cancelEntry=()=>{entry.cancel();setStarting(false);setEntryError(false);};
     useEffect(()=>{
         if(activeId) soundManager.playBGM(battleMusicUrl(runDesign.music));
         else soundManager.stopBGM();
@@ -68,24 +88,20 @@ function MemberCircuit({lang,user,onBack,onPlayingChange}:CampaignProps) {
     },[activeId,update,user]);
     const start=async(id:number)=>{
         if(!circuitAccess.canPlay(user)||!loaded||!stageUnlocked(progress,id))return;
-        let requiresAd = true;
-        try {
-            const { readStripeMembershipStatus } = await import('../lib/stripeMembership');
-            const status = await readStripeMembershipStatus(user.id);
-            requiresAd = !status.active;
-        } catch { }
-        if (requiresAd) {
-            const key = `${id}-${Date.now()}`;
-            if (adBreakHandled.current === key) return;
-            adBreakHandled.current = key;
-            await requestCircuitInterstitial(key);
-        }
-        if(!circuitAccess.canPlay(user))return;
-        runPermit.current=circuitAccess.permit(user);
+        if(entry.pending)return;
+        const permit=circuitAccess.permit(user);
+        setStarting(true);setEntryError(false);
+        const result=await entry.start(user.id,id,permit);
+        if(result.state==='cancelled'||result.state==='busy')return;
+        setStarting(false);
+        if(result.state!=='ready'){setEntryError(true);return;}
+        if(!result.canActivate())return;
+        runPermit.current=permit;
+        setRunPersonality(randomCPUPersonality());
         setRunDesign({music:progress.music,effect:progress.effect});setRunMusic(CIRCUIT_MUSIC.filter(track=>rewardUnlocked(progress,track.id)).map(track=>track.id));onPlayingChange?.(true);
         setFirstClear(!progress.stageStars?.[id-1]);setSelected(id);setOutcome(null);setRun(value=>value+1);setActiveId(id);
     };
-    const leaveStage=()=>{runPermit.current=null;setActiveId(null);onPlayingChange?.(false);};
+    const leaveStage=()=>{runPermit.current=null;cancelEntry();setActiveId(null);onPlayingChange?.(false);};
     const afterResult=async(action:()=>void)=>{
         const permit=runPermit.current;
         if(!permit?.())return;
@@ -94,7 +110,7 @@ function MemberCircuit({lang,user,onBack,onPlayingChange}:CampaignProps) {
     if(activeId) {
         const active=CIRCUIT_STAGES[activeId-1];
         return <LocalGameBoard key={`${activeId}-${run}`} lang={lang} user={user} cpuLevel={active.strength<12?1:active.strength<23?3:5}
-            cpuPersonality={active.personality} cpuSearchProfile={active.search} campaignLabel={`${stageText(lang,'stage')} ${activeId} / 100 · ${loop('strength')} ${active.strength}`} opponentLabel={active.opponent}
+            cpuPersonality={runPersonality} cpuSearchProfile={active.search} campaignLabel={`${stageText(lang,'stage')} ${activeId} / 100 · ${loop('strength')} ${active.strength}`} opponentLabel={active.opponent}
             onlineRole={side} timeControl={active.timeControl} onComplete={complete} onHome={leaveStage}
             resultPanel={outcome&&<CampaignResult lang={lang} stageId={activeId} firstClear={firstClear} effect={runDesign.effect} outcome={outcome} saveError={storageError}
                 newMusic={CIRCUIT_MUSIC.filter(track=>!runMusic.includes(track.id)&&rewardUnlocked(progress,track.id)).map(track=>track.id)}
@@ -102,32 +118,33 @@ function MemberCircuit({lang,user,onBack,onPlayingChange}:CampaignProps) {
                 onNext={outcome.won&&activeId<100?()=>void afterResult(()=>start(activeId+1)):undefined}/>}/>;
     }
     return <section className="campaign-screen" data-circuit-stage={selected} aria-label={t('title')}>
-        <header className="campaign-header"><button onClick={onBack}><ArrowLeft size={18}/>{t('back')}</button><span>Q-GAMBIT</span><span>{cleared}/100 <Trophy size={16}/></span></header>
+        <header className="campaign-header"><button onClick={()=>{cancelEntry();onBack();}}><ArrowLeft size={18}/>{t('back')}</button><span>Q-GAMBIT</span><span>{cleared}/100 <Trophy size={16}/></span></header>
         <div className="campaign-intro"><p>{t('title')}</p><h1>{stageText(lang,'intro')}</h1><p>{stageText(lang,'rules')}</p><p>{cloudText(lang,'help')}</p></div>
         {storageError&&<p className="campaign-save-error" role="alert">{t('saveError')}</p>}
+        {entryError&&<p className="campaign-save-error" role="alert">{lang==='ja'?'対局の準備ができませんでした。もう一度お試しください。':'Could not prepare the game. Please try again.'}</p>}
         <section className="campaign-circuit" aria-label={loop('record')}>
             <div className="campaign-record"><span>{t('cleared')} <b>{cleared}/100</b></span><span>{loop('medals')} <b>{(progress.stageStars??[]).reduce((sum,value)=>sum+value,0)}/300</b></span><span>{loop('strength')} <b>{stage.strength}/34</b></span></div>
-            <div className="campaign-circuit-nav"><button disabled={page===0} onClick={()=>setPage(page-1)}>{loop('previous')}</button><strong>{stageText(lang,'stage')} {page*10+1}–{page*10+10}</strong><button disabled={page===9} onClick={()=>setPage(page+1)}>{loop('next')}</button></div>
+            <div className="campaign-circuit-nav"><button disabled={page===0} onClick={()=>{cancelEntry();setPage(page-1);}}>{loop('previous')}</button><strong>{stageText(lang,'stage')} {page*10+1}–{page*10+10}</strong><button disabled={page===9} onClick={()=>{cancelEntry();setPage(page+1);}}>{loop('next')}</button></div>
         </section>
         <div className="campaign-journey">
-            <nav className="campaign-rounds" aria-label={t('title')}>{CIRCUIT_STAGES.slice(page*10,page*10+10).map(item=>{
-                const unlocked=stageUnlocked(progress,item.id),stars=progress.stageStars?.[item.id-1]??0;
-                return <button key={item.id} className="campaign-round" aria-pressed={selected===item.id} onClick={()=>setSelected(item.id)} data-stage={item.id}>
-                    <span className="campaign-round-number">{String(item.id).padStart(3,'0')}</span>
-                    <span><strong>{item.opponent}</strong><small>{item.timeControl==='10m'?dict[lang].tc10m:item.timeControl==='3m'?dict[lang].tc3m:dict[lang].tc10s}</small></span>
-                    <span className="campaign-round-status">{stars?<span aria-label={`${stars}/3`}>{'★'.repeat(stars)}</span>:unlocked?<ArrowUpRight size={18}/>:<LockKeyhole size={17}/>}</span>
-                </button>;
-            })}</nav>
             <article className="campaign-boss-card">
                 <div className="campaign-boss-heading"><span className="campaign-boss-seal" aria-hidden="true"><RewardSigil motif="corona" tier={Math.ceil(selected/10)}/></span><div><p>{stageText(lang,'stage')} {selected} / 100</p><h2>{stage.opponent}</h2></div></div>
                 <p>{stageText(lang,'rules')}</p>
                 <span className="campaign-difficulty">{loop('strength')} {stage.strength} / 34 · {stage.timeControl==='10m'?dict[lang].tc10m:stage.timeControl==='3m'?dict[lang].tc3m:dict[lang].tc10s}</span>
                 <div className="campaign-boss-reward"><Trophy size={20}/><span><small>{t('rewards')}</small><strong>{rewardName(lang,reward.id)}</strong></span>{rewardUnlocked(progress,reward.id)&&<Check size={18}/>}</div>
-                <button data-preview-reward={reward.id} onClick={()=>setPreview({kind:reward.kind,id:reward.id})}>{circuitText(lang,'preview')}</button>
-                <fieldset className="campaign-side"><legend>{t('challenge')}</legend>{(['white','black'] as const).map(value=><button key={value} type="button" aria-pressed={side===value} onClick={()=>setSide(value)}>{t(value)}</button>)}</fieldset>
-                <button className="campaign-primary" disabled={!loaded||!stageUnlocked(progress,selected)} onClick={()=>start(selected)}>{!loaded?dict[lang].loading:stageUnlocked(progress,selected)?t('challenge'):t('locked')}<ArrowUpRight size={20}/></button>
+                <button data-preview-reward={reward.id} onClick={()=>{cancelEntry();setPreview({kind:reward.kind,id:reward.id});}}>{circuitText(lang,'preview')}</button>
+                <fieldset className="campaign-side"><legend>{t('challenge')}</legend>{(['white','black'] as const).map(value=><button key={value} type="button" aria-pressed={side===value} onClick={()=>{cancelEntry();setSide(value);}}>{t(value)}</button>)}</fieldset>
+                <button className="campaign-primary" disabled={starting||!loaded||!stageUnlocked(progress,selected)} onClick={()=>start(selected)}>{starting||!loaded?dict[lang].loading:stageUnlocked(progress,selected)?t('challenge'):t('locked')}<ArrowUpRight size={20}/></button>
                 <p className="campaign-medal-help">★ {t('win')} · ★ {t('noHints')} · ★ {stage.timeControl==='10s'?stageText(lang,'quickMoves'):t('quick')}</p>
             </article>
+            <nav className="campaign-rounds" aria-label={t('title')}>{CIRCUIT_STAGES.slice(page*10,page*10+10).map(item=>{
+                const unlocked=stageUnlocked(progress,item.id),stars=progress.stageStars?.[item.id-1]??0;
+                return <button key={item.id} className="campaign-round" aria-pressed={selected===item.id} onClick={()=>{cancelEntry();setSelected(item.id);}} data-stage={item.id}>
+                    <span className="campaign-round-number">{String(item.id).padStart(3,'0')}</span>
+                    <span><strong>{item.opponent}</strong><small>{item.timeControl==='10m'?dict[lang].tc10m:item.timeControl==='3m'?dict[lang].tc3m:dict[lang].tc10s}</small></span>
+                    <span className="campaign-round-status">{stars?<span aria-label={`${stars}/3`}>{'★'.repeat(stars)}</span>:unlocked?<ArrowUpRight size={18}/>:<LockKeyhole size={17}/>}</span>
+                </button>;
+            })}</nav>
         </div>
         <section className="campaign-collection" aria-label={t('rewards')}><h2>{t('rewards')}</h2>
             {(['board','piece'] as const).map(kind=><div className="campaign-equipment-group" key={kind}><h3>{t(kind)}</h3><div className="campaign-equipment">
@@ -140,7 +157,7 @@ function MemberCircuit({lang,user,onBack,onPlayingChange}:CampaignProps) {
                             : <span className="campaign-effect-swatch" aria-hidden="true">✨</span>}
                         </div>
                         <span><strong>{rewardName(lang,value)}</strong><small>{cosmeticsSettingsText(lang,'acquired')}</small></span><Check size={16}/>
-                    </div><button data-preview-reward={value} onClick={()=>setPreview({kind,id:value})}>{circuitText(lang,'preview')}</button></div>;
+                    </div><button data-preview-reward={value} onClick={()=>{cancelEntry();setPreview({kind,id:value});}}>{circuitText(lang,'preview')}</button></div>;
                 })}
             </div></div>)}
         </section>
@@ -154,7 +171,7 @@ function MemberCircuit({lang,user,onBack,onPlayingChange}:CampaignProps) {
                     <small>{cosmeticsSettingsText(lang,acquired?'acquired':'notAcquired')}{milestone&&` · ★ ${milestone.requiredStars}`}</small>
                     {milestone&&!acquired&&<small>{musicMilestoneText(lang,'remaining')} ★ {Math.max(0,milestone.requiredStars-totalCircuitStars(progress))}</small>}
                     {milestone&&<progress className="music-star-progress" max={milestone.requiredStars} value={acquired?milestone.requiredStars:Math.min(milestone.requiredStars,totalCircuitStars(progress))} aria-label={`${battleMusicTitle(id)} · ${musicMilestoneText(lang,'total')}`}/>}</span>{acquired&&<Check size={16}/>}
-                    <button data-preview-music={id} onClick={()=>setPreview({kind:'music',id})}>{circuitText(lang,'preview')}</button>
+                    <button data-preview-music={id} onClick={()=>{cancelEntry();setPreview({kind:'music',id});}}>{circuitText(lang,'preview')}</button>
                 </div>;
             })}</div>
         </section>

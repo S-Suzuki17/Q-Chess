@@ -7,11 +7,14 @@ export function quantumCandidateSize(count: number) {
         : count === 3 ? { scale: .57, radius: .22 }
         : { scale: .63, radius: .19 };
 }
-export type HintMove = { fromRow: number; fromCol: number; toRow: number; toCol: number };
+export type HintMove = import('../../server/src/quantum-engine/ai/hintAdvice').HintAdvice;
 export const squareName = (row: number, col: number) => `${String.fromCharCode(97 + col)}${8 - row}`;
 export function isValidHintMove(move: HintMove | null): move is HintMove {
     return !!move && [move.fromRow,move.fromCol,move.toRow,move.toCol].every(value => Number.isInteger(value) && value >= 0 && value < 8)
-        && (move.fromRow !== move.toRow || move.fromCol !== move.toCol);
+        && (move.fromRow !== move.toRow || move.fromCol !== move.toCol)
+        && (move.promotionTarget === undefined || [2,4,8,16].includes(move.promotionTarget))
+        && (move.intention === undefined || ['castle','normal'].includes(move.intention))
+        && (move.declinePromotion === undefined || typeof move.declinePromotion === 'boolean');
 }
 
 // The stage must never reach the playing surface. All dimensions are world units.

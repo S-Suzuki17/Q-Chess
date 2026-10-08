@@ -1,21 +1,22 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createInitialState } from '../quantum-engine/initialState';
-const fake = vi.hoisted(() => ({ workers: [] as any[], failStart: false }));
+const fake = vi.hoisted(() => ({ workers: [] as any[], options: [] as any[], failStart: false }));
 vi.mock('node:worker_threads', async () => {
     const { EventEmitter } = await import('node:events');
     return { Worker: class extends EventEmitter {
         terminate = vi.fn(async () => 0);
         constructor(..._args: unknown[]) {
             super(); if (fake.failStart) throw new Error('worker startup failed');
-            fake.workers.push(this);
+            fake.workers.push(this); fake.options.push(_args[1]);
         }
     } };
 });
 vi.mock('node:fs', () => ({ existsSync: () => true }));
 import { searchCpuPracticeMove } from './CpuPracticeSearch';
+import { qubeSearchProfile } from '../quantum-engine/ai/searchProfiles';
 const start = (signal = new AbortController().signal) => searchCpuPracticeMove(createInitialState(), 5, signal, true);
 describe('practice search worker capacity and hard failures', () => {
-    beforeEach(() => { fake.workers.length = 0; fake.failStart = false; });
+    beforeEach(() => { fake.workers.length = 0; fake.options.length = 0; fake.failStart = false; });
     afterEach(() => vi.useRealTimers());
 
     it('allows two workers and releases capacity after completion', async () => {
@@ -29,14 +30,32 @@ describe('practice search worker capacity and hard failures', () => {
         expect(fake.workers.every(worker => worker.terminate.mock.calls.length === 1)).toBe(true);
     });
 
+    it('enforces strong neutral hints and keeps the CPU level/style separate', async () => {
+        const signal=new AbortController().signal;
+        const hint=searchCpuPracticeMove(createInitialState(),1,signal,true,'attacker');
+        const cpu=searchCpuPracticeMove(createInitialState(),1,signal,false,'guardian');
+        expect(fake.options[0].workerData).toMatchObject({hint:true,personality:'balanced',budget:qubeSearchProfile()});
+        expect(fake.options[1].workerData).toMatchObject({hint:false,personality:'guardian',budget:{timeLimitMs:1000,maxDepth:0}});
+        fake.workers[0].emit('message',{move:null});fake.workers[1].emit('message',{move:null});
+        await Promise.all([hint,cpu]);
+    });
+
     it('hard watchdog failure does not manufacture a fallback', async () => {
         vi.useFakeTimers(); const pending = start();
         const rejected = expect(pending).rejects.toThrow('SEARCH_TIMEOUT');
-        await vi.advanceTimersByTimeAsync(6000); await rejected;
+        await vi.advanceTimersByTimeAsync(qubeSearchProfile().timeLimitMs + 2000); await rejected;
         expect(fake.workers[0].terminate).toHaveBeenCalledOnce();
         // A late worker result cannot turn the rejected operation into a purchase.
         fake.workers[0].emit('message', { move: { pieceId: 'late' } });
         const next = start(); fake.workers[1].emit('message', { move: null }); await expect(next).resolves.toBeNull();
+    });
+
+    it('shortens high-precision analysis for the live clock and refuses an exhausted budget', async () => {
+        const pending = searchCpuPracticeMove(createInitialState(), 5, new AbortController().signal, true, 'guardian', 3750);
+        expect(fake.options[0].workerData).toMatchObject({ personality: 'balanced', budget: { timeLimitMs: 3750, maxDepth: 16, playableRoot: true } });
+        fake.workers[0].emit('message', { move: null }); await pending;
+        await expect(searchCpuPracticeMove(createInitialState(), 5, new AbortController().signal, true, 'balanced', 0)).rejects.toThrow('SEARCH_CLOCK_EXPIRED');
+        expect(fake.workers).toHaveLength(1);
     });
 
     it('cancellation terminates work and releases its slot exactly once', async () => {

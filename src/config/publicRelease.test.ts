@@ -4,6 +4,7 @@ import {join} from 'node:path';
 import {renderToStaticMarkup} from 'react-dom/server';
 import {createElement} from 'react';
 import {PUBLIC_SUPPORT_EMAIL} from './publicContact';
+import {COMMERCE_SELLER} from './webCommerce';
 import {CHAMPIONSHIP_REWARDS,championshipReward} from './championshipRewards';
 import {LANGUAGES} from '../locales/dict';
 import {championshipName} from '../locales/championshipText';
@@ -34,12 +35,13 @@ describe('review-safe public release',()=>{
   expect(renderToStaticMarkup(createElement(InterstitialAd,{show:true,onClose:()=>{},adSlot:'123456'}))).toBe('');
  });
  it('does not place display advertisements on gameplay or navigation screens',()=>{
-  for(const file of ['src/app/layout.tsx','src/app/page.tsx','src/app/rules/page.tsx','src/app/updates/page.tsx','src/components/LocalGameBoard.tsx','src/components/OnlineGameBoard.tsx','src/components/DevDiaryTimeline.tsx']){
+  for(const file of ['src/app/layout.tsx','src/app/page.tsx','src/app/rules/page.tsx','src/components/LocalGameBoard.tsx','src/components/OnlineGameBoard.tsx']){
    expect(readFileSync(file,'utf8'),file).not.toMatch(/<AdBanner\b|<AdSenseLoader\b/);
   }
  });
  it('uses one public support address without changing private account credentials',()=>{
   expect(PUBLIC_SUPPORT_EMAIL).toBe('qgambit970@gmail.com');
+  expect(COMMERCE_SELLER.email).toBe(PUBLIC_SUPPORT_EMAIL);
   function scan(dir:string){for(const entry of readdirSync(dir,{withFileTypes:true})){
    const path=join(dir,entry.name);if(entry.isDirectory())scan(path);
    else if(/\.(tsx?|html|json|txt|xml|md)$/i.test(path)){
@@ -58,7 +60,7 @@ describe('review-safe public release',()=>{
    expect(labels.every(label=>Boolean(label)&&!label.includes('undefined'))).toBe(true);
    expect(circuitText(code,'astral')).toBe('盤上の幾何学');
    expect(siteCopy(code).paragraphs).toHaveLength(4);
-   expect(siteCopy(code).labels).toHaveLength(9);
+   expect(siteCopy(code).labels).toHaveLength(7);
   }
   for(const reward of CHAMPIONSHIP_REWARDS)expect(championshipReward(reward.id)?.requiredWins).toBe(reward.requiredWins);
  });

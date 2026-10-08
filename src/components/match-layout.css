@@ -41,7 +41,7 @@
 .captured-inline li>span { font-size:26px; line-height:1.2; flex-shrink:0; }.captured-piece-icon { font-family:Georgia,'Segoe UI Symbol',serif; }.captured-piece-icon.white { color:#f4e9d5; }.captured-piece-icon.black { color:#c8d7ed; }
 .match-board-area { position:relative; min-width:0; min-height:0; overflow:hidden; border-radius:4px; }.match-board-area canvas { touch-action:pan-y; }
 .match-board-area [data-square]:focus-visible { z-index:60; outline:3px solid #ffe1a1; outline-offset:-3px; }
-.match-notice { position:absolute; top:10px; left:50%; transform:translateX(-50%); max-width:95%; z-index:10; color:#f1d1a3; background:#22291ef5; border:1px solid #685d3d; border-radius:10px; padding:8px 16px; font-size:13px; text-align:center; pointer-events:none; }
+.match-notice { position:absolute; top:10px; left:50%; transform:translateX(-50%); box-sizing:border-box; width:max-content; max-width:95%; z-index:70; color:#f1d1a3; background:#22291ef5; border:1px solid #685d3d; border-radius:10px; padding:8px 16px; font-size:13px; line-height:1.5; text-align:center; pointer-events:none; }
 .match-sidebar { display:flex; flex-direction:column; gap:12px; min-height:0; overflow:auto; scrollbar-width:thin; scrollbar-color:#424c39 transparent; }
 .match-panel { padding:18px; border:1px solid var(--match-line); border-radius:16px; background:var(--match-surface); }
 .match-panel h2 { font-size:13px; font-weight:500; line-height:1.5; margin:0 0 14px; }.match-panel p { margin:12px 0 0; color:var(--match-muted); font-size:11px; line-height:1.7; }
@@ -63,6 +63,8 @@
 .match-hint-action { background:#e5d7b6; color:#24261f; border-color:#e5d7b6; }.match-hint-action:hover:not(:disabled) { background:#f4e6c6; color:#171b15; }
 .match-resign { margin-left:auto; background:transparent; color:var(--match-muted); }.match-resign:hover { border-color:#8a5948; color:#f3b69d; background:#33221c; }.mobile-details,.mobile-rules { display:none; }
 .match-advice { display:flex; align-items:center; gap:12px; min-height:50px; padding:8px 12px; border:1px solid #746745; border-radius:12px; background:#252c21; color:#eed8a4; font-size:12px; }
+/* An empty live region stays accessible without taking a grid row. */
+.match-advice:empty { position:absolute; width:1px; height:1px; min-height:0; padding:0; border:0; overflow:hidden; clip-path:inset(50%); }
 .match-advice>svg { flex-shrink:0; }.match-advice>button { display:grid; place-items:center; margin-left:auto; width:36px; height:36px; flex-shrink:0; border:0; border-radius:8px; background:transparent; color:var(--match-ink); }
 .match-advice-move { display:flex; align-items:center; flex-wrap:wrap; gap:8px 12px; }.match-advice-move strong { margin-left:6px; font:600 22px var(--font-geist-mono),monospace; }
 .advice-from { color:#9ed8ff; }.advice-to { color:#ffe3a0; }.advice-arrow { font-size:21px; }.match-advice-move small { color:var(--match-muted); font-size:11px; }
@@ -96,7 +98,7 @@
  .match-footer { position:fixed; z-index:30; inset:auto 0 0; flex-shrink:0; gap:6px; flex-wrap:wrap; padding:8px 12px max(8px,env(safe-area-inset-bottom)); background:var(--match-canvas); box-shadow:0 -4px 12px #0002; }
  .match-footer .match-button { white-space:normal; max-width:35vw; }
  .match-view-hint { display:none; }.mobile-details { display:inline-flex; margin-left:auto; }.match-resign { margin-left:0; }.match-button { padding:8px 10px; min-height:44px; font-size:11px; }.match-hints { font-size:11px; margin-right:auto; }
- .match-advice { min-height:48px; gap:8px; padding:6px 8px; font-size:10px; }.match-advice-move { gap:4px 8px; }.match-advice-move strong { font-size:19px; margin-left:3px; }.match-advice-move small { display:none; }
+ .match-advice { min-height:48px; gap:8px; padding:6px 8px; font-size:10px; }.match-advice-move { gap:4px 8px; }.match-advice-move strong { font-size:19px; margin-left:3px; }.match-advice-move small { display:none; }.match-advice-move .advice-choice { display:block; flex-basis:100%; }
  .match-emote-control { position:absolute; top:63px; right:70px; bottom:auto; }.match-layout:has(.match-emote-control) .match-footer { padding-right:0; }
 }
 /* Split-screen windows can be short even though the Android activity prefers portrait. */
@@ -109,6 +111,7 @@
     border-radius: 50%;
     object-fit: cover;
     margin-right: 4px;
+    flex-shrink: 0;
 }
 .qube-icon.thinking {
     animation: qube-pulse 1.5s infinite ease-in-out;
@@ -117,4 +120,8 @@
     0% { transform: scale(0.9); opacity: 0.7; }
     50% { transform: scale(1.1); opacity: 1; }
     100% { transform: scale(0.9); opacity: 0.7; }
+}
+
+@media(prefers-reduced-motion:reduce) {
+    .match-layout .qube-icon.thinking { animation:none!important; }
 }

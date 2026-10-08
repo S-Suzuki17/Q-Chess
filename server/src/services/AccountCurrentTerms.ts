@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 // Tested against the Web document and the service-only SQL policy.
-export const CURRENT_TICKET_TERMS_VERSION = '2026-10-03.1';
+export const CURRENT_TICKET_TERMS_VERSION = '2026-10-07.1';
 export interface CurrentTermsStatus {
     userId: string;
     currentVersion: string;

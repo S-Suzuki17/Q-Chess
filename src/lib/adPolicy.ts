@@ -1,3 +1,4 @@
+import { canShowVerifiedAccountAds } from './sharedAdEligibility';
 /** Owner decision, 2026-09-17: ordinary AdSense only. Do not gate play until
  * authenticated quotas AND a real rewarded provider have been integrated.
  * Banners, adBreakDone/afterAd and elapsed time are never reward evidence. */
@@ -31,7 +32,7 @@ export function applyVerifiedReward(state:AllowanceLedger,kind:AllowanceKind,rec
 }
 /** Called once per completed circuit match by CampaignMode. Web remains disabled. */
 export async function requestCircuitInterstitial(matchKey:string):Promise<import('./nativeAds').AdResult> {
- if(!matchKey||process.env.NEXT_PUBLIC_NATIVE_INTERSTITIAL_ENABLED!=='true')return 'unavailable';
+ if(!canShowVerifiedAccountAds()||!matchKey||process.env.NEXT_PUBLIC_NATIVE_INTERSTITIAL_ENABLED!=='true')return 'unavailable';
  const {nativeAds,isAndroidApp}=await import('./nativeAds');
  return isAndroidApp()?nativeAds.interstitial():'unavailable';
 }

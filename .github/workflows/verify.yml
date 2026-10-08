@@ -2,7 +2,7 @@ name: Verify game and server
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, fix/commerce-safety-20261006, prep/awaited-session-authority-20261006, fix/verified-legacy-restoration-20261006, prep/durable-auth-runtime-20261006, prep/new-sku-runtime-integration-20261006, prep/consumables-match-crown-20261006, prep/commerce-endpoints-20261006]
   push:
     branches: [main]
 
@@ -31,8 +31,243 @@ jobs:
       - run: npm ci
       - run: npm ci --prefix server
       - name: Game and server regression tests
-        run: npm test -- --reporter=dot
+        run: npm test -- --maxWorkers=2 --reporter=dot --reporter=json --outputFile.json=test-results.json
+      - name: Reject skipped or incomplete tests
+        run: node scripts/ci/assert-complete-tests.mjs test-results.json
       - name: Client typecheck
         run: npm run typecheck
       - name: Server build
         run: npm run build --prefix server
+
+      - name: Frontend static build (not a deployment artifact)
+        run: npm run build
+      - name: Install browser for static-page verification
+        run: npx playwright install chromium
+      - name: Verify isolated legacy sign-in restoration
+        run: node scripts/qa/verify-legacy-session-browser.mjs
+      - name: Verify explicit match choice on desktop and mobile
+        run: node scripts/qa/shared-choice-browser.mjs
+      - name: Verify isolated Crown entry and interrupted requests
+        run: node scripts/qa/crown-browser.mjs
+      - name: Verify QUBE loading and reduced-motion behavior
+        run: node scripts/qa/qube-loading-accessibility.mjs
+      - name: Verify desktop and mobile commerce page
+        run: node scripts/qa/check-commerce-browser.mjs
+      - name: Verify separate legacy and new commerce status on desktop and mobile
+        run: node scripts/qa/commerce-status-browser.mjs
+      - name: Verify lobby navigation and mobile dialogs
+        run: node scripts/qa/check-lobby-browser.mjs
+      - name: Verify public guides, navigation and no-JavaScript reading
+        run: node scripts/qa/check-public-guides.mjs
+
+  commerce-source-ledger-postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17.11-bookworm
+        env:
+          POSTGRES_DB: commerce_upgrade
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: qgambit-ephemeral-only
+          POSTGRES_INITDB_ARGS: --locale=C --encoding=UTF8
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d commerce_upgrade"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - name: Verify source-specific refunds, restoration and independent-backend races
+        run: node --test --test-timeout=240000 scripts/qa/commerce-source-ledger-postgres.test.mjs
+      - name: Retain synthetic source-ledger verification report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: commerce-source-ledger-postgres-results
+          path: /tmp/commerce-source-ledger-postgres-results.json
+          if-no-files-found: error
+          retention-days: 7
+
+  commerce-checkout-retirement-postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17.11-bookworm
+        env:
+          POSTGRES_DB: commerce_upgrade
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: qgambit-ephemeral-only
+          POSTGRES_INITDB_ARGS: --locale=C --encoding=UTF8
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d commerce_upgrade"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            server/package-lock.json
+      - run: npm ci
+      - run: npm ci --prefix server
+      - run: npm run build --prefix server
+      - name: Verify Checkout expiry, retirement and erased-account replay protection
+        run: node --test --test-timeout=240000 scripts/qa/commerce-deletion-postgres.test.mjs
+      - name: Retain synthetic Checkout retirement report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: commerce-checkout-retirement-postgres-results
+          path: /tmp/qg-commerce-deletion-postgres-results.json
+          if-no-files-found: error
+          retention-days: 7
+
+  commerce-postgrest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17.11-bookworm
+        env:
+          POSTGRES_DB: commerce_upgrade
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: qgambit-ephemeral-only
+          POSTGRES_INITDB_ARGS: --locale=C --encoding=UTF8
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d commerce_upgrade"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            server/package-lock.json
+      - run: npm ci
+      - run: npm ci --prefix server
+      - run: npm run build --prefix server
+      - name: Install checksum-pinned official PostgREST
+        run: |
+          curl --fail --location --retry 3 --output "$RUNNER_TEMP/postgrest.tar.xz" https://github.com/PostgREST/postgrest/releases/download/v16.4/postgrest-v16.4-linux-static-x86-64.tar.xz
+          echo "b47ecc82fce1dcebbbc4183d839e52f07f7630c9d7ad0f54db753d1939299354  $RUNNER_TEMP/postgrest.tar.xz" | sha256sum --check
+          tar -xJf "$RUNNER_TEMP/postgrest.tar.xz" -C "$RUNNER_TEMP"
+          echo "QG_TEST_POSTGREST_BIN=$RUNNER_TEMP/postgrest" >> "$GITHUB_ENV"
+      - name: Verify compiled commerce adapter over actual PostgREST
+        run: node --test --test-timeout=240000 scripts/qa/commerce-postgrest.test.mjs
+      - name: Retain isolated HTTP verification report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: commerce-postgrest-results
+          path: /tmp/commerce-postgrest-results.json
+          if-no-files-found: error
+          retention-days: 7
+
+  commerce-postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17.11-bookworm
+        env:
+          POSTGRES_DB: commerce_upgrade
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: qgambit-ephemeral-only
+          POSTGRES_INITDB_ARGS: --locale=C --encoding=UTF8
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d commerce_upgrade"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - name: Native PostgreSQL baseline upgrade and concurrency
+        run: node --test --test-timeout=180000 scripts/qa/commerce-postgres.test.mjs
+      - name: Retain synthetic verification report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: commerce-postgres-results
+          path: /tmp/commerce-postgres-results.json
+          if-no-files-found: warn
+          retention-days: 7
+
+  session-postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17.11-bookworm
+        env:
+          POSTGRES_DB: legacy_session_upgrade
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: qgambit-ephemeral-only
+          POSTGRES_INITDB_ARGS: --locale=C --encoding=UTF8
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d legacy_session_upgrade"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci
+      - run: npm ci --prefix server
+      - name: Build actual TypeScript session adapter
+        run: npm run build --prefix server
+      - name: Native PostgreSQL combined migrations and session races
+        run: node --test --test-timeout=180000 scripts/qa/session-postgres.test.mjs
+      - name: Retain synthetic session verification report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: session-postgres-results
+          path: /tmp/session-postgres-results.json
+          if-no-files-found: warn
+          retention-days: 7

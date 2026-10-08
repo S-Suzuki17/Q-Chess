@@ -1,12 +1,12 @@
 import express, { type ErrorRequestHandler, type RequestHandler } from 'express';
-import { RankedAuth, isRankedUserId } from './RankedAuth';
+import { type RankedSessionAuthority, isRankedUserId } from './RankedAuth';
 import { AccountWriteGate } from './AccountDeletion';
 import type { DailyLoginStore } from './DailyLoginStore';
 import { dailyLoginRewardsEnabled } from './TicketFeatureGates';
 
 /** This flag stays OFF until the atomic database functions are deployed and tested. */
 export function createDailyLoginRouter(
-    auth: RankedAuth,
+    auth: RankedSessionAuthority,
     store: DailyLoginStore,
     gate: AccountWriteGate,
     enabled = dailyLoginRewardsEnabled,
@@ -29,9 +29,9 @@ export function createDailyLoginRouter(
         if (!enabled()) { res.status(503).json({ code: 'FEATURE_DISABLED', enabled: false }); return; }
         if (!allow(`ip:${req.socket.remoteAddress ?? 'unknown'}`, 180)) { rateError(res); return; }
         const token = /^Bearer ([-\w.]{1,8192})$/i.exec(req.headers.authorization ?? '')?.[1];
-        const proof = auth.verifySession(token);
-        let userId = proof?.userId;
         try {
+            const proof = await auth.verifySession(token);
+            let userId = proof?.userId;
             if (!userId && token && /^[-\w]+\.[-\w]+\.[-\w]+$/.test(token)) {
                 userId = await store.verifyUser(token) ?? undefined;
             }
@@ -41,7 +41,7 @@ export function createDailyLoginRouter(
             if (gate.blocked(userId) || await store.blocked(userId)) {
                 res.status(423).json({ code: 'ACCOUNT_DELETING' }); return;
             }
-            if (proof && !auth.verifySession(token)) { res.status(401).json({ code: 'AUTH_REQUIRED' }); return; }
+            if (proof && !(await auth.verifySession(token))) { res.status(401).json({ code: 'AUTH_REQUIRED' }); return; }
             res.locals.rewardUser = userId;
             res.locals.rewardSession = token ?? null;
             res.locals.rewardLegacy = !!proof;
@@ -71,7 +71,7 @@ export function createDailyLoginRouter(
                 if (await store.blocked(userId)) { res.status(423).json({ code: 'ACCOUNT_DELETING' }); return; }
                 const session = res.locals.rewardSession as string | null;
                 if (session && (res.locals.rewardLegacy
-                    ? !auth.verifySession(session, userId)
+                    ? !(await auth.verifySession(session, userId))
                     : await store.verifyUser(session) !== userId)) {
                     res.status(401).json({ code: 'AUTH_REQUIRED' }); return;
                 }

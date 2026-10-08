@@ -36,7 +36,7 @@ describe('paid practice hint shallow fallback', () => {
     it('purchases the shallow hint once and replays the same receipt after response loss', async () => {
         let calls = 0;
         const run = async (state: ReturnType<typeof createInitialState>) => { calls++; return shallowHint(state); };
-        const real = new CpuPracticeService(fixture.client as never, true, run);
+        const real = new CpuPracticeService(fixture.client as never, true, run, () => 'buy_cpu_hint');
         const session = await real.open('Alice', randomUUID(), 'white', 1, 600), id = randomUUID();
         const before = (await fixture.wallet('Alice')).hint_tickets;
         // The actual SQL transaction commits before the transport loses its result.
@@ -44,7 +44,7 @@ describe('paid practice hint shallow fallback', () => {
             const result = await fixture.client.rpc(name, params).abortSignal();
             return name === 'buy_cpu_hint' && !result.error ? { data: null, error: { message: 'lost response' } } : result;
         } }; } };
-        await expect(new CpuPracticeService(lost as never, true, run)
+        await expect(new CpuPracticeService(lost as never, true, run, () => 'buy_cpu_hint')
             .requestHint(id, 'Alice', session.sessionId, 0)).rejects.toThrow('CPU_PRACTICE_UNAVAILABLE');
         expect((await fixture.wallet('Alice')).hint_tickets).toBe(before - 1);
         const receipt = await real.requestHint(id, 'Alice', session.sessionId, 0);
@@ -57,7 +57,7 @@ describe('paid practice hint shallow fallback', () => {
     });
 
     it('concurrent first requests for a shallow hint consume one ticket', async () => {
-        const service = new CpuPracticeService(fixture.client as never, true, async state => shallowHint(state));
+        const service = new CpuPracticeService(fixture.client as never, true, async state => shallowHint(state), () => 'buy_cpu_hint');
         const session = await service.open('Alice', randomUUID(), 'white', 1, 600);
         const before = (await fixture.wallet('Alice')).hint_tickets;
         const ids = [randomUUID(), randomUUID()];
@@ -70,7 +70,7 @@ describe('paid practice hint shallow fallback', () => {
 
     it.each(['SEARCH_TIMEOUT', 'SEARCH_FAILED', 'SEARCH_BUSY'])('does not buy on %s', async code => {
         const run = async () => { throw new Error(code); };
-        const service = new CpuPracticeService(fixture.client as never, true, run);
+        const service = new CpuPracticeService(fixture.client as never, true, run, () => 'buy_cpu_hint');
         const session = await service.open('Alice', randomUUID(), 'white', 1, 600), id = randomUUID();
         const before = await fixture.wallet('Alice');
         await expect(service.requestHint(id, 'Alice', session.sessionId, 0)).rejects.toThrow(code);
@@ -84,7 +84,7 @@ describe('paid practice hint shallow fallback', () => {
         vi.spyOn(search, 'searchBestMove').mockReturnValue({ move: { pieceId: 'b_1', target: { row: 4, col: 4 } },
             depth: 0, nodes: 0, timeMs: 4001, score: 0 });
         expect(() => searchCpuPracticePosition(state, budget, true)).toThrow();
-        const service = new CpuPracticeService(fixture.client as never, true, async position => searchCpuPracticePosition(position, budget, true));
+        const service = new CpuPracticeService(fixture.client as never, true, async position => searchCpuPracticePosition(position, budget, true), () => 'buy_cpu_hint');
         const session = await service.open('Alice', randomUUID(), 'white', 1, 600), id = randomUUID();
         const before = await fixture.wallet('Alice');
         await expect(service.requestHint(id, 'Alice', session.sessionId, 0)).rejects.toThrow();

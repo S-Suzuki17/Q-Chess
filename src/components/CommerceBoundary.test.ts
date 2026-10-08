@@ -3,7 +3,8 @@ import type { ReactElement, ReactNode } from 'react';
 import type { StripeMembershipStatus } from '../lib/stripeMembership';
 import { renderToStaticMarkup } from 'react-dom/server';
 
-const harness = vi.hoisted(() => ({ native: false, web: true, membership: true, portal: true, checkout: true, ready: true, cursor: 0,
+const harness = vi.hoisted(() => ({ native: false, web: true, membership: true, portal: true, checkout: true, ready: true, revision: 1, account: 'Alice', cursor: 0,
+    sharedAdmissionEnabled: false as boolean | null,
     states: [] as unknown[], cleanups: [] as Array<()=>void>, read: vi.fn(), memberRead: vi.fn(), rewardRead: vi.fn(), prepare: vi.fn(), billing: vi.fn(), claim: vi.fn() }));
 vi.mock('react', async original => {
     const react = await original<typeof import('react')>();
@@ -19,8 +20,9 @@ vi.mock('../lib/currentAccountTerms', () => ({ CURRENT_TERMS_ACCEPTED_EVENT:'ter
 vi.mock('next/link', async () => { const react = await import('react'); return { default: ({href,children}: {href:string;children:ReactNode}) => react.createElement('a',{href},children) }; });
 vi.mock('@capacitor/core', () => ({ Capacitor: { isNativePlatform: () => harness.native } }));
 vi.mock('../hooks/useAppPlatform', () => ({ useAppPlatform: () => ({ webContent: harness.web }) }));
-vi.mock('../hooks/useCircuitAccess', () => ({ useCircuitAccess: () => ({ allowed: true, revision: 1 }) }));
-vi.mock('../lib/circuitAccess', () => ({ circuitAccess: { canPlay: () => true } }));
+vi.mock('../hooks/useCircuitAccess', () => ({ useCircuitAccess: () => ({ allowed: true, revision: harness.revision }) }));
+vi.mock('../lib/SocketContext', () => ({ useSocket: () => ({ sharedAdmissionEnabled: harness.sharedAdmissionEnabled }) }));
+vi.mock('../lib/circuitAccess', () => ({ circuitAccess: { canPlay: (user: {id:string}) => user.id === harness.account, getSnapshot: () => ({revision:harness.revision}) } }));
 vi.mock('../lib/dailyLoginRewards', () => ({ DAILY_LOGIN_REWARDS_ENABLED:true, DAILY_LOGIN_REWARD_CHANGED_EVENT:'daily-changed', readDailyLoginStatus:harness.rewardRead }));
 vi.mock('../config/webCommerce', async original => ({ ...await original<typeof import('../config/webCommerce')>(),
     MEMBER_TICKET_CAP: {ranked:60,hint:60}, webCommerceCheckoutReady: () => harness.ready }));
@@ -34,15 +36,20 @@ vi.mock('../lib/stripeMembership', () => ({
 import { StripeMembershipPanel } from './StripeMembershipPanel';
 import { MemberTicketsPanel, MemberTicketClaimController } from './MemberTicketsPanel';
 import { CommercePage } from './CommercePage';
+import { CommerceDisclosureDocument } from './CommerceDisclosureDocument';
 import { DailyLoginRewardsPanel } from './DailyLoginRewardsPanel';
 import { stripeMembershipText } from '../locales/stripeMembershipText';
 import { rewardsHubText } from '../locales/rewardsHubText';
 import { LANGUAGES } from '../locales/dict';
+import { commerceStatusText } from '../locales/commerceStatusText';
+import { ticketWalletText } from '../locales/ticketWalletText';
+import { acceptCurrentAccountTerms } from '../lib/currentAccountTerms';
+import { DAILY_LOGIN_REWARD_CHANGED_EVENT } from '../lib/dailyLoginRewards';
 
 const user = { id:'Alice', name:'Alice', type:'registered' as const };
 const status: StripeMembershipStatus = { userId:'Alice', enabled:true, active:true, canManageBilling:true, cancelAtPeriodEnd:true,
-    periodEnd:'2026-11-03T12:00:00Z', lastGrantUtcDay:'2026-10-03', tickets:{ranked:4,hint:5} };
-const panelStates = (member = status, accepted = false) => [true,{revision:1,status:member},null,false,accepted,false];
+    availableCheckoutSkus:['standard_monthly','plus_monthly','hints_1'], periodEnd:'2026-11-03T12:00:00Z', lastGrantUtcDay:'2026-10-03', tickets:{ranked:4,hint:5} };
+const panelStates = (member = status, accepted = false, sku: string | null = 'standard_monthly') => [true,{revision:1,status:member},null,false,sku,accepted,false];
 const html = (element: ReactElement|null) => element ? renderToStaticMarkup(element) : '';
 const elements = (node: ReactNode): ReactElement[] => {
     if (!node || typeof node !== 'object') return [];
@@ -51,11 +58,14 @@ const elements = (node: ReactNode): ReactElement[] => {
     return [element,...elements(element.props?.children)];
 };
 beforeEach(() => {
+    harness.sharedAdmissionEnabled=false;
     harness.native=false; harness.web=true; harness.membership=true; harness.portal=true; harness.checkout=true; harness.ready=true;
+    harness.revision=1; harness.account='Alice';
     harness.cursor=0; harness.states=panelStates(); harness.cleanups=[];
     for (const mock of [harness.read,harness.memberRead,harness.rewardRead,harness.prepare,harness.billing,harness.claim]) mock.mockReset();
     harness.read.mockResolvedValue(status); harness.memberRead.mockResolvedValue(status); harness.prepare.mockResolvedValue('https://checkout.stripe.com/c/pay/test');
     harness.claim.mockResolvedValue(status);
+    vi.mocked(acceptCurrentAccountTerms).mockReset().mockResolvedValue(undefined);
     vi.stubGlobal('window', Object.assign(new EventTarget(), {location:{assign:vi.fn()}}));
 });
 afterEach(() => { harness.cleanups.forEach(cleanup=>cleanup()); vi.unstubAllGlobals(); });
@@ -91,7 +101,7 @@ it('keeps billing management visible after new Checkout and membership offers ar
     expect(markup).not.toContain(stripeMembershipText('en').purchase);
     expect(markup).toContain('UTC');
 });
-it.skip('requires explicit pre-purchase acknowledgement and reviewed disclosure before preparing Checkout', async () => {
+it('requires explicit pre-purchase acknowledgement and reviewed disclosure before preparing Checkout', async () => {
     const inactive={...status,active:false,canManageBilling:false,cancelAtPeriodEnd:false,periodEnd:null};
     harness.states=panelStates(inactive);
     let tree=StripeMembershipPanel({user,lang:'en'});
@@ -102,7 +112,7 @@ it.skip('requires explicit pre-purchase acknowledgement and reviewed disclosure 
     harness.cursor=0; harness.states=panelStates(inactive,true); tree=StripeMembershipPanel({user,lang:'en'});
     button=elements(tree).find(element=>element.type==='button') as typeof button;
     expect(button.props.disabled).toBe(false); button.props.onClick(); await Promise.resolve();
-    expect(harness.prepare).toHaveBeenCalledWith('Alice',expect.any(AbortSignal));
+    expect(harness.prepare).toHaveBeenCalledWith('Alice','standard_monthly',expect.any(AbortSignal));
     harness.cursor=0; harness.ready=false; harness.states=panelStates(inactive,true);
     expect(html(StripeMembershipPanel({user,lang:'en'}))).not.toContain('/commerce/');
 });
@@ -142,20 +152,20 @@ it('keeps Checkout and billing closed to consent side effects until explicit acc
     expect(harness.billing).toHaveBeenCalled();expect(vi.mocked(acceptCurrentAccountTerms).mock.calls.length).toBe(before);
 });
 
-it.skip('makes the offer a closed disclosure without preparing a purchase or preselecting consent', () => {
-    harness.states=panelStates({...status,active:false,canManageBilling:false,periodEnd:null},false);
+it('makes the offer a closed disclosure without preparing a purchase or preselecting consent', () => {
+    harness.states=panelStates({...status,active:false,canManageBilling:false,periodEnd:null},false,null);
     const tree=StripeMembershipPanel({user,lang:'ja'});
     const disclosure=elements(tree).find(element=>element.type==='details') as ReactElement<{open?:boolean}>;
-    const checkbox=elements(tree).find(element=>element.type==='input') as ReactElement<{checked:boolean}>;
-    expect(disclosure.props.open).toBeUndefined(); expect(checkbox.props.checked).toBe(false);
+    const checkbox=elements(tree).find(element=>element.type==='input' && (element.props as {type?:string}).type==='checkbox') as ReactElement<{checked:boolean}>;
+    expect(disclosure.props.open).toBeUndefined(); expect(checkbox).toBeUndefined();
     const markup=html(tree);
     expect(markup).toContain(rewardsHubText('ja').optional);
     expect(markup).toContain(rewardsHubText('ja').review);
-    expect(markup).toContain('$3.00'); expect(markup).toContain(stripeMembershipText('ja').billingTerms);
+    expect(markup).toContain('$3.00'); expect(markup).not.toContain('$2.99');
     expect(harness.prepare).not.toHaveBeenCalled(); expect(harness.billing).not.toHaveBeenCalled();
 });
 
-it.skip('labels capped rewards as zero credit, not a reward the account cannot receive', () => {
+it('labels capped rewards as zero credit, not a reward the account cannot receive', () => {
     const reward={userId:'Alice',enabled:true,streakDays:7,tickets:{ranked:20,hint:20},lastClaimUtcDay:'2026-10-03',currentUtcDay:'2026-10-03'};
     harness.rewardRead.mockResolvedValue(reward); harness.states=[{revision:1,status:reward},null,null];
     const markup=html(DailyLoginRewardsPanel({user,lang:'ja'}));
@@ -173,10 +183,187 @@ it('does not display a reward preview when the server has disabled rewards', () 
     expect(markup).not.toContain(rewardsHubText('en').today);
 });
 
+it.each(['ja','en'] as const)('renders the active server match rules for %s and hides unknown rules',lang=>{
+    const reward={userId:'Alice',enabled:true,rewardPolicyVersion:2,streakDays:7,tickets:{ranked:25,hint:21},lastClaimUtcDay:'2026-10-03',currentUtcDay:'2026-10-03'};
+    harness.rewardRead.mockReturnValue(new Promise(()=>{}));
+    for(const enabled of [true,false,null]){
+        harness.sharedAdmissionEnabled=enabled;harness.cursor=0;harness.states=[{revision:1,status:reward},null,null];
+        const markup=html(DailyLoginRewardsPanel({user,lang}));
+        if(enabled===null){expect(markup).not.toContain(ticketWalletText(lang,true).rule);expect(markup).not.toContain(ticketWalletText(lang).rule);}
+        else expect(markup).toContain(ticketWalletText(lang,enabled).rule);
+        expect(markup).not.toContain('limit 20');
+    }
+});
+
 it('provides the navigation and disclosure copy for all twelve supported languages', () => {
     expect(LANGUAGES).toHaveLength(12);
     for (const {code} of LANGUAGES) {
         for (const value of Object.values(rewardsHubText(code))) expect(value.trim()).toBeTruthy();
     }
     expect(new Set(LANGUAGES.map(({code})=>rewardsHubText(code).title)).size).toBe(12);
+});
+it('keeps planned products unavailable when the authenticated server advertises no released SKUs', () => {
+    harness.states=panelStates({...status,active:false,canManageBilling:false,periodEnd:null,availableCheckoutSkus:[]},true);
+    const tree=StripeMembershipPanel({user,lang:'en'});
+    expect(html(tree)).toContain('cannot be purchased yet');
+    expect(elements(tree).filter(element=>element.type==='button')).toHaveLength(0);
+    expect(harness.prepare).not.toHaveBeenCalled();
+    const products=elements(tree).filter(element=>element.type==='input');
+    expect(products).toHaveLength(8);
+    for(const product of products) expect((product.props as {disabled:boolean}).disabled).toBe(true);
+});
+it('keeps one-time hint purchase review free of monthly subscription billing', () => {
+    const inactive = {...status, active:false, canManageBilling:false, periodEnd:null};
+    harness.states=panelStates(inactive,true,'hints_1');
+    const markup=html(StripeMembershipPanel({user,lang:'en'}));
+    // Scope the selected offer separately from the complete linked terms,
+    // which also disclose other products and existing monthly contracts.
+    const review=markup.split('data-purchase-review')[1].split('<a href="/commerce/"')[0];
+    expect(review).toContain('Charged once at purchase. No automatic renewal.');
+    expect(review).not.toContain('each monthly renewal');
+    expect(review).not.toContain('2.99');
+    expect(markup).toContain('Products and prices'); expect(markup).not.toContain('Planned products and prices');
+});
+
+it('matches disclosure headings to readiness and keeps old contract benefits in their own section', () => {
+    for (const ready of [false,true]) {
+        harness.ready=ready;
+        const markup=html(CommerceDisclosureDocument({lang:'ja'}));
+        expect(markup).toContain(`data-commerce-sales="${ready?'open':'closed'}"`);
+        expect(markup.includes('新商品（販売準備中）')).toBe(!ready);
+        const newProducts=markup.split('data-commerce-products')[1].split('</section>')[0];
+        const legacy=markup.split('data-legacy-commerce-terms')[1].split('</section>')[0];
+        expect(newProducts).toContain('USD $3.00'); expect(newProducts).toContain('USD $6.00');
+        expect(newProducts).toContain('QUBEヒント 166枚'); expect(newProducts).not.toContain('2.99');
+        expect(legacy).toContain('2.99'); expect(legacy).toContain('毎日ランク戦チケット3枚');
+    }
+});
+it('resets explicit purchase consent when the selected product changes', () => {
+    harness.states=panelStates({...status,active:false,canManageBilling:false,periodEnd:null},true);
+    const tree=StripeMembershipPanel({user,lang:'en'});
+    const product=elements(tree).find(element=>element.type==='input' && (element.props as {value?:string}).value==='plus_monthly') as ReactElement<{onChange:()=>void}>;
+    product.props.onChange();
+    expect(harness.states[4]).toBe('plus_monthly');expect(harness.states[5]).toBe(false);
+    expect(harness.prepare).not.toHaveBeenCalled();
+});
+
+const newStatus: StripeMembershipStatus = { ...status, active: false, cancelAtPeriodEnd: false, periodEnd: null,
+    tickets: { ranked: 0, hint: 0 }, lastGrantUtcDay: null,
+    commerce: { userId: 'Alice', livemode: true, active: true, sku: 'plus_monthly', periodEnd: '2099-11-03T12:00:00Z',
+        cancelAtPeriodEnd: false, unlimitedRanked: true, adFree: true, balances: { purchased: 13, subscription: 10 } } };
+
+it.each(['standard_monthly', 'plus_monthly'] as const)('shows the owned %s product without legacy price or expiry and prevents a second monthly subscription', sku => {
+    harness.states=panelStates({...newStatus,commerce:{...newStatus.commerce!,sku}},true,sku);
+    const tree=StripeMembershipPanel({user,lang:'en'}), markup=html(tree);
+    expect(markup).toContain(sku==='standard_monthly' ? 'Standard · USD $3.00/month' : 'Plus · USD $6.00/month');
+    expect(markup).not.toContain('2.99'); expect(markup).not.toContain(ticketWalletText('en').expiry);
+    expect(markup).toContain('Purchased hints'); expect(markup).toContain('Earned subscription hints');
+    expect(markup).not.toContain('data-purchase-review');
+    const products=elements(tree).filter(element=>element.type==='input') as ReactElement<{value:string;disabled:boolean}>[];
+    expect(products.find(product=>product.props.value==='standard_monthly')?.props.disabled).toBe(true);
+    expect(products.find(product=>product.props.value==='plus_monthly')?.props.disabled).toBe(true);
+    expect(products.find(product=>product.props.value==='hints_1')?.props.disabled).toBe(false);
+    expect(harness.prepare).not.toHaveBeenCalled(); expect(acceptCurrentAccountTerms).not.toHaveBeenCalled();
+});
+
+it('keeps legacy billing and ticket expiry confined to the actual legacy contract', () => {
+    harness.states=panelStates({...status,commerce:newStatus.commerce});
+    const markup=html(StripeMembershipPanel({user,lang:'en'}));
+    expect(markup).toContain('data-legacy-membership-terms'); expect(markup).toContain('2.99');
+    expect(markup).toContain(ticketWalletText('en').expiry);
+    expect(markup).toContain('data-commerce-entitlements');
+    harness.cursor=0; harness.states=[{revision:1,userId:'Alice',status:{...status,commerce:newStatus.commerce}},null];
+    const wallet=html(MemberTicketsPanel({user,lang:'en'}));
+    expect(wallet).toContain('data-legacy-member-tickets'); expect(wallet).toContain('>4<'); expect(wallet).toContain('>5<');
+    expect(wallet).toContain('>13<'); expect(wallet).toContain('>10<');
+});
+
+it('shows earned and purchased hints after membership ends on Android without purchase or legacy-expiry text', () => {
+    const ended={...newStatus,commerce:{...newStatus.commerce!,active:false,sku:null,periodEnd:null,unlimitedRanked:false,adFree:false}};
+    harness.web=false; harness.native=true; harness.states=[{revision:1,userId:'Alice',status:ended},null];
+    const markup=html(MemberTicketsPanel({user,lang:'en'}));
+    expect(markup).toContain('Purchased hints'); expect(markup).toContain('Earned subscription hints');
+    expect(markup).toContain('>13<'); expect(markup).toContain('>10<');
+    expect(markup).not.toContain(ticketWalletText('en').expiry);
+    expect(markup).not.toMatch(/href=|Stripe|USD|\$|data-legacy-member-tickets|data-purchase-review/);
+    expect(acceptCurrentAccountTerms).not.toHaveBeenCalled(); expect(harness.claim).not.toHaveBeenCalled();
+});
+
+it('labels sandbox membership and stock without claiming live benefits on Android', () => {
+    const sandbox={...newStatus,commerce:{...newStatus.commerce!,livemode:false,unlimitedRanked:false,adFree:false}};
+    harness.web=false; harness.native=true; harness.states=[{revision:1,userId:'Alice',status:sandbox},null];
+    const markup=html(MemberTicketsPanel({user,lang:'en'}));
+    expect(markup).toContain('data-commerce-mode="test"'); expect(markup).toContain(commerceStatusText('en').testNotice);
+    expect(markup).not.toContain(commerceStatusText('en').benefits);
+    expect(markup).not.toMatch(/href=|Stripe|USD|\$|data-legacy-member-tickets/);
+});
+
+it('keeps independently selected packs behind release readiness and explicit consent while a plan is active', async () => {
+    harness.states=panelStates(newStatus,true,'hints_1');
+    const tree=StripeMembershipPanel({user,lang:'en'});
+    const button=elements(tree).find(element=>element.type==='button') as ReactElement<{onClick:()=>void}>;
+    button.props.onClick(); button.props.onClick(); await Promise.resolve();
+    expect(acceptCurrentAccountTerms).toHaveBeenCalledTimes(1); expect(harness.prepare).toHaveBeenCalledTimes(1);
+    expect(harness.prepare).toHaveBeenCalledWith('Alice','hints_1',expect.any(AbortSignal));
+    harness.cursor=0; harness.ready=false; harness.states=panelStates(newStatus,true,'hints_1');
+    const closed=StripeMembershipPanel({user,lang:'en'});
+    expect(html(closed)).not.toContain('data-purchase-review');
+    for (const radio of elements(closed).filter(element=>element.type==='input')) expect((radio.props as {disabled:boolean}).disabled).toBe(true);
+});
+
+it('rejects old-account and old-revision loaded stock and selections', () => {
+    for (const [account,revision] of [['Bob',1],['Alice',2]] as const) {
+        harness.account=account; harness.revision=revision; harness.cursor=0; harness.states=panelStates(newStatus,true,'hints_1');
+        const replacement={...user,id:account};
+        expect(html(StripeMembershipPanel({user:replacement,lang:'en'}))).not.toContain('data-commerce-entitlements');
+        harness.cursor=0; harness.states=[{revision:1,userId:'Alice',status:newStatus},null];
+        expect(html(MemberTicketsPanel({user:replacement,lang:'en'}))).not.toContain('data-commerce-entitlements');
+    }
+    expect(harness.prepare).not.toHaveBeenCalled();
+});
+
+it('blocks stale checkout and portal continuations when access changes before effect cleanup', async () => {
+    let accepted!:()=>void;
+    vi.mocked(acceptCurrentAccountTerms).mockReturnValueOnce(new Promise(resolve=>{accepted=resolve;}));
+    harness.states=panelStates(newStatus,true,'hints_1');
+    const checkout=elements(StripeMembershipPanel({user,lang:'en'})).find(element=>element.type==='button') as ReactElement<{onClick:()=>void}>;
+    checkout.props.onClick(); harness.revision=2; accepted(); await Promise.resolve();
+    expect(harness.prepare).not.toHaveBeenCalled();
+    harness.revision=1; harness.cursor=0; harness.states=panelStates(newStatus);
+    let complete!:(url:string)=>void;
+    harness.billing.mockReturnValue(new Promise(resolve=>{complete=resolve;}));
+    const billing=elements(StripeMembershipPanel({user,lang:'en'})).find(element=>element.type==='button') as ReactElement<{onClick:()=>void}>;
+    billing.props.onClick(); billing.props.onClick(); expect(harness.billing).toHaveBeenCalledTimes(1);
+    harness.revision=2; complete('https://billing.stripe.com/p/session/stale'); await Promise.resolve();
+    expect(window.location.assign).not.toHaveBeenCalled();
+});
+
+it('provides complete stock and test-mode labels without purchase prices for every supported language', () => {
+    for (const {code} of LANGUAGES) {
+        for (const value of Object.values(commerceStatusText(code))) {
+            expect(value.trim()).toBeTruthy(); expect(value).not.toMatch(/USD|\$/);
+        }
+    }
+});
+
+it('refreshes member stock after same-account ticket changes and ignores other accounts or missing owner details', () => {
+    harness.states=[{revision:1,userId:'Alice',status:newStatus},null];
+    MemberTicketsPanel({user,lang:'en'});
+    expect(harness.memberRead).toHaveBeenCalledTimes(1);
+    for (const channel of [DAILY_LOGIN_REWARD_CHANGED_EVENT, 'qg-member-tickets-changed']) {
+        window.dispatchEvent(new Event(channel));
+        window.dispatchEvent(new CustomEvent(channel, { detail: { userId: 'Bob' } }));
+    }
+    expect(harness.memberRead).toHaveBeenCalledTimes(1);
+    const initialSignal=harness.memberRead.mock.calls[0][1] as AbortSignal;
+    window.dispatchEvent(new CustomEvent(DAILY_LOGIN_REWARD_CHANGED_EVENT, { detail: { userId: 'Alice' } }));
+    expect(initialSignal.aborted).toBe(true);
+    expect(harness.memberRead).toHaveBeenCalledTimes(2);
+    expect(harness.memberRead).toHaveBeenLastCalledWith('Alice',expect.any(AbortSignal));
+    window.dispatchEvent(new CustomEvent('qg-member-tickets-changed', { detail: { userId: 'Alice' } }));
+    expect(harness.memberRead).toHaveBeenCalledTimes(3);
+    harness.cleanups.forEach(cleanup=>cleanup());
+    window.dispatchEvent(new CustomEvent(DAILY_LOGIN_REWARD_CHANGED_EVENT, { detail: { userId: 'Alice' } }));
+    expect(harness.memberRead).toHaveBeenCalledTimes(3);
+    expect(harness.claim).not.toHaveBeenCalled(); expect(acceptCurrentAccountTerms).not.toHaveBeenCalled();
 });

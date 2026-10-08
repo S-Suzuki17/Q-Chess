@@ -6,9 +6,10 @@
     <priority>1.0</priority>
   </url>
   <url><loc>https://q-gambit.com/rules/</loc></url>
+  <url><loc>https://q-gambit.com/guide/</loc></url>
+  <url><loc>https://q-gambit.com/faq/</loc></url>
   <url><loc>https://q-gambit.com/about/</loc></url>
   <url><loc>https://q-gambit.com/contact/</loc></url>
   <url><loc>https://q-gambit.com/privacy/</loc></url>
   <url><loc>https://q-gambit.com/terms/</loc></url>
-  <url><loc>https://q-gambit.com/updates/</loc></url>
 </urlset>

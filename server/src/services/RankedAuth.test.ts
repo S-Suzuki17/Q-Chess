@@ -19,12 +19,12 @@ describe('RankedAuth password proof', () => {
         const session = (await auth.issueLegacySession('Alice', 'correct password'))!;
         expect(verify).toHaveBeenLastCalledWith('Alice', 'correct password');
         expect(session.token).toMatch(/^ranked_[A-Za-z0-9_-]{43}$/);
-        expect(auth.verifySession(session.token, 'Alice')).toEqual({ userId: 'Alice', expiresAt: session.expiresAt });
-        expect(auth.verifySession(session.token, 'Bob')).toBeNull();
-        expect(auth.verifySession(session.token, 'alice')).toBeNull();
-        expect(auth.verifySession(session.token, null)).toBeNull();
-        expect(auth.verifySession(session.token, 'GUEST-Alice')).toBeNull();
-        expect(auth.verifySession(session.token)?.userId).toBe('Alice');
+        expect(await auth.verifySession(session.token, 'Alice')).toEqual({ userId: 'Alice', expiresAt: session.expiresAt });
+        expect(await auth.verifySession(session.token, 'Bob')).toBeNull();
+        expect(await auth.verifySession(session.token, 'alice')).toBeNull();
+        expect(await auth.verifySession(session.token, null)).toBeNull();
+        expect(await auth.verifySession(session.token, 'GUEST-Alice')).toBeNull();
+        expect((await auth.verifySession(session.token))?.userId).toBe('Alice');
     });
 
     it.each([false, null, undefined, 1, 'true', { success: true }])('fails closed for verifier result %j', async (result) => {
@@ -37,7 +37,7 @@ describe('RankedAuth password proof', () => {
         const error = vi.spyOn(console, 'error').mockImplementation(() => {});
         const log = vi.spyOn(console, 'log').mockImplementation(() => {});
         const auth = new RankedAuth(async () => { throw new Error('upstream password details'); });
-        expect(await auth.issueLegacySession('Alice', 'password')).toBeNull();
+        await expect(auth.issueLegacySession('Alice', 'password')).rejects.toThrow('Session authority unavailable');
         expect(auth.activeSessionCount).toBe(0);
         expect(error).not.toHaveBeenCalled();
         expect(log).not.toHaveBeenCalled();
@@ -64,10 +64,10 @@ describe('RankedAuth password proof', () => {
     );
 
     it.each([null, undefined, {}, 5, '', 'Alice', 'SUPABASE-Alice', 'GUEST-123', 'anon_123', 'ranked_bad', 'x'.repeat(100_000)])(
-        'never accepts an ID or malformed token as a session', (token) => {
+        'never accepts an ID or malformed token as a session', async (token) => {
             const auth = new RankedAuth(vi.fn().mockResolvedValue(true));
-            expect(auth.verifySession(token)).toBeNull();
-            expect(auth.revokeSession(token)).toBe(false);
+            expect(await auth.verifySession(token)).toBeNull();
+            expect(await auth.revokeSession(token)).toBe(false);
         },
     );
 
@@ -94,19 +94,19 @@ describe('RankedAuth password proof', () => {
         const session = (await auth.issueLegacySession('Alice', 'password'))!;
         const token = session.token;
         session.userId = 'Bob';
-        const identity = auth.verifySession(token)!;
+        const identity = (await auth.verifySession(token))!;
         identity.userId = 'Carol';
         identity.expiresAt = 0;
-        expect(auth.verifySession(token)?.userId).toBe('Alice');
-        expect(auth.verifySession(token)?.expiresAt).toBeGreaterThan(Date.now());
+        expect((await auth.verifySession(token))?.userId).toBe('Alice');
+        expect((await auth.verifySession(token))?.expiresAt).toBeGreaterThan(Date.now());
     });
 
     it('rejects a modified or unknown well-formed token', async () => {
         const auth = new RankedAuth(async () => true);
         const session = (await auth.issueLegacySession('Alice', 'password'))!;
         const modified = `${session.token.slice(0, -1)}${session.token.endsWith('A') ? 'B' : 'A'}`;
-        expect(auth.verifySession(modified)).toBeNull();
-        expect(new RankedAuth(async () => true).verifySession(session.token)).toBeNull();
+        expect(await auth.verifySession(modified)).toBeNull();
+        expect(await new RankedAuth(async () => true).verifySession(session.token)).toBeNull();
     });
 });
 
@@ -118,9 +118,9 @@ describe('RankedAuth session lifetime and capacity', () => {
         const session = (await auth.issueLegacySession('Alice', 'password'))!;
         expect(session.expiresAt).toBe(1_000 + MAX_RANKED_SESSION_TTL_MS);
         vi.setSystemTime(session.expiresAt - 1);
-        expect(auth.verifySession(session.token)).not.toBeNull();
+        expect(await auth.verifySession(session.token)).not.toBeNull();
         vi.setSystemTime(session.expiresAt);
-        expect(auth.verifySession(session.token)).toBeNull();
+        expect(await auth.verifySession(session.token)).toBeNull();
         expect(auth.activeSessionCount).toBe(0);
     });
 
@@ -140,15 +140,15 @@ describe('RankedAuth session lifetime and capacity', () => {
         const first = (await auth.issueLegacySession('Alice', 'password'))!;
         const second = (await auth.issueLegacySession('Alice', 'password'))!;
         const other = (await auth.issueLegacySession('Bob', 'password'))!;
-        expect(auth.revokeSession(first.token)).toBe(true);
-        expect(auth.revokeSession(first.token)).toBe(false);
-        expect(auth.verifySession(first.token)).toBeNull();
-        expect(auth.verifySession(second.token)).not.toBeNull();
-        expect(auth.revokeUserSessions('Alice')).toBe(1);
-        expect(auth.revokeUserSessions('Alice')).toBe(0);
-        expect(auth.revokeUserSessions('GUEST-123')).toBe(0);
-        expect(auth.verifySession(second.token)).toBeNull();
-        expect(auth.verifySession(other.token)?.userId).toBe('Bob');
+        expect(await auth.revokeSession(first.token)).toBe(true);
+        expect(await auth.revokeSession(first.token)).toBe(false);
+        expect(await auth.verifySession(first.token)).toBeNull();
+        expect(await auth.verifySession(second.token)).not.toBeNull();
+        expect(await auth.revokeUserSessions('Alice')).toBe(1);
+        expect(await auth.revokeUserSessions('Alice')).toBe(0);
+        expect(await auth.revokeUserSessions('GUEST-123')).toBe(0);
+        expect(await auth.verifySession(second.token)).toBeNull();
+        expect((await auth.verifySession(other.token))?.userId).toBe('Bob');
     });
 
     it('rejects issuance at capacity and reuses expired capacity without evicting active users', async () => {
@@ -157,14 +157,14 @@ describe('RankedAuth session lifetime and capacity', () => {
         const verify = vi.fn().mockResolvedValue(true);
         const auth = new RankedAuth(verify, { maxSessions: 1, sessionTtlMs: 100 });
         const first = (await auth.issueLegacySession('Alice', 'password'))!;
-        expect(await auth.issueLegacySession('Bob', 'password')).toBeNull();
+        await expect(auth.issueLegacySession('Bob', 'password')).rejects.toThrow('Session authority unavailable');
         expect(verify).toHaveBeenCalledTimes(1);
-        expect(auth.verifySession(first.token)?.userId).toBe('Alice');
+        expect((await auth.verifySession(first.token))?.userId).toBe('Alice');
         vi.setSystemTime(100);
         const next = await auth.issueLegacySession('Bob', 'password');
         expect(next?.userId).toBe('Bob');
         expect(auth.activeSessionCount).toBe(1);
-        expect(auth.verifySession(first.token)).toBeNull();
+        expect(await auth.verifySession(first.token)).toBeNull();
     });
 
     it('keeps the capacity bound when password checks complete concurrently', async () => {
@@ -174,7 +174,7 @@ describe('RankedAuth session lifetime and capacity', () => {
         const second = auth.issueLegacySession('Bob', 'password');
         completions.forEach(resolve => resolve(true));
         expect((await first)?.userId).toBe('Alice');
-        expect(await second).toBeNull();
+        await expect(second).rejects.toThrow('Session authority unavailable');
         expect(auth.activeSessionCount).toBe(1);
     });
 
@@ -187,7 +187,7 @@ describe('RankedAuth session lifetime and capacity', () => {
         const other = (await auth.issueLegacySession('Bob', 'password'))!;
         vi.setSystemTime(10);
         expect(auth.cleanupExpiredSessions()).toBe(1);
-        expect(auth.verifySession(other.token)?.userId).toBe('Bob');
+        expect((await auth.verifySession(other.token))?.userId).toBe('Bob');
         expect(auth.activeSessionCount).toBe(1);
         expect(vi.getTimerCount()).toBe(0);
     });
@@ -199,4 +199,19 @@ describe('RankedAuth session lifetime and capacity', () => {
     it.each([0, -1, 1.5, NaN, Infinity, MAX_RANKED_SESSIONS + 1])('rejects invalid capacity %s', maxSessions => {
         expect(() => new RankedAuth(async () => true, { maxSessions })).toThrow(RangeError);
     });
+});
+
+it('retains the one-hour OFF and thirty-day ON lifetimes through the Promise-only adapter', async () => {
+    vi.useFakeTimers(); vi.setSystemTime(1_000);
+    const auth = new RankedAuth(async () => true);
+    const transient = (await auth.issueLegacySession('Alice', 'password', false))!;
+    const persistent = (await auth.issueLegacySession('Alice', 'password', true))!;
+    expect(transient.expiresAt).toBe(1_000 + 60 * 60 * 1000);
+    expect(persistent.expiresAt).toBe(1_000 + 30 * 24 * 60 * 60 * 1000);
+    const check = auth.verifySession(persistent.token);
+    expect(check).toBeInstanceOf(Promise); expect((await check)?.userId).toBe('Alice');
+    vi.setSystemTime(transient.expiresAt);
+    expect(await auth.verifySession(transient.token)).toBeNull(); expect(await auth.verifySession(persistent.token)).not.toBeNull();
+    vi.setSystemTime(persistent.expiresAt); expect(await auth.verifySession(persistent.token)).toBeNull();
+    expect(auth.revokeSession(persistent.token)).toBeInstanceOf(Promise); expect(auth.revokeUserSessions('Alice')).toBeInstanceOf(Promise);
 });

@@ -51,3 +51,15 @@ describe('daily login reward store', () => {
         await expect(store.read('Alice')).rejects.toThrow('REWARD_UNAVAILABLE');
     });
 });
+it('accepts only explicit v2 unlimited-safe balances and bounded v2 grant values', () => {
+    const v2 = {...response,rewardPolicyVersion:2,tickets:{ranked:200,hint:300},credited:{ranked:2,hint:0}};
+    expect(parseDailyLoginState(v2)).toMatchObject({rewardPolicyVersion:2,tickets:{ranked:200,hint:300}});
+    expect(parseDailyLoginClaim(v2)?.credited).toEqual({ranked:2,hint:0});
+    for (const invalid of [
+        {...v2,rewardPolicyVersion:3}, {...v2,rewardPolicyVersion:'2'},
+        {...v2,tickets:{ranked:Number.MAX_SAFE_INTEGER+1,hint:0}},
+        {...v2,tickets:{ranked:1.1,hint:0}},
+    ]) expect(parseDailyLoginState(invalid)).toBeNull();
+    expect(parseDailyLoginClaim({...v2,credited:{ranked:4,hint:0}})).toBeNull();
+    expect(parseDailyLoginClaim({...v2,credited:{ranked:3,hint:2}})).toBeNull();
+});

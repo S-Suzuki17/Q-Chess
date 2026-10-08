@@ -13,6 +13,7 @@ export type DailyLoginStatus = Readonly<{
     userId: string;
     enabled: boolean;
     streakDays: number;
+    rewardPolicyVersion?: 1 | 2;
     tickets: DailyTicketAmounts;
     lastClaimUtcDay: string | null;
     /** Render server's UTC day, used only to preview the next claim. Older APIs may omit it. */
@@ -25,7 +26,7 @@ export class DailyLoginRewardsError extends Error {
 }
 
 const validCount = (value: unknown): value is number => Number.isSafeInteger(value) && (value as number) >= 0;
-const validTicketCount = (value: unknown): value is number => validCount(value) && value <= 20;
+const validTicketCount = (value: unknown): value is number => validCount(value);
 const validTickets = (value: unknown): value is DailyTicketAmounts =>
     !!value && typeof value === 'object' && !Array.isArray(value) &&
     validTicketCount((value as DailyTicketAmounts).ranked) && validTicketCount((value as DailyTicketAmounts).hint);
@@ -42,8 +43,9 @@ const validUserId = (userId: string) => typeof userId === 'string' && !!userId &
 function parseStatus(value: unknown, userId: string): DailyLoginStatus {
     if (!value || typeof value !== 'object' || Array.isArray(value)) throw new DailyLoginRewardsError('UNAVAILABLE');
     const row = value as Record<string, unknown>;
+    if (row.rewardPolicyVersion !== undefined && row.rewardPolicyVersion !== 1 && row.rewardPolicyVersion !== 2) throw new DailyLoginRewardsError('UNAVAILABLE');
     if (row.userId !== userId || row.enabled !== true || !validCount(row.streakDays) || row.streakDays > 7 ||
-        !validTickets(row.tickets) || (row.lastClaimUtcDay !== null && !validUtcDay(row.lastClaimUtcDay)) ||
+        !validTickets(row.tickets) || (row.rewardPolicyVersion !== 2 && ((row.tickets as DailyTicketAmounts).ranked > 20 || (row.tickets as DailyTicketAmounts).hint > 20)) || (row.lastClaimUtcDay !== null && !validUtcDay(row.lastClaimUtcDay)) ||
         (row.lastClaimUtcDay === null ? row.streakDays !== 0 : row.streakDays < 1) ||
         (row.currentUtcDay !== undefined && (!validUtcDay(row.currentUtcDay) ||
             (typeof row.lastClaimUtcDay === 'string' && row.lastClaimUtcDay > row.currentUtcDay)))) {
@@ -53,6 +55,7 @@ function parseStatus(value: unknown, userId: string): DailyLoginStatus {
         userId,
         enabled: row.enabled,
         streakDays: row.streakDays,
+        ...(row.rewardPolicyVersion === undefined ? {} : { rewardPolicyVersion: row.rewardPolicyVersion as 1 | 2 }),
         tickets: { ranked: row.tickets.ranked, hint: row.tickets.hint },
         lastClaimUtcDay: row.lastClaimUtcDay,
         ...(row.currentUtcDay !== undefined ? { currentUtcDay: row.currentUtcDay as string } : {}),
@@ -97,7 +100,9 @@ async function request(userId: string, claim: boolean, signal?: AbortSignal): Pr
         signal?.throwIfAborted();
         const status = parseStatus(value, userId);
         if (!claim) return status;
-        if (!validTickets(value.credited)) throw new DailyLoginRewardsError('UNAVAILABLE');
+        if (!validTickets(value.credited) || (status.rewardPolicyVersion === 2
+            ? value.credited.ranked > 3 || value.credited.hint > 1
+            : value.credited.ranked > 20 || value.credited.hint > 20)) throw new DailyLoginRewardsError('UNAVAILABLE');
         return { ...status, credited: { ranked: value.credited.ranked, hint: value.credited.hint } };
     } catch (error) {
         if (signal?.aborted) throw signal.reason;

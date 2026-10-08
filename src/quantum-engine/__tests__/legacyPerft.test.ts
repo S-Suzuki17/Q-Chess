@@ -1,75 +1,99 @@
 import { describe, it, expect } from 'vitest';
 import { IdentityPool } from '../../lib/IdentityPool';
-import { Token, deduceMoveTypes } from '../../lib/GameEngine';
+import { type Token, deduceMoveTypes, isPlayerInCheck } from '../../lib/GameEngine';
+import type { PieceType } from '../../config/gameConfig';
 
-const ALL_TYPES = ['King', 'Queen', 'Rook', 'Bishop', 'Knight', 'Pawn'] as const;
+const ALL_TYPES: PieceType[] = ['King', 'Queen', 'Rook', 'Bishop', 'Knight', 'Pawn'];
+const initialProbabilities = { King: 1, Queen: 1, Rook: 1, Bishop: 1, Knight: 1, Pawn: 1 };
+type Side = 'white' | 'black';
+type Position = { tokens: Token[]; pool: IdentityPool; sideToMove: Side };
 
-function createLegacyInitialState() {
+function initial(sideToMove: Side): Position {
     const tokens: Token[] = [];
-    let idCounter = 1;
-    for (let r = 0; r < 2; r++) {
-        for (let c = 0; c < 8; c++) {
-            tokens.push({ id: `b_${idCounter++}`, player: 'black', row: r, col: c, probabilities: {} as any, isCaptured: false, hasMoved: false });
-        }
-    }
-    for (let r = 6; r < 8; r++) {
-        for (let c = 0; c < 8; c++) {
-            tokens.push({ id: `w_${idCounter++}`, player: 'white', row: r, col: c, probabilities: {} as any, isCaptured: false, hasMoved: false });
-        }
-    }
     const pool = new IdentityPool();
-    tokens.forEach(t => pool.registerPiece(t.id));
-    return { tokens, pool, sideToMove: 'white' as 'white' | 'black' };
+    for (const [player, rows] of [['black', [0, 1]], ['white', [6, 7]]] as const) {
+        for (const row of rows) for (let col = 0; col < 8; col++) {
+            const id = `${player}_${row}_${col}`;
+            tokens.push({ id, player, row, col, probabilities: { ...initialProbabilities }, isCaptured: false, hasMoved: false });
+            pool.registerPiece(id);
+        }
+    }
+    return { tokens, pool, sideToMove };
 }
 
-function legacyPerft(tokens: Token[], pool: IdentityPool, sideToMove: 'white'|'black', depth: number): number {
-    if (depth === 0) return 1;
-    let nodes = 0;
-    const currentTokens = tokens.filter(t => !t.isCaptured && t.player === sideToMove);
-    
-    for (const token of currentTokens) {
-        const currentPossibilities = pool.piecePossibilities.get(token.id);
-        if (!currentPossibilities || currentPossibilities.size === 0) continue;
-        
-        for (let r = 0; r < 8; r++) {
-            for (let c = 0; c < 8; c++) {
-                if (token.row === r && token.col === c) continue;
-                
-                const targetToken = tokens.find(t => !t.isCaptured && t.row === r && t.col === c);
-                if (targetToken && targetToken.player === sideToMove) continue;
-
-                const possibleTypes = deduceMoveTypes(token, r, c, tokens);
-                
-                for (const pt of ALL_TYPES) {
-                    if (possibleTypes.includes(pt) && currentPossibilities.has(pt)) {
-                        const clonedPool = pool.clone();
-                        clonedPool.restrictIdentity(token.id, [pt]);
-                        
-                        const nextTokens = tokens.map(t => {
-                            if (targetToken && t.id === targetToken.id) {
-                                const p = clonedPool.piecePossibilities.get(t.id);
-                                if (p) p.delete('King');
-                                return { ...t, isCaptured: true, row: -1, col: -1 };
-                            }
-                            if (t.id === token.id) return { ...t, row: r, col: c, hasMoved: true };
-                            return t;
-                        });
-                        
-                        if (clonedPool.resolveGlobalConstraints(nextTokens)) {
-                            nodes += legacyPerft(nextTokens, clonedPool, sideToMove === 'white' ? 'black' : 'white', depth - 1);
-                        }
+/** One ply of concrete identity branches. Check the old global constraints and
+ * king safety; this counts identities separately, unlike a combined UI move. */
+function onePly({ tokens, pool, sideToMove }: Position) {
+    const moves: { id: string; type: PieceType; row: number; col: number }[] = [];
+    for (const token of tokens.filter(piece => !piece.isCaptured && piece.player === sideToMove)) {
+        const identities = pool.piecePossibilities.get(token.id)!;
+        for (let row = 0; row < 8; row++) for (let col = 0; col < 8; col++) {
+            if (token.row === row && token.col === col) continue;
+            const target = tokens.find(piece => !piece.isCaptured && piece.row === row && piece.col === col);
+            if (target?.player === sideToMove) continue;
+            const geometry = deduceMoveTypes(token, row, col, tokens);
+            for (const type of ALL_TYPES.filter(type => identities.has(type) && geometry.includes(type))) {
+                const nextPool = pool.clone();
+                nextPool.restrictIdentity(token.id, [type]);
+                const nextTokens = tokens.map(piece => {
+                    if (piece.id === target?.id) {
+                        nextPool.piecePossibilities.get(piece.id)?.delete('King');
+                        return { ...piece, isCaptured: true, row: -1, col: -1 };
                     }
-                }
+                    return piece.id === token.id ? { ...piece, row, col, hasMoved: true } : piece;
+                });
+                if (!nextPool.resolveGlobalConstraints(nextTokens) || isPlayerInCheck(sideToMove, nextTokens, nextPool)) continue;
+                moves.push({ id: token.id, type, row, col });
             }
         }
     }
-    return nodes;
+    return moves;
 }
 
-describe('Legacy Perft', () => {
-    it('runs depth 1', () => {
-        const { tokens, pool, sideToMove } = createLegacyInitialState();
-        const nodes = legacyPerft(tokens, pool, sideToMove, 2);
-        console.log(`Legacy Depth 2 Nodes: ${nodes}`);
-    }, 60000);
+function resolved(rows: [string, Side, PieceType, number, number][]): Position {
+    const pool = new IdentityPool();
+    const tokens: Token[] = rows.map(([id, player, type, row, col]) => {
+        pool.registerPiece(id); pool.restrictIdentity(id, [type]);
+        const probabilities = { King: Number(type === 'King'), Queen: Number(type === 'Queen'),
+            Rook: Number(type === 'Rook'), Bishop: Number(type === 'Bishop'),
+            Knight: Number(type === 'Knight'), Pawn: Number(type === 'Pawn') };
+        return { id, player, row, col, probabilities, isCaptured: false, hasMoved: true };
+    });
+    return { tokens, pool, sideToMove: 'white' };
+}
+
+describe('Legacy finite one-ply regression', () => {
+    it('counts independently derived initial identity branches for both sides without changing the position', () => {
+        // Front pawns: 8*2. Knights: 26 front + 14 back. Bishops: two
+        // diagonals totalling 50. Rooks: 8*5. Queens: 50+40. Every revealed
+        // king destination is exposed to the enemy file, so no King branch.
+        const counts = { Pawn: 16, Knight: 40, Bishop: 50, Rook: 40, Queen: 90, King: 0 };
+        const bySide = (['white', 'black'] as const).map(side => {
+            const position = initial(side);
+            const before = JSON.stringify({ tokens: position.tokens, masks: [...position.pool.piecePossibilities] });
+            const moves = onePly(position);
+            expect(moves).toHaveLength(236);
+            for (const type of ALL_TYPES) expect(moves.filter(move => move.type === type)).toHaveLength(counts[type]);
+            expect(JSON.stringify({ tokens: position.tokens, masks: [...position.pool.piecePossibilities] })).toBe(before);
+            return moves;
+        });
+        const key = (move: { type: PieceType; row: number; col: number }) => `${move.type}:${move.row}:${move.col}`;
+        expect(bySide[0].map(move => key({ ...move, row: 7 - move.row, col: 7 - move.col })).sort())
+            .toEqual(bySide[1].map(key).sort());
+    });
+    it('counts fourteen unobstructed rook moves and three corner king moves', () => {
+        const moves = onePly(resolved([['wk', 'white', 'King', 7, 0], ['wr', 'white', 'Rook', 4, 4], ['bk', 'black', 'King', 0, 7]]));
+        expect(moves).toHaveLength(17);
+        expect(moves.filter(move => move.id === 'wr')).toHaveLength(14);
+        expect(moves.filter(move => move.id === 'wk').map(({row,col}) => [row,col]).sort())
+            .toEqual([[6,0],[6,1],[7,1]]);
+    });
+    it('keeps a pinned rook on its file and permits capturing the pinning rook', () => {
+        const moves = onePly(resolved([['wk', 'white', 'King', 7, 4], ['wr', 'white', 'Rook', 6, 4],
+            ['br', 'black', 'Rook', 0, 4], ['bk', 'black', 'King', 0, 7]]));
+        expect(moves).toHaveLength(10);
+        expect(moves.filter(move => move.id === 'wr').map(({row,col}) => [row,col]).sort())
+            .toEqual([[0,4],[1,4],[2,4],[3,4],[4,4],[5,4]]);
+        expect(moves.filter(move => move.id === 'wk')).toHaveLength(4);
+    });
 });

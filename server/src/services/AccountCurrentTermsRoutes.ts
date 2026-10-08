@@ -1,10 +1,10 @@
 import express from 'express';
-import { RankedAuth, isRankedUserId } from './RankedAuth';
+import { type RankedSessionAuthority, isRankedUserId } from './RankedAuth';
 import { AccountWriteGate } from './AccountDeletion';
 import { CURRENT_TICKET_TERMS_VERSION, type createCurrentTermsStore } from './AccountCurrentTerms';
 
 /** Keep the shipped Android /account/terms contract unchanged. */
-export function createCurrentTermsRouter(auth: RankedAuth, store: ReturnType<typeof createCurrentTermsStore>, gate: AccountWriteGate) {
+export function createCurrentTermsRouter(auth: RankedSessionAuthority, store: ReturnType<typeof createCurrentTermsStore>, gate: AccountWriteGate) {
     const router = express.Router(), counts = new Map<string, { n: number; until: number }>();
     const allow = (key: string, max: number) => {
         const now = Date.now(); for (const [k, v] of counts) if (v.until <= now) counts.delete(k);
@@ -13,13 +13,14 @@ export function createCurrentTermsRouter(auth: RankedAuth, store: ReturnType<typ
         v.n++; counts.set(key, v); return true;
     };
     const recheck = async (res: express.Response) => res.locals.legacy
-        ? !!auth.verifySession(res.locals.token, res.locals.owner)
+        ? !!(await auth.verifySession(res.locals.token, res.locals.owner))
         : await store.verifyUser(res.locals.token) === res.locals.owner;
     router.use('/account/current-terms', async (req, res, next) => {
         res.setHeader('Cache-Control', 'no-store'); res.setHeader('Vary', 'Authorization');
         if (!allow(`ip:${req.socket.remoteAddress ?? 'unknown'}`, 120)) { res.setHeader('Retry-After', '60'); res.status(429).json({ code: 'TRY_LATER' }); return; }
-        const token = /^Bearer ([-\w.]{1,8192})$/i.exec(req.headers.authorization ?? '')?.[1], proof = auth.verifySession(token);
+        const token = /^Bearer ([-\w.]{1,8192})$/i.exec(req.headers.authorization ?? '')?.[1];
         try {
+            const proof = await auth.verifySession(token);
             const id = proof?.userId ?? (token && /^[-\w]+\.[-\w]+\.[-\w]+$/.test(token) ? await store.verifyUser(token) : null);
             if (!id || !isRankedUserId(id)) { res.status(401).json({ code: 'AUTH_REQUIRED' }); return; }
             if (Object.keys(req.query).length) { res.status(400).json({ code: 'INVALID_REQUEST' }); return; }

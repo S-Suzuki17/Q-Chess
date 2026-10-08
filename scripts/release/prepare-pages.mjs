@@ -10,12 +10,14 @@ const source = path.join(root, 'out');
 const sha = file => createHash('sha256').update(readFileSync(file)).digest('hex');
 
 export function checkFiles(files, read) {
-    assert.ok(files.length > 0 && files.length + 1 <= 1000, 'Exceeds Pages dashboard upload limit (1000 files)');
+    assert.ok(files.length > 0 && files.length + 2 <= 1000, 'Exceeds Pages dashboard upload limit (1000 files)');
     for (const {name, size} of files) {
+        assert.ok(!/(^|\/)(?:updates|qube-drafts)(\/|\.|$)/i.test(name), `Retired QUBE content in ${name}`);
         assert.ok(size <= 25 * 1024 * 1024, `Exceeds Pages 25 MiB limit: ${name}`);
         assert.ok(!/(^|\/)(?:\.env[^/]*|\.git|node_modules|_worker\.js|functions)(\/|$)|\.(?:jks|keystore|pem|map)$/i.test(name), `Forbidden release file: ${name}`);
         if (/\.(?:html|js|json|txt)$/i.test(name)) {
             const content = read(name);
+            assert.ok(!/QUBIT4x|devDiaryTweets|開発AIのぼやき部屋/.test(content), `Retired QUBE content in ${name}`);
             assert.ok(!/sb_secret_[\w-]+|\b(?:sk|rk)_(?:live|test)_[\w-]+|\bwhsec_[\w-]+|-----BEGIN (?:RSA |EC )?PRIVATE KEY-----/.test(content), `Secret material in ${name}`);
             for (const jwt of content.match(/eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g) ?? []) {
                 let payload;
@@ -57,6 +59,7 @@ function prepare() {
     mkdirSync(path.dirname(destination), {recursive: true});
     cpSync(source, destination, {recursive: true, errorOnExist: true, force: false, filter: file => !file.endsWith('.map')});
     cpSync(path.join(root, 'scripts/release/cloudflare/_headers'), path.join(destination, '_headers'));
+    cpSync(path.join(root, 'scripts/release/cloudflare/_redirects'), path.join(destination, '_redirects'));
     // Evidence remains next to, never inside, the deployable directory.
     const manifest = inventory(destination).map(file => ({...file, sha256: sha(path.join(destination, file.name))}));
     writeFileSync(`${destination}.manifest.json`, JSON.stringify(manifest, null, 2) + '\n');

@@ -2,7 +2,11 @@ import { describe, expect, it, vi } from 'vitest';
 import { GameEngine, type Piece, type PublicGameState } from './GameEngine';
 import { attemptLegalMove, createInitialBoard, isCheckmate, isKingInCheck } from './quantumChess';
 import * as rules from './quantumChess';
-import { chooseCpuMove, cpuProfileForRating, type CpuProfile } from './RankCpuSearch';
+import { chooseCpuMove, cpuProfileForRating, evaluateCpuPosition, type CpuProfile } from './RankCpuSearch';
+import { CPU_PERSONALITIES } from '../quantum-engine/ai/personalities';
+import { PERSONALITY_WEIGHTS } from '../quantum-engine/ai/personalities';
+import { EvalQoppelia } from '../quantum-engine/ai/evalQoppelia';
+import { rankedEvaluationState } from './RankCpuEvaluation';
 
 const strong: CpuProfile = { rating: 2200, level: 9, thinkMs: 500, maxDepth: 2 };
 const piece = (id: number, team: number, x: number, y: number, possibilities: string[], hasMoved = true): Piece =>
@@ -14,6 +18,46 @@ function position(pieces: Piece[], turn = 0): PublicGameState {
 }
 
 describe('ranked server CPU', () => {
+    it('matches canonical candidate evaluation after coordinate, capture and promotion conversion', () => {
+        const promoted = { ...piece(1, 0, 2, 7, ['Q']), promoted: true };
+        const captured = { ...piece(2, 0, 5, 4, ['Q']), captured: true };
+        const state = position([piece(0, 0, 0, 0, ['K']), promoted, captured,
+            piece(3, 0, 4, 3, ['R', 'Q']), piece(4, 1, 7, 7, ['K']), piece(5, 1, 3, 5, ['N', 'B'])]);
+        const canonical = rankedEvaluationState(state);
+        expect(canonical.pieces[1]).toMatchObject({ state: 1, promotedType: 16, position: { row: 0, col: 2 } });
+        expect(canonical.pieces[2].alive).toBe(false);
+        const values = new EvalQoppelia({ originValue: 0, mobility: 0, candidateAllocation: 0, kingCandidate: 0, safety: 0, center: 0 });
+        expect(values.evaluate(canonical, 'white')).toBe(11); // effective Q9 + forced R5 - minor3
+        for (const personality of CPU_PERSONALITIES) {
+            const evaluator = new EvalQoppelia(PERSONALITY_WEIGHTS[personality]);
+            expect(evaluateCpuPosition(state, personality)).toBeCloseTo(100 * evaluator.evaluate(canonical, 'white'), 10);
+            expect(evaluateCpuPosition({ ...state, turn: 1 }, personality)).toBeCloseTo(-evaluateCpuPosition(state, personality), 10);
+        }
+    });
+    it('holds strength and clock budgets constant across all six styles', () => {
+        for (const rating of [600,1000,1600,2200]) {
+            const profiles=CPU_PERSONALITIES.map(style => cpuProfileForRating(rating,600,style));
+            expect(new Set(profiles.map(({personality,...budget}) => JSON.stringify(budget))).size).toBe(1);
+        }
+    });
+    it.each(CPU_PERSONALITIES)('uses authoritative ranked legality for %s', style => {
+        const engine = new GameEngine('style-check','human','cpu',createInitialBoard());
+        const state = engine.getPublicState('human'), original = JSON.stringify(state);
+        const move = chooseCpuMove(state,{...cpuProfileForRating(1600,600,style),thinkMs:500,maxDepth:1});
+        expect(move).not.toBeNull();
+        expect(attemptLegalMove(state.pieces,state.board,move!.pieceId,move!.toX,move!.toY,move!.intention,move!.promotedTo).success).toBe(true);
+        expect(JSON.stringify(state)).toBe(original);
+    });
+    it('changes ranked evaluation, not just the style label', () => {
+        const engine=new GameEngine('style-evaluation','human','cpu',createInitialBoard());
+        const state=engine.getPublicState('human');
+        const advanced=state.pieces.find(p=>p.team===0 && p.y===1)!;
+        state.board[advanced.y*8+advanced.x]=null; advanced.y=3;
+        state.board[advanced.y*8+advanced.x]=advanced.id;
+        const scores=CPU_PERSONALITIES.map(style=>evaluateCpuPosition(state,style));
+        expect(scores.every(Number.isFinite)).toBe(true);
+        expect(new Set(scores).size).toBe(6);
+    });
     it('uses bounded approximate ratings and shorter budgets for fast clocks', () => {
         expect(cpuProfileForRating(NaN, 600).rating).toBe(1000);
         expect(cpuProfileForRating(-20, 600)).toMatchObject({ rating: 600, level: 1, maxDepth: 1 });

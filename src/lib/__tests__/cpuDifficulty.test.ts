@@ -4,10 +4,10 @@ import { createInitialState } from '../../quantum-engine/initialState';
 import { searchBestMove } from '../../quantum-engine/ai/search';
 import { EvalQoppelia } from '../../quantum-engine/ai/evalQoppelia';
 import { cpuDifficulty } from '../../config/cpuDifficulty';
-import { PERSONALITY_WEIGHTS } from '../../config/campaign';
+import { PERSONALITY_WEIGHTS, CPU_PERSONALITIES } from '../../config/cpuPersonalities';
 
 afterEach(() => vi.unstubAllGlobals());
-it.each(['attacker', 'guardian'] as const)('sends the %s personality to the CPU worker', async personality => {
+it.each(CPU_PERSONALITIES)('sends the %s personality to the CPU worker without changing difficulty', async personality => {
     let sent: unknown;
     vi.stubGlobal('Worker', class {
         onmessage?: (event: unknown) => void;
@@ -26,7 +26,7 @@ it('boss personalities actually change position evaluation', () => {
     advanced.position.row = 4;
     const scores = Object.values(PERSONALITY_WEIGHTS).map(weights => new EvalQoppelia(weights).evaluate(state, 'white'));
     expect(scores.every(Number.isFinite)).toBe(true);
-    expect(new Set(scores).size).toBe(3);
+    expect(new Set(scores).size).toBe(CPU_PERSONALITIES.length);
 });
 it.each([[1, 1000, 0], [3, 1500, 2], [5, 4000, 6]])('passes level %i through to the worker', async (level, timeLimitMs, maxDepth) => {
     let sent: unknown;

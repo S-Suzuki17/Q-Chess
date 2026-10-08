@@ -116,3 +116,13 @@ it('fails closed for insecure transport, auth failure, missing API, and abort', 
     await expect(readDailyLoginStatus('Alice', controller.signal)).rejects.toBeDefined();
     expect(fetcher).toHaveBeenCalledTimes(6);
 });
+it('accepts larger safe balances only when the server advertises reward policy v2', async () => {
+    const fetcher=vi.fn();vi.stubGlobal('fetch',fetcher);
+    const v2={...status,rewardPolicyVersion:2,tickets:{ranked:200,hint:300}};
+    fetcher.mockResolvedValue(reply(v2));
+    await expect(readDailyLoginStatus('Alice')).resolves.toEqual(v2);
+    for(const value of [{...v2,rewardPolicyVersion:3},{...v2,tickets:{ranked:Number.MAX_SAFE_INTEGER+1,hint:0}},
+        {...v2,tickets:{ranked:1.1,hint:0}}]) {
+        fetcher.mockResolvedValue(reply(value));await expect(readDailyLoginStatus('Alice')).rejects.toThrow('UNAVAILABLE');
+    }
+});

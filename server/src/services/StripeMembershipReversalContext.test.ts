@@ -1,3 +1,4 @@
+import { priceFixture, checkoutLineFixture, checkoutEvidenceFixture } from './StripeTestFixtures';
 import { invoiceFixture, paymentFixture, reconciliationToken } from './StripeTestFixtures';
 import { describe, expect, it, vi } from 'vitest';
 import { StripeTestMembershipApi, type StripeEvent } from './StripeMembership';
@@ -30,14 +31,14 @@ describe('Stripe reversal membership context', () => {
         await expect(api.reversalContext({ ...event, livemode: true }, 'sub_ABCDEFGH')).rejects.toThrow();
     });
     it('marks a new paid period only for the canonical latest invoice', async () => {
-        const request = vi.fn(async (url: string) => Response.json(paymentFixture(url) ?? (url.includes('/subscriptions/')
+        const request = vi.fn(async (url: string) => Response.json((url.includes('/line_items?') ? checkoutLineFixture() : null) ?? paymentFixture(url) ?? (url.includes('/subscriptions/')
             ? { id: 'sub_ABCDEFGH', livemode: false, customer: 'cus_ABCDEFGH', status: 'active', automatic_tax: { enabled: false },
                 latest_invoice: 'in_ABCDEFGH', current_period_end: 1800000000,
                 cancel_at_period_end: false,
-                items: { data: [{ price: { id: 'price_ABCDEFGH' }, quantity: 1 }], has_more: false } }
+                items: { data: [{ price: priceFixture(), quantity: 1 }], has_more: false } }
             : url.includes('/checkout/sessions?')
                 ? { data: [{ id: 'cs_test_ABCDEFGH', livemode: false, mode: 'subscription',
-                    subscription: 'sub_ABCDEFGH', customer: 'cus_ABCDEFGH', client_reference_id: 'Alice', status: 'complete', payment_status: 'paid' }],
+                    subscription: 'sub_ABCDEFGH', customer: 'cus_ABCDEFGH', client_reference_id: 'Alice', status: 'complete', payment_status: 'paid', ...checkoutEvidenceFixture() }],
                     has_more: false }
                 : invoiceFixture())));
         const api = new StripeTestMembershipApi({

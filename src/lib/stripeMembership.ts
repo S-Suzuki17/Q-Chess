@@ -1,11 +1,12 @@
 'use client';
+import { isCommerceSku, type CommerceSku } from '../config/commerceCatalog';
 import { requireCurrentAccountTerms } from './currentAccountTerms';
 
 import { Capacitor } from '@capacitor/core';
 import { ANDROID_BUILD, platformFeatures } from '../config/appPlatform';
 import { supabase } from './supabaseClient';
 import { gameServerUrl, readRankedSession } from './rankedSession';
-import { MEMBER_TICKET_CAP, webCommerceCheckoutReady } from '../config/webCommerce';
+import { webCommerceCheckoutReady } from '../config/webCommerce';
 
 /** Explicit public build flags, default OFF. Native/runtime guards remain mandatory. */
 export const STRIPE_WEB_MEMBERSHIP_ENABLED = !ANDROID_BUILD && process.env.NEXT_PUBLIC_QG_STRIPE_WEB_MEMBERSHIP_ENABLED === 'true';
@@ -14,8 +15,23 @@ export const STRIPE_WEB_PORTAL_ENABLED = !ANDROID_BUILD && process.env.NEXT_PUBL
 /** Use of existing entitlements is separate from new purchases and allowed on Android. */
 export const MEMBER_TICKET_USAGE_ENABLED = process.env.NEXT_PUBLIC_QG_MEMBER_TICKET_USAGE_ENABLED === 'true';
 
+/** Separate mode-specific stock and billing state; never legacy daily tickets. */
+export type StripeCommerceStatus = Readonly<{
+    userId: string;
+    livemode: boolean;
+    active: boolean;
+    sku: 'standard_monthly' | 'plus_monthly' | null;
+    periodEnd: string | null;
+    cancelAtPeriodEnd: boolean;
+    unlimitedRanked: boolean;
+    adFree: boolean;
+    balances: Readonly<{ purchased: number; subscription: number }>;
+}>;
+
 export type StripeMembershipStatus = Readonly<{
     userId: string;
+    availableCheckoutSkus?: readonly CommerceSku[];
+    commerce?: StripeCommerceStatus;
     enabled: true;
     active: boolean;
     canManageBilling: boolean;
@@ -47,22 +63,55 @@ const validUserId = (id: string) => typeof id === 'string' && !!id && id.length 
 const validDay = (value: unknown): value is string => typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value) &&
     !Number.isNaN(Date.parse(`${value}T00:00:00Z`)) && new Date(`${value}T00:00:00Z`).toISOString().slice(0, 10) === value;
 
+const validPeriodEnd = (value: unknown): value is string => typeof value === 'string' &&
+    /^\d{4}-\d{2}-\d{2}T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d{1,6})?(?:Z|[+-]\d{2}:\d{2})$/.test(value) &&
+    validDay(value.slice(0, 10)) && Number.isFinite(Date.parse(value));
+
+function parseCommerceStatus(value: unknown, userId: string): StripeCommerceStatus {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) throw new StripeMembershipError('UNAVAILABLE');
+    const row = value as Record<string, unknown>;
+    const balances = row.balances as Record<string, unknown> | null;
+    if (row.userId !== userId || typeof row.livemode !== 'boolean' || typeof row.active !== 'boolean' ||
+        typeof row.cancelAtPeriodEnd !== 'boolean' || typeof row.unlimitedRanked !== 'boolean' || typeof row.adFree !== 'boolean' ||
+        !balances || Array.isArray(balances) || typeof balances !== 'object' ||
+        !Number.isSafeInteger(balances.purchased) || (balances.purchased as number) < 0 ||
+        !Number.isSafeInteger(balances.subscription) || (balances.subscription as number) < 0 ||
+        (row.active
+            ? !['standard_monthly', 'plus_monthly'].includes(row.sku as string) || !validPeriodEnd(row.periodEnd)
+            : row.sku !== null || row.periodEnd !== null || row.cancelAtPeriodEnd !== false) ||
+        row.unlimitedRanked !== (row.active && row.livemode) || row.adFree !== (row.active && row.livemode)) {
+        throw new StripeMembershipError('UNAVAILABLE');
+    }
+    return {
+        userId, livemode: row.livemode, active: row.active,
+        sku: row.sku as StripeCommerceStatus['sku'], periodEnd: row.periodEnd as string | null,
+        cancelAtPeriodEnd: row.cancelAtPeriodEnd, unlimitedRanked: row.unlimitedRanked, adFree: row.adFree,
+        balances: { purchased: balances.purchased as number, subscription: balances.subscription as number },
+    };
+}
+
 export function parseStripeMembershipStatus(value: unknown, userId: string): StripeMembershipStatus {
     if (!value || typeof value !== 'object' || Array.isArray(value)) throw new StripeMembershipError('UNAVAILABLE');
     const row = value as Record<string, unknown>;
     const tickets = row.tickets as Record<string, unknown> | null;
+    if (row.availableCheckoutSkus !== undefined && (!Array.isArray(row.availableCheckoutSkus) ||
+        !row.availableCheckoutSkus.every(isCommerceSku) || new Set(row.availableCheckoutSkus).size !== row.availableCheckoutSkus.length)) {
+        throw new StripeMembershipError('UNAVAILABLE');
+    }
     if (row.userId !== userId || row.enabled !== true || typeof row.active !== 'boolean' ||
         typeof row.canManageBilling !== 'boolean' || typeof row.cancelAtPeriodEnd !== 'boolean' ||
         (row.cancelAtPeriodEnd && !row.active) ||
         (row.active && row.periodEnd === null) ||
         (row.periodEnd !== null && (typeof row.periodEnd !== 'string' || !Number.isFinite(Date.parse(row.periodEnd)))) ||
         (row.lastGrantUtcDay !== null && !validDay(row.lastGrantUtcDay)) || !tickets ||
-        !Number.isSafeInteger(tickets.ranked) || (tickets.ranked as number) < 0 || (tickets.ranked as number) > MEMBER_TICKET_CAP.ranked ||
-        !Number.isSafeInteger(tickets.hint) || (tickets.hint as number) < 0 || (tickets.hint as number) > MEMBER_TICKET_CAP.hint) {
+        !Number.isSafeInteger(tickets.ranked) || (tickets.ranked as number) < 0 ||
+        !Number.isSafeInteger(tickets.hint) || (tickets.hint as number) < 0) {
         throw new StripeMembershipError('UNAVAILABLE');
     }
     return {
         userId, enabled: true, active: row.active as boolean,
+        ...(row.availableCheckoutSkus === undefined ? {} : { availableCheckoutSkus: row.availableCheckoutSkus as CommerceSku[] }),
+        ...(row.commerce === undefined ? {} : { commerce: parseCommerceStatus(row.commerce, userId) }),
         canManageBilling: row.canManageBilling as boolean,
         cancelAtPeriodEnd: row.cancelAtPeriodEnd as boolean,
         periodEnd: row.periodEnd as string | null,
@@ -98,10 +147,11 @@ export function parseStripePortalUrl(value: unknown): string {
     } catch { throw new StripeMembershipError('UNAVAILABLE'); }
 }
 
-async function request(userId: string, action: Action, signal?: AbortSignal, usageOnly = false): Promise<unknown> {
+async function request(userId: string, action: Action, signal?: AbortSignal, usageOnly = false, sku?: CommerceSku): Promise<unknown> {
     if (usageOnly) {
         if (!MEMBER_TICKET_USAGE_ENABLED || !['status','daily-grant'].includes(action)) throw new StripeMembershipError('DISABLED');
     } else assertWebOnly(action);
+    if (action === 'checkout' && !isCommerceSku(sku)) throw new StripeMembershipError('UNAVAILABLE');
     if (!validUserId(userId)) throw new StripeMembershipError('AUTH_REQUIRED');
     signal?.throwIfAborted();
     try {
@@ -124,7 +174,7 @@ async function request(userId: string, action: Action, signal?: AbortSignal, usa
             method: action === 'status' ? 'GET' : 'POST',
             headers: { Authorization: `Bearer ${token}`,
                 ...(action === 'status' ? {} : { 'Content-Type': 'application/json' }) },
-            ...(action === 'status' ? {} : { body: '{}' }),
+            ...(action === 'status' ? {} : { body: JSON.stringify(action === 'checkout' ? { sku } : {}) }),
             signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(15000)]) : AbortSignal.timeout(15000),
             credentials: 'omit', cache: 'no-store', redirect: 'error', referrerPolicy: 'no-referrer',
         });
@@ -152,8 +202,8 @@ export async function claimMemberTickets(userId: string, signal?: AbortSignal): 
 }
 
 /** Returns a validated URL; the caller must decide whether to navigate. Never called while checkout flag is off. */
-export async function prepareStripeCheckout(userId: string, signal?: AbortSignal): Promise<string> {
-    return parseStripeCheckoutUrl(await request(userId, 'checkout', signal));
+export async function prepareStripeCheckout(userId: string, sku: CommerceSku, signal?: AbortSignal): Promise<string> {
+    return parseStripeCheckoutUrl(await request(userId, 'checkout', signal, false, sku));
 }
 
 /** A short-lived, server-created customer portal URL; never accepts a client-supplied Stripe Customer ID. */

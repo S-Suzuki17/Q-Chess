@@ -30,18 +30,18 @@ it.each([undefined,'false','1','TRUE','yes',' true'])('defaults OFF unless the e
 });
 it('independently enables all requested Web flags but keeps Checkout behind publication and consent',async()=>{
  enable();const m=await modules();expect(values(m)).toEqual(names.map(()=>true));
- expect(m.commerce.webCommerceCheckoutReady()).toBe(false);await expect(m.stripe.prepareStripeCheckout('Alice')).rejects.toThrow('DISABLED');expect(h.fetch).not.toHaveBeenCalled();
+ expect(m.commerce.webCommerceCheckoutReady()).toBe(false);await expect(m.stripe.prepareStripeCheckout('Alice', 'standard_monthly')).rejects.toThrow('DISABLED');expect(h.fetch).not.toHaveBeenCalled();
  h.date='2026-01-01';expect(m.commerce.webCommerceCheckoutReady()).toBe(true);
  h.consent.mockRejectedValueOnce(new Error('CURRENT_TERMS_REQUIRED'));
- await expect(m.stripe.prepareStripeCheckout('Alice')).rejects.toThrow('UNAVAILABLE');expect(h.fetch).not.toHaveBeenCalled();
- await expect(m.stripe.prepareStripeCheckout('Alice')).resolves.toBe('https://checkout.stripe.com/c/pay/owned');
+ await expect(m.stripe.prepareStripeCheckout('Alice', 'standard_monthly')).rejects.toThrow('UNAVAILABLE');expect(h.fetch).not.toHaveBeenCalled();
+ await expect(m.stripe.prepareStripeCheckout('Alice', 'standard_monthly')).resolves.toBe('https://checkout.stripe.com/c/pay/owned');
  await expect(m.daily.claimDailyLoginReward('Alice')).resolves.toMatchObject({tickets:{ranked:1,hint:2}});
  await expect(m.refund.readRankedRefundBalance('Alice')).resolves.toMatchObject({freeRankedRefunds:25,paidRankedRefunds:64});
  expect(h.consent).toHaveBeenCalledWith('Alice',undefined);
 });
 it('keeps existing billing and ticket use available when Checkout and offers are independently OFF',async()=>{
  set('STRIPE_WEB_PORTAL_ENABLED','true');set('MEMBER_TICKET_USAGE_ENABLED','true');const m=await modules();
- await expect(m.stripe.prepareStripeCheckout('Alice')).rejects.toThrow('DISABLED');
+ await expect(m.stripe.prepareStripeCheckout('Alice', 'standard_monthly')).rejects.toThrow('DISABLED');
  await expect(m.stripe.readStripeMembershipStatus('Alice')).resolves.toMatchObject({canManageBilling:true});
  await expect(m.stripe.prepareStripeBillingPortal('Alice')).resolves.toBe('https://billing.stripe.com/p/session/owned_123456');expect(h.consent).not.toHaveBeenCalled();
  await expect(m.stripe.readMemberTicketStatus('Alice')).resolves.toMatchObject({tickets:{ranked:60,hint:60}});
@@ -54,7 +54,8 @@ it.each(['android-build','native-runtime'])('blocks purchase, portal and offers 
   expect([m.stripe.STRIPE_WEB_MEMBERSHIP_ENABLED,m.stripe.STRIPE_WEB_CHECKOUT_ENABLED,m.stripe.STRIPE_WEB_PORTAL_ENABLED,m.commerce.WEB_COMMERCE_SALES_RELEASE_READY]).toEqual([false,false,false,false]);
   expect(m.commerce.webCommerceCheckoutReady(true,undefined,undefined,'2026-01-01')).toBe(false);
  }
- for(const action of [m.stripe.prepareStripeCheckout,m.stripe.prepareStripeBillingPortal,m.stripe.readStripeMembershipStatus]) await expect(action('Alice')).rejects.toThrow('DISABLED');
+ await expect(m.stripe.prepareStripeCheckout('Alice','standard_monthly')).rejects.toThrow('DISABLED');
+ for(const action of [m.stripe.prepareStripeBillingPortal,m.stripe.readStripeMembershipStatus]) await expect(action('Alice')).rejects.toThrow('DISABLED');
  expect(h.fetch).not.toHaveBeenCalled();
  await expect(m.stripe.readMemberTicketStatus('Alice')).resolves.toMatchObject({active:true});
  await expect(m.stripe.claimMemberTickets('Alice')).resolves.toMatchObject({active:true});

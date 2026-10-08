@@ -4,6 +4,8 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { matchText } from '../locales/matchText';
 import { useBoardPreferences } from '../hooks/useBoardPreferences';
 import { useSocket } from '../lib/SocketContext';
+import { SharedMatchAdmissionChoice } from './SharedMatchAdmissionChoice';
+import { useSharedMatchChoice } from '../hooks/useSharedMatchChoice';
 import { useMatchPreparation } from '../hooks/useMatchPreparation';
 import { rankedRecoveryText } from '../locales/rankedRecoveryText';
 import { User, TimeControl } from '../types/game';
@@ -27,6 +29,7 @@ import { RankedCancellationNotice } from './RankedCancellationNotice';
 import { RankedLoginDialog } from './RankedLoginDialog';
 import { soundManager } from '../lib/SoundService';
 import { acceptsOnlineSnapshot, isNewOnlineMove } from '../lib/onlineSnapshot';
+import { reconnectDeadline, reconnectSecondsLeft } from '../lib/reconnectCountdown';
 import { recordMatchCompleted, recordMatchStarted } from '../lib/engagementMetrics';
 
 export type EmoteType = 'hello' | 'well_played' | 'wow' | 'thinking' | 'resign';
@@ -66,6 +69,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
     const { socket, isConnected, connectionError } = useSocket();
     const prevGameStateRef = useRef<any>(null);
     const preparation = useMatchPreparation(socket, roomId, user?.id, prevGameStateRef);
+    const admissionChoice = useSharedMatchChoice(socket,roomId);
     const recoveryText = rankedRecoveryText(lang);
 
     const [gameState, setGameState] = useState<any>(null);
@@ -221,6 +225,11 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
 
     const [disconnectTimeLeft, setDisconnectTimeLeft] = useState<number | null>(null);
     const disconnectTimerRef = useRef<NodeJS.Timeout | null>(null);
+    const disconnectDeadlineRef = useRef<number | null>(null);
+    useEffect(() => {
+        disconnectDeadlineRef.current = null;
+        setDisconnectTimeLeft(null);
+    }, [roomId]);
 
     const [showEmoteMenu, setShowEmoteMenu] = useState(false);
     const [activeEmotes, setActiveEmotes] = useState<{ white: EmoteType | null, black: EmoteType | null }>({ white: null, black: null });
@@ -294,45 +303,50 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
             // Update synchronously: duplicate events can arrive before React renders.
             prevGameStateRef.current = state;
             setGameState({...state, receivedAt: performance.now()});
-            if (disconnectTimerRef.current) {
+            if (state.gameOver && disconnectTimerRef.current) {
                 clearInterval(disconnectTimerRef.current);
                 disconnectTimerRef.current = null;
             }
-            setDisconnectTimeLeft(null);
+            // Moves and snapshots do not prove the missing opponent rejoined.
+            if (state.gameOver) {
+                disconnectDeadlineRef.current = null;
+                setDisconnectTimeLeft(null);
+            }
         };
         const onActionError = (err: any) => {
             setErrorMsg(err.message || 'Action error');
         };
         const onOpponentDisconnected = (data: any) => {
             console.log('[OnlineGameBoard] Opponent disconnected:', data);
+            if (prevGameStateRef.current?.gameOver) return;
+            const deadline = reconnectDeadline(roomId, data, performance.now(), disconnectDeadlineRef.current);
+            if (deadline === null) return;
+            disconnectDeadlineRef.current = deadline;
             if (disconnectTimerRef.current) clearInterval(disconnectTimerRef.current);
-            let timeLeft = data?.gracePeriodSeconds || 120;
-            setDisconnectTimeLeft(timeLeft);
-            disconnectTimerRef.current = setInterval(() => {
-                timeLeft--;
-                setDisconnectTimeLeft(timeLeft);
-                if (timeLeft <= 0) {
-                    if (disconnectTimerRef.current) clearInterval(disconnectTimerRef.current);
-                    disconnectTimerRef.current = null;
-                    setDisconnectTimeLeft(null);
-                }
-            }, 1000);
+            const tick = () => setDisconnectTimeLeft(reconnectSecondsLeft(deadline, performance.now()));
+            tick();
+            // Zero remains visible until the server confirms a result/rejoin.
+            disconnectTimerRef.current = setInterval(tick, 250);
         };
-        const onOpponentReconnected = () => {
+        const onOpponentReconnected = (data?: { matchId?: string }) => {
+            if (data?.matchId && data.matchId !== roomId) return;
             console.log('[OnlineGameBoard] Opponent reconnected!');
             if (disconnectTimerRef.current) {
                 clearInterval(disconnectTimerRef.current);
                 disconnectTimerRef.current = null;
             }
             setDisconnectTimeLeft(null);
+            disconnectDeadlineRef.current = null;
         };
         const onMatchForfeited = (data: any) => {
+            if (data?.matchId && data.matchId !== roomId) return;
             console.log('[OnlineGameBoard] Match forfeited:', data);
             if (disconnectTimerRef.current) {
                 clearInterval(disconnectTimerRef.current);
                 disconnectTimerRef.current = null;
             }
             setDisconnectTimeLeft(null);
+            disconnectDeadlineRef.current = null;
         };
 
         const onEmote = (data: any) => {
@@ -618,6 +632,9 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
         <p>{recoveryText.settled}</p><RankedSettlement lang={lang} settlement={settledRating}/>
         <button className="mt-4 min-h-11 border border-[#B39A62]/40 px-6" onClick={onHome||(()=>window.location.reload())}>{t.home}</button>
     </div>;
+    if (admissionChoice.offer && !gameState) return <SharedMatchAdmissionChoice lang={lang} mode={matchMode}
+        offer={admissionChoice.offer} pending={admissionChoice.pending} error={admissionChoice.error}
+        onChoose={admissionChoice.choose} onCancel={()=>{admissionChoice.cancel();onHome?.();}}/>;
     if (!gameState || preparation) {
         return (
             <div className="flex flex-col items-center justify-center p-12 bg-black/60 border border-cyan-900/50 rounded-xl max-w-lg w-full">
@@ -627,7 +644,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
                 </p>
                 {loginPrompt}
                 <button 
-                    onClick={onHome || (() => window.location.reload())}
+                    onClick={()=>{admissionChoice.cancel();(onHome || (() => window.location.reload()))();}}
                     className="mt-6 px-4 py-2 bg-gray-900 border border-[#A89C86]/30 rounded text-xs text-gray-400 hover:text-[#E8E2D7] transition-colors"
                 >
                     {t.home}

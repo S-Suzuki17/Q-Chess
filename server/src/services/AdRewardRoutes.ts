@@ -1,9 +1,9 @@
 import express,{type RequestHandler,type ErrorRequestHandler} from 'express';
-import {RankedAuth,isRankedUserId} from './RankedAuth';
+import {type RankedSessionAuthority,isRankedUserId} from './RankedAuth';
 import {AdMobVerification} from './AdMobVerification';
 import type {AdRewardStore} from './AdRewardStore';
 const uuid=(value:unknown):value is string=>typeof value==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
-export function createAdRewardRouter(auth:RankedAuth,store:AdRewardStore,verifier=new AdMobVerification(),enabled=()=>process.env.ADMOB_REWARDS_ENABLED==='true'){
+export function createAdRewardRouter(auth:RankedSessionAuthority,store:AdRewardStore,verifier=new AdMobVerification(),enabled=()=>process.env.ADMOB_REWARDS_ENABLED==='true'){
  const router=express.Router();
  const attempts=new Map<string,{count:number;until:number}>();
  const allow=(key:string,max:number)=>{
@@ -26,8 +26,10 @@ export function createAdRewardRouter(auth:RankedAuth,store:AdRewardStore,verifie
   res.setHeader('Vary','Authorization');
   if(!allow(`ip:${req.socket.remoteAddress}`,180)){res.sendStatus(429);return;}
   const token=/^Bearer ([-\w.]{1,8192})$/i.exec(req.headers.authorization??'')?.[1];
-  let userId=auth.verifySession(token)?.userId;
-  try{if(!userId&&token&&token.split('.').length===3)userId=await store.verifyUser(token)??undefined;}catch{}
+  let userId:string|undefined;
+  try{userId=(await auth.verifySession(token))?.userId;}
+  catch { res.setHeader('Retry-After', '5'); res.status(503).json({ code: 'ADS_UNAVAILABLE' }); return; }
+  try{if(!userId&&token&&token.split('.').length===3)userId=await store.verifyUser(token)??undefined;}catch{/* Failed OAuth identity checks never authorize. */}
   if(!userId||!isRankedUserId(userId)){res.status(401).json({code:'AUTH_REQUIRED'});return;}
   if(!allow(`user:${userId}:${req.method}`,req.method==='POST'?12:90)){res.sendStatus(429);return;}
   if(Object.keys(req.query).length){res.sendStatus(400);return;}

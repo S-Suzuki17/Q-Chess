@@ -9,6 +9,7 @@ import { siteCopy } from '../../locales/siteContent';
 import { privacyTranslations } from '@/locales/privacyTranslations';
 import { engagementPrivacy } from '../../locales/engagementPrivacy';
 import { CommercePrivacyNotice } from '../../components/CommercePrivacyNotice';
+import { SiteLinks } from '../../components/SiteInformation';
 
 export default function PrivacyPolicy() {
   const [lang, setLang] = useState<Language>('en');
@@ -81,8 +82,9 @@ export default function PrivacyPolicy() {
   const metrics = engagementPrivacy[lang];
 
   return (
-    <div className="h-[100dvh] w-full bg-[#050505] text-gray-300 font-mono p-6 md:p-12 overflow-y-auto">
-      <div className="max-w-3xl mx-auto pb-16">
+    <main className="game-page" lang={lang}>
+      <div className="game-page-content">
+        <header className="game-page-header">
         <Link href="/" className="text-[#D4B872] hover:text-white transition-colors tracking-widest font-bold text-sm mb-8 inline-block">{c.back}</Link>
         <select aria-label={dict[lang].language} value={lang} onChange={event => {
           const value = event.target.value as Language;
@@ -90,6 +92,7 @@ export default function PrivacyPolicy() {
         }} className="block mb-6 max-w-full rounded border border-[#B39A62] bg-[#191714] p-2 text-[#D4B872]">
           {LANGUAGES.map(({code, label}) => <option key={code} value={code}>{label}</option>)}
         </select>
+        </header>
 
         <h1 className="text-3xl md:text-4xl font-bold text-[#D4B872] tracking-wider mb-2">{c.title}</h1>
         <p className="text-gray-500 text-sm mb-8">{c.updated}</p>
@@ -154,10 +157,11 @@ export default function PrivacyPolicy() {
         </div>
 
         <AccountDataGuide lang={lang}/>
+        <SiteLinks lang={lang}/>
         <div className="border-t border-gray-800 mt-12 pt-6 text-center text-gray-600 text-xs">
           &copy; 2026 Q-GAMBIT. All rights reserved.
         </div>
       </div>
-    </div>
+    </main>
   );
 }

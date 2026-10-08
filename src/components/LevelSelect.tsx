@@ -29,7 +29,10 @@ import { formatFriendRating } from '../lib/friendDirectory';
 import { LiveMatchesMenu } from './LiveMatchesMenu';
 import { CPU_LEVELS, cpuDifficulty, type CPULevel } from '../config/cpuDifficulty';
 import { InteractiveTutorial } from './InteractiveTutorial';
-import { ArrowUpRight } from 'lucide-react';
+import { ArrowUpRight, Swords, Dices, UsersRound, LogIn, Crown } from 'lucide-react';
+import { LobbyShowcase } from './LobbyShowcase';
+import { LobbyBrandMark, LobbyChessArtwork } from './LobbyChessArtwork';
+import type { VisualReward } from './RewardPreview';
 import './lobby-studio.css';
 import { campaignText } from '../locales/campaignText';
 import { useCircuitAccess } from '../hooks/useCircuitAccess';
@@ -43,6 +46,7 @@ import './rewards-hub.css';
 
 const ProfileCosmetics=dynamic(()=>import('./ProfileCosmetics').then(module=>module.ProfileCosmetics),{ssr:false});
 const RewardsDialog=dynamic(()=>import('./RewardsDialog').then(module=>module.RewardsDialog),{ssr:false});
+const RewardPreview=dynamic(()=>import('./RewardPreview').then(module=>module.RewardPreview),{ssr:false});
 
 interface LevelSelectProps {
     settingsPanel?:'friends'|'account'|'rewards'|null;
@@ -138,13 +142,14 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
     const [showTutorial, setShowTutorial] = React.useState(false);
     const [showLiveMatches, setShowLiveMatches] = React.useState(false);
     const [showPlayMenu, setShowPlayMenu] = React.useState(false);
+    const [lobbyPreview, setLobbyPreview] = React.useState<VisualReward | null>(null);
     const [recentGames, setRecentGames] = React.useState<GameRecord[]>([]);
     React.useEffect(() => {
         historyRequest.current++;
         setRecentGames([]); setReplays([]); setUserStats(null); setHistoryError(null);
         return () => { historyRequest.current++; };
     }, [user.id]);
-    const anyModalOpen = showPlayMenu || showReplays || showLeaderboard || showFriends || showAccount || showRewards || showTutorial || showAdModal || !!pendingAction || showLiveMatches;
+    const anyModalOpen = showPlayMenu || showReplays || showLeaderboard || showFriends || showAccount || showRewards || showTutorial || showAdModal || !!pendingAction || showLiveMatches || !!lobbyPreview;
 
 
     React.useEffect(() => {
@@ -245,7 +250,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
         try {
             const data = await getGameRecords(10, user.id);
             if (request !== historyRequest.current || historyIdentity.current !== user.id) return;
-            setReplays(data); setRecentGames(data.slice(0, 3)); setHistoryError(null);
+            setReplays(data); setRecentGames(data); setHistoryError(null);
         } catch (error) {
             if (request !== historyRequest.current || historyIdentity.current !== user.id) return;
             setReplays([]); setRecentGames([]);
@@ -321,16 +326,17 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
     }, []);
     return (
         <div className="lobby-studio w-full h-full flex flex-col bg-transparent text-[#E8E2D7] font-sans px-6 py-6 md:px-8 md:py-8 overflow-hidden relative">
+            {lobbyPreview && <RewardPreview lang={lang} reward={lobbyPreview} progress={cosmetics} onClose={() => setLobbyPreview(null)}/>}
             {showTutorial && <InteractiveTutorial lang={lang} onClose={() => setShowTutorial(false)} />}
 
 
             {/* Play Menu Modal */}
             {showPlayMenu && (
-                <div className="fixed inset-0 bg-[#161513]/95 z-[60] flex flex-col justify-end md:justify-center p-4 md:p-0 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="w-full max-w-md mx-auto bg-[#161513] border border-[#A89C86]/40 p-6 flex flex-col shadow-2xl">
+                <SettingsDialog label={t.chooseGame} onClose={()=>setShowPlayMenu(false)}>
+                    <div className="lobby-dialog-card w-full max-w-md mx-auto bg-[#161513] border border-[#A89C86]/40 p-6 flex flex-col shadow-2xl">
                         <div className="flex justify-between items-center border-b border-[#A89C86]/20 pb-4 mb-4 shrink-0">
                             <span className="text-sm tracking-[0.2em] text-[#E8E2D7] font-serif uppercase">{(t as any).chooseGame}</span>
-                            <button onClick={() => setShowPlayMenu(false)} className="text-[#A89C86] hover:text-[#E8E2D7] text-xl transition-colors">✕</button>
+                            <button aria-label={t.cancel} onClick={() => setShowPlayMenu(false)} className="lobby-dialog-close text-[#A89C86] hover:text-[#E8E2D7] text-xl transition-colors">✕</button>
                         </div>
 
                         <div className="flex flex-col gap-0 overflow-y-auto">
@@ -367,24 +373,38 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
 
                             {/* JOIN ROOM */}
                             <button onClick={() => {
-                                const room = prompt((t as any).enterRoomId);
-                                if (room) {
-                                    onOnlineMatch?.(room.toUpperCase(), 'black', 'private', '10m');
-                                    setShowPlayMenu(false);
-                                }
+                                setPendingAction({type:'join'});
+                                setJoinRoomId('');
+                                setShowPlayMenu(false);
                             }} className="w-full text-left py-6 hover:bg-[#24211D] group transition-colors flex flex-col gap-2 px-4">
                                 <span className="text-lg tracking-[0.15em] text-[#E8E2D7] group-hover:text-[#B39A62]">{(t as any).joinRoom}</span>
                                 <span className="text-[10px] tracking-widest text-[#A89C86] leading-relaxed">{(t as any).joinRoomDesc}</span>
                             </button>
                         </div>
                     </div>
-                </div>
+                </SettingsDialog>
             )}
 
             {/* Existing Overlays (Time Control, Account, Replays, Leaderboard, Friends, Live, Ad) */}
-            {pendingAction && (
-                <div className="fixed inset-0 bg-[#161513]/95 z-50 flex flex-col items-center justify-center p-4 backdrop-blur-sm">
-                    <div className="bg-[#161513] border border-[#A89C86]/40 p-8 w-full max-w-sm text-center shadow-2xl">
+            {pendingAction?.type==='join' && <SettingsDialog label={t.joinRoom} onClose={()=>setPendingAction(null)}>
+                <form className="lobby-dialog-card lobby-room-form" onSubmit={event=>{
+                    event.preventDefault();
+                    const room=joinRoomId.trim().toUpperCase();
+                    if(!room)return;
+                    setPendingAction(null);
+                    onOnlineMatch?.(room,'black','private','10m');
+                }}>
+                    <header><h3>{t.joinRoom}</h3><button type="button" className="lobby-dialog-close" aria-label={t.cancel} onClick={()=>setPendingAction(null)}>✕</button></header>
+                    <label htmlFor="lobby-room-code">{t.enterRoomId}</label>
+                    <input id="lobby-room-code" value={joinRoomId} onChange={event=>setJoinRoomId(event.target.value)} required maxLength={256} autoComplete="off" autoCapitalize="characters" spellCheck={false}/>
+                    <button className="lobby-room-submit" type="submit" disabled={!joinRoomId.trim()}>{t.joinRoom}<ArrowUpRight size={18} aria-hidden="true"/></button>
+                    <button type="button" onClick={()=>setPendingAction(null)}>{t.cancel}</button>
+                </form>
+            </SettingsDialog>}
+            {pendingAction && pendingAction.type!=='join' && (
+                <SettingsDialog label={t.selectTimeLimit} onClose={()=>setPendingAction(null)}>
+                    <div className="lobby-dialog-card bg-[#161513] border border-[#A89C86]/40 p-6 w-full text-center shadow-2xl">
+                        <div className="lobby-dialog-heading"><span>{pendingAction.type==='cpu'?t.practice:t.chooseGame}</span><button type="button" aria-label={t.cancel} className="lobby-dialog-close" onClick={()=>setPendingAction(null)}>✕</button></div>
                         {pendingAction.type === 'cpu' && (
                             <fieldset className="mb-6">
                                 <legend className="text-sm text-[#E8E2D7] mb-3">{matchText(lang, 'CPUの強さ', 'CPU difficulty')}</legend>
@@ -429,11 +449,11 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
                                 </button>
                             ))}
                         </div>
-                        <button onClick={() => setPendingAction(null)} className="mt-8 text-xs text-[#A89C86] hover:text-[#E8E2D7] tracking-widest">
+                        <button onClick={() => setPendingAction(null)} className="lobby-dialog-cancel mt-4 text-xs text-[#A89C86] hover:text-[#E8E2D7] tracking-widest">
                             {t.cancel}
                         </button>
                     </div>
-                </div>
+                </SettingsDialog>
             )}
 
 
@@ -619,7 +639,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
             {/* --- HOME SCREEN MAIN UI --- */}
 
             <div className="lobby-heading flex justify-between items-center w-full max-w-lg mx-auto shrink-0 z-10 pt-4">
-                <span className="text-xl md:text-2xl tracking-[0.2em] font-serif text-[#E8E2D7]">Q-GAMBIT</span>
+                <div className="lobby-brand"><span className="lobby-brand-mark"><LobbyBrandMark/></span><span>Q-GAMBIT</span></div>
                 <div className="flex items-center gap-4">
                     {queueStats && queueStats[-1] !== undefined && (
                         <div className="flex items-center gap-1.5 opacity-80" title={matchText(lang,'オンライン','Online')}>
@@ -627,37 +647,28 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
                             <span className="text-[10px] tracking-widest text-[#A89C86] font-mono">{queueStats[-1]} {matchText(lang,'オンライン','Online')}</span>
                         </div>
                     )}
-                    <span className="font-mono text-[#B39A62] text-sm">{userProfile?.rating_10m ? Math.floor(userProfile.rating_10m) : '---'}</span>
+                    <div className="lobby-rating" title={t.ratingLabel}><AccountAvatar name={user.name} url={displayAvatarUrl} frame={cosmetics.avatar} size={38} lang={lang}/><span><small>{user.name}</small><strong><Crown size={18} aria-hidden="true"/>{userProfile?.rating_10m !== undefined ? Math.floor(userProfile.rating_10m) : '—'}</strong></span></div>
                 </div>
             </div>
 
             <div className="lobby-content flex-grow flex flex-col justify-center w-full max-w-lg mx-auto z-10 gap-12 mt-8">
 
                 <div className="lobby-play-panel flex flex-col gap-6 w-full">
-                    {onCampaign && <button className="lobby-campaign-action" onClick={onCampaign}><span aria-hidden="true">{circuitAllowed?'♛':'♙'}</span><span>{campaignText(lang,'title')}{!circuitAllowed&&<small style={{display:'block',fontSize:11,letterSpacing:0}}>{circuitAccessText(lang,'action')}</small>}</span><ArrowUpRight size={20}/></button>}
                     <div className="flex flex-col items-center w-full">
                         <h2 className="text-[10px] tracking-[0.3em] text-[#A89C86] uppercase mb-4">{(t as any).yourNextGame}</h2>
                         <button onClick={() => setShowPlayMenu(true)} className="lobby-play-action w-full group relative">
-                            <span>{(t as any).play}</span><ArrowUpRight size={28} aria-hidden="true"/>
+                            <span>{(t as any).play}</span><span className="lobby-play-piece"><LobbyChessArtwork/></span><ArrowUpRight size={24} aria-hidden="true"/>
                         </button>
                     </div>
 
 
 
-                    {rewardsAvailable && (
-                        <div className="flex gap-2 mb-4">
-                            <button type="button" onClick={onOpenRewards} className="reward-entry flex-1 !mb-0" data-rewards-entry="lobby">
-                                <span>{rewardCopy.title}<small>{rewardCopy.description}</small></span><span aria-hidden="true">🎫</span>
-                            </button>
-                            <button type="button" onClick={onOpenRewards} className="flex-1 rounded-xl bg-gradient-to-br from-[#D4B872]/20 to-[#B39A62]/10 border border-[#D4B872]/50 hover:bg-[#D4B872]/30 transition-colors p-3 flex flex-col justify-center relative overflow-hidden group">
-                                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[#E8E2D7]/10 to-transparent -translate-x-[150%] group-hover:animate-[shimmer_1.5s_infinite]"></div>
-                                <span className="font-bold text-[#E8E2D7] flex items-center gap-2">
-                                    <span className="text-xl">👑</span> {lang === 'ja' ? 'ストア / Q-Gambit Plus' : 'Store / Premium'}
-                                </span>
-                                <span className="text-xs text-[#D4B872] mt-1">{lang === 'ja' ? '広告非表示・無制限プレイ' : 'No Ads & Unlimited Play'}</span>
-                            </button>
-                        </div>
-                    )}
+                    <div className="lobby-mode-grid">
+                        <button type="button" onClick={() => user.type === 'guest' ? alert(t.needAccount) : setPendingAction({type:'ranked'})}><Swords aria-hidden="true"/><span><strong>{t.ranked}</strong><small>{t.rankedDesc}</small></span></button>
+                        <button type="button" onClick={() => setPendingAction({type:'random'})}><Dices aria-hidden="true"/><span><strong>{t.randomMatch2}</strong><small>{t.randomMatchDesc}</small></span></button>
+                        <button type="button" onClick={() => setPendingAction({type:'host',roomId:Math.random().toString(36).substring(2,8).toUpperCase()})}><UsersRound aria-hidden="true"/><span><strong>{t.friendMatch}</strong><small>{t.friendMatchDesc}</small></span></button>
+                        <button type="button" onClick={() => {setJoinRoomId('');setPendingAction({type:'join'});}}><LogIn aria-hidden="true"/><span><strong>{t.joinRoom}</strong><small>{t.joinRoomDesc}</small></span></button>
+                    </div>
 
                     <div className="lobby-shortcuts flex gap-2">
                         <button onClick={handleVsCpuClick} className="flex-1 py-4 bg-transparent border border-[#A89C86]/20 hover:bg-[#24211D] text-xs tracking-[0.2em] transition-colors text-[#A89C86] hover:text-[#E8E2D7] uppercase">
@@ -668,34 +679,46 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
                         </button>
                     </div>
 
+                    {onCampaign && <button type="button" className="lobby-campaign-action" onClick={onCampaign}>
+                        <Crown size={24} aria-hidden="true"/><span>{campaignText(lang, 'title')}<small>{!circuitAllowed && circuitAccessText(lang, 'action')}</small></span><ArrowUpRight size={20} aria-hidden="true"/>
+                    </button>}
                 </div>
 
                 <div className="lobby-recent flex flex-col w-full">
                     <div className="border-b border-[#A89C86]/20 pb-2 mb-2 flex justify-between items-end">
                         <span className="text-[10px] tracking-[0.2em] text-[#A89C86] uppercase">{(t as any).recentGames}</span>
                     </div>
-                    {recentGames.length === 0 ? (
+                    {historyError ? <div className="lobby-history-status" role="status">
+                        <p>{historyError === 'AUTH_REQUIRED' ? historyCopy.historyVerify : historyCopy.historyUnavailable}</p>
+                        <button type="button" onClick={() => historyError === 'AUTH_REQUIRED' ? setVerifyHistory(true) : void loadReplays()}>{historyCopy.historyRetry}</button>
+                    </div> : recentGames.length === 0 ? (
                         <div className="py-2 text-[10px] text-[#A89C86]/50 tracking-widest">{(t as any).noRecentGames}</div>
                     ) : (
-                        <div className="flex flex-col gap-0">
-                            {recentGames.slice(0, 3).map(r => {
+                        <div className="lobby-recent-list game-scroll">
+                            {recentGames.map(r => {
                                 const isWhite = r.white_id === user.id;
                                 const opponent = isWhite ? r.black_player : r.white_player;
                                 const iWon = (isWhite && r.winner === 'white_wins') || (!isWhite && r.winner === 'black_wins');
                                 const isDraw = r.winner === 'draw';
                                 return (
-                                    <div key={r.id} className="flex justify-between items-center py-3 border-b border-[#A89C86]/10 text-xs tracking-widest">
-                                        <span className="text-[#E8E2D7] truncate max-w-[150px]">{opponent}</span>
-                                        <span className={`text-[10px] ${iWon ? 'text-[#B39A62]' : isDraw ? 'text-[#A89C86]' : 'text-[#A89C86]/50'}`}>
+                                    <button type="button" key={r.id} className="lobby-recent-row" onClick={() => onReplay?.(r)} disabled={!onReplay}>
+                                        <span className="lobby-opponent-icon" aria-hidden="true">{r.mode === 'cpu' || r.mode === 'ranked_cpu' ? '♟' : '♙'}</span>
+                                        <span className="lobby-opponent-name">{opponent}<small>{r.time_control}</small></span>
+                                        <span className={`lobby-result ${iWon ? 'won' : isDraw ? 'draw' : 'lost'}`}>
                                             {iWon ? (t as any).win : isDraw ? (t as any).draw : (t as any).loss}
                                         </span>
-                                    </div>
+                                        <ArrowUpRight size={18} aria-hidden="true"/>
+                                    </button>
                                 );
                             })}
                         </div>
                     )}
                 </div>
             </div>
+
+            <LobbyShowcase user={user} lang={lang} progress={cosmetics} onPreview={setLobbyPreview}
+                onRewards={rewardsAvailable ? onOpenRewards : undefined}
+                onSettings={() => window.dispatchEvent(new Event('qg-open-settings'))}/>
 
             <div className="lobby-navigation shrink-0 w-full max-w-lg mx-auto flex flex-wrap justify-center sm:justify-between items-center border-t border-[#A89C86]/20 pt-6 pb-2 text-[10px] tracking-[0.2em] text-[#A89C86] gap-y-4 z-10">
                 <div className="flex gap-6 justify-center w-full sm:w-auto">

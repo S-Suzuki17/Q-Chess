@@ -8,6 +8,7 @@ npm run release:status -- <web|android|itch> で作業場所、HEAD、変更状�
 このコマンドは情報表示のみで、ビルド、署名検証、公開や端末確認は行わない。
 
 ## Web
+新UI・課金・台帳・対局権限の同時反映は [同期リリース手順](commerce-production-release-20261008.md) に従う。通常の設定なしビルドは配信用ではない。
 npm run build で静的出力 out/ を生成する。
 現在の公開先はCloudflare Pagesのq-gambit-web（q-gambit.com / www.q-gambit.com）。scripts/release/prepare-pages.mjsで検査済みの専用ディレクトリを作り、指定のPagesプロジェクトへDirect Uploadする。
 GitHubへのpushだけではCloudflareに反映されない。旧Vercel公開（q-chess-w8rg、GitHub連携解除済み）は停止済みで、Hobbyプランは非商用限定のため課金機能を含む本サイトでは再接続しない。過去の別コピーのリンク先を流用せず、環境変数の値を資料・ログに転記しない。

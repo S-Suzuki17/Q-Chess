@@ -1,9 +1,13 @@
 import express, { type ErrorRequestHandler, type RequestHandler } from 'express';
-import { RankedAuth, isRankedUserId } from './RankedAuth';
+import { type RankedSessionAuthority, isRankedUserId } from './RankedAuth';
 import { AccountWriteGate } from './AccountDeletion';
 import { StripeMembershipError, StripeMembershipApi, verifyStripeWebhook } from './StripeMembership';
 import type { StripeMembershipStore } from './StripeMembershipStore';
 import type { StripePortalApi } from './StripePortal';
+import { COMMERCE_CATALOG, isCommerceSku } from './CommerceCatalog';
+import type { StripeCommerceCheckoutStore } from './StripeCommerceStore';
+import type { StripeCommerceFulfillment } from './StripeCommerceFulfillment';
+import type { StripeCommerceStatusStore } from './StripeCommerceStatus';
 
 type Enabled = () => boolean;
 const REVERSAL_EVENTS = new Set([
@@ -16,6 +20,7 @@ export function createStripeWebhookRouter(
     store: StripeMembershipStore,
     webhookSecret: string,
     enabled: Enabled = () => process.env.STRIPE_MEMBERSHIP_TEST_ENABLED === 'true',
+    commerce: Pick<StripeCommerceFulfillment, 'dispatchWebhook'> | null = null,
 ) {
     const router = express.Router();
     router.post('/membership/stripe/webhook', (req, res, next) => {
@@ -27,6 +32,9 @@ export function createStripeWebhookRouter(
         try {
             const event = verifyStripeWebhook(req.body, req.headers, webhookSecret);
             if (event.livemode !== api!.livemode) throw new StripeMembershipError('EVENT_MODE_MISMATCH');
+            if (commerce && await commerce.dispatchWebhook(req.body, req.headers)) {
+                res.status(200).json({ received: true }); return;
+            }
             if (REVERSAL_EVENTS.has(event.type)) {
                 const targets = await api!.resolveReversal(event);
                 for (const target of targets) {
@@ -73,6 +81,10 @@ export function createStripeWebhookRouter(
                 res.status(400).json({ code: 'INVALID_WEBHOOK' }); return;
             }
             res.setHeader('Retry-After', '60');
+            if (error instanceof Error && ['COMMERCE_RECONCILIATION_REVIEW_REQUIRED',
+                'COMMERCE_CHECKOUT_UNBOUND', 'COMMERCE_RISK_POLICY_REQUIRED', 'COMMERCE_EVENT_UNSUPPORTED'].includes(error.message)) {
+                res.status(503).json({ code: error.message }); return;
+            }
             res.status(503).json({ code: 'MEMBERSHIP_UNAVAILABLE' });
         }
     });
@@ -88,7 +100,7 @@ export function createStripeWebhookRouter(
 
 /** Authenticated checkout. No billing URL is returned before DB intent registration. */
 export function createStripeMembershipRouter(
-    auth: RankedAuth,
+    auth: RankedSessionAuthority,
     api: StripeMembershipApi | null,
     store: StripeMembershipStore,
     gate: AccountWriteGate,
@@ -96,6 +108,8 @@ export function createStripeMembershipRouter(
     portalApi: StripePortalApi | null = null,
     portalEnabled: Enabled = () => process.env.STRIPE_MEMBERSHIP_PORTAL_ENABLED === 'true',
     checkoutEnabled: Enabled = enabled,
+    commerceStore: StripeCommerceCheckoutStore | null = null,
+    commerceStatusStore: StripeCommerceStatusStore | null = null,
 ) {
     const router = express.Router();
     const attempts = new Map<string, { count: number; until: number }>();
@@ -113,9 +127,9 @@ export function createStripeMembershipRouter(
             res.setHeader('Retry-After', '60'); res.status(429).json({ code: 'TRY_LATER' }); return;
         }
         const token = /^Bearer ([-\w.]{1,8192})$/i.exec(req.headers.authorization ?? '')?.[1];
-        const proof = auth.verifySession(token);
-        let userId = proof?.userId;
         try {
+            const proof = await auth.verifySession(token);
+            let userId = proof?.userId;
             if (!userId && token && /^[-\w]+\.[-\w]+\.[-\w]+$/.test(token))
                 userId = await store.verifyUser(token) ?? undefined;
             if (!userId || !isRankedUserId(userId)) { res.status(401).json({ code: 'AUTH_REQUIRED' }); return; }
@@ -126,7 +140,7 @@ export function createStripeMembershipRouter(
             if (gate.blocked(userId) || await store.blocked(userId)) {
                 res.status(423).json({ code: 'ACCOUNT_DELETING' }); return;
             }
-            if (proof && !auth.verifySession(token)) { res.status(401).json({ code: 'AUTH_REQUIRED' }); return; }
+            if (proof && !(await auth.verifySession(token))) { res.status(401).json({ code: 'AUTH_REQUIRED' }); return; }
             res.locals.memberUser = userId;
             res.locals.memberToken = token;
             res.locals.memberLegacy = !!proof;
@@ -150,25 +164,46 @@ export function createStripeMembershipRouter(
             next();
         },
     ];
+    const checkoutJson: RequestHandler[] = [
+        (req, res, next) => {
+            if (!req.is('application/json')) { res.status(415).json({ code: 'JSON_REQUIRED' }); return; }
+            next();
+        },
+        express.json({ limit: '128b', inflate: false }),
+        (req, res, next) => {
+            if (!req.body || typeof req.body !== 'object' || Array.isArray(req.body)
+                || Object.keys(req.body).length !== 1 || !isCommerceSku(req.body.sku)) {
+                res.status(400).json({ code: 'INVALID_REQUEST' }); return;
+            }
+            next();
+        },
+    ];
     const recheck = async (res: express.Response, userId: string) => {
         if (await store.blocked(userId)) return false;
         const token = res.locals.memberToken as string;
         return res.locals.memberLegacy
-            ? !!auth.verifySession(token, userId)
+            ? !!(await auth.verifySession(token, userId))
             : await store.verifyUser(token) === userId;
     };
     router.get('/membership/stripe/status', authenticate, async (_req, res) => {
         try {
             const userId = res.locals.memberUser as string;
             const status = await store.status(userId, api!.livemode);
+            const commerce = commerceStatusStore ? await commerceStatusStore.status(userId, api!.livemode) : null;
             const owner = portalEnabled() && portalApi
                 ? await store.portalCustomer(userId, portalApi.livemode) : null;
             res.json({ enabled: true, ...status,
+                ...(commerce ? { commerce } : {}),
+                availableCheckoutSkus: checkoutEnabled() && commerceStore ? api!.availableCheckoutSkus() : [],
                 canManageBilling: !!owner && owner.livemode === portalApi?.livemode });
         }
         catch { res.status(503).json({ code: 'MEMBERSHIP_UNAVAILABLE' }); }
     });
-    router.post('/membership/stripe/checkout', authenticateCheckout, ...emptyJson, async (_req, res) => {
+    router.post('/membership/stripe/checkout', authenticateCheckout, ...checkoutJson, async (req, res) => {
+        const sku = req.body.sku;
+        if (!commerceStore || !api!.availableCheckoutSkus().includes(sku)) {
+            res.status(503).json({ code: 'SKU_NOT_READY' }); return;
+        }
         const userId = res.locals.memberUser as string;
         const release = gate.enter(userId);
         if (!release) { res.status(423).json({ code: 'ACCOUNT_DELETING' }); return; }
@@ -176,22 +211,27 @@ export function createStripeMembershipRouter(
         try {
             if (!(await recheck(res, userId))) { res.status(401).json({ code: 'AUTH_REQUIRED' }); return; }
             if (!await store.hasCurrentTerms(userId)) { res.status(403).json({ code: 'CURRENT_TERMS_REQUIRED' }); return; }
-            let preflight = await store.preflight(userId, api!.livemode);
-            if (preflight.reason === 'checkout_pending' && preflight.checkoutId && preflight.expiresAt
-                && Date.parse(preflight.expiresAt) <= Date.now()) {
-                // An elapsed deadline does not prove non-payment. Stripe's
-                // terminal expired status does; a completed session remains
-                // blocked until its signed webhook has been reconciled.
-                if (await api!.isCheckoutExpired(preflight.checkoutId)) {
-                    await store.closeExpiredIntent(userId, preflight.checkoutId, api!.livemode);
-                    preflight = await store.preflight(userId, api!.livemode);
+            const product = COMMERCE_CATALOG[sku as keyof typeof COMMERCE_CATALOG];
+            if (product.checkoutMode === 'subscription') {
+                let preflight = await store.preflight(userId, api!.livemode);
+                if (preflight.reason === 'checkout_pending' && preflight.checkoutId && preflight.expiresAt
+                    && Date.parse(preflight.expiresAt) <= Date.now()) {
+                    // An elapsed deadline does not prove non-payment. Stripe's
+                    // terminal expired status does; a completed session remains
+                    // blocked until its signed webhook has been reconciled.
+                    if (await api!.isCheckoutExpired(preflight.checkoutId)) {
+                        await store.closeExpiredIntent(userId, preflight.checkoutId, api!.livemode);
+                        preflight = await store.preflight(userId, api!.livemode);
+                    }
                 }
+                if (!preflight.eligible) { res.status(409).json({ code: 'CHECKOUT_ALREADY_PENDING' }); return; }
             }
-            if (!preflight.eligible) { res.status(409).json({ code: 'CHECKOUT_ALREADY_PENDING' }); return; }
-            const checkout = await api!.createCheckout(userId);
+            const checkout = await api!.createCheckout(userId, sku);
             checkoutId = checkout.id;
             // Atomic DB registration rejects concurrent requests/active membership.
-            await store.registerCheckoutIntent(userId, checkout.id, api!.priceId, checkout.expiresAt, api!.livemode);
+            await commerceStore.registerCheckoutIntent({ userId, checkoutId: checkout.id, sku,
+                priceId: checkout.priceId, amountTotal: product.amount, currency: product.currency,
+                livemode: api!.livemode }, checkout.expiresAt);
             if (!(await recheck(res, userId))) {
                 await api!.expireCheckout(checkout.id);
                 res.status(401).json({ code: 'AUTH_REQUIRED' }); return;

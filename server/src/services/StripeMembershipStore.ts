@@ -51,7 +51,9 @@ export interface StripeMembershipStore {
 
 const object = (value: unknown): value is Record<string, unknown> =>
     value !== null && typeof value === 'object' && !Array.isArray(value);
-const count = (value: unknown, maximum = 60) => Number.isSafeInteger(value) && (value as number) >= 0 && (value as number) <= maximum;
+// Holding balances are uncapped by product policy; the JSON number boundary
+// still rejects values outside JavaScript's exact integer range.
+const count = (value: unknown, maximum = Number.MAX_SAFE_INTEGER) => Number.isSafeInteger(value) && (value as number) >= 0 && (value as number) <= maximum;
 function parseStatus(data: unknown, userId: string): StripeMembershipStatus {
     if (!object(data) || data.userId !== userId || typeof data.active !== 'boolean'
         || typeof data.cancelAtPeriodEnd !== 'boolean'

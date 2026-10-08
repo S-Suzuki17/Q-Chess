@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
+import { COMMERCE_PRODUCTS, commerceProductText, commerceProductBenefits, commercePaymentTerms, type CommerceSku } from '../config/commerceCatalog';
 import { acceptCurrentAccountTerms } from '../lib/currentAccountTerms';
 import { TermsDocument } from './TermsDocument';
 import { Capacitor } from '@capacitor/core';
@@ -14,7 +15,9 @@ import { stripeMembershipText } from '../locales/stripeMembershipText';
 import { ticketWalletText } from '../locales/ticketWalletText';
 import { rewardsHubText } from '../locales/rewardsHubText';
 import { commerceText } from '../locales/commerceText';
-import { webCommerceCheckoutReady, MEMBER_TICKET_CAP } from '../config/webCommerce';
+import { commerceStatusText } from '../locales/commerceStatusText';
+import { CommerceEntitlements } from './CommerceEntitlements';
+import { webCommerceCheckoutReady } from '../config/webCommerce';
 import {
     STRIPE_WEB_CHECKOUT_ENABLED,
     STRIPE_WEB_PORTAL_ENABLED,
@@ -33,18 +36,18 @@ export function StripeMembershipPanel({ user, lang }: { user: User; lang: Langua
     const [loaded, setLoaded] = React.useState<{ revision: number; status: StripeMembershipStatus } | null>(null);
     const [failedRevision, setFailedRevision] = React.useState<number | null>(null);
     const [preparing, setPreparing] = React.useState(false);
-    const [selectedPrice, setSelectedPrice] = React.useState<string | undefined>(undefined);
+    const [selectedSku, setSelectedSku] = React.useState<CommerceSku | null>(null);
     const [acceptedPurchaseTerms, setAcceptedPurchaseTerms] = React.useState(false);
     const actionRequest = React.useRef<AbortController | null>(null);
     const [actionFailed, setActionFailed] = React.useState(false);
     React.useEffect(() => setMounted(true), []);
-    React.useEffect(() => () => actionRequest.current?.abort(), [allowed, revision, user.id]);
+    React.useEffect(() => () => actionRequest.current?.abort(), [allowed, revision, user.id, user.type, webContent]);
 
     const visible = mounted && user.type === 'registered' && allowed &&
         stripeWebMembershipAllowed(webContent, Capacitor.isNativePlatform());
     React.useEffect(() => {
         if (!visible) return;
-        setAcceptedPurchaseTerms(false);
+        setAcceptedPurchaseTerms(false); setSelectedSku(null);
         setPreparing(false); setActionFailed(false); actionRequest.current = null;
         setFailedRevision(null);
         const controller = new AbortController();
@@ -58,94 +61,97 @@ export function StripeMembershipPanel({ user, lang }: { user: User; lang: Langua
     const copy = stripeMembershipText(lang);
     const wallet = ticketWalletText(lang), commerce = commerceText(lang);
     const hub = rewardsHubText(lang);
-    const status = loaded?.revision === revision && loaded.status.userId === user.id ? loaded.status : null;
+    const status = failedRevision !== revision && loaded?.revision === revision && loaded.status.userId === user.id ? loaded.status : null;
+    const hasSubscription = !!(status?.active || status?.commerce?.active);
+    const checkoutReady = STRIPE_WEB_CHECKOUT_ENABLED && webCommerceCheckoutReady();
 
-    const startCheckout = async (priceId?: string) => {
-        if (!STRIPE_WEB_CHECKOUT_ENABLED || !webCommerceCheckoutReady() || !acceptedPurchaseTerms || preparing || status?.active || !stripeWebMembershipAllowed(webContent, Capacitor.isNativePlatform())) return;
+    const selectedProduct = COMMERCE_PRODUCTS.find(product => product.sku === selectedSku);
+    const ownedProduct = status?.commerce?.active ? COMMERCE_PRODUCTS.find(product => product.sku === status.commerce?.sku) : null;
+    const availableSkus = status?.availableCheckoutSkus ?? [];
+    const selectionReady = checkoutReady && !!selectedProduct && availableSkus.includes(selectedProduct.sku) &&
+        !(hasSubscription && selectedProduct.kind === 'subscription');
+    const currentAccess = () => circuitAccess.canPlay(user) && circuitAccess.getSnapshot().revision === revision;
+    const startCheckout = async () => {
+        if (!currentAccess() || !STRIPE_WEB_CHECKOUT_ENABLED || !webCommerceCheckoutReady() || !acceptedPurchaseTerms || !selectionReady || !selectedProduct || preparing || !stripeWebMembershipAllowed(webContent, Capacitor.isNativePlatform())) return;
         if (actionRequest.current && !actionRequest.current.signal.aborted) return;
         const controller = new AbortController(); actionRequest.current = controller;
         setPreparing(true); setActionFailed(false);
         try {
             await acceptCurrentAccountTerms(user.id, controller.signal);
             controller.signal.throwIfAborted();
-            const url = await prepareStripeCheckout(user.id, priceId, controller.signal);
-            if (!controller.signal.aborted && circuitAccess.canPlay(user) && stripeWebMembershipAllowed(webContent, Capacitor.isNativePlatform())) window.location.assign(url);
+            if (!currentAccess() || !stripeWebMembershipAllowed(webContent, Capacitor.isNativePlatform())) return;
+            const url = await prepareStripeCheckout(user.id, selectedProduct.sku, controller.signal);
+            if (!controller.signal.aborted && currentAccess() && stripeWebMembershipAllowed(webContent, Capacitor.isNativePlatform())) window.location.assign(url);
         } catch { if (!controller.signal.aborted) { setActionFailed(true); setPreparing(false); actionRequest.current = null; } }
     };
     const openBilling = async () => {
-        if (!STRIPE_WEB_PORTAL_ENABLED || preparing || !status?.canManageBilling
+        if (!currentAccess() || !STRIPE_WEB_PORTAL_ENABLED || preparing || !status?.canManageBilling
             || !stripeWebMembershipAllowed(webContent, Capacitor.isNativePlatform())) return;
         if (actionRequest.current && !actionRequest.current.signal.aborted) return;
         const controller = new AbortController(); actionRequest.current = controller;
         setPreparing(true); setActionFailed(false);
         try {
             const url = await prepareStripeBillingPortal(user.id, controller.signal);
-            if (!controller.signal.aborted && circuitAccess.canPlay(user) && stripeWebMembershipAllowed(webContent, Capacitor.isNativePlatform())) window.location.assign(url);
+            if (!controller.signal.aborted && currentAccess() && stripeWebMembershipAllowed(webContent, Capacitor.isNativePlatform())) window.location.assign(url);
         } catch { if (!controller.signal.aborted) { setActionFailed(true); setPreparing(false); actionRequest.current = null; } }
     };
 
     return <section aria-label={copy.title} className="reward-card reward-membership text-sm">
-        {!status?.active && <p className="reward-caption mb-2">{hub.optional}</p>}
+        {!hasSubscription && <p className="reward-caption mb-2">{hub.optional}</p>}
         <h4 className="reward-title">Q-Gambit Store <span className="reward-caption">・ {copy.title}</span></h4>
-        {!STRIPE_WEB_CHECKOUT_ENABLED && !status?.active
-            ? <p className="mt-2 font-mono text-[#E8E2D7]">{copy.planned}</p> : null}
+        {!STRIPE_WEB_CHECKOUT_ENABLED && !hasSubscription
+            ? <p className="mt-2 font-mono text-[#E8E2D7]">{lang === 'ja' ? '新商品の販売準備中' : 'New products are not on sale yet'}</p> : null}
         
-        <div className="mt-4 space-y-2">
-            <h5 className="font-bold text-[#E8E2D7]">Memberships</h5>
-            <label className="flex items-center gap-2 cursor-pointer">
-                <input type="radio" name="store_item" value="" checked={!selectedPrice} onChange={() => setSelectedPrice(undefined)} className="mt-1 shrink-0"/>
-                <span>Q-Gambit Standard ($3.00/mo) - Unlimited Online Matches, No Ads</span>
-            </label>
-            <label className="flex items-center gap-2 cursor-pointer">
-                <input type="radio" name="store_item" value="price_1UNTrJQWzwYDIuXWtdNlAMnV" checked={selectedPrice === "price_1UNTrJQWzwYDIuXWtdNlAMnV"} onChange={() => setSelectedPrice("price_1UNTrJQWzwYDIuXWtdNlAMnV")} className="mt-1 shrink-0"/>
-                <span>Q-Gambit Plus ($6.00/mo) - Unlimited Matches, No Ads + 10 Hint Tickets Monthly</span>
-            </label>
-
-            <h5 className="font-bold text-[#E8E2D7] mt-4">Hint Tickets (One-Time)</h5>
-            <div className="grid grid-cols-2 gap-2">
-                {[
-                    { id: "price_1UNTrQQWzwYDIuXWcVtcwG4E", label: "1 Ticket ($1.00)" },
-                    { id: "price_1UNTrQQWzwYDIuXWIV6hySm7", label: "13 Tickets ($10.00)" },
-                    { id: "price_1UNTrWQWzwYDIuXWw5V6sXJ7", label: "27 Tickets ($20.00)" },
-                    { id: "price_1UNTrWQWzwYDIuXWkZ8dH9QB", label: "44 Tickets ($30.00)" },
-                    { id: "price_1UNTrbQWzwYDIuXWzhEumZF2", label: "77 Tickets ($50.00)" },
-                    { id: "price_1UNTrcQWzwYDIuXWuZzJ38iY", label: "166 Tickets ($100.00)" }
-                ].map(item => (
-                    <label key={item.id} className="flex items-center gap-2 cursor-pointer">
-                        <input type="radio" name="store_item" value={item.id} checked={selectedPrice === item.id} onChange={() => setSelectedPrice(item.id)} className="mt-1 shrink-0"/>
-                        <span>{item.label}</span>
-                    </label>
-                ))}
+        <details className="reward-details" data-product-catalog>
+            <summary>{checkoutReady && availableSkus.length > 0
+                ? (lang === 'ja' ? '商品と価格' : 'Products and prices')
+                : (lang === 'ja' ? '予定の商品と価格' : 'Planned products and prices')}</summary>
+            <div className="reward-details__body">
+                {availableSkus.length === 0 && <p role="status">{lang === 'ja' ? '新商品の販売準備中です。現在は購入できません。' : 'New products are being prepared and cannot be purchased yet.'}</p>}
+                <fieldset className="store-product-grid mt-4">
+                <legend className="sr-only">{copy.title}</legend>
+                {COMMERCE_PRODUCTS.map(product => {
+                    const enabled = checkoutReady && availableSkus.includes(product.sku) && !(hasSubscription && product.kind === 'subscription');
+                    return <label key={product.sku} className={`store-product${selectedSku === product.sku ? ' selected' : ''}`}>
+                        <input type="radio" name="store_item" value={product.sku} checked={selectedSku === product.sku}
+                            disabled={!enabled || preparing} onChange={() => { setSelectedSku(product.sku); setAcceptedPurchaseTerms(false); }} />
+                        <span className="store-product-title">{commerceProductText(product, lang === 'ja')}</span>
+                        <span className="store-product-benefits">{commerceProductBenefits(product, lang === 'ja')}</span>
+                    </label>;
+                })}
+                </fieldset>
             </div>
-        </div>
-        <p className="mt-1 text-[#D8D0C1]">{copy.benefits}</p>
+        </details>
         {actionFailed && <p role="status" className="mt-3 text-[#A89C86]">{copy.unavailable}</p>}
         {failedRevision === revision
             ? <p role="status" className="mt-3 text-[#A89C86]">{copy.unavailable}</p>
             : !status
                 ? <p role="status" className="mt-3 text-[#A89C86]">{copy.checking}</p>
-                : <p role="status" className="reward-membership-status">
-                    {status.active ? copy.active : copy.inactive}
+                : (!status.commerce?.active || status.active) && <p role="status" className="reward-membership-status">
+                    {status.active ? `${commerceStatusText(lang).legacy} · ${copy.active}` : copy.inactive}
                     {status.active && status.periodEnd
                         ? ` · ${status.cancelAtPeriodEnd ? copy.scheduledEnd : copy.periodEnd}: ${new Date(status.periodEnd).toISOString().slice(0, 10)} UTC`
                         : ''}
                 </p>}
-        <details className="reward-details" key={`${user.id}-${revision}-${status?.active ?? 'loading'}`}>
-            <summary>{status?.active ? hub.rules : hub.review}</summary>
+        {status?.commerce && <CommerceEntitlements status={status.commerce} lang={lang} />}
+        <details className="reward-details" key={`${user.id}-${revision}-${hasSubscription}`}>
+            <summary>{hasSubscription ? hub.rules : hub.review}</summary>
             <div className="reward-details__body">
-                <p>{copy.billingTerms}</p>
-                <p>{wallet.expiry} {copy.legalRights}</p>
-                <p>{copy.webOnly}</p>
-        {STRIPE_WEB_CHECKOUT_ENABLED && webCommerceCheckoutReady() && status && !status.active && failedRevision !== revision
+                {status?.active && <div data-legacy-membership-terms><p>{copy.billingTerms}</p><p>{wallet.expiry} {copy.legalRights}</p></div>}
+                {ownedProduct && <p data-current-commerce-product>{commerceProductText(ownedProduct, lang === 'ja')}</p>}
+                {status?.active && <p>{copy.webOnly}</p>}
+        {STRIPE_WEB_CHECKOUT_ENABLED && webCommerceCheckoutReady() && status && selectionReady && failedRevision !== revision
             ? <div className="mt-3 space-y-3" data-purchase-review>
-                <p>{commerce.start}</p><p>{commerce.methods}</p>
-                {MEMBER_TICKET_CAP && <p>{commerce.cap}: {wallet.member} {MEMBER_TICKET_CAP.ranked} / {MEMBER_TICKET_CAP.hint}</p>}
+                <p>{commerce.start}</p>
+                <p>{selectedProduct && commerceProductText(selectedProduct, lang === 'ja')}</p>
+                <p>{selectedProduct && commerceProductBenefits(selectedProduct, lang === 'ja')}</p>
+                {selectedProduct && <p>{commercePaymentTerms(selectedProduct, lang === 'ja')}</p>}
                 <Link href="/commerce/" className="mr-4 inline-block underline">{commerce.title}</Link>
                 <Link href="/terms/" className="inline-block underline">{copy.terms}</Link>
                 <details><summary className="min-h-11 cursor-pointer underline">{copy.terms}</summary><TermsDocument initialLanguage={lang}/></details>
                 <label className="flex gap-3"><input type="checkbox" checked={acceptedPurchaseTerms} disabled={preparing}
-                    onChange={event => setAcceptedPurchaseTerms(event.target.checked)} className="mt-1 h-5 w-5 shrink-0"/><span>{copy.confirmPurchase}</span></label>
-                <button type="button" disabled={preparing || !acceptedPurchaseTerms} onClick={() => void startCheckout(selectedPrice)}
+                    onChange={event => setAcceptedPurchaseTerms(event.target.checked)} className="mt-1 h-5 w-5 shrink-0"/><span>{lang === 'ja' ? '選択した商品の価格・支払間隔・内容と利用規約を確認し、同意します。' : 'I have reviewed and accept the selected product, total price, payment schedule and terms.'}</span></label>
+                <button type="button" disabled={preparing || !acceptedPurchaseTerms} onClick={() => void startCheckout()}
                 className="mt-3 min-h-11 w-full border border-[#B39A62] px-4 py-2 text-[#E8E2D7] disabled:opacity-50">
                 {preparing ? copy.preparing : copy.purchase}
                 </button>

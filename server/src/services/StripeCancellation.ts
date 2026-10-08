@@ -1,11 +1,13 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { DeletionError } from './AccountDeletion';
 import { createStripeClient, stripeRequest } from './StripeClient';
+import { cancelStripeCommerceCheckouts, createStripeCommerceDeletionLinkSource, COMMERCE_DELETION_RELEASE_VERIFIED,
+    type CommerceDeletionIntent, type CommerceDeletionOptions } from './StripeCommerceDeletion';
 
 type Mode = 'test' | 'live';
 type Intent = { checkoutId: string; livemode: boolean };
 type Membership = { subscriptionId: string; checkoutId: string };
-export type StripeDeletionLinks = { intents: Intent[]; memberships: Membership[] };
+export type StripeDeletionLinks = { intents: Intent[]; memberships: Membership[]; commerce?: CommerceDeletionIntent[] };
 export type StripeDeletionLinkSource = (userId: string) => Promise<StripeDeletionLinks>;
 export type StripeRetireSubscriptions = (userId: string, subscriptions: Array<{
     subscriptionId: string; checkoutId: string; livemode: boolean;
@@ -30,7 +32,8 @@ const object = (value: unknown): value is Record<string, unknown> =>
     !!value && typeof value === 'object' && !Array.isArray(value);
 
 /** Service-role only. An incomplete/unavailable inventory must block deletion. */
-export function createStripeDeletionLinkSource(client: SupabaseClient): StripeDeletionLinkSource {
+export function createStripeDeletionLinkSource(client: SupabaseClient,
+    commerceReleaseEnabled = COMMERCE_DELETION_RELEASE_VERIFIED): StripeDeletionLinkSource {
     return async userId => {
         const [intents, members] = await Promise.all([
             client.from('stripe_checkout_intents').select('checkout_id,livemode', { count: 'exact' })
@@ -42,6 +45,7 @@ export function createStripeDeletionLinkSource(client: SupabaseClient): StripeDe
             || intents.count !== intents.data.length || members.count !== members.data.length
             || intents.data.length > 1000 || members.data.length > 1000) throw new DeletionError('UNAVAILABLE');
         return {
+            ...(commerceReleaseEnabled ? { commerce: await createStripeCommerceDeletionLinkSource(client)(userId) } : {}),
             intents: intents.data.map(row => {
                 if (!checkoutId(row.checkout_id) || typeof row.livemode !== 'boolean') {
                     throw new DeletionError('UNAVAILABLE');
@@ -67,10 +71,14 @@ export function createStripeCancellationGuard(
     keys: { test?: string; live?: string },
     request: typeof fetch = fetch,
     retire?: StripeRetireSubscriptions,
+    commerce?: CommerceDeletionOptions,
 ): (userId: string) => Promise<void> {
     return async userId => {
         if (!userId || userId.length > 256) throw new DeletionError('UNAVAILABLE');
         const links = await linksFor(userId);
+        if (commerce?.releaseEnabled ? !Array.isArray(links.commerce) : links.commerce !== undefined) {
+            throw new DeletionError('UNAVAILABLE');
+        }
         const intents = new Map(links.intents.map(intent => [intent.checkoutId, intent]));
         if (intents.size !== links.intents.length) throw new DeletionError('UNAVAILABLE');
         const expected = new Map<string, { mode: Mode; customer: string; checkoutId: string }>();
@@ -126,8 +134,13 @@ export function createStripeCancellationGuard(
                 throw new DeletionError('UNAVAILABLE');
             }
         }
+        if (commerce?.releaseEnabled) {
+            await cancelStripeCommerceCheckouts(userId, links.commerce!, keys, request, commerce.retire);
+        }
         if (!retire && (links.intents.length || links.memberships.length)) throw new DeletionError('UNAVAILABLE');
-        if (retire) await retire(userId, [...expected].map(([id, owner]) => ({
+        // An erased account (or an Auth signup without a profile) has no legacy billing
+        // inventory. Its empty set needs no retirement RPC that requires a profile lock.
+        if (retire && (links.intents.length || links.memberships.length)) await retire(userId, [...expected].map(([id, owner]) => ({
             subscriptionId: id, checkoutId: owner.checkoutId, livemode: owner.mode === 'live',
         })));
     };

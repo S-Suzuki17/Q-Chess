@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import type { MatchPreparation } from '../hooks/useMatchPreparation';
 import type { RatingSettlement } from '../lib/rankedProtocol';
 const h = vi.hoisted(() => ({ cursor: 0, game: null as unknown, receipt: null as RatingSettlement | null, cancelled: null as string | null, reason: null as MatchPreparation | null }));
+vi.mock('../hooks/useSharedMatchChoice',()=>({useSharedMatchChoice:()=>({offer:null,pending:false,error:false,choose:()=>{},cancel:()=>{}})}));
 vi.mock('react', async original => {
     const react = await original<typeof import('react')>();
     const hooks = {

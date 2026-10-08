@@ -1,5 +1,5 @@
 import express, { type RequestHandler, type ErrorRequestHandler } from 'express';
-import { RankedAuth, isRankedUserId } from './RankedAuth';
+import { type RankedSessionAuthority, isRankedUserId } from './RankedAuth';
 import { parseLocalGameRecord, PRIVATE_RECORD_LIMIT, RECORD_ID_PATTERN } from './PrivateGameRecords';
 import type { LocalGameRecord, PrivateGameRecord, PrivateGameStats } from './PrivateGameRecords';
 
@@ -11,7 +11,7 @@ export interface PrivateHistoryStore {
 }
 
 /** Mount before the global 4 KiB parser; only this authenticated POST accepts 2 MiB. */
-export function createPrivateGameRecordRouter(auth: RankedAuth, store: PrivateHistoryStore) {
+export function createPrivateGameRecordRouter(auth: RankedSessionAuthority, store: PrivateHistoryStore) {
     const router = express.Router();
     const attempts = new Map<string, { count: number; until: number }>();
     const allow = (key: string, maximum: number) => {
@@ -29,11 +29,13 @@ export function createPrivateGameRecordRouter(auth: RankedAuth, store: PrivateHi
         }
         const header = req.headers.authorization;
         const token = typeof header === 'string' ? /^Bearer ([-\w.]{1,8192})$/i.exec(header)?.[1] : undefined;
-        const proof = auth.verifySession(token);
-        let userId = proof?.userId;
+        let userId: string | undefined;
+        try {
+            userId = (await auth.verifySession(token))?.userId;
+        } catch { res.setHeader('Retry-After', '5'); res.status(503).json({ code: 'HISTORY_UNAVAILABLE' }); return; }
         try {
             if (!userId && token && /^[-\w]+\.[-\w]+\.[-\w]+$/.test(token)) userId = await store.verifyUser(token) ?? undefined;
-        } catch { /* Failed identity checks never authorize private history. */ }
+        } catch { /* Failed OAuth identity checks never authorize private history. */ }
         if (!userId || !isRankedUserId(userId)) { res.status(401).json({ code: 'AUTH_REQUIRED' }); return; }
         if (!allow(`user:${userId}:${req.method === 'POST' ? 'write' : 'read'}`, req.method === 'POST' ? 12 : 120)) {
             res.setHeader('Retry-After', '60'); res.status(429).json({ code: 'TRY_LATER' }); return;

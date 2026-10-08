@@ -1,5 +1,6 @@
 import {afterEach,describe,expect,it,vi} from 'vitest';
 import type {AdMobPlugin} from '@capacitor-community/admob';
+import {acceptAdEntitlement,resetAdEntitlement,canShowVerifiedAccountAdsFor} from '../sharedAdEligibility';
 import {NativeAds} from '../nativeAds';
 import {ADMOB_TEST_UNITS,ADMOB_UNITS} from '../../config/nativeAds';
 
@@ -8,7 +9,7 @@ vi.mock('@capacitor-community/admob',()=>({
  InterstitialAdPluginEvents:{Dismissed:'interstitialDismiss',FailedToShow:'interstitialFail'},
 }));
 const proof={userId:'opaque-account',intentId:'server-issued-intent'};
-function fixture(supported=true,live=false){
+function fixture(supported=true,live=false,canShowAds: (userId?:string)=>boolean=()=>true){
  const events=new Map<string,()=>void>();
  const removed=vi.fn();
  const sdk={
@@ -23,14 +24,36 @@ function fixture(supported=true,live=false){
   showInterstitial:vi.fn().mockResolvedValue(undefined),
  };
  const load=vi.fn(async()=>sdk as unknown as AdMobPlugin);
- return{ads:new NativeAds(()=>supported,()=>live,load),sdk,load,events,removed};
+ return{ads:new NativeAds(()=>supported,()=>live,load,canShowAds),sdk,load,events,removed};
 }
 async function flush(){for(let i=0;i<40;i++)await Promise.resolve();}
-afterEach(()=>vi.useRealTimers());
+afterEach(()=>{vi.useRealTimers();resetAdEntitlement();});
 describe('Android AdMob lifecycle',()=>{
  it('does not initialize on Web or without a server intent',async()=>{
   const f=fixture(false);expect(await f.ads.reward('hint',proof)).toBe('unavailable');expect(f.load).not.toHaveBeenCalled();
   const android=fixture();expect(await android.ads.reward('hint',{...proof,intentId:''})).toBe('unavailable');expect(android.load).not.toHaveBeenCalled();
+ });
+ it.each(['paid','unknown','different_account'] as const)('reward and interstitial do not prepare after %s during listener setup',async change=>{
+  for(const kind of ['reward','interstitial']){
+   acceptAdEntitlement(proof.userId,{plan:'free',noAds:false,unlimitedOnlineRanked:false,periodEnd:null});
+   const f=fixture(true,false,canShowVerifiedAccountAdsFor),register=f.sdk.addListener.getMockImplementation()!;
+   let release!:()=>void;const pending=new Promise<void>(resolve=>{release=resolve;});
+   f.sdk.addListener.mockImplementationOnce(async(name,fn)=>{await pending;return register(name,fn);});
+   const result=kind==='reward'?f.ads.reward('hint',proof):f.ads.interstitial();await flush();
+   expect(f.sdk.addListener).toHaveBeenCalledOnce();
+   if(change==='paid')acceptAdEntitlement(proof.userId,{plan:'plus',noAds:true,unlimitedOnlineRanked:true,periodEnd:'2099-01-01'});
+   else if(change==='unknown')resetAdEntitlement();
+   else acceptAdEntitlement('other-account',{plan:'free',noAds:false,unlimitedOnlineRanked:false,periodEnd:null});
+   release();expect(await result).toBe('unavailable');
+   expect(f.sdk.prepareRewardVideoAd).not.toHaveBeenCalled();expect(f.sdk.prepareInterstitial).not.toHaveBeenCalled();
+   expect(f.sdk.showRewardVideoAd).not.toHaveBeenCalled();expect(f.sdk.showInterstitial).not.toHaveBeenCalled();
+   expect(f.events.size).toBe(0);
+  }
+ });
+ it('rejects a reward intent owned by a different account before loading the provider',async()=>{
+  acceptAdEntitlement('other-account',{plan:'free',noAds:false,unlimitedOnlineRanked:false,periodEnd:null});
+  const f=fixture(true,false,canShowVerifiedAccountAdsFor);
+  expect(await f.ads.reward('hint',proof)).toBe('unavailable');expect(f.load).not.toHaveBeenCalled();
  });
  it('uses test units, waits for dismissal and rejects overlapping requests',async()=>{
   const f=fixture();const result=f.ads.reward('hint',proof);await flush();

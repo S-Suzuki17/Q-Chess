@@ -2,6 +2,7 @@ import type { TimeControl } from '../types/game';
 import type { CPUSearchProfile } from './cpuDifficulty';
 import type { CampaignOutcome,CampaignProgress,CPUPersonality } from './campaign';
 import { outcomeStars } from './campaign';
+import { circuitSearchProfile } from '../../server/src/quantum-engine/ai/searchProfiles';
 
 export const CIRCUIT_STAGE_COUNT=100;
 export const CIRCUIT_STAGES=Array.from({length:CIRCUIT_STAGE_COUNT},(_,index)=>{
@@ -9,7 +10,7 @@ export const CIRCUIT_STAGES=Array.from({length:CIRCUIT_STAGE_COUNT},(_,index)=>{
     return {id:index+1,strength,timeControl:(['10m','3m','10s'] as TimeControl[])[index%3],
         opponent:`CPU ${String(strength).padStart(2,'0')}`,
         personality:('balanced' as CPUPersonality),
-        search:{timeLimitMs:500+(strength-1)*165,maxDepth:Math.min(8,1+Math.floor((strength-1)/5)),tieBreakSeed:strength} satisfies CPUSearchProfile};
+        search:circuitSearchProfile(strength) satisfies CPUSearchProfile};
 });
 export const stageUnlocked=(progress:CampaignProgress,id:number)=>Number.isInteger(id)&&id>=1&&id<=100&&id<=(progress.stageStars?.length??0)+1;
 export function finishStage(progress:CampaignProgress,id:number,outcome:CampaignOutcome):CampaignProgress {

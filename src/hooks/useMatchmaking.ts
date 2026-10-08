@@ -43,6 +43,7 @@ export function useMatchmaking(user:User|null) {
 
     const startMatchmaking=useCallback((timeControl=600,mode:QueueMode='random')=>{
         if(!user){setError('AUTH_REQUIRED');return false;}
+        if(connectionError==='AUTH_UNAVAILABLE'){setError('AUTH_UNAVAILABLE');return false;}
         if(mode==='ranked'&&!isAuthenticated){setError('AUTH_REQUIRED');return false;}
         if(!socket||!isConnected){setError(connectionError||'CONNECTION_FAILED');return false;}
         if(active.current)return false;

@@ -1,4 +1,8 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { createCrownAdmissionStore } from './CrownAdmissionStore';
+import { sharedMatchAdmissionEnabled, sharedMatchAdmissionRecoveryEnabled } from './SharedMatchFeatureGates';
+import { createSharedMatchEntitlements } from './SharedMatchEntitlements';
+import { createDurableRankedAuth, SessionAuthorityUnavailable } from './DurableRankedAuth';
+import { createClient, isAuthApiError, SupabaseClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
 import {v5 as uuidv5} from 'uuid';
 import { parseLocalGameRecord, PRIVATE_RECORD_LIMIT } from './PrivateGameRecords';
@@ -17,7 +21,11 @@ import {createCurrentTermsStore} from './AccountCurrentTerms';
 import {createEngagementMetricsStore} from './EngagementMetrics';
 import {createDailyLoginStore} from './DailyLoginStore';
 import {createStripeMembershipStore} from './StripeMembershipStore';
+import { createStripeCommerceStore } from './StripeCommerceStore';
+import { createStripeCommercePrerequisites } from './StripeCommerceReadiness';
+import { createStripeCommerceStatusStore } from './StripeCommerceStatus';
 import {createStripeDeletionLinkSource, createStripeRetireSubscriptions} from './StripeCancellation';
+import { createStripeRetireCommerceCheckouts } from './StripeCommerceDeletion';
 import { CpuPracticeService } from './CpuPracticeService';
 import { cpuHintTicketsEnabled, rankedTicketAdmissionEnabled, rankedAdmissionRecoveryEnabled } from './TicketFeatureGates';
 import { createRankedAdmissionStore } from './RankedAdmissionStore';
@@ -45,6 +53,8 @@ export class SupabaseService {
         });
     }
 
+    public durableSessionAuthority() { return createDurableRankedAuth(this.supabase); }
+
     public profileAvatarStore() {
         return createProfileAvatarStore(this.supabase,token=>this.verifyUser(token));
     }
@@ -60,8 +70,12 @@ export class SupabaseService {
         return createStripeMembershipStore(this.supabase, token=>this.verifyUser(token),
             id=>this.accountDeletionStore().blocked(id));
     }
+    public stripeCommerceStore() { return createStripeCommerceStore(this.supabase, this.stripeMembershipStore()); }
+    public stripeCommerceStatusStore() { return createStripeCommerceStatusStore(this.supabase); }
+    public stripeCommercePrerequisites() { return createStripeCommercePrerequisites(this.supabase); }
     public stripeDeletionLinks() { return createStripeDeletionLinkSource(this.supabase); }
     public stripeRetireSubscriptions() { return createStripeRetireSubscriptions(this.supabase); }
+    public stripeRetireCommerceCheckouts() { return createStripeRetireCommerceCheckouts(this.supabase); }
     public engagementMetricsStore() { return createEngagementMetricsStore(this.supabase); }
     public foundersStore() {return createFoundersStore(this.supabase,token=>this.verifyUser(token));}
     public accountDeletionStore() { return createAccountDeletionStore(this.supabase, token => this.verifyUser(token)); }
@@ -77,9 +91,20 @@ export class SupabaseService {
     }
     public accountSecurityStore() {return createAccountSecurityStore(this.supabase,token=>this.verifyUser(token));}
     public cpuPracticeService() { return new CpuPracticeService(this.supabase, cpuHintTicketsEnabled); }
-    public rankedAdmissionStore() { return createRankedAdmissionStore(this.supabase,rankedAdmissionRecoveryEnabled,rankedTicketAdmissionEnabled); }
+    public crownAdmissionStore() { return createCrownAdmissionStore(this.supabase); }
+    public sharedMatchEntitlement = (userId: string) => createSharedMatchEntitlements(this.supabase)(userId);
+    public async sharedMatchAdChoice(userId:string,matchId:string):Promise<string|null> {
+        if(!sharedMatchAdmissionEnabled())return null;
+        const {data,error}=await this.supabase.rpc('get_shared_match_ad_choice',{p_user_id:userId,p_match_id:matchId}).abortSignal(AbortSignal.timeout(5000));
+        if(error||!(data===null||typeof data==='string'&&/^[0-9a-f-]{36}$/i.test(data)))throw new Error('VERIFIED_AD_CHOICE_UNAVAILABLE');
+        return data;
+    }
+    public rankedAdmissionStore() {
+        return createRankedAdmissionStore(this.supabase,()=>rankedAdmissionRecoveryEnabled()||sharedMatchAdmissionRecoveryEnabled(),
+            ()=>rankedTicketAdmissionEnabled()||sharedMatchAdmissionEnabled(),sharedMatchAdmissionEnabled());
+    }
     public async rankedRefundBalance(userId:string):Promise<{freeRankedRefunds:number;paidRankedRefunds:number}> {
-        if(!rankedAdmissionRecoveryEnabled())return {freeRankedRefunds:0,paidRankedRefunds:0};
+        if(!rankedAdmissionRecoveryEnabled()&&!sharedMatchAdmissionRecoveryEnabled())return {freeRankedRefunds:0,paidRankedRefunds:0};
         const {data,error}=await this.supabase.rpc('get_ranked_refund_balance',{p_user_id:userId}).abortSignal(AbortSignal.timeout(5000));
         if(error||!data||!['freeRankedRefunds','paidRankedRefunds'].every(key=>Number.isSafeInteger(data[key])&&data[key]>=0))
             throw new Error('RANKED_REFUND_BALANCE_UNAVAILABLE');
@@ -123,8 +148,9 @@ export class SupabaseService {
     public async verifyLegacyPassword(userId:string,password:string):Promise<boolean> {
         try {
             const {data,error}=await this.supabase.rpc('login_user',{p_id:userId,p_password:password}).abortSignal(AbortSignal.timeout(4000));
-            return !error && data===true;
-        } catch { return false; }
+            if(error||typeof data!=='boolean')throw new SessionAuthorityUnavailable();
+            return data;
+        } catch { throw new SessionAuthorityUnavailable(); }
     }
 
     public async rankedReady():Promise<boolean> {
@@ -225,25 +251,44 @@ export class SupabaseService {
 
     // Verify JWT and extract user info
     public async verifyUser(token: string): Promise<string | null> {
-        if (typeof token!=='string'||token.length>8192||!/^[-\w]+\.[-\w]+\.[-\w]+$/.test(token)||this.pendingAuth>=32) return null;
+        if (typeof token!=='string'||token.length>8192||!/^[-\w]+\.[-\w]+\.[-\w]+$/.test(token)) return null;
+        if(this.pendingAuth>=32)throw new SessionAuthorityUnavailable();
         this.pendingAuth++;
+        let timeout:ReturnType<typeof setTimeout>|undefined,expired=false;
         try {
+          return await Promise.race([(async()=>{
             const { data: { user }, error } = await this.supabase.auth.getUser(token);
-            if (error || !user || user.is_anonymous===true) return null;
+            if(expired)throw new SessionAuthorityUnavailable();
+            if(error){
+                // Only documented token/account denials are identity evidence.
+                // 429/5xx, provider configuration and transport failures are not.
+                if(isAuthApiError(error)&&[400,401,403,422].includes(error.status)
+                    &&['bad_jwt','session_not_found','session_expired','user_not_found','user_banned'].includes(error.code??''))return null;
+                throw new SessionAuthorityUnavailable();
+            }
+            if (!user || typeof user.id!=='string' || !user.id) throw new SessionAuthorityUnavailable();
+            if (user.is_anonymous===true) return null;
             const sessionId=verifiedTokenSessionId(token,user.id);
             if(!sessionId)return null;
             const {data:live,error:sessionError}=await this.supabase.rpc('account_session_active',{p_user_id:user.id,p_session_id:sessionId});
-            if(sessionError||live!==true)return null;
+            if(expired||sessionError||typeof live!=='boolean')throw new SessionAuthorityUnavailable();
+            if(!live)return null;
             if(process.env.ACCOUNT_RECOVERY_ENABLED==='true') {
                 const {data:recovery,error:lookupError}=await this.supabase.from('account_recovery_emails')
                     .select('user_id').eq('auth_user_id',user.id).maybeSingle();
                 // A recovery-only Auth identity is not a second playable account.
-                if(lookupError||recovery)return null;
+                if(expired||lookupError)throw new SessionAuthorityUnavailable();
+                if(recovery!==null&&(typeof recovery!=='object'||Array.isArray(recovery)||typeof recovery.user_id!=='string'||!recovery.user_id))throw new SessionAuthorityUnavailable();
+                if(recovery)return null;
             }
             return user.id;
-        } catch (e) {
-            return null;
-        } finally {this.pendingAuth--;}
+          })(),new Promise<never>((_,reject)=>{
+              timeout=setTimeout(()=>{expired=true;reject(new SessionAuthorityUnavailable());},5000);
+          })]);
+        } catch {
+            // Never include an upstream message, token, or credential as cause.
+            throw new SessionAuthorityUnavailable();
+        } finally {clearTimeout(timeout);this.pendingAuth--;}
     }
 
     public calculateElo(ratingA: number, ratingB: number, scoreA: number, kFactor: number = 32): { newA: number, newB: number } {

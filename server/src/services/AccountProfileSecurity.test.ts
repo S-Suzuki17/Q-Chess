@@ -42,12 +42,12 @@ it('does not expose upstream errors or claim failed registration succeeded',asyn
 it('rejects forged tokens and another account selector before revocation',async()=>{
     for(const forged of ['','Alice','GUEST-Alice','bad.jwt.token'])expect((await fetch(base+'/account/sessions/revoke-all',options(forged))).status).toBe(401);
     expect((await fetch(base+'/account/sessions/revoke-all',options(token,{userId:'Bob'}))).status).toBe(400);
-    expect(auth.verifySession(token)?.userId).toBe('Alice');expect(disconnected).not.toHaveBeenCalled();
+    expect((await auth.verifySession(token))?.userId).toBe('Alice');expect(disconnected).not.toHaveBeenCalled();
 });
 it('revokes every legacy proof of self but not other accounts and clears the gate',async()=>{
     const second=(await auth.issueLegacySession('Alice','password'))!.token,bob=(await auth.issueLegacySession('Bob','password'))!.token;
     const response=await fetch(base+'/account/sessions/revoke-all',options(token));expect(await response.json()).toEqual({userId:'Alice',revoked:true});
-    expect(auth.verifySession(token)).toBeNull();expect(auth.verifySession(second)).toBeNull();expect(auth.verifySession(bob)?.userId).toBe('Bob');
+    expect(await auth.verifySession(token)).toBeNull();expect(await auth.verifySession(second)).toBeNull();expect((await auth.verifySession(bob))?.userId).toBe('Bob');
     expect(store.signOutAll).not.toHaveBeenCalled();expect(disconnected).toHaveBeenCalledExactlyOnceWith('Alice');expect(gate.blocked('Alice')).toBe(false);
 });
 it('revokes OAuth refresh sessions through the admin SDK with the verified bearer',async()=>{
@@ -57,7 +57,7 @@ it('revokes OAuth refresh sessions through the admin SDK with the verified beare
 });
 it('does not claim global signout if Auth is unavailable and does not steal an existing write lease',async()=>{
     const release=gate.enter('Alice')!;expect((await fetch(base+'/account/sessions/revoke-all',options(token))).status).toBe(409);release();
-    expect(auth.verifySession(token)).not.toBeNull();store.verifyUser.mockResolvedValue('OAuth');store.signOutAll.mockRejectedValue(new Error('secret'));
+    expect(await auth.verifySession(token)).not.toBeNull();store.verifyUser.mockResolvedValue('OAuth');store.signOutAll.mockRejectedValue(new Error('secret'));
     const response=await fetch(base+'/account/sessions/revoke-all',options('valid.jwt.token'));expect(response.status).toBe(503);expect(await response.text()).not.toContain('secret');expect(gate.blocked('OAuth')).toBe(false);
 });
 it('refuses oversized/malformed bodies and direct account operations while restricted',async()=>{
@@ -70,4 +70,19 @@ it('refuses oversized/malformed bodies and direct account operations while restr
 it('decodes session IDs only for the independently verified subject',()=>{
     const token=`a.${Buffer.from(JSON.stringify({sub:'Alice',session_id:'00000000-0000-4000-8000-000000000001'})).toString('base64url')}.c`;
     expect(verifiedTokenSessionId(token,'Alice')).not.toBeNull();expect(verifiedTokenSessionId(token,'Bob')).toBeNull();expect(verifiedTokenSessionId('a.b.c','Alice')).toBeNull();
+});
+
+it.each([1, 2])('does not report global signout before revocation %s settles or if it rejects', async blockedCall => {
+    let reject!: (error: Error) => void;
+    const revoke = vi.spyOn(auth, 'revokeUserSessions');
+    if (blockedCall === 2) revoke.mockResolvedValueOnce(1);
+    revoke.mockImplementationOnce(() => new Promise((_resolve, no) => { reject = no; }));
+    let settled = false;
+    const pending = fetch(base + '/account/sessions/revoke-all', options(token)).then(response => { settled = true; return response; });
+    await vi.waitFor(() => expect(revoke).toHaveBeenCalledTimes(blockedCall));
+    expect(settled).toBe(false); expect(gate.blocked('Alice')).toBe(true); expect(disconnected).not.toHaveBeenCalled();
+    reject(new Error('private-password-and-token'));
+    const response = await pending;
+    expect(response.status).toBe(503); expect(await response.text()).not.toContain('private-password-and-token');
+    expect(disconnected).not.toHaveBeenCalled(); expect(gate.blocked('Alice')).toBe(false);
 });
