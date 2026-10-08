@@ -250,7 +250,7 @@ test('real hint policy entrypaths: index/auth/socket/Worker/PostgREST/native SQL
         if(relay){relay.closeAllConnections();await new Promise(r=>relay.close(r));}await Promise.allSettled(connections.map(c=>c.end()));
         const files=['server/src/index.ts','server/src/game/GameEngine.ts','server/src/quantum-engine/ai/search.ts',
             ...['MatchHintTypes','MatchHintPosition','MatchHintService','MatchHintRegistry','MatchHintRoutes','CrownHintRegistry','CrownHintRoutes',
-                'HintTicketStore','CpuPracticeSearch','CpuPracticeSearchWorker','CpuPracticeRoutes','CpuPracticeService','AccountCurrentTerms','SupabaseService'].map(n=>'server/src/services/'+n+'.ts'),
+                'HintTicketStore','OnlineHintBoard','OnlineHintSearchWorker','CpuPracticeSearch','CpuPracticeSearchWorker','CpuPracticeRoutes','CpuPracticeService','AccountCurrentTerms','SupabaseService'].map(n=>'server/src/services/'+n+'.ts'),
             'scripts/qa/match-hint-runtime-postgres.test.mjs','scripts/qa/shared-match-runtime-child.cjs',
             'scripts/qa/fixtures/session-postgres-baseline.mjs',...combinedHistoricalMigrations.map(n=>'supabase/migrations/'+n),
             ...[...combinedPendingMigrations,...hintPolicyMigrations].map(n=>'supabase/migrations/'+n)];

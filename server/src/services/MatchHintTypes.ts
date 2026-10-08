@@ -1,7 +1,8 @@
 import type { GameState, Move } from '../quantum-engine/types';
 import type { HintAdvice } from '../quantum-engine/ai/hintAdvice';
 import type { HintContextKind, HintContextMode, HintTicketPurchase, HintTicketRequest, HintTicketContext, MatchHintReceipt } from './HintTicketStore';
-import type { Piece } from '../game/GameEngine';
+import type { OnlineHintBoard } from './OnlineHintBoard';
+export type { OnlineHintBoard } from './OnlineHintBoard';
 
 export class MatchHintError extends Error {
     constructor(public readonly code: string) { super(code); this.name = 'MatchHintError'; }
@@ -11,11 +12,6 @@ export interface HintRequestContext {
     check(): Promise<void>;
     /** Binds analysis cancellation to the authenticated current connection. */
     connectionId?: string;
-}
-export interface OnlineHintBoard {
-    board: (number | null)[];
-    pieces: Piece[];
-    turn: number;
 }
 export interface TrustedHintPosition {
     contextId: string;

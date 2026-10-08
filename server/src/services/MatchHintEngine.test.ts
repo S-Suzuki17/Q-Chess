@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { GameEngine, type Piece } from '../game/GameEngine';
 import { createInitialBoard } from '../game/quantumChess';
 import { onlineHintAdvice, onlineHintHash, onlineHintState } from './MatchHintPosition';
-import { searchCpuPracticePosition } from './CpuPracticeSearchWorker';
+import { searchOnlineHintPosition } from './OnlineHintSearchWorker';
 import { searchCpuPracticeMove } from './CpuPracticeSearch';
 import { qubeSearchProfile } from '../quantum-engine/ai/searchProfiles';
 
@@ -69,7 +69,7 @@ describe('authoritative online hint position', () => {
     it('independently validates the strongest search root with native online rules', () => {
         const p = engine().hintPosition('Alice', 0), budget = qubeSearchProfile(80);
         expect(budget.maxDepth).toBe(16); expect(budget.quiescenceDepth).toBe(4);
-        const move = searchCpuPracticePosition(p.state, budget, true, 'balanced', p.online);
+        const move = searchOnlineHintPosition(p.state, budget, p.online!);
         expect(move).not.toBeNull(); expect(p.validateMove(move!)).toMatchObject({ toRow: move!.target.row, toCol: move!.target.col });
     });
     it('uses an actual cancellable worker and returns a native-playable hint', async () => {

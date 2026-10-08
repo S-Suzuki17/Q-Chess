@@ -4,7 +4,7 @@ import path from 'node:path';
 import type { GameState, Move } from '../quantum-engine/types';
 import { qubeSearchProfile } from '../quantum-engine/ai/searchProfiles';
 import type { CPUPersonality } from '../quantum-engine/ai/personalities';
-import type { OnlineHintBoard } from './MatchHintTypes';
+import type { OnlineHintBoard } from './OnlineHintBoard';
 
 let activeWorkers = 0;
 /** A cancellable worker lets disconnect and ranked-entry guards run during search. */
@@ -25,11 +25,14 @@ export function searchCpuPracticeMove(state: GameState, level: number, signal: A
             const { parentPort, workerData } = require('node:worker_threads');
             if (workerData.tsx) require(workerData.tsx);
             try {
-                const { searchCpuPracticePosition } = require(workerData.search);
-                parentPort.postMessage({ move: searchCpuPracticePosition(workerData.state, workerData.budget, workerData.hint, workerData.personality, workerData.online) });
+                const search = require(workerData.search);
+                const move = workerData.hint && workerData.online
+                    ? search.searchOnlineHintPosition(workerData.state, workerData.budget, workerData.online)
+                    : search.searchCpuPracticePosition(workerData.state, workerData.budget, workerData.hint, workerData.personality);
+                parentPort.postMessage({ move });
             } catch { parentPort.postMessage({ error: 'SEARCH_FAILED' }); }
         `, { eval: true, execArgv: [], workerData: {
-            search: path.join(__dirname, 'CpuPracticeSearchWorker' + suffix),
+            search: path.join(__dirname, (hint && online ? 'OnlineHintSearchWorker' : 'CpuPracticeSearchWorker') + suffix),
             tsx, state, budget, hint, personality:hint ? 'balanced' : personality, online,
         } }); } catch {
             activeWorkers--; reject(new Error('SEARCH_FAILED')); return;
