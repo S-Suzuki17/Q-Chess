@@ -33,7 +33,7 @@
     },
     {
       "id": "public-guidance-and-navigation",
-      "sources": ["^src/app/(guide|faq|rules|about|contact|privacy|terms)/", "^src/components/(LearningPage|SiteInformation|QubeTeacher|game-page)", "^src/locales/(siteContent|aboutContent|rulesDict|rulesVisualDict|stageText|qubeTeaching)\\.ts$", "^src/config/siteMetadata\\.ts$", "^public/(sitemap\\.xml|robots\\.txt)$", "^scripts/release/(search-metadata|check-web-review|verify-pages)\\.mjs$"],
+      "sources": ["^src/app/(guide|faq|rules|about|contact|privacy|terms)/", "^src/app/(layout|page)\\.tsx$", "^src/hooks/useAppPlatform\\.ts$", "^src/components/(LearningPage|SiteInformation|QubeTeacher|game-page)", "^src/locales/(siteContent|aboutContent|rulesDict|rulesVisualDict|stageText|qubeTeaching)\\.ts$", "^src/config/siteMetadata\\.ts$", "^public/(sitemap\\.xml|robots\\.txt)$", "^scripts/release/(search-metadata|check-web-review|verify-pages)\\.mjs$"],
       "pages": ["/", "/guide/", "/faq/", "/rules/", "/about/", "/contact/", "/privacy/", "/terms/"],
       "guidance": ["src/locales/siteContent.ts", "src/components/LearningPage.tsx", "src/components/SiteInformation.tsx", "src/components/QubeTeacher.tsx", "src/locales/qubeTeaching.ts", "public/sitemap.xml", "public/robots.txt", "src/config/siteMetadata.ts"]
     },
