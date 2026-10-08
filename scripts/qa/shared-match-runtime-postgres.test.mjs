@@ -178,7 +178,8 @@ test(testTitle, { timeout: 225_000 }, async t => {
         await access(postgrest); await access(join(root, 'server/dist/index.js'));
         admin = await open();
         await setupBaseline(admin); await applyPending(admin);
-        assert.equal(baselineEvidence.pending.length, 12);
+        assert.equal(baselineEvidence.pending.length, 13);
+        assert.equal(baselineEvidence.pending.at(-1), '20261007141624_dormant_commerce_checkout_retirement.sql');
         // The public baseline intentionally has only system_status.id. These are
         // runtime HTTP prerequisites, not substitutes for admission/auth SQL.
         await admin.query([

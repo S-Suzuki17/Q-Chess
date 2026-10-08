@@ -70,13 +70,14 @@ test('native PostgreSQL hint origins, upgrade and races', { timeout: 180_000 }, 
     });
     t.after(async () => { await Promise.allSettled(clients.map(c => c.end())); });
 
-    await check('all twelve pending raw files upgrade public-only baseline without changing legacy purchase or receipt constraints', async () => {
+    await check('all thirteen pending raw files upgrade public-only baseline without changing legacy purchase or receipt constraints', async () => {
         await setupBaseline(admin);
         nativeVersion = await scalar(admin, "select current_setting('server_version_num')::integer as result");
         const before = await definitions(admin);
         const user = await account(admin);
         await admin.query('update public.ticket_wallets set hint_tickets=20 where user_id=$1', [user]);
-        assert.equal(pending.length, 12, 'Review the full additive migration union when integrating another slice');
+        assert.equal(pending.length, 13, 'Review the full additive migration union when integrating another slice');
+        assert.equal(pending.at(-1), '20261007141624_dormant_commerce_checkout_retirement.sql');
         await applyPending(admin);
         await bind(admin);
         assert.deepEqual(await definitions(admin), before);
@@ -98,9 +99,9 @@ test('native PostgreSQL hint origins, upgrade and races', { timeout: 180_000 }, 
         assert.deepEqual(await sources(a, user), sourceBefore);
     });
 
-    await check('source and database release gates remain closed; ledger is private, RLS-enabled and immutable', async () => {
+    await check('released source consumer preserves private RLS, immutable allocations and unchanged historical protocol metadata', async () => {
         const source = await readFile(new URL('../../server/src/services/CpuHintOriginProtocol.ts', import.meta.url), 'utf8');
-        assert.match(source, /CPU_HINT_ORIGIN_CONSUMPTION_RELEASE_READY = false/);
+        assert.match(source, /CPU_HINT_ORIGIN_CONSUMPTION_RELEASE_READY = true/);
         assert.deepEqual(await scalar(a, 'select public.stripe_commerce_protocol_version() as result'),
             { version: 1, newSalesEnabled: false, spendingEnabled: false, reversalsReady: false });
         assert.equal(await scalar(admin, "select relrowsecurity as result from pg_class where oid='public.cpu_hint_wallet_origins'::regclass"), true);
