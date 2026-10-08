@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { randomUUID, createHmac, createHash } from 'node:crypto';
-import { readFile, writeFile, readdir } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { resolve, join } from 'node:path';
@@ -9,6 +9,7 @@ import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { connect, scalar, wallet, purchase, contended, HASH } from './commerce-postgres-support.mjs';
 import { setupBaseline, pending, historical } from './fixtures/commerce-postgres-baseline.mjs';
+import { assertReviewedMigrationInventory } from './fixtures/session-postgres-baseline.mjs';
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const require = createRequire(join(root, 'server/package.json')); require('tsx/cjs/api').register();
 const { createStripeCancellationGuard, createStripeDeletionLinkSource, createStripeRetireSubscriptions } = require('./src/services/StripeCancellation.ts');
@@ -99,7 +100,7 @@ test('native PostgreSQL one-time Checkout retirement and account erasure', { tim
     const check=(name,operation)=>t.test(name,{timeout:20_000},async()=>{try{await operation();results.push(name);}catch(e){failures++;throw e;}});
     await check('unchanged combined baseline then one explicit staged forward migration, without fabrication',async()=>{
         await setupBaseline(admin);
-        assert.deepEqual((await readdir(join(root,'supabase/migrations'))).filter(x=>x.endsWith('.sql')&&x>=pending[0]).sort(),pending);
+        await assertReviewedMigrationInventory();
         for(const file of pending.filter(x=>x!==MIGRATION))await admin.query(await readFile(join(root,'supabase/migrations',file),'utf8'));
         a=await open('service_role');b=await open('service_role');await admin.query("insert into public.stripe_commerce_price_bindings values('hints_13','price_DeletionHints13',false)");
         const user=await account(admin);await register(a,user);

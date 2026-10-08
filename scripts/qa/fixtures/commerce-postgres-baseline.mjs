@@ -3,12 +3,14 @@ import {
     setupSessionBaseline, applySessionPending,
 } from './session-postgres-baseline.mjs';
 
-// The 43 commerce scenarios now exercise the SAME combined public
-// baseline and raw eleven-file upgrade as the durable-session scenarios. Real
+// Historical PR19 commerce scenarios exercise the same combined public
+// baseline and raw thirteen-file upgrade as the durable-session scenarios. Real
 // public deletion/recovery/restriction tables and the new session triggers are
 // present during billing, rollback and profile erasure. The shared helper
 // compares commerce lists against the public TS fixture and asserts every
-// discovered pending file before executing all eleven. No private schema import.
+// discovered file against the explicit reviewed inventory before executing the
+// PR19 baseline. New match-hint tests separately apply the forward policy file.
+// No private schema import or claim of full hosted-schema equivalence.
 export const historical = combinedHistoricalMigrations;
 export const pending = combinedPendingMigrations;
 export const baselineEvidence = Object.freeze({

@@ -25,6 +25,8 @@ jobs:
             report: shared-match-admission-postgres-results.json
           - suite: crown
             report: crown-postgres-results.json
+          - suite: match-hint
+            report: qg-match-hint-postgres-results.json
     services:
       postgres:
         image: postgres:17.11-bookworm

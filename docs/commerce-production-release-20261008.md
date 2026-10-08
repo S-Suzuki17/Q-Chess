@@ -1,5 +1,12 @@
 # Web and commerce release sequence
 
+PR19 completed this sequence on 2026-10-08 at production commit
+`93acd813cf723c2b833f74418874f3a88da5966b`. The thirteen files below are already
+applied; the hosted migration catalog has 46 entries. Treat this list as the
+release record, not pending work. Subsequent changes require new forward
+migrations and a separate reviewed cutover plan. Do not replay these files or
+overwrite their original purchase/consent records.
+
 One operator owns deployment. Record the commit, artifact manifest, hosted
 migration mapping, backend deployment ID and Pages IDs. Source activation,
 local fixtures and a Git push do not prove a hosted deployment changed.
@@ -42,8 +49,11 @@ local fixtures and a Git push do not prove a hosted deployment changed.
    entitlement, admission and recovery together. Keep `LEGACY_SESSION_MODE`
    unset or `memory` and unverified ad-provider gates off. Retain existing
    secrets and processing/Portal settings without printing the full environment.
-   The environment API does not deploy; let the verified main commit trigger
-   one deployment and confirm its exact commit and startup readiness.
+   The Render MCP environment update started a deployment during this release.
+   Inspect the resulting deployments before requesting another one, and confirm
+   that the live deployment has the verified main commit and startup readiness.
+   Do not assume every Render environment-update interface has the same deploy
+   behavior.
 6. Publish the verified Pages manifest to `q-gambit-web` only when the backend
    is ready. The new frontend requires the new session-status route. Check apex
    and www, responsive lobby/guides, absence of retired post links, sign-in and

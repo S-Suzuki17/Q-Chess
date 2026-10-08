@@ -1,12 +1,13 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { createHash, randomUUID } from 'node:crypto';
-import { readFile, readdir, writeFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { connect, scalar, wallet, account, contended, MAX, HASH, bind, register, purchase,
     member, snapshot, paidPeriod, historicalPeriods, unique } from './commerce-postgres-support.mjs';
 import { setupBaseline, baselineEvidence, pending } from './fixtures/commerce-postgres-baseline.mjs';
+import { assertReviewedMigrationInventory } from './fixtures/session-postgres-baseline.mjs';
 
 // Public SQL and synthetic users only. Each race must show a real PostgreSQL
 // lock wait between independent backends; a serialized adapter cannot pass.
@@ -95,9 +96,7 @@ test('native PostgreSQL purchase-source ledger, reversals and concurrent restora
     await check('explicit raw upgrade preserves unknown historical origins without inventing purchase rows', async () => {
         await setupBaseline(admin);
         nativeVersion = await scalar(admin, "select current_setting('server_version_num')::integer as result");
-        const discovered = (await readdir(new URL('../../supabase/migrations/', import.meta.url)))
-            .filter(name => name.endsWith('.sql') && name >= pending[0]).sort();
-        assert.deepEqual(discovered, pending, 'Every discovered pending migration needs explicit upgrade coverage');
+        await assertReviewedMigrationInventory();
         const position = pending.indexOf(LEDGER);
         assert.ok(position >= 0, 'Source ledger must be in the explicit pending list');
         for (const name of pending.slice(0, position)) await admin.query(await readFile(new URL(`../../supabase/migrations/${name}`, import.meta.url), 'utf8'));
