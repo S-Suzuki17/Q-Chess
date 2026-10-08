@@ -9,6 +9,7 @@ const FAQ_IDS = ['guest', 'identity', 'move', 'win', 'clock', 'hints', 'connecti
 const hrefs = html => [...html.matchAll(/<a\b[^>]*\bhref=["']([^"']+)["']/gi)].map(match => match[1].replaceAll('&amp;', '&'));
 const ids = html => new Set([...html.matchAll(/\bid=["']([^"']+)["']/gi)].map(match => match[1]));
 const errorMessage = error => error.message.split('\n')[0];
+const GAME_PREVIEW_ASSET = '/previews/game-screen-sample.png';
 
 export function contentDigest(html) {
   // Deployment scripts and Cloudflare's changing email-obfuscation token are not editorial changes.
@@ -46,7 +47,7 @@ export function inspectPublicPage({ html, route, status = 200, headerRobots = ''
   return { route, status, ok: !problems.length, category: status === 200 ? 'content' : 'http-failure', problems, contentDigest: contentDigest(html) };
 }
 
-export function inspectInternalLinks(pages, origin = SEARCH_ORIGIN) {
+export function inspectInternalLinks(pages, origin = SEARCH_ORIGIN, verifiedAssets = []) {
   const bodies = new Map(pages.map(page => [page.route, page.html]));
   const problems = [];
   for (const { route, html } of pages) {
@@ -54,6 +55,9 @@ export function inspectInternalLinks(pages, origin = SEARCH_ORIGIN) {
       let url;
       try { url = new URL(href, new URL(route, origin)); } catch { problems.push(`${route}: malformed href ${href}`); continue; }
       if (url.origin !== new URL(origin).origin || url.pathname.startsWith('/cdn-cgi/')) continue;
+      // Only the known screenshot is accepted, after a file/HTTP check. An
+      // image-looking suffix by itself never exempts a broken internal link.
+      if (url.pathname === GAME_PREVIEW_ASSET && !url.search && !url.hash && verifiedAssets.includes(url.pathname)) continue;
       const target = bodies.get(url.pathname);
       if (target === undefined) { problems.push(`${route}: internal destination was not checked: ${url.pathname}`); continue; }
       if (url.hash) {
@@ -81,7 +85,23 @@ export async function checkPublicSite(origin = SEARCH_ORIGIN, {requireQube = fal
   const pages = fetched.filter(page => SEARCH_ROUTES.includes(page.route));
   const results = pages.map(page => page.error ? { route: page.route, ok: false, category: 'fetch-failure', problems: [page.error] } : inspectPublicPage({...page, requireQube}));
   const problems = fetched.filter(page => page.error).map(page => `${page.route}: fetch failed after retry: ${page.error}`);
-  problems.push(...inspectInternalLinks(pages.filter(page => !page.error), origin));
+  const readablePages = pages.filter(page => !page.error);
+  const previewLinked = readablePages.some(page => hrefs(page.html).some(href => {
+    try { const url = new URL(href, origin); return url.origin === new URL(origin).origin && url.pathname === GAME_PREVIEW_ASSET && !url.search && !url.hash; }
+    catch { return false; }
+  }));
+  const verifiedAssets = [];
+  if (previewLinked) {
+    try {
+      const response = await fetch(new URL(GAME_PREVIEW_ASSET, origin), {
+        method: 'HEAD', signal: AbortSignal.timeout(15000), headers: { 'Cache-Control': 'no-cache' },
+      });
+      const sameAsset = !response.url || response.url === new URL(GAME_PREVIEW_ASSET, origin).href;
+      if (response.status === 200 && sameAsset && /^image\/png(?:;|$)/i.test(response.headers.get('content-type') || '')) verifiedAssets.push(GAME_PREVIEW_ASSET);
+      else problems.push(`${GAME_PREVIEW_ASSET}: expected the PNG asset (HTTP 200, image/png); received HTTP ${response.status}`);
+    } catch (error) { problems.push(`${GAME_PREVIEW_ASSET}: asset check failed: ${errorMessage(error)}`); }
+  }
+  problems.push(...inspectInternalLinks(readablePages, origin, verifiedAssets));
   for (const route of ['/robots.txt', '/sitemap.xml']) {
     const page = fetched.find(page => page.route === route);
     if (!page.error && page.status !== 200) problems.push(`${route}: HTTP ${page.status}; expected 200`);

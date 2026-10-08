@@ -358,7 +358,7 @@ export default function Home() {
         <main data-screen={gameState} className={`fixed inset-0 flex flex-col items-center justify-between bg-[#11100E] text-[#E8E2D7] font-sans overflow-x-hidden ${gameState === 'title' ? 'overflow-y-auto' : 'overflow-hidden'}`}>
             <div className="relative z-40 w-full max-w-5xl flex items-center justify-between text-sm mb-4 shrink-0">
                 {/* 右上のコントロール群 */}
-                <div className={`fixed right-4 top-4 z-40 flex gap-2 items-center ${showSettings || hideSettingsGlobal || gameState === 'playing' || gameState === 'campaign' ? 'hidden' : ''}`}>
+                <div className={`app-corner-controls fixed right-4 top-4 z-40 flex gap-2 items-center ${showSettings || hideSettingsGlobal || gameState === 'playing' || gameState === 'campaign' ? 'hidden' : ''}`}>
                     <button
                         onClick={() => setShowSettings(true)}
                         className="px-3 py-2 bg-[#2A2621] border border-[#4A4238] text-[#D4B872] rounded hover:bg-[#3B342C] transition-colors font-sans font-bold tracking-widest flex items-center justify-center text-xs"

@@ -18,6 +18,7 @@ import { battleMusicTitle } from '../config/circuitMusic';
 import { victoryText } from '../locales/victoryText';
 import {FOUNDERS_BOARD_ID,FOUNDERS_PIECE_ID} from '../config/founders';
 import {QubeTeacher} from './QubeTeacher';
+import {dismissDialog} from './dialogDismissal';
 
 export type VisualReward={kind:'board'|'piece'|'effect'|'avatar'|'music';id:string};
 const types:PieceType[]=['Rook','Knight','Bishop','Queen','King','Pawn'];
@@ -32,17 +33,18 @@ export function RewardPreview({lang,reward,progress,onClose}:{
     lang:Language;reward:VisualReward;progress:CampaignProgress;onClose:()=>void;onEquip?:(kind:VisualReward['kind'],id:string)=>void;
 }) {
     const dialog=useRef<HTMLDialogElement>(null);
+    const close=()=>dismissDialog(dialog.current,onClose);
     const [run,setRun]=useState(0);
     const unlocked=rewardUnlocked(progress,reward.id);
     const design=championshipReward(reward.id);
     useEffect(()=>{const node=dialog.current;node?.showModal();return()=>node?.close();},[]);
-    return <dialog ref={dialog} className="reward-preview-dialog" data-reward-kind={reward.kind} data-reward-motif={design?.motif} aria-labelledby="reward-preview-title" onCancel={event=>{event.preventDefault();onClose();}}>
+    return <dialog ref={dialog} className="reward-preview-dialog" data-reward-kind={reward.kind} data-reward-motif={design?.motif} aria-labelledby="reward-preview-title" onCancel={event=>{event.preventDefault();close();}}>
         <header><div><small>{circuitText(lang,'preview')}</small><h2 id="reward-preview-title">{reward.kind==='music'?battleMusicTitle(reward.id)??rewardName(lang,reward.id):rewardName(lang,reward.id)}</h2></div>
-            <button autoFocus onClick={onClose}>{circuitText(lang,'close')}</button></header>
+            <button autoFocus onClick={close}>{circuitText(lang,'close')}</button></header>
         <QubeTeacher lang={lang} variant="compact"><p>{cosmeticsSettingsText(lang,'previewOnly')}</p></QubeTeacher>
         {design?.kind==='board' && <div className="reward-material-note"><span aria-hidden="true">{[design.frameColor,design.light,design.rim].map(color=><i key={color} style={{background:color}}/>)}</span>{reward.id===FOUNDERS_BOARD_ID?rewardName(lang,reward.id):rewardCraftText(lang,design.motif)}</div>}
         {reward.kind==='music'?<MusicPreview key={reward.id} id={reward.id} lang={lang}/>:<div className="reward-preview-board" data-testid="reward-preview-board">
-            {reward.kind==='effect'?<div className="effect-preview-arena"/>:reward.kind==='avatar'?<div className="avatar-reward-preview"><AccountAvatar name="Q" url={circuitIconForFrame(reward.id)?.url} frame={reward.id} size={180}/></div>:<Board3D lang={lang} quietLayout presentation="collection" boardFinish={(reward.kind==='board'?reward.id:progress.board) as BoardFinish}
+            {reward.kind==='effect'?<div className="effect-preview-arena"/>:reward.kind==='avatar'?<div className="avatar-reward-preview"><AccountAvatar name="Q" url={circuitIconForFrame(reward.id)?.url} frame={reward.id} size={180} animateFrame/></div>:<Board3D lang={lang} quietLayout presentation="collection" boardFinish={(reward.kind==='board'?reward.id:progress.board) as BoardFinish}
                 pieceFinish={(reward.kind==='piece'?reward.id:reward.id===FOUNDERS_BOARD_ID?FOUNDERS_PIECE_ID:referencePieceForBoard(reward.id)??progress.piece) as PieceFinish}
                 tokens={pieces} selectedTokenId={null} validMoves={[]} moveHistory={[]} onSquareClick={noop}
                 showMoveHints={false} currentTurn="white" autoRotate={false}/>}

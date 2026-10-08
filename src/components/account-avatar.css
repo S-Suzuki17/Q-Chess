@@ -1,7 +1,11 @@
 .account-avatar{display:inline-block;position:relative;flex-shrink:0;isolation:isolate;margin:4px}
-.account-avatar-portrait{position:absolute;inset:10%;border-radius:50%;overflow:hidden;display:grid;place-items:center;background:linear-gradient(150deg,#393c3b,#141b1e);color:#d9c99e;border:1px solid #716750;font:600 24px Georgia,serif}
+.account-avatar-portrait{position:absolute;inset:10%;border-radius:50%;overflow:hidden;display:grid;place-items:center;background:linear-gradient(150deg,#344c40,#101e1a);color:#e7dbc0;border:1px solid #807654;font:600 24px Georgia,serif}
 .account-avatar-portrait img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1}
-.account-avatar-frame{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;filter:drop-shadow(0 2px 1px #0009)}
-.account-avatar-aura{position:absolute;inset:-12%;z-index:-1;pointer-events:none;border-radius:50%}
+.account-avatar-frame{position:absolute;inset:0;width:100%;height:100%;overflow:hidden;pointer-events:none;filter:drop-shadow(0 1px 1px #0009)}
+.account-avatar-aura{position:absolute;inset:0;z-index:-1;pointer-events:none;border-radius:50%;opacity:.6}
+.account-avatar-frame-glint{opacity:0;stroke-dasharray:24 76;stroke-dashoffset:24}
+.account-avatar-frame-glint.is-revealing{animation:account-avatar-edge-glint 650ms ease-out 1 both}
 .account-avatar-rank{position:absolute;bottom:-5%;right:-8%;z-index:2;pointer-events:none}
 .account-avatar-rank .rank-badge-art{width:100%;height:100%;display:block;filter:drop-shadow(0 1px 1px #000)}
+@keyframes account-avatar-edge-glint{0%{opacity:0;stroke-dashoffset:24}28%{opacity:.85}100%{opacity:0;stroke-dashoffset:-100}}
+@media (prefers-reduced-motion:reduce){.account-avatar-frame-glint.is-revealing{animation:none;opacity:0}}

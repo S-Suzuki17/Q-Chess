@@ -67,3 +67,41 @@ test('the full HTTP check retries transport errors and reports unavailable pages
     assert.equal(result.results.find(page => page.route === '/faq/').ok, true);
   } finally { globalThis.fetch = fetchBefore; }
 });
+
+test('only the exact verified screenshot is accepted as an internal asset link', () => {
+  const asset = '/previews/game-screen-sample.png';
+  const pages = SEARCH_ROUTES.map(route => ({ route, html: page(route) }));
+  pages[0].html += `<a href="${asset}">Full size</a>`;
+  assert.equal(inspectInternalLinks(pages).length, 1, 'unverified known asset must fail');
+  assert.deepEqual(inspectInternalLinks(pages, SEARCH_ORIGIN, [asset]), []);
+  pages[0].html += '<a href="/missing.png">Missing image</a><a href="/gone/">Missing page</a>';
+  assert.equal(inspectInternalLinks(pages, SEARCH_ORIGIN, [asset, '/missing.png']).length, 2);
+  pages[0].html += `<a href="${asset}#missing">Invalid asset anchor</a><a href="${asset}?unknown=1">Unverified variant</a>`;
+  assert.equal(inspectInternalLinks(pages, SEARCH_ORIGIN, [asset]).length, 3); // Duplicate unverified asset paths are reported once.
+});
+
+test('the HTTP check verifies a linked screenshot and rejects missing or non-image responses', async () => {
+  const fetchBefore = globalThis.fetch;
+  const asset = '/previews/game-screen-sample.png';
+  try {
+    for (const [status, contentType, passes] of [[200, 'image/png', true], [404, 'image/png', false], [200, 'text/html', false]]) {
+      let assetRequests = 0;
+      globalThis.fetch = async (url, options) => {
+        const route = new URL(url).pathname;
+        if (route === asset) {
+          assetRequests++;
+          assert.equal(options.method, 'HEAD');
+          return new Response(null, { status, headers: { 'content-type': contentType } });
+        }
+        if (route === '/robots.txt') return new Response(`Sitemap: ${SEARCH_ORIGIN}/sitemap.xml\n`);
+        if (route === '/sitemap.xml') return new Response('<urlset>' + SEARCH_ROUTES.map(route => `<url><loc>${SEARCH_ORIGIN}${route}</loc></url>`).join('') + '</urlset>');
+        const html = page(route) + (route === '/' ? `<a href="${asset}">Full size</a>` : '');
+        return new Response(html, { headers: { 'content-type': 'text/html' } });
+      };
+      const result = await checkPublicSite();
+      assert.equal(assetRequests, 1);
+      assert.equal(result.ok, passes, JSON.stringify(result.problems));
+      if (!passes) assert.ok(result.problems.some(problem => problem.includes(asset)));
+    }
+  } finally { globalThis.fetch = fetchBefore; }
+});

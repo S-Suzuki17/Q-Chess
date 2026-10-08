@@ -1,0 +1,18 @@
+/* Companion and adopted opponent share the room without covering their labels. */
+.crown-screen .crown-companion { position:static;display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0;gap:3px;margin:0;padding:0;border:0;background:none;box-shadow:none; }
+.crown-screen .crown-companion-label { position:static;width:auto;height:auto;max-width:90px;overflow:visible;clip-path:none;text-align:center;font-size:10px;line-height:1.3;color:#d4ddd6; }
+.crown-screen .crown-companion .qube-companion { width:72px; }
+.crown-screen .crown-opponent-info { flex:1;min-width:0; }
+@media(max-width:700px) {
+ .crown-screen .crown-opponent { display:grid;grid-template-columns:minmax(0,1fr) 56px;gap:4px;align-items:center;width:100%; }
+ .crown-screen .crown-enemy-silhouette { grid-column:1;grid-row:1;width:100%;max-width:90px;height:84px; }
+ .crown-screen .crown-companion { grid-column:2;grid-row:1;align-self:center; }
+ .crown-screen .crown-companion .qube-companion { width:56px; }
+ .crown-screen .crown-companion-label { position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%); }
+ .crown-screen .crown-opponent>.crown-opponent-info { position:static;grid-column:1/-1;grid-row:2;display:flex;flex-wrap:wrap;gap:2px 7px;width:auto;padding:0; }
+ .crown-screen .crown-opponent-info strong { flex-basis:100%; }
+}
+@media(max-height:600px) and (max-width:700px) {
+ .crown-screen .crown-enemy-silhouette { height:64px; }
+ .crown-screen .crown-companion .qube-companion { width:50px; }
+}
