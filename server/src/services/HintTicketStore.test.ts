@@ -35,6 +35,24 @@ async function rejectsCode(operation: Promise<unknown>, code: string) {
 }
 
 describe('HintTicketStore', () => {
+    it('reads uncached database milliseconds without using the host clock', async () => {
+        for (const value of ['2000-01-01T00:00:00.123Z', '2099-01-01T00:00:00.123Z']) {
+            const { store, calls } = fixture({ data: value, error: null });
+            assert.equal(await store.readClock(), Date.parse(value));
+            assert.equal(await store.readClock(), Date.parse(value));
+            assert.equal(calls.length, 2);
+            assert.deepEqual(calls.map(c => [c.name, c.parameters]), [['match_hint_clock', {}], ['match_hint_clock', {}]]);
+        }
+    });
+
+    it('rejects malformed database clock responses and clock transport failures', async () => {
+        for (const data of [null, 0, {}, 'infinity', '2026-02-30T00:00:00.000Z',
+            '2026-10-08T00:00:00Z', '2026-10-08T00:00:00.000+00:00']) {
+            await rejectsCode(fixture({ data, error: null }).store.readClock(), 'HINT_STORE_UNAVAILABLE');
+        }
+        await rejectsCode(fixture(async () => { throw new Error('transport'); }).store.readClock(), 'HINT_STORE_UNAVAILABLE');
+    });
+
     it('dispatches trusted purchase fields once and returns the stored receipt projection', async () => {
         const input = purchase();
         const { store, calls } = fixture({ data: { ...receipt(), secret: 'not part of receipt', userId: 'Alice' }, error: null });
@@ -65,6 +83,24 @@ describe('HintTicketStore', () => {
         for (const data of [undefined, false, 0, '', [], {}]) {
             await rejectsCode(fixture({ data, error: null }).store.readReceipt(request), 'HINT_STORE_UNAVAILABLE');
         }
+    });
+
+    it('passes the recovery deadline to the DB without substituting the host clock', async () => {
+        const { store, calls } = fixture({ data: null, error: null });
+        for (const notBefore of ['2000-01-01T00:00:00.000Z', '2099-01-01T00:00:00.000Z']) {
+            assert.equal(await store.readReceipt({ ...request, notBefore }), null);
+            assert.equal(calls.at(-1)!.parameters.p_not_before, notBefore);
+        }
+        await rejectsCode(fixture({ data: null, error: { message: 'HINT_STORE_UNAVAILABLE', code: '55000' } })
+            .store.readReceipt({ ...request, notBefore: purchase().validUntil }), 'HINT_STORE_UNAVAILABLE');
+    });
+
+    it('rejects malformed recovery deadlines before reading any receipt', async () => {
+        const { store, calls } = fixture({ data: null, error: null });
+        for (const notBefore of ['', 'infinity', '2026-02-30T12:00:00Z', null, Infinity]) {
+            await rejectsCode(store.readReceipt({ ...request, notBefore: notBefore as never }), 'INVALID_REQUEST');
+        }
+        assert.equal(calls.length, 0);
     });
 
     it('normalizes UUID casing without changing case-sensitive legacy account IDs', async () => {

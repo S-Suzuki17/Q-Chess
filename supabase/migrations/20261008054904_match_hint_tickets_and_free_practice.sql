@@ -73,16 +73,34 @@ language sql immutable security invoker set search_path='' as $$
   'hint',p_receipt.hint,'move',p_receipt.move,'deliveryState','paid_retrievable')
 $$;
 
-create function public.read_match_hint_receipt(p_request_id uuid,p_user_id text,p_context_id uuid,p_revision integer)
+create function public.match_hint_clock() returns text
+language plpgsql security invoker set search_path='' as $$
+begin
+ if current_user<>'service_role' then raise exception 'AUTH_REQUIRED' using errcode='42501'; end if;
+ -- Millisecond truncation is conservative. Never derive purchase deadlines
+ -- from an independently skewed application-host absolute clock.
+ return to_char(clock_timestamp() at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"');
+end $$;
+
+create function public.read_match_hint_receipt(p_request_id uuid,p_user_id text,p_context_id uuid,p_revision integer,
+ p_not_before timestamptz default null)
 returns jsonb language plpgsql security invoker set search_path='' as $$
 declare v_receipt public.match_hint_receipts;
 begin
  perform public.match_hint_assert_account(p_user_id);
  if p_request_id is null or p_context_id is null or p_revision is null or p_revision<0 then
   raise exception 'INVALID_REQUEST' using errcode='22023'; end if;
+ if p_not_before is not null and not isfinite(p_not_before) then raise exception 'INVALID_REQUEST' using errcode='22023'; end if;
  select r.* into v_receipt from public.match_hint_request_aliases a
   join public.match_hint_receipts r on r.request_id=a.receipt_id where a.request_id=p_request_id;
- if not found then return null; end if;
+ if not found then
+  -- Host wall time and response arrival time cannot prove that a delayed buy
+  -- has expired. Only an absent receipt needs the DB deadline check, performed
+  -- AFTER taking the purchase/profile lock. Existing receipts resolve at once.
+  if p_not_before is not null and clock_timestamp()<p_not_before then
+   raise exception 'HINT_STORE_UNAVAILABLE' using errcode='55000'; end if;
+  return null;
+ end if;
  if (v_receipt.user_id,v_receipt.context_id,v_receipt.revision) is distinct from (p_user_id,p_context_id,p_revision)
  then raise exception 'REQUEST_MISMATCH' using errcode='23505'; end if;
  -- New terms, game expiry and later moves never remove an already delivered hint.
@@ -457,7 +475,7 @@ do $$ declare v_function regprocedure;
 begin
  for v_function in select p.oid::regprocedure from pg_catalog.pg_proc p
   join pg_catalog.pg_namespace n on n.oid=p.pronamespace where n.nspname='public'
-  and p.proname in ('match_hint_assert_account','match_hint_payload','read_match_hint_receipt',
+  and p.proname in ('match_hint_assert_account','match_hint_payload','match_hint_clock','read_match_hint_receipt',
    'read_existing_match_hint','buy_match_hint','restore_match_hint_credit','buy_cpu_hint','buy_cpu_hint_v2','spend_game_tickets')
  loop
   execute format('revoke all on function %s from public,anon,authenticated,service_role',v_function);

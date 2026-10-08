@@ -24,6 +24,8 @@ const buy = (c, p) => scalar(c, 'select public.buy_match_hint($1,$2,$3,$4,$5,$6,
         JSON.stringify(p.move),JSON.stringify(p.hint)]);
 const read = (c,p) => scalar(c,'select public.read_match_hint_receipt($1,$2,$3,$4) as result',
     [p.requestId,p.userId,p.contextId,p.revision]);
+const recoverAfter = (c,p,notBefore) => scalar(c,'select public.read_match_hint_receipt($1,$2,$3,$4,$5) as result',
+    [p.requestId,p.userId,p.contextId,p.revision,notBefore]);
 const existing = (c,p) => scalar(c,'select public.read_existing_match_hint($1,$2,$3) as result',[p.userId,p.contextId,p.revision]);
 const restore = (c,receipt,user,reason='unrecoverable_delivery') => scalar(c,'select public.restore_match_hint_credit($1,$2,$3) as result',
     [receipt.receiptId,user,reason]);
@@ -311,13 +313,77 @@ test('native PostgreSQL match hints and free-practice forward upgrade',{timeout:
         }finally{await a.query('rollback');if(pending)await pending;}
         assert.equal((await wallet(a,user)).hint_tickets,1);assert.equal(await receiptCount(a,user),0);
     });
+    await check('recovery cannot return a conclusive null before the database reaches the purchase deadline',async()=>{
+        const user=await fundFree(admin),p=context(user);
+        const future=(await scalar(admin,"select clock_timestamp()+interval '30 seconds' as result")).toISOString();
+        // A host that believes the deadline has passed must still be denied.
+        assert.equal(await read(a,p),null);
+        await assert.rejects(recoverAfter(a,p,future),{message:'HINT_STORE_UNAVAILABLE',code:'55000'});
+        assert.equal((await wallet(a,user)).hint_tickets,1);assert.equal(await receiptCount(a,user),0);
+        const saved=await buy(a,p);
+        assert.deepEqual(await recoverAfter(a,p,future),saved,'An existing receipt resolves before notBefore');
+    });
+    await check('service database clock reports canonical milliseconds within actual database observations',async()=>{
+        const before=await scalar(admin,'select clock_timestamp() as result');
+        const value=await scalar(a,'select public.match_hint_clock() as result');
+        const after=await scalar(admin,'select clock_timestamp() as result');
+        assert.match(value,/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
+        assert.equal(new Date(value).toISOString(),value);
+        assert.ok(Date.parse(value)>=before.getTime()-1&&Date.parse(value)<=after.getTime());
+        const user=await fundFree(admin);
+        const p=context(user,{validUntil:new Date(Date.parse(value)+5000).toISOString()});
+        assert.ok((await buy(a,p)).receiptId);
+        assert.equal((await wallet(a,user)).hint_tickets,0);
+    });
+    await check('recovery deadline rejects non-finite database timestamps',async()=>{
+        const user=await fundFree(admin),p=context(user);
+        for(const notBefore of ['infinity','-infinity'])await assert.rejects(recoverAfter(a,p,notBefore),{message:'INVALID_REQUEST',code:'22023'});
+        assert.equal(await recoverAfter(a,p,null),null);
+    });
+    await check('a database-confirmed expired null prevents a delayed original buy from consuming',async()=>{
+        const user=await fundFree(admin),p=context(user);
+        p.validUntil=(await scalar(admin,"select clock_timestamp()-interval '1 second' as result")).toISOString();
+        assert.equal(await recoverAfter(a,p,p.validUntil),null);
+        await assert.rejects(buy(b,p),{message:'HINT_CONTEXT_EXPIRED',code:'22023'});
+        assert.equal((await wallet(a,user)).hint_tickets,1);assert.equal(await receiptCount(a,user),0);
+        const q=context(user);const saved=await buy(a,q);
+        assert.deepEqual(await recoverAfter(a,q,p.validUntil),saved);
+    });
+    await check('recovery checks the database deadline after the profile lock wait, not at request start',async()=>{
+        const user=await fundFree(admin),p=context(user);
+        const notBefore=(await scalar(admin,"select clock_timestamp()+interval '750 milliseconds' as result")).toISOString();
+        await a.query('begin');let pending;
+        try{
+            await a.query('select 1 from public.profiles where id=$1 for update',[user]);
+            pending=recoverAfter(b,p,notBefore).then(value=>({value}),error=>({error}));
+            let blocked=false;
+            for(let i=0;i<100;i++){
+                const row=(await admin.query('select wait_event_type,pg_blocking_pids(pid) as blockers from pg_stat_activity where pid=$1',[b.fixturePid])).rows[0];
+                if(row?.wait_event_type==='Lock'&&row.blockers.includes(a.fixturePid)){blocked=true;break;}
+                await delay(10);
+            }
+            assert.ok(blocked,'Recovery must wait on the same lock as purchase');
+            let reached=false;
+            for(let i=0;i<100;i++){
+                reached=await scalar(admin,'select clock_timestamp()>=$1::timestamptz as result',[notBefore]);
+                if(reached)break;
+                await delay(20);
+            }
+            assert.ok(reached,'The database clock must reach notBefore before releasing the lock');
+            await a.query('commit');
+            assert.deepEqual(await pending,{value:null});
+        }finally{await a.query('rollback');if(pending)await pending;}
+        await assert.rejects(buy(a,{...p,validUntil:notBefore}),{message:'HINT_CONTEXT_EXPIRED',code:'22023'});
+        assert.equal((await wallet(a,user)).hint_tickets,1);
+    });
     await check('client roles cannot read or mutate any new table or call any new hint RPC',async()=>{
         const tables=['match_hint_receipts','match_hint_request_aliases','match_hint_restorations'];
-        const funcs=(await admin.query("select oid::regprocedure::text as signature,proname,prosecdef,proconfig from pg_proc where pronamespace='public'::regnamespace and proname in('read_match_hint_receipt','read_existing_match_hint','buy_match_hint','restore_match_hint_credit','match_hint_payload','match_hint_assert_account')")).rows;
+        const funcs=(await admin.query("select oid::regprocedure::text as signature,proname,prosecdef,proconfig from pg_proc where pronamespace='public'::regnamespace and proname in('read_match_hint_receipt','read_existing_match_hint','buy_match_hint','restore_match_hint_credit','match_hint_payload','match_hint_assert_account','match_hint_clock')")).rows;
         assert.ok(funcs.length>=4);
         for(const f of funcs){assert.equal(f.prosecdef,false);assert.deepEqual(f.proconfig,['search_path=""']);}
         for(const role of ['anon','authenticated']){
             const c=await connectAs(role);
+            await assert.rejects(c.query('select public.match_hint_clock()'),{code:'42501'});
             for(const table of tables){
                 await assert.rejects(c.query(`select * from public.${table}`),{code:'42501'});
                 await assert.rejects(c.query(`insert into public.${table} default values`),{code:'42501'});

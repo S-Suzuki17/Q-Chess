@@ -15,7 +15,11 @@ export interface HintTicketContext {
     contextId: string;
     revision: number;
 }
-export interface HintTicketRequest extends HintTicketContext { requestId: string }
+export interface HintTicketRequest extends HintTicketContext {
+    requestId: string;
+    /** Recovery only: require the DB clock to reach this purchase deadline. */
+    notBefore?: string;
+}
 export interface HintTicketPurchase extends HintTicketRequest {
     kind: HintContextKind;
     mode: HintContextMode;
@@ -148,10 +152,25 @@ export class HintTicketStore {
         return result.data;
     }
 
+    /** Capture DB time before measuring remaining canonical turn/owner time.
+     * The RPC's elapsed time shortens the eventual deadline conservatively. */
+    async readClock(): Promise<number> {
+        const value = await this.rpc('match_hint_clock', {});
+        if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(value)
+            || !validTimestamp(value)) throw new HintTicketError('HINT_STORE_UNAVAILABLE');
+        const milliseconds = Date.parse(value);
+        if (new Date(milliseconds).toISOString() !== value) throw new HintTicketError('HINT_STORE_UNAVAILABLE');
+        return milliseconds;
+    }
+
     async readReceipt(input: HintTicketRequest): Promise<MatchHintReceipt | null> {
         const expected = checkedRequest(input);
+        if (input.notBefore !== undefined && !validTimestamp(input.notBefore)) {
+            throw new HintTicketError('INVALID_REQUEST');
+        }
         const data = await this.rpc('read_match_hint_receipt', { p_request_id: expected.requestId,
-            p_user_id: expected.userId, p_context_id: expected.contextId, p_revision: expected.revision });
+            p_user_id: expected.userId, p_context_id: expected.contextId, p_revision: expected.revision,
+            ...(input.notBefore === undefined ? {} : { p_not_before: input.notBefore }) });
         return data === null ? null : parseReceipt(data, expected);
     }
 
