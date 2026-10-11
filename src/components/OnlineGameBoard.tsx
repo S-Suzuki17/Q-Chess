@@ -2,6 +2,10 @@
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { matchText } from '../locales/matchText';
+import { forgetActiveOnlineMatch } from '../lib/activeOnlineMatchCache';
+import { queueFailureCode } from '../lib/rankedProtocol';
+import { rankedStartText, rankedStartDiagnostic, rankedStartRecoveryText } from '../locales/rankedStartText';
+import { serviceText } from '../locales/serviceText';
 import { useBoardPreferences } from '../hooks/useBoardPreferences';
 import { useTicketHint } from '../hooks/useTicketHint';
 import { canRequestHint } from '../lib/hintPolicy';
@@ -79,6 +83,10 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
     const recoveryText = rankedRecoveryText(lang);
 
     const [gameState, setGameState] = useState<any>(null);
+    const [startFailure, setStartFailure] = useState<{ roomId: string; socket: NonNullable<typeof socket>; code: string } | null>(null);
+    const [connectAttempt, setConnectAttempt] = useState(0);
+    const startError = startFailure && startFailure.roomId === roomId && startFailure.socket === socket ? startFailure.code : null;
+    const startText = rankedStartText(lang);
     const [settledRating,setSettledRating]=useState<RatingSettlement|null>(null);
     const [showRankedLogin,setShowRankedLogin]=useState(false);
     const [cancelledMatch,setCancelledMatch]=useState<string|null>(null);
@@ -86,7 +94,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
     const cpu=cpuOpponent(gameState?.cpu);
     useEffect(()=>{
         if(!socket)return;
-        const settled=(data:unknown)=>{const receipt=ratingSettlement(data,roomId,user?.id);if(receipt){setSettledRating(receipt);localStorage.removeItem('qg_active_online_match');}};
+        const settled=(data:unknown)=>{const receipt=ratingSettlement(data,roomId,user?.id);if(receipt){setSettledRating(receipt);forgetActiveOnlineMatch();}};
         socket.on('rating_settled',settled);
         return()=>{socket.off('rating_settled',settled);};
     },[socket,roomId,user?.id]);
@@ -97,7 +105,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
             if(!cancellation)return;
             setCancelledMatch(cancellation.matchId);
             setCancelledReason(cancellation.reason);
-            localStorage.removeItem('qg_active_online_match');
+            forgetActiveOnlineMatch();
         };
         socket.on('match_cancelled',cancelled);
         return()=>{socket.off('match_cancelled',cancelled);};
@@ -300,6 +308,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
         if (!socket || !roomId) return;
 
         const syncMatch = () => {
+            setStartFailure(null);
             console.log('[OnlineGameBoard] Connecting/Syncing match:', roomId, 'User:', user?.name);
             socket.emit('connect_match', { matchId: roomId, userName: user?.name, avatarUrl: user?.avatar_url,avatarFrame,introVersion:1 });
             socket.emit('request_sync', { matchId: roomId });
@@ -311,6 +320,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
             // Update synchronously: duplicate events can arrive before React renders.
             if(state.gameOver||state.version!==prevGameStateRef.current?.version){setPromotionPending(null);setCastlingPending(null);}
             prevGameStateRef.current = state;
+            setStartFailure(null);
             setGameState({...state, receivedAt: performance.now()});
             if (state.gameOver && disconnectTimerRef.current) {
                 clearInterval(disconnectTimerRef.current);
@@ -321,6 +331,13 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
                 disconnectDeadlineRef.current = null;
                 setDisconnectTimeLeft(null);
             }
+        };
+        const onQueueError = (data: unknown) => {
+            // Before the first snapshot this board owns the outstanding admission.
+            // A late queue error must never replace a board that already started.
+            if (prevGameStateRef.current || (data && typeof data === 'object'
+                && 'matchId' in data && data.matchId !== roomId)) return;
+            setStartFailure({ roomId, socket, code: queueFailureCode(data) });
         };
         const onActionError = (err: any) => {
             setErrorMsg(err.message || 'Action error');
@@ -366,6 +383,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
             }
         };
 
+        socket.on('queue_error', onQueueError);
         socket.on('match_start', onSyncState);
         socket.on('sync_state', onSyncState);
         socket.on('action_error', onActionError);
@@ -377,6 +395,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
         if (isConnected) syncMatch();
 
         return () => {
+            socket.off('queue_error', onQueueError);
             socket.off('match_start', onSyncState);
             socket.off('sync_state', onSyncState);
             socket.off('action_error', onActionError);
@@ -389,7 +408,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
                 disconnectTimerRef.current = null;
             }
         };
-    }, [socket, roomId, isConnected, user?.name, user?.avatar_url, avatarFrame, playMoveSound, triggerEmote]);
+    }, [socket, roomId, isConnected, user?.name, user?.avatar_url, avatarFrame, playMoveSound, triggerEmote, connectAttempt]);
 
     // Timer sync
     useEffect(() => {
@@ -399,7 +418,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
             setTimeLeftWhite(Math.max(0, Math.floor(gameState.clock.white / 1000)));
             setTimeLeftBlack(Math.max(0, Math.floor(gameState.clock.black / 1000)));
             if (typeof window !== 'undefined') {
-                localStorage.removeItem('qg_active_online_match');
+                forgetActiveOnlineMatch();
             }
             return;
         }
@@ -648,7 +667,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
     const blackName = cpu?.side==='joiner'?'CPU':onlineRole==='spectator'?(joinerServerName||playerLabel):!isHost ? (user?.name || playerLabel) : resolvedOpponent;
     const playerName = isHost ? whiteName : blackName;
     const opponentName = isHost ? blackName : whiteName;
-    const loginPrompt=['AUTH_REQUIRED','SESSION_REPLACED'].includes(connectionError??'')&&user&&!user.id.startsWith('GUEST-')?<div className="p-3 text-center">
+    const loginPrompt=(['AUTH_REQUIRED','SESSION_REPLACED'].includes(connectionError??'')||startError==='AUTH_REQUIRED')&&user&&!user.id.startsWith('GUEST-')?<div className="p-3 text-center">
         <p role="alert" className="text-sm text-[#D4B872]">{rankedText(lang,'help')}</p>
         <button className="min-h-11 p-3 underline" onClick={()=>setShowRankedLogin(true)}>{t.login}</button>
         {showRankedLogin&&<RankedLoginDialog lang={lang} userId={user.id} onCancel={()=>setShowRankedLogin(false)} onVerified={()=>setShowRankedLogin(false)}/>}
@@ -666,6 +685,19 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
     if (admissionChoice.offer && !gameState) return <SharedMatchAdmissionChoice lang={lang} mode={matchMode}
         offer={admissionChoice.offer} pending={admissionChoice.pending} error={admissionChoice.error}
         onChoose={admissionChoice.choose} onCancel={()=>{admissionChoice.cancel();onHome?.();}}/>;
+    if (startError && !gameState && !admissionChoice.offer) return <div role="alert" data-match-start-error={rankedStartDiagnostic(startError)}
+        className="m-auto w-[min(92vw,448px)] rounded-xl border border-[#B39A62]/30 bg-[#161513] p-6 text-center text-[#E8E2D7]">
+        <h2 className="mb-3 text-xl">{startText.failed}</h2>
+        <p>{startError==='MAINTENANCE'?serviceText(lang,'maintenance'):startError==='UPDATE_REQUIRED'?serviceText(lang,'update'):rankedText(lang,'unavailable')}</p>
+        {rankedStartRecoveryText(lang,startError)&&<p className="mt-3 text-sm leading-relaxed">{rankedStartRecoveryText(lang,startError)}</p>}
+        <p className="mt-3 text-sm">{startText.code}: <code className="break-all">{rankedStartDiagnostic(startError)}</code></p>
+        {loginPrompt}{savedRecovery}
+        {!['AUTH_REQUIRED','MAINTENANCE','UPDATE_REQUIRED'].includes(startError)&&<button type="button" data-match-start-retry
+            disabled={!isConnected} className="mt-4 min-h-11 border border-[#B39A62]/40 px-6 disabled:opacity-50"
+            onClick={()=>{setStartFailure(null);setConnectAttempt(value=>value+1);}}>{matchText(lang,'再試行','Try again')}</button>}
+        <button type="button" className="mt-4 ml-3 min-h-11 border border-[#B39A62]/40 px-6"
+            onClick={()=>{admissionChoice.cancel();onHome?.();}}>{t.home}</button>
+    </div>;
     if (!gameState || preparation) {
         return (
             <div className="flex flex-col items-center justify-center p-12 bg-black/60 border border-cyan-900/50 rounded-xl max-w-lg w-full">

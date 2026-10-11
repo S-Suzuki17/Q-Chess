@@ -15,6 +15,7 @@ interface SocketContextProps {
     authPending: boolean;
     connectionError: string | null;
     queueStats: Record<number, number>;
+    retryConnection?: () => void;
     sharedEntitlement?: SharedMatchEntitlement | null;
     sharedAdmissionEnabled?: boolean | null;
 }
@@ -31,6 +32,8 @@ export function SocketProvider({ children, userId }: { children:React.ReactNode;
     const [authPending,setAuthPending]=useState(false);
     const [connectionError,setConnectionError]=useState<string|null>(null);
     const [queueStats,setQueueStats]=useState<Record<number,number>>({});
+    const [reconnectRequest,setReconnectRequest]=useState(0);
+    const retryConnection=()=>setReconnectRequest(value=>value+1);
 
     useEffect(()=>{
         let disposed=false,superseded=false,revision=0,current:Socket|null=null,lastToken:string|undefined;
@@ -170,6 +173,6 @@ export function SocketProvider({ children, userId }: { children:React.ReactNode;
         const {data:{subscription}}=supabase.auth.onAuthStateChange(requestRefresh);
         void refresh();
         return()=>{clearInterval(entitlementTimer);resetAdEntitlement();disposed=true;revision++;clearTimeout(expiryTimer);clearTimeout(refreshTimer);window.removeEventListener(RANKED_SESSION_EVENT,explicitLogin);subscription.unsubscribe();current?.disconnect();};
-    },[userId]);
-    return <SocketContext.Provider value={{socket,isConnected,isAuthenticated,authPending,connectionError,queueStats,sharedEntitlement,sharedAdmissionEnabled}}>{children}</SocketContext.Provider>;
+    },[userId,reconnectRequest]);
+    return <SocketContext.Provider value={{socket,isConnected,isAuthenticated,authPending,connectionError,queueStats,sharedEntitlement,sharedAdmissionEnabled,retryConnection}}>{children}</SocketContext.Provider>;
 }

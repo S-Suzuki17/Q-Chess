@@ -14,7 +14,7 @@ vi.mock('react', async importOriginal => {
         useState(initial: unknown) {
             const i = h.cursor++;
             if (!(i in h.slots)) h.slots[i] = initial;
-            return [h.slots[i], (value: unknown) => { h.slots[i] = value; }];
+            return [h.slots[i], (value: unknown) => { h.slots[i] = typeof value === 'function' ? value(h.slots[i]) : value; }];
         },
         useEffect(effect: () => (() => void) | undefined, deps: unknown[]) {
             const i = h.cursor++, previous = h.slots[i] as unknown[] | undefined;
@@ -66,7 +66,7 @@ function render(userId: string | undefined = 'alice') {
     return result.props.value as {
         isConnected: boolean; isAuthenticated: boolean; authPending: boolean;
         connectionError: string | null; queueStats: Record<number, number>;
-        sharedAdmissionEnabled: boolean | null;
+        sharedAdmissionEnabled: boolean | null; retryConnection: () => void;
     };
 }
 const flush = async () => { await vi.advanceTimersByTimeAsync(0); };
@@ -374,4 +374,28 @@ describe('verified legacy clock handling',()=>{
         expect(render().isAuthenticated).toBe(true);const rest=remaining;remaining=0;await vi.advanceTimersByTimeAsync(rest);
         expect(render().isAuthenticated).toBe(false);expect(transport.disconnect).not.toHaveBeenCalled();
     });
+});
+
+
+it('manual connection retry rebuilds the transport using the same verified identity and current proof', async () => {
+    render(); await flush();
+    const previous = transport;
+    const first = render();
+    first.retryConnection();
+    render(); await flush();
+    expect(previous.disconnect).toHaveBeenCalled();
+    expect(transport).not.toBe(previous);
+    expect(transport.auth).toMatchObject({userId:'alice',token:'first-proof'});
+    expect(render().isAuthenticated).toBe(true);
+    expect(h.forget).not.toHaveBeenCalled();
+});
+
+it('manual retry never recreates a transport from an unverified cached ID after proof loss', async () => {
+    render(); await flush();
+    h.proof.mockReturnValue(null); h.candidate.mockReturnValue(null);
+    render().retryConnection();
+    render(); await flush();
+    expect(h.io).toHaveBeenCalledTimes(1);
+    expect(render().isAuthenticated).toBe(false);
+    expect(render().connectionError).toBe('AUTH_REQUIRED');
 });

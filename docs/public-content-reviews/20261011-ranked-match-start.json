@@ -1,0 +1,162 @@
+{
+  "schemaVersion": 1,
+  "status": "completed",
+  "baseRevision": "4f9d9e95b68ea698af320f89687ece53ebadffb6",
+  "reviewer": "Codex",
+  "changes": [
+    {
+      "path": "src/app/page.tsx",
+      "gitBlob": "2274d8fb50d5a709f085290ad329d05cd835d871"
+    },
+    {
+      "path": "src/components/OnlineGameBoard.tsx",
+      "gitBlob": "544c474ae3474a6655e2f454347b39a5a1b406e7"
+    },
+    {
+      "path": "src/components/OnlineMatchTermsGate.tsx",
+      "gitBlob": "d17065020733ab1cb3a993b746263af23984e6b5"
+    },
+    {
+      "path": "src/components/RankedCancellationNotice.tsx",
+      "gitBlob": "72766f624de101c0ed9ecf4c2013ebea7facd051"
+    },
+    {
+      "path": "src/components/RankedMatchmakingManager.tsx",
+      "gitBlob": "0b2f2b17741067e0f260375b21a08c716b754d59"
+    },
+    {
+      "path": "src/lib/SocketContext.tsx",
+      "gitBlob": "626e86dc890ecce28bb6d31712e3f7b55e7b65a6"
+    },
+    {
+      "path": "src/lib/activeOnlineMatchCache.ts",
+      "gitBlob": "471ce8b673de2be420c7f9a7ceb6ef2802311a8a"
+    },
+    {
+      "path": "src/locales/onlineMatchTermsText.ts",
+      "gitBlob": "720542519573e2b8fe0a4479d5c3158f3e94c886"
+    },
+    {
+      "path": "src/locales/rankedStartText.ts",
+      "gitBlob": "fdb9fa53636b8a016add18eda34d4fd7dfce7c85"
+    },
+    {
+      "path": "src/locales/siteContent.ts",
+      "gitBlob": "fe52a944705bea97062b32514b86fae28ab315eb"
+    }
+  ],
+  "reviews": [
+    {
+      "group": "start-and-controls",
+      "decision": "no-change-needed",
+      "reason": "Registered online/ranked searches now check current consent before queueing and retain the selected mode and clock. Existing guide start and guest FAQ describe guest tutorial/practice, which are unchanged in this incident branch.",
+      "checkedPages": [
+        "/guide/#start",
+        "/faq/#guest"
+      ],
+      "evidence": [
+        "Source comparison: src/locales/siteContent.ts (JA/EN guide and FAQ), LearningPage.tsx, TermsDocument.tsx, currentTerms.ts, accountDataGuide.ts, QubeTeacher.tsx and public about/rules/contact/privacy/terms pages; independent read-only source review found no remaining actionable issue.",
+        "npm test -- --maxWorkers=2 --reporter=dot --reporter=json --outputFile.json=scratch/ranked-start-full-unit-final-results.json: 239 files and 2969 tests PASS. assert-complete-tests.mjs confirms no skipped or incomplete tests.",
+        "Release-configured Web build PASS. check-ranked-start-browser.mjs: 21/21 isolated conditions PASS, including human/CPU, both sides, 10s/3m/10m, explicit current consent, failed GET/POST, cancel with zero queue/accept/connect, cache exceptions, manual retries, same-room reconnect and cancellation diagnostics.",
+        "Final text/FAQ build: human-normal, terms-text-400 and cancel-admission-unavailable browser cases each PASS. check-public-guides.mjs: 8 initial HTML routes and 6 desktop/mobile/JA/EN/no-JavaScript scenarios PASS. All external HTTP and WebSocket traffic is intercepted; no live game, consent, wallet or account is mutated.",
+        "Read-only production diagnosis: shared admission requires current ticket terms, while the previous entry gate only checked the legacy policy. The individual historical request was not linked to an account; this change repairs the confirmed source defect without weakening the existing server guard. Physical devices and native browser zoom are unverified."
+      ]
+    },
+    {
+      "group": "hints-and-clock",
+      "decision": "no-change-needed",
+      "reason": "The new initial snapshot error, same-room retry and optional cache handling do not alter move rules, clocks, CPU fallback, hint availability or ticket costs. Existing 10-minute/3-minute total clocks, 10-second turn clock, free practice hints and one-ticket hints outside practice remain accurate.",
+      "checkedPages": [
+        "/guide/#start",
+        "/faq/#clock",
+        "/faq/#hints"
+      ],
+      "evidence": [
+        "Source comparison: src/locales/siteContent.ts (JA/EN guide and FAQ), LearningPage.tsx, TermsDocument.tsx, currentTerms.ts, accountDataGuide.ts, QubeTeacher.tsx and public about/rules/contact/privacy/terms pages; independent read-only source review found no remaining actionable issue.",
+        "npm test -- --maxWorkers=2 --reporter=dot --reporter=json --outputFile.json=scratch/ranked-start-full-unit-final-results.json: 239 files and 2969 tests PASS. assert-complete-tests.mjs confirms no skipped or incomplete tests.",
+        "Release-configured Web build PASS. check-ranked-start-browser.mjs: 21/21 isolated conditions PASS, including human/CPU, both sides, 10s/3m/10m, explicit current consent, failed GET/POST, cancel with zero queue/accept/connect, cache exceptions, manual retries, same-room reconnect and cancellation diagnostics.",
+        "Final text/FAQ build: human-normal, terms-text-400 and cancel-admission-unavailable browser cases each PASS. check-public-guides.mjs: 8 initial HTML routes and 6 desktop/mobile/JA/EN/no-JavaScript scenarios PASS. All external HTTP and WebSocket traffic is intercepted; no live game, consent, wallet or account is mutated.",
+        "Read-only production diagnosis: shared admission requires current ticket terms, while the previous entry gate only checked the legacy policy. The individual historical request was not linked to an account; this change repairs the confirmed source defect without weakening the existing server guard. Physical devices and native browser zoom are unverified."
+      ]
+    },
+    {
+      "group": "accounts-connections-and-saves",
+      "decision": "updated",
+      "reason": "Updated the Japanese and English connection FAQ for current consent before signed-in online/ranked search, failed checks, prestart cancellation and safe support codes. Authentication codes must never be shared. Socket identity/authority, cloud saves, account deletion and privacy disclosures are unchanged; the active-match restore cache remains optional.",
+      "checkedPages": [
+        "/faq/#connection",
+        "/faq/#save",
+        "/faq/#privacy",
+        "/contact/",
+        "/privacy/"
+      ],
+      "evidence": [
+        "Source comparison: src/locales/siteContent.ts (JA/EN guide and FAQ), LearningPage.tsx, TermsDocument.tsx, currentTerms.ts, accountDataGuide.ts, QubeTeacher.tsx and public about/rules/contact/privacy/terms pages; independent read-only source review found no remaining actionable issue.",
+        "npm test -- --maxWorkers=2 --reporter=dot --reporter=json --outputFile.json=scratch/ranked-start-full-unit-final-results.json: 239 files and 2969 tests PASS. assert-complete-tests.mjs confirms no skipped or incomplete tests.",
+        "Release-configured Web build PASS. check-ranked-start-browser.mjs: 21/21 isolated conditions PASS, including human/CPU, both sides, 10s/3m/10m, explicit current consent, failed GET/POST, cancel with zero queue/accept/connect, cache exceptions, manual retries, same-room reconnect and cancellation diagnostics.",
+        "Final text/FAQ build: human-normal, terms-text-400 and cancel-admission-unavailable browser cases each PASS. check-public-guides.mjs: 8 initial HTML routes and 6 desktop/mobile/JA/EN/no-JavaScript scenarios PASS. All external HTTP and WebSocket traffic is intercepted; no live game, consent, wallet or account is mutated.",
+        "Read-only production diagnosis: shared admission requires current ticket terms, while the previous entry gate only checked the legacy policy. The individual historical request was not linked to an account; this change repairs the confirmed source defect without weakening the existing server guard. Physical devices and native browser zoom are unverified."
+      ]
+    },
+    {
+      "group": "commerce-and-disclosures",
+      "decision": "no-change-needed",
+      "reason": "The new gate renders the existing current TermsDocument for the server-required 2026-10-08.1 policy, requiring a user checkbox and explicit authenticated POST. It does not alter the document, effective date, entitlement, allowance, per-match choice, charging or settlement. Existing terms/privacy/contact/hint disclosures remain consistent.",
+      "checkedPages": [
+        "/faq/#hints",
+        "/contact/",
+        "/privacy/",
+        "/terms/"
+      ],
+      "evidence": [
+        "Source comparison: src/locales/siteContent.ts (JA/EN guide and FAQ), LearningPage.tsx, TermsDocument.tsx, currentTerms.ts, accountDataGuide.ts, QubeTeacher.tsx and public about/rules/contact/privacy/terms pages; independent read-only source review found no remaining actionable issue.",
+        "npm test -- --maxWorkers=2 --reporter=dot --reporter=json --outputFile.json=scratch/ranked-start-full-unit-final-results.json: 239 files and 2969 tests PASS. assert-complete-tests.mjs confirms no skipped or incomplete tests.",
+        "Release-configured Web build PASS. check-ranked-start-browser.mjs: 21/21 isolated conditions PASS, including human/CPU, both sides, 10s/3m/10m, explicit current consent, failed GET/POST, cancel with zero queue/accept/connect, cache exceptions, manual retries, same-room reconnect and cancellation diagnostics.",
+        "Final text/FAQ build: human-normal, terms-text-400 and cancel-admission-unavailable browser cases each PASS. check-public-guides.mjs: 8 initial HTML routes and 6 desktop/mobile/JA/EN/no-JavaScript scenarios PASS. All external HTTP and WebSocket traffic is intercepted; no live game, consent, wallet or account is mutated.",
+        "Read-only production diagnosis: shared admission requires current ticket terms, while the previous entry gate only checked the legacy policy. The individual historical request was not linked to an account; this change repairs the confirmed source defect without weakening the existing server guard. Physical devices and native browser zoom are unverified."
+      ]
+    },
+    {
+      "group": "public-guidance-and-navigation",
+      "decision": "updated",
+      "reason": "The rendered connection FAQ now explains the real current-consent and cancellation flow in Japanese and English. Existing public routes, initial guide/FAQ articles, search metadata, removed-post redirects, contacts and policy documents are retained.",
+      "checkedPages": [
+        "/",
+        "/guide/",
+        "/faq/",
+        "/rules/",
+        "/about/",
+        "/contact/",
+        "/privacy/",
+        "/terms/"
+      ],
+      "evidence": [
+        "Source comparison: src/locales/siteContent.ts (JA/EN guide and FAQ), LearningPage.tsx, TermsDocument.tsx, currentTerms.ts, accountDataGuide.ts, QubeTeacher.tsx and public about/rules/contact/privacy/terms pages; independent read-only source review found no remaining actionable issue.",
+        "npm test -- --maxWorkers=2 --reporter=dot --reporter=json --outputFile.json=scratch/ranked-start-full-unit-final-results.json: 239 files and 2969 tests PASS. assert-complete-tests.mjs confirms no skipped or incomplete tests.",
+        "Release-configured Web build PASS. check-ranked-start-browser.mjs: 21/21 isolated conditions PASS, including human/CPU, both sides, 10s/3m/10m, explicit current consent, failed GET/POST, cancel with zero queue/accept/connect, cache exceptions, manual retries, same-room reconnect and cancellation diagnostics.",
+        "Final text/FAQ build: human-normal, terms-text-400 and cancel-admission-unavailable browser cases each PASS. check-public-guides.mjs: 8 initial HTML routes and 6 desktop/mobile/JA/EN/no-JavaScript scenarios PASS. All external HTTP and WebSocket traffic is intercepted; no live game, consent, wallet or account is mutated.",
+        "Read-only production diagnosis: shared admission requires current ticket terms, while the previous entry gate only checked the legacy policy. The individual historical request was not linked to an account; this change repairs the confirmed source defect without weakening the existing server guard. Physical devices and native browser zoom are unverified."
+      ]
+    },
+    {
+      "group": "qube-teaching",
+      "decision": "updated",
+      "reason": "QUBE now presents the updated connection FAQ with safe support-code guidance. Candidate deduction, tutorial steps, promotion/castling, hint feedback, stage setup and cosmetic guidance are unchanged by the admission, transport and cache changes.",
+      "checkedPages": [
+        "/",
+        "/about/",
+        "/rules/",
+        "/guide/",
+        "/faq/",
+        "game: tutorial, help dialogs, move hints and feedback, promotion/castling, stage/setup explanations, cosmetic preview/equipment guidance"
+      ],
+      "evidence": [
+        "Source comparison: src/locales/siteContent.ts (JA/EN guide and FAQ), LearningPage.tsx, TermsDocument.tsx, currentTerms.ts, accountDataGuide.ts, QubeTeacher.tsx and public about/rules/contact/privacy/terms pages; independent read-only source review found no remaining actionable issue.",
+        "npm test -- --maxWorkers=2 --reporter=dot --reporter=json --outputFile.json=scratch/ranked-start-full-unit-final-results.json: 239 files and 2969 tests PASS. assert-complete-tests.mjs confirms no skipped or incomplete tests.",
+        "Release-configured Web build PASS. check-ranked-start-browser.mjs: 21/21 isolated conditions PASS, including human/CPU, both sides, 10s/3m/10m, explicit current consent, failed GET/POST, cancel with zero queue/accept/connect, cache exceptions, manual retries, same-room reconnect and cancellation diagnostics.",
+        "Final text/FAQ build: human-normal, terms-text-400 and cancel-admission-unavailable browser cases each PASS. check-public-guides.mjs: 8 initial HTML routes and 6 desktop/mobile/JA/EN/no-JavaScript scenarios PASS. All external HTTP and WebSocket traffic is intercepted; no live game, consent, wallet or account is mutated.",
+        "Read-only production diagnosis: shared admission requires current ticket terms, while the previous entry gate only checked the legacy policy. The individual historical request was not linked to an account; this change repairs the confirmed source defect without weakening the existing server guard. Physical devices and native browser zoom are unverified."
+      ]
+    }
+  ]
+}
