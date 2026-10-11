@@ -74,7 +74,10 @@ try{
   engine.acknowledgeIntro(opponentId);
   const state=()=>engine.getPublicState(user.id);
   const pageErrors=[],protocolErrors=[],externalWrites=[],events=[];
-  let termsAccepted=!scenario.termsNeeded,termsReads=0,termsAccepts=0;
+  // Home now restores current consent. Start with valid saved consent, then
+  // inject missing consent or a failed status check only at match selection.
+  let termsAccepted=true,termsReads=0,termsAccepts=0,matchConsentCheck=false;
+  let homeTermsReads=0,homeClaims=0;
   const syntheticClaims=[];
   let send,closeTransport,transportDenied=false,queues=0,connections=0,cancels=0,introAcks=0,choiceConfirmed=false,connectRequests=0,snapshots=0,moves=0;
   const sendSnapshot=()=>{snapshots++;send('match_start',state());send('sync_state',state());};
@@ -141,7 +144,7 @@ try{
     const payload=()=>({userId:user.id,currentVersion:currentTermsVersion,effectiveDate:currentTermsDate,effective:true,
      consent:termsAccepted?{version:currentTermsVersion,acceptedAt:new Date().toISOString()}:null});
     if(request.method()==='GET'){
-     termsReads++;if(scenario.termsCheckError)return route.fulfill({status:503,json:{code:'TERMS_UNAVAILABLE'}});
+     termsReads++;if(matchConsentCheck&&scenario.termsCheckError)return route.fulfill({status:503,json:{code:'TERMS_UNAVAILABLE'}});
      return route.fulfill({json:payload()});
     }
     if(request.method()==='POST'){
@@ -202,6 +205,13 @@ try{
   try{
    await page.goto(origin,{waitUntil:'domcontentloaded'});
    await page.locator('.lobby-studio').waitFor();
+   await page.waitForLoadState('networkidle');
+   homeTermsReads=termsReads;homeClaims=syntheticClaims.length;
+   assert(homeTermsReads>0,'Home verified saved current consent');
+   assert.equal(termsAccepts,0,'Restoring accepted Home never resubmits consent');
+   assert.equal(await page.locator('[data-terms-gate]').count(),0);
+   matchConsentCheck=true;
+   if(scenario.termsNeeded)termsAccepted=false;
    step='queue via actual lobby';
    await page.locator('.lobby-mode-grid button').nth(scenario.mode==='random'?1:0).click();
    await page.locator('[data-time-control="'+scenario.tc+'"]').click();
@@ -215,13 +225,14 @@ try{
    if(scenario.termsCheckError){
     step='failed consent check never queues; explicit GET retry recovers';
     await page.locator('[data-online-match-terms-retry]').waitFor();assert.equal(queues,0);assert.equal(termsAccepts,0);
+    assert.equal(syntheticClaims.length,homeClaims,'Failed match consent checks cannot trigger more claims');
     scenario.termsCheckError=false;
     await page.locator('[data-online-match-terms-retry]').click();
    }
    if(scenario.termsNeeded){
     step='explicit current terms consent precedes the selected queue';
     await page.locator('[data-online-match-terms-checkbox]').waitFor();
-    assert.equal(queues,0);assert.equal(choiceConfirmed,false);assert.equal(termsAccepts,0);assert.equal(syntheticClaims.length,0);
+    assert.equal(queues,0);assert.equal(choiceConfirmed,false);assert.equal(termsAccepts,0);assert.equal(syntheticClaims.length,homeClaims);
     assert.equal(await page.locator('[data-online-match-terms-accept]').isDisabled(),true);
     if(scenario.textScale)await page.evaluate(scale=>document.documentElement.style.fontSize=(16*scale)+'px',scenario.textScale);
     if(scenario.readDocument){
@@ -237,17 +248,17 @@ try{
     if(scenario.termsCancel){
      await page.locator('[data-online-match-terms-cancel]').click();
      await page.locator('dialog[aria-labelledby="queue-title"]').waitFor({state:'detached'});
-     await page.waitForTimeout(300);assert.equal(queues,0);assert.equal(termsAccepts,0);assert.equal(connectRequests,0);assert.equal(syntheticClaims.length,0);
+     await page.waitForTimeout(300);assert.equal(queues,0);assert.equal(termsAccepts,0);assert.equal(connectRequests,0);assert.equal(syntheticClaims.length,homeClaims);
      assert.deepEqual(pageErrors,[]);assert.deepEqual(protocolErrors,[]);assert.deepEqual(externalWrites,[]);
      await page.screenshot({path:resolve(evidence,scenario.name+'-final.png'),animations:'disabled'});
-     results.push({case:scenario.name,pass:true,step,width:scenario.width,queues,termsReads,termsAccepts,connectRequests,syntheticClaims,pageErrors,protocolErrors,externalWrites});
+     results.push({case:scenario.name,pass:true,step,width:scenario.width,queues,homeTermsReads,homeClaims,termsReads,termsAccepts,connectRequests,syntheticClaims,pageErrors,protocolErrors,externalWrites});
      continue;
     }
     await page.locator('[data-online-match-terms-checkbox]').check();
     await page.locator('[data-online-match-terms-accept]').click();
     if(scenario.termsSaveError){
      step='failed consent save never queues or silently resubmits';
-     await page.locator('[data-online-match-terms-retry]').waitFor();assert.equal(queues,0);assert.equal(termsAccepts,1);assert.equal(syntheticClaims.length,0);
+     await page.locator('[data-online-match-terms-retry]').waitFor();assert.equal(queues,0);assert.equal(termsAccepts,1);assert.equal(syntheticClaims.length,homeClaims);
      scenario.termsSaveError=false;
      await page.locator('[data-online-match-terms-retry]').click();
      await page.locator('[data-online-match-terms-checkbox]').waitFor();
@@ -339,14 +350,15 @@ try{
    assert.equal(cancels,0,'Matched transition cleanup does not cancel the queue');
    assert.deepEqual(protocolErrors,[]);assert.deepEqual(pageErrors,[]);
    assert.deepEqual(externalWrites,[],'No unknown account/wallet mutations or forwarded HTTP requests');
+   if(!scenario.termsNeeded)assert.equal(termsAccepts,0,'Saved current consent does not prompt or resubmit at match selection');
    const cacheFailures=await page.evaluate(()=>window.__rankedCacheFailures);
    if(scenario.storage)assert(cacheFailures>0,'Storage failure was actually injected');
-   results.push({case:scenario.name,pass:true,step,width:scenario.width,opponent:scenario.opponent,side:scenario.side,timeControl:scenario.tc,queues,connections,connectRequests,cancels,introAcks,snapshots,moves,termsReads,termsAccepts,choiceConfirmed,cacheFailures,syntheticClaims,pageErrors,protocolErrors,externalWrites});
+   results.push({case:scenario.name,pass:true,step,width:scenario.width,opponent:scenario.opponent,side:scenario.side,timeControl:scenario.tc,queues,connections,connectRequests,cancels,introAcks,snapshots,moves,homeTermsReads,homeClaims,termsReads,termsAccepts,choiceConfirmed,cacheFailures,syntheticClaims,pageErrors,protocolErrors,externalWrites});
   }catch(error){
    const screen=await page.locator('main[data-screen]').getAttribute('data-screen').catch(()=>null);
    const status=await page.locator('[role="status"]').allTextContents().catch(()=>[]);
    await page.screenshot({path:resolve(evidence,scenario.name+'-failure.png'),fullPage:true}).catch(()=>{});
-   results.push({case:scenario.name,pass:false,step,error:error.message,screen,status,queues,connections,connectRequests,cancels,introAcks,snapshots,moves,termsReads,termsAccepts,syntheticClaims,pageErrors,protocolErrors,externalWrites});
+   results.push({case:scenario.name,pass:false,step,error:error.message,screen,status,queues,connections,connectRequests,cancels,introAcks,snapshots,moves,homeTermsReads,homeClaims,termsReads,termsAccepts,syntheticClaims,pageErrors,protocolErrors,externalWrites});
   }finally{await context.close();}
  }
 }finally{

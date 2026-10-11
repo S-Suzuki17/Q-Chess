@@ -44,7 +44,8 @@
         "Reviewed TermsPage, TermsDocument, TermsGate, CurrentTermsConsentPanel, currentAccountTerms and the existing server/RPC ownership checks. The old public document and the current document dependency on the legacy configuration are removed. No server, SQL, policy version or price changes are in this diff.",
         "Evaluated approved JA/EN current terms before and after the refactor: both canonical content SHA256 values are b95e30de66ca9e1cc04e5f7e38aab9fb3ca7f26367981dd557a0aa1ef5017549. src/config/currentTerms.test.ts also verifies that the actual terms page renders one latest document and no previous-version label.",
         "The real Home browser regression passes 15 conditions, including accept once then reload and post-match re-login without another document or consent POST, another account needing its own consent, read/save failures with retry, and guest latest-consent restoration. Auth and match transport are synthetic; no live consent or account is written.",
-        "The production-configured export passes commerce --sales=on at desktop/mobile in JA/EN and responsive lobby --release-flags=on at 1920, 1280, 390 and 320 pixels. Contact, privacy, terms and hint FAQ remain publicly linked in the eight initial-HTML route checks."
+        "The production-configured export passes commerce --sales=on at desktop/mobile in JA/EN and responsive lobby --release-flags=on at 1920, 1280, 390 and 320 pixels. Contact, privacy, terms and hint FAQ remain publicly linked in the eight initial-HTML route checks.",
+        "The actual production-configured export passes all 21 check-ranked-start-browser.mjs cases through real Home, queue, OnlineGameBoard and compiled GameEngine. The fixture starts with saved current Home consent and injects missing consent/status failure only at match selection. Normal matches never resubmit consent; while required match consent is pending, fails to save or is cancelled, no queue, admission or additional claim occurs. All HTTP/WebSocket transport is isolated."
       ]
     },
     {
@@ -64,7 +65,8 @@
       "evidence": [
         "Read the changed JA/EN guide and FAQ paragraphs in src/locales/siteContent.ts against the actual TermsGate status/load/accept/exit flow. Verified account-scoped request identity, abort cleanup, current-version/effective-date checks and that a failed read or save cannot grant lobby or progress access.",
         "Focused consent/auth/restoration verification passes six unit-test files / 73 tests; client typecheck and changed-file lint pass. The real Home/TitleScreen/TermsGate/useCampaignCloud regression passes all 15 scenarios with external traffic blocked or mocked.",
-        "The production Web build passes. check-public-guides.mjs passes eight initial HTML routes and six responsive JA/EN/no-JavaScript conditions using the actual export. The approved terms text digest is unchanged in both languages; only the obsolete document display and incorrect repeat-consent instructions are removed."
+        "The production Web build passes. check-public-guides.mjs passes eight initial HTML routes and six responsive JA/EN/no-JavaScript conditions using the actual export. The approved terms text digest is unchanged in both languages; only the obsolete document display and incorrect repeat-consent instructions are removed.",
+        "The actual production-configured export passes all 21 check-ranked-start-browser.mjs cases through real Home, queue, OnlineGameBoard and compiled GameEngine. The fixture starts with saved current Home consent and injects missing consent/status failure only at match selection. Normal matches never resubmit consent; while required match consent is pending, fails to save or is cancelled, no queue, admission or additional claim occurs. All HTTP/WebSocket transport is isolated."
       ]
     },
     {
