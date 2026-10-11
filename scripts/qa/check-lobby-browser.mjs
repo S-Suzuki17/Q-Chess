@@ -21,7 +21,9 @@ const server = createServer(async (req, res) => {
 });
 await new Promise(done => server.listen(0, '127.0.0.1', done));
 const origin = `http://127.0.0.1:${server.address().port}`;
-const termsVersion = (await readFile('src/config/terms.ts', 'utf8')).match(/TERMS_VERSION='([^']+)'/)[1];
+const termsSource = await readFile('src/config/currentTerms.ts', 'utf8');
+const termsVersion = termsSource.match(/CURRENT_TERMS_VERSION\s*=\s*'([^']+)'/)[1];
+const termsDate = termsSource.match(/CURRENT_TERMS_EFFECTIVE_DATE[^=]*=\s*'([^']+)'/)[1];
 const user = { id:'QA_LobbyOnly', name:'QA Lobby', type:'registered' };
 const proof = { userId:user.id, token:'ranked_' + 'a'.repeat(43), expiresAt:Date.now() + 3600000 };
 const progress = { version:2, stars:{}, ascensions:[], stageStars:[], board:'walnut', piece:'boxwood', effect:'standard', music:'standard', avatar:'standard' };
@@ -44,7 +46,7 @@ try {
             if (url.origin === origin) return route.continue();
             remoteRequests.push(url.pathname);
             if (url.pathname === '/auth/ranked-session/status') return route.fulfill({ json:{ userId:proof.userId, expiresAt:proof.expiresAt, serverNow:Date.now() } });
-            if (url.pathname === '/account/terms') return route.fulfill({ json:{ userId:user.id, currentVersion:termsVersion, consent:{ version:termsVersion, acceptedAt:new Date().toISOString() } } });
+            if (url.pathname === '/account/current-terms') return route.fulfill({ json:{ userId:user.id, currentVersion:termsVersion, effectiveDate:termsDate, effective:true, consent:{ version:termsVersion, acceptedAt:new Date().toISOString() } } });
             if (url.pathname === '/account/progress') return route.fulfill({ json:{ userId:user.id, revision:0, progress, saved:true } });
             if (url.pathname === '/game-records') return route.fulfill({ json:{ records } });
             if (url.pathname === '/rewards/daily-login' && route.request().method()==='GET') return route.fulfill({json:{
