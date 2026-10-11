@@ -31,7 +31,7 @@ export function CurrentTermsConsentPanel({ user, lang }: { user: User; lang: Lan
         }).catch(() => { if (!controller.signal.aborted) setStatus('error'); });
         return () => { controller.abort(); window.removeEventListener(CURRENT_TERMS_ACCEPTED_EVENT, accepted); };
     }, [enabled, revision, user.id, retry]);
-    if (!enabled || status === 'accepted') return null;
+    if (!enabled || status === 'loading' || status === 'accepted') return null;
     const ja = lang === 'ja';
     const copy = termsText(lang);
     const accept = async () => {
@@ -49,7 +49,7 @@ export function CurrentTermsConsentPanel({ user, lang }: { user: User; lang: Lan
             <label className="flex min-h-11 items-start gap-3 leading-relaxed"><input type="checkbox" checked={checked} disabled={busy} onChange={e => setChecked(e.target.checked)} className="mt-1 h-5 w-5 shrink-0"/>
                 {ja ? '改定規約の全文を確認し、同意します。' : copy[1]}</label>
             <button type="button" disabled={!checked || busy} onClick={() => void accept()} className="min-h-11 border px-4 disabled:opacity-40">{ja ? '同意して券を受け取る' : copy[2]}</button>
-        </> : <p role="status">{status === 'loading' ? copy[4] : copy[5]}</p>}
+        </> : <p role="status">{copy[5]}</p>}
         {status === 'error' && <button type="button" className="min-h-11 underline" onClick={() => setRetry(n => n + 1)}>{copy[6]}</button>}
     </section>;
 }

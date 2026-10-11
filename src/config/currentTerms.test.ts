@@ -6,6 +6,7 @@ import { TERMS_VERSION, TERMS_SECTIONS } from './terms';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { TermsDocument } from '../components/TermsDocument';
+import TermsPage from '../app/terms/page';
 it('aligns the new Web/server/policy release without rewriting prior consent or Checkout snapshots',()=>{
  expect(CURRENT_TERMS_VERSION).toBe('2026-10-08.1'); expect(CURRENT_TICKET_TERMS_VERSION).toBe(CURRENT_TERMS_VERSION);
  expect(CURRENT_TERMS_EFFECTIVE_DATE).toBe('2026-10-08'); expect(TERMS_VERSION).toBe('2026-09-25.1');
@@ -30,5 +31,10 @@ it('renders the new rewards, prices, source terms and preserved legacy benefits 
  for(const text of ['1,1,2,2,3,3,3','on day 7','seven-day cycle repeats','no holding cap','USD 3.00','USD 6.00','10 hint tickets per paid monthly','USD 100.00 for 166','ordinary use expiry','does not expire hints already granted','affected purchase or paid period','USD 2.99','cap of 60 of each kind','cannot be claimed retroactively','retained separately','free in practice and tutorials','explicitly uses 1 hint ticket','original match mode']) expect(en).toContain(text);
  expect(en).not.toContain('CPU practice only'); expect(html).not.toContain('CPU練習専用');
  expect(en).not.toContain('sales are being prepared separately');
- const legacy=renderToStaticMarkup(createElement(TermsDocument,{legacy:true})); expect(legacy).toContain('2026-09-25.1'); expect(legacy).not.toContain(CURRENT_TERMS_VERSION);
+});
+it('publishes only the current document without an old-terms section',()=>{
+ const html=renderToStaticMarkup(createElement(TermsPage));
+ expect(html.match(/data-terms-document/g)).toHaveLength(1);
+ expect(html).toContain(CURRENT_TERMS_VERSION);
+ expect(html).not.toMatch(/従来の規約|Previous terms|2026-09-25\.1/);
 });

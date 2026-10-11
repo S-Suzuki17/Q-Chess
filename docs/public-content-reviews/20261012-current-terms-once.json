@@ -1,0 +1,91 @@
+{
+  "schemaVersion": 1,
+  "status": "completed",
+  "baseRevision": "b34429a2e968f8ff4079232a70cf07cb6c727003",
+  "reviewer": "Codex /root (source, legal text and local export review)",
+  "changes": [
+    {
+      "path": "src/app/terms/page.tsx",
+      "gitBlob": "4dfecf40c26a7fdd8bfa4ed8859111153012d9aa"
+    },
+    {
+      "path": "src/components/CurrentTermsConsentPanel.tsx",
+      "gitBlob": "a19b9b62194fc74d3e32bf83690ce14268ec9a29"
+    },
+    {
+      "path": "src/components/TermsDocument.tsx",
+      "gitBlob": "371483a95f6651a9f9b182acf295f740f92f2d64"
+    },
+    {
+      "path": "src/components/TermsGate.tsx",
+      "gitBlob": "0b46b0d2d6313c6d4f9712a6d1c96786354494d3"
+    },
+    {
+      "path": "src/config/currentTerms.ts",
+      "gitBlob": "914a06df5e43daad62ee700d127630edd57ee147"
+    },
+    {
+      "path": "src/locales/siteContent.ts",
+      "gitBlob": "f6c931275b097aef28693eeba509c25bb1b4611b"
+    }
+  ],
+  "reviews": [
+    {
+      "group": "commerce-and-disclosures",
+      "decision": "updated",
+      "reason": "The public terms page and Home consent now show only current terms 2026-10-08.1. Existing server-verified consent is reused for the same registered account. The Japanese and English legal text, version and effective date are unchanged; pricing, refunds, account deletion, privacy, support and the current consent RPC contracts remain unchanged. Historical server consent records and compatibility endpoints are preserved.",
+      "checkedPages": [
+        "/faq/#hints",
+        "/contact/",
+        "/privacy/",
+        "/terms/"
+      ],
+      "evidence": [
+        "Reviewed TermsPage, TermsDocument, TermsGate, CurrentTermsConsentPanel, currentAccountTerms and the existing server/RPC ownership checks. The old public document and the current document dependency on the legacy configuration are removed. No server, SQL, policy version or price changes are in this diff.",
+        "Evaluated approved JA/EN current terms before and after the refactor: both canonical content SHA256 values are b95e30de66ca9e1cc04e5f7e38aab9fb3ca7f26367981dd557a0aa1ef5017549. src/config/currentTerms.test.ts also verifies that the actual terms page renders one latest document and no previous-version label.",
+        "The real Home browser regression passes 15 conditions, including accept once then reload and post-match re-login without another document or consent POST, another account needing its own consent, read/save failures with retry, and guest latest-consent restoration. Auth and match transport are synthetic; no live consent or account is written.",
+        "The production-configured export passes commerce --sales=on at desktop/mobile in JA/EN and responsive lobby --release-flags=on at 1920, 1280, 390 and 320 pixels. Contact, privacy, terms and hint FAQ remain publicly linked in the eight initial-HTML route checks.",
+        "The actual production-configured export passes all 21 check-ranked-start-browser.mjs cases through real Home, queue, OnlineGameBoard and compiled GameEngine. The fixture starts with saved current Home consent and injects missing consent/status failure only at match selection. Normal matches never resubmit consent; while required match consent is pending, fails to save or is cancelled, no queue, admission or additional claim occurs. All HTTP/WebSocket transport is isolated."
+      ]
+    },
+    {
+      "group": "public-guidance-and-navigation",
+      "decision": "updated",
+      "reason": "Updated JA/EN guide and FAQ startup/account wording to describe the latest document and saved consent correctly: registered consent survives sign-out, and guest consent is reused within the same browser. The terms page exposes only the current document. No new authentication step is added to reading public articles; routes, canonical metadata, privacy and contact navigation remain unchanged.",
+      "checkedPages": [
+        "/",
+        "/guide/",
+        "/faq/",
+        "/rules/",
+        "/about/",
+        "/contact/",
+        "/privacy/",
+        "/terms/"
+      ],
+      "evidence": [
+        "Read the changed JA/EN guide and FAQ paragraphs in src/locales/siteContent.ts against the actual TermsGate status/load/accept/exit flow. Verified account-scoped request identity, abort cleanup, current-version/effective-date checks and that a failed read or save cannot grant lobby or progress access.",
+        "Focused consent/auth/restoration verification passes six unit-test files / 73 tests; client typecheck and changed-file lint pass. The real Home/TitleScreen/TermsGate/useCampaignCloud regression passes all 15 scenarios with external traffic blocked or mocked.",
+        "The production Web build passes. check-public-guides.mjs passes eight initial HTML routes and six responsive JA/EN/no-JavaScript conditions using the actual export. The approved terms text digest is unchanged in both languages; only the obsolete document display and incorrect repeat-consent instructions are removed.",
+        "The actual production-configured export passes all 21 check-ranked-start-browser.mjs cases through real Home, queue, OnlineGameBoard and compiled GameEngine. The fixture starts with saved current Home consent and injects missing consent/status failure only at match selection. Normal matches never resubmit consent; while required match consent is pending, fails to save or is cancelled, no queue, admission or additional claim occurs. All HTTP/WebSocket transport is isolated."
+      ]
+    },
+    {
+      "group": "qube-teaching",
+      "decision": "no-change-needed",
+      "reason": "Only the startup/account consent instructions in the shared public content source change. QUBE rule explanations, worked examples, candidate chains, move hints, tutorial dialogs, promotion/castling, stage setup and cosmetic guidance keep their existing rules and wording. This request does not change game mechanics or recreate retired QUBE posts.",
+      "checkedPages": [
+        "/",
+        "/about/",
+        "/rules/",
+        "/guide/",
+        "/faq/",
+        "game: tutorial, help dialogs, move hints and feedback, promotion/castling, stage/setup explanations, cosmetic preview/equipment guidance"
+      ],
+      "evidence": [
+        "Compared the src/locales/siteContent.ts diff with the teaching sections and verified that only four JA/EN startup/account paragraphs change. TermsDocument changes the displayed legal version, while TermsGate changes acceptance lookup; neither supplies game teaching or move generation.",
+        "The actual export passes check-public-guides.mjs, including guide/FAQ articles, examples and candidate-chain exercises in JA/EN at desktop/mobile widths and initial HTML without JavaScript. Responsive lobby verification also passes practice entry, free practice hints and CPU reply, with zero ticket-network calls in practice.",
+        "Read-only independent review confirms that the current production shared-match and current-consent contracts remain compatible without SQL changes. Retired posts are not restored, and the existing Pages preparation guard will reject any retired-content files or links in the delivery."
+      ]
+    }
+  ]
+}
