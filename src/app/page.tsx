@@ -31,6 +31,7 @@ import { GameRecord } from '../lib/gameRecordService';
 import { RankedMatchmakingManager } from '../components/RankedMatchmakingManager';
 import { clearRankedSession, readRankedSessionCandidate, RANKED_SESSION_STORAGE_KEY } from '../lib/rankedSession';
 import { restoredLegacyUser, restoredOnlineMatch } from '../lib/legacySessionRestoration';
+import { rememberActiveOnlineMatch, forgetActiveOnlineMatch } from '../lib/activeOnlineMatchCache';
 import { useLegacySessionRestoration } from '../hooks/useLegacySessionRestoration';
 import { clearOAuthLoginIntent, hasOAuthLoginIntent, completedOAuthCallback } from '../lib/oauthLoginIntent';
 
@@ -286,7 +287,7 @@ export default function Home() {
         setTimeControl(tc);
         setOnlineInfo(null);
         if (typeof window !== 'undefined') {
-            localStorage.removeItem('qg_active_online_match');
+            forgetActiveOnlineMatch();
         }
         setGameState('playing');
     };
@@ -296,7 +297,7 @@ export default function Home() {
         setOnlineInfo({ roomId, role, matchMode, opponentId });
         setTimeControl(tc);
         if (typeof window !== 'undefined' && role !== 'spectator') {
-            localStorage.setItem('qg_active_online_match', JSON.stringify({
+            rememberActiveOnlineMatch({
                 userId:user?.id,
                 roomId,
                 role,
@@ -304,7 +305,7 @@ export default function Home() {
                 tc,
                 opponentId,
                 timestamp: Date.now()
-            }));
+            });
         }
         setGameState('playing');
     };
@@ -528,7 +529,7 @@ export default function Home() {
                         timeControl={timeControl}
                         onHome={() => {
                             if (typeof window !== 'undefined') {
-                                localStorage.removeItem('qg_active_online_match');
+                                forgetActiveOnlineMatch();
                             }
                             setOnlineInfo(null);
                             setGameState('level_select');

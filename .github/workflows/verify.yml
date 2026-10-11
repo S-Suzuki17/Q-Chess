@@ -59,6 +59,8 @@ jobs:
         run: node scripts/qa/commerce-status-browser.mjs
       - name: Verify lobby navigation and mobile dialogs
         run: node scripts/qa/check-lobby-browser.mjs
+      - name: Verify current match consent, queue retry and matched board recovery
+        run: node scripts/qa/check-ranked-start-browser.mjs
       - name: Verify public guides, navigation and no-JavaScript reading
         run: node scripts/qa/check-public-guides.mjs
 

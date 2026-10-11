@@ -31,3 +31,39 @@ it('retains retry for a recoverable queue error',()=>{
     expect(html).not.toContain('対局制限に達しました');
     expect(html).toContain('再試行');
 });
+
+
+it.each(['CPU_PRACTICE_PENDING','HINT_PURCHASE_PENDING','SERVICE_UNAVAILABLE','SHARED_MATCH_UNAVAILABLE',
+    'ACCOUNT_BUSY','RANKED_UNAVAILABLE','RATING_UNAVAILABLE','AUTH_UNAVAILABLE','QUEUE_BUSY','CONNECTION_FAILED'])(
+    'identifies the failed stage and offers retry for %s',code=>{
+        h.error=code;
+        const html=render();
+        expect(html).toContain('対局を開始できませんでした');
+        expect(html).toContain('data-queue-error-code="'+code+'"');
+        expect(html).toContain('サポートコード');
+        expect(html).toContain('再試行');
+        expect(html).not.toContain('対戦相手を探しています');
+    });
+it('does not expose unexpected server strings as a support code',()=>{
+    h.error='unexpected_account_or_secret';
+    const html=render();expect(html).toContain('data-queue-error-code="QUEUE_FAILED"');
+    expect(html).not.toContain('unexpected_account_or_secret');
+});
+it('offers an explicit connection retry while disconnected',()=>{
+    Object.assign(h,{error:null,isConnected:false,isAuthenticated:false,connectionError:'CONNECTION_FAILED'});
+    expect(render()).toContain('再試行');
+    expect(render()).toContain('data-queue-error-code="CONNECTION_FAILED"');
+});
+
+it.each([null,'CONNECTION_FAILED'])('requests fresh sign-in for a replaced session, including a simultaneous disconnect (%s)',error=>{
+    Object.assign(h,{error,isConnected:false,isAuthenticated:false,connectionError:'SESSION_REPLACED'});
+    const html=render();expect(html).toContain('data-queue-error-code="SESSION_REPLACED"');
+    expect(html).toContain('別のタブや端末');expect(html).toContain('レート戦のログイン確認');
+    expect(html).not.toContain('QUEUE_FAILED');expect(html).not.toContain('再試行');
+});
+it.each(['ACCOUNT_BUSY','QUEUE_BUSY'])('gives a next action for %s',code=>{
+    h.error=code;expect(render()).toContain('進行中の対局や別のタブを確認');
+});
+it('points to retrying the match information request',()=>{
+    h.error='RATING_UNAVAILABLE';expect(render()).toContain('対局情報を取得できませんでした');
+});

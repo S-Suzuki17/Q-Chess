@@ -34,3 +34,13 @@ describe('ranked admission limits', () => {
         }
     });
 });
+
+it('explains a prestart account failure without treating it as the ticket limit',()=>{
+    const html=renderToStaticMarkup(React.createElement(RankedCancellationNotice,{lang:'ja',reason:'admission_unavailable',onHome:()=>{}}));
+    expect(html).toContain('data-match-cancelled="admission_unavailable"');expect(html).toContain('規約への同意とログイン状態');
+    expect(html).toContain('レートは変動しません');expect(html).not.toContain('ストアでチケット');
+});
+it('does not reveal unrecognized cancellation details',()=>{
+    const html=renderToStaticMarkup(React.createElement(RankedCancellationNotice,{lang:'ja',reason:'server_secret_or_account_id',onHome:()=>{}}));
+    expect(html).toContain('data-match-cancelled="MATCH_CANCELLED"');expect(html).not.toContain('server_secret_or_account_id');
+});

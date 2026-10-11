@@ -523,7 +523,7 @@ io.on('connection', (socket: Socket) => {
     if(accountGate.blocked(userId))return;
     const attempt=++queueAttempt;
     const timeControl=data?.timeControl,mode=data?.mode??'random';
-    const fail=(code:string)=>{if(attempt===queueAttempt&&socket.connected&&matchmaking.getPlayerSession(userId)?.socketId===socket.id)socket.emit('queue_error',{code,message:code});};
+    const fail=(code:string)=>{if(attempt===queueAttempt&&socket.connected&&matchmaking.getPlayerSession(userId)?.socketId===socket.id){console.warn('[Queue] Join rejected:',code);socket.emit('queue_error',{code,message:code});}};
     if(cpuPractice?.isBusy(userId))return fail('CPU_PRACTICE_PENDING');
     if(hintBusy(userId))return fail('HINT_PURCHASE_PENDING');
     if(![10,180,600].includes(timeControl)||!['random','ranked'].includes(mode))return fail('INVALID_QUEUE');

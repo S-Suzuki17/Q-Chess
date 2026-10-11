@@ -21,13 +21,13 @@
     },
     {
       "id": "accounts-connections-and-saves",
-      "sources": ["^src/(hooks|lib)/.*(Auth|auth|OnlineGame|reconnect|Circuit|Storage|storage)", "^src/components/(SettingsDialog|AccountDataGuide|CircuitLoginGate)\\.tsx$", "^server/src/services/(LegacySocketAuthority|SupabaseService|Account|Ranked)", "^server/src/protocol/.*Admission", "^supabase/migrations/"],
+      "sources": ["^src/(hooks|lib)/.*(Auth|auth|OnlineGame|reconnect|Circuit|Storage|storage)", "^src/components/(SettingsDialog|AccountDataGuide|CircuitLoginGate|OnlineMatchTermsGate|RankedMatchmakingManager|RankedCancellationNotice)\\.tsx$", "^src/locales/(onlineMatchTermsText|rankedStartText)\\.ts$", "^src/lib/(activeOnlineMatchCache\\.ts|SocketContext\\.tsx)$", "^server/src/services/(LegacySocketAuthority|SupabaseService|Account|Ranked)", "^server/src/protocol/.*Admission", "^supabase/migrations/"],
       "pages": ["/faq/#connection", "/faq/#save", "/faq/#privacy", "/contact/", "/privacy/"],
       "guidance": ["src/locales/siteContent.ts", "src/locales/privacyReview.ts", "src/components/AccountDataGuide.tsx", "src/app/privacy/page.tsx"]
     },
     {
       "id": "commerce-and-disclosures",
-      "sources": ["^src/components/(Commerce|Stripe|Terms|CurrentTerms|AccountData|MemberTicketsPanel|DailyLoginRewardsPanel|SharedMatchAdmissionChoice)", "^src/config/(salesTermsDraft|currentTerms|webCommerce|publicContact|commerceCatalog)\\.ts$", "^src/locales/(terms|privacy|engagementPrivacy|commerce|stripeMembership|hintScope)", "^server/src/services/(Stripe|Commerce|AccountCurrentTerms)", "^supabase/migrations/"],
+      "sources": ["^src/components/(Commerce|Stripe|Terms|CurrentTerms|AccountData|MemberTicketsPanel|DailyLoginRewardsPanel|SharedMatchAdmissionChoice|OnlineMatchTermsGate)", "^src/locales/onlineMatchTermsText\\.ts$", "^src/config/(salesTermsDraft|currentTerms|webCommerce|publicContact|commerceCatalog)\\.ts$", "^src/locales/(terms|privacy|engagementPrivacy|commerce|stripeMembership|hintScope)", "^server/src/services/(Stripe|Commerce|AccountCurrentTerms)", "^supabase/migrations/"],
       "pages": ["/faq/#hints", "/contact/", "/privacy/", "/terms/"],
       "guidance": ["src/locales/siteContent.ts", "src/locales/privacyReview.ts", "src/locales/termsText.ts", "src/components/TermsDocument.tsx", "src/config/salesTermsDraft.ts", "src/app/privacy/page.tsx", "src/app/terms/page.tsx"]
     },
