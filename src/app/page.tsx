@@ -75,7 +75,8 @@ export default function Home() {
     const [user, setUser] = useState<User | null>(null);
     const foundersRewards=useFoundersRewards(user,matchDesignLocked);
     // A fresh login must recheck consent even when it is the same account.
-    const termsIdentity=`${user?.type??'none'}:${user?.id??''}:${circuitAccess.getSnapshot().revision}`;
+    // While signing in, keep the form mounted so its cleanup does not abort it.
+    const termsIdentity=user?`${user.type}:${user.id}:${circuitAccess.getSnapshot().revision}`:'none';
     const [termsReadyIdentity,setTermsReadyIdentity]=useState<string|null>(null);
     const cloud=useCampaignCloud(!!user&&termsReadyIdentity===termsIdentity);
     const [loginMode,setLoginMode]=useState<'select'|'login'>('select');

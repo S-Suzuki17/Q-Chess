@@ -45,6 +45,8 @@ jobs:
         run: npx playwright install chromium
       - name: Verify email registration and legacy account-name sign-in
         run: node scripts/qa/account-registration-browser.mjs
+      - name: Verify password login through Home consent and cloud subscriptions
+        run: node scripts/qa/check-password-login-browser.mjs
       - name: Verify isolated legacy sign-in restoration
         run: node scripts/qa/verify-legacy-session-browser.mjs
       - name: Verify explicit match choice on desktop and mobile
