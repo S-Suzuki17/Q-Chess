@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { recoveryEmail } from './AccountRecovery';
 import { permittedAccountName } from './AccountNamePolicy';
 
 export function validRegistration(id:unknown,password:unknown):id is string {
@@ -19,7 +20,7 @@ export interface AccountSecurityStore {
     ready():Promise<boolean>;
     verifyUser(token:string):Promise<string|null>;
     restricted(id:string):Promise<boolean>;
-    register(id:string,password:string):Promise<boolean>;
+    register(id:string,password:string,email?:string):Promise<boolean>;
     signOutAll(token:string):Promise<void>;
 }
 export function createAccountSecurityStore(client:SupabaseClient,verifyUser:AccountSecurityStore['verifyUser']):AccountSecurityStore {
@@ -27,7 +28,7 @@ export function createAccountSecurityStore(client:SupabaseClient,verifyUser:Acco
         verifyUser,
         async ready(){try{const {data,error}=await client.rpc('account_security_version');return !error&&data===1;}catch{return false;}},
         async restricted(id){const {data,error}=await client.from('account_restrictions').select('blocked').eq('user_id',id).maybeSingle();if(error)throw new Error('UNAVAILABLE');return data?.blocked===true;},
-        async register(id,password){if(!validRegistration(id,password))throw new Error('INVALID_REQUEST');const {data,error}=await client.rpc('register_account_secure',{p_id:id,p_password:password});if(error)throw new Error('UNAVAILABLE');return data===true;},
+        async register(id,password,email){if(!validRegistration(id,password)||(email!==undefined&&!recoveryEmail(email)))throw new Error('INVALID_REQUEST');const {data,error}=await client.rpc(email===undefined?'register_account_secure':'register_account_with_email',email===undefined?{p_id:id,p_password:password}:{p_id:id,p_password:password,p_email:recoveryEmail(email)}).abortSignal(AbortSignal.timeout(10000));if(error)throw new Error('UNAVAILABLE');return data===true;},
         async signOutAll(token){const {error}=await client.auth.admin.signOut(token,'global');if(error)throw new Error('UNAVAILABLE');},
     };
 }

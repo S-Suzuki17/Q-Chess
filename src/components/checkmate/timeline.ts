@@ -1,6 +1,6 @@
 // Shared production/preview choreography. No game state or reward ownership writes.
 export const SHOT_SECONDS = 3;
-// CHECK and MATE land on the wood hit and settling knock in the existing SE.
+// Preserve the familiar early CHECK/MATE cadence inside the new authored ceremony.
 export const CUES = { anticipation: 0, check: .18, mate: .246, polish: .48, result: 1.5 } as const;
 export const unit = (v: number) => Math.max(0, Math.min(1, v));
 const ease = (v: number) => 1 - (1 - unit(v)) ** 4;

@@ -1,0 +1,140 @@
+{
+  "schemaVersion": 1,
+  "status": "completed",
+  "baseRevision": "2be9c0efbe9858049c66c7bcfddbc003e89fc805",
+  "reviewer": "Codex cloud supervisor",
+  "changes": [
+    {
+      "path": "server/src/services/AccountSecurity.ts",
+      "gitBlob": "b5b1c64c47661e01381c9f22acb9333e78e45654"
+    },
+    {
+      "path": "server/src/services/AccountSecurityRoutes.ts",
+      "gitBlob": "4a8e5e16cac22e83c77ce40052e93f6571729ec7"
+    },
+    {
+      "path": "src/app/page.tsx",
+      "gitBlob": "75839a53a9adefae2bfd7167bd77644268f6c9ea"
+    },
+    {
+      "path": "src/components/CampaignMode.tsx",
+      "gitBlob": "5adc2022e3a198d4088580e2005af3f51c341829"
+    },
+    {
+      "path": "src/components/ChampionshipCollection.tsx",
+      "gitBlob": "e9f83a867fddb4aef60233530fb23085bd4df85a"
+    },
+    {
+      "path": "src/components/QubeTeacher.tsx",
+      "gitBlob": "7c1b80e842f05f44ee6fdc6b698f29e427bab7c6"
+    },
+    {
+      "path": "src/components/RewardPreview.tsx",
+      "gitBlob": "827d173bfc5de2b730939defc0cd417321aa759d"
+    },
+    {
+      "path": "src/components/TitleScreen.tsx",
+      "gitBlob": "1bd7b28042171db86603a1047b9cb34937947c15"
+    },
+    {
+      "path": "src/locales/privacyReview.ts",
+      "gitBlob": "7cc3b2ab801cef0505d1c4ef43ee4055ce422019"
+    },
+    {
+      "path": "supabase/migrations/20261008093454_email_account_registration.sql",
+      "gitBlob": "aaae016bf217b1b42266dfad87b01752a1d1d6e1"
+    }
+  ],
+  "reviews": [
+    {
+      "group": "start-and-controls",
+      "decision": "no-change-needed",
+      "reason": "Guest, consent, practice and controls remain unchanged. Registration now requests email/name/password and login retains name/password; existing start/Guest instructions remain accurate.",
+      "checkedPages": [
+        "/guide/#start",
+        "/faq/#guest"
+      ],
+      "evidence": [
+        "Source review: src/locales/siteContent.ts, privacyReview.ts, securityPrivacy.ts, registrationPrivacy.ts and rendered src/app/privacy/page.tsx; existing rule and account/commerce descriptions reviewed.",
+        "Cloud real-browser fixtures: 47 presentation, 12 Crown interruption, 4 lobby viewport and 2 registration viewport runs passed; mock registration/router/login only, no live provider.",
+        "PGlite migration test verifies atomic private email storage, existing bcrypt login and role denial; focused suite 89 passed. See docs/cloud-acceptance-20261008.md for actual limits.",
+        "Follow-up multi-owner review: 15-character padded name registers without truncation; 16 characters rejected; registration form text 2/4x reaches controls and errors. Crown normal-motion all 15 frame previews verified; 400% computed text reflow fixed. See docs/coordinated-review-20261008.md. Native browser zoom and device performance remain unverified."
+      ]
+    },
+    {
+      "group": "accounts-connections-and-saves",
+      "decision": "updated",
+      "reason": "Updated the rendered privacy account disclosure in all twelve locales for private, unverified signup email, deletion, name/password login and legacy compatibility. Existing saved progress, recovery and connection guidance remains unchanged and accurate.",
+      "checkedPages": [
+        "/faq/#connection",
+        "/faq/#save",
+        "/faq/#privacy",
+        "/contact/",
+        "/privacy/"
+      ],
+      "evidence": [
+        "Source review: src/locales/siteContent.ts, privacyReview.ts, securityPrivacy.ts, registrationPrivacy.ts and rendered src/app/privacy/page.tsx; existing rule and account/commerce descriptions reviewed.",
+        "Cloud real-browser fixtures: 47 presentation, 12 Crown interruption, 4 lobby viewport and 2 registration viewport runs passed; mock registration/router/login only, no live provider.",
+        "PGlite migration test verifies atomic private email storage, existing bcrypt login and role denial; focused suite 89 passed. See docs/cloud-acceptance-20261008.md for actual limits.",
+        "Follow-up multi-owner review: 15-character padded name registers without truncation; 16 characters rejected; registration form text 2/4x reaches controls and errors. Crown normal-motion all 15 frame previews verified; 400% computed text reflow fixed. See docs/coordinated-review-20261008.md. Native browser zoom and device performance remain unverified."
+      ]
+    },
+    {
+      "group": "commerce-and-disclosures",
+      "decision": "updated",
+      "reason": "Updated privacy disclosure for the new signup contact. No charges, ads, ticket entitlement, membership, commerce or password recovery semantics change.",
+      "checkedPages": [
+        "/faq/#hints",
+        "/contact/",
+        "/privacy/",
+        "/terms/"
+      ],
+      "evidence": [
+        "Source review: src/locales/siteContent.ts, privacyReview.ts, securityPrivacy.ts, registrationPrivacy.ts and rendered src/app/privacy/page.tsx; existing rule and account/commerce descriptions reviewed.",
+        "Cloud real-browser fixtures: 47 presentation, 12 Crown interruption, 4 lobby viewport and 2 registration viewport runs passed; mock registration/router/login only, no live provider.",
+        "PGlite migration test verifies atomic private email storage, existing bcrypt login and role denial; focused suite 89 passed. See docs/cloud-acceptance-20261008.md for actual limits.",
+        "Follow-up multi-owner review: 15-character padded name registers without truncation; 16 characters rejected; registration form text 2/4x reaches controls and errors. Crown normal-motion all 15 frame previews verified; 400% computed text reflow fixed. See docs/coordinated-review-20261008.md. Native browser zoom and device performance remain unverified."
+      ]
+    },
+    {
+      "group": "public-guidance-and-navigation",
+      "decision": "updated",
+      "reason": "Privacy disclosure and date updated for signup email. Existing article routes, full unaltered sample PNG, navigation and rules remain accurate; the sample is explicitly synthetic.",
+      "checkedPages": [
+        "/",
+        "/guide/",
+        "/faq/",
+        "/rules/",
+        "/about/",
+        "/contact/",
+        "/privacy/",
+        "/terms/"
+      ],
+      "evidence": [
+        "Source review: src/locales/siteContent.ts, privacyReview.ts, securityPrivacy.ts, registrationPrivacy.ts and rendered src/app/privacy/page.tsx; existing rule and account/commerce descriptions reviewed.",
+        "Cloud real-browser fixtures: 47 presentation, 12 Crown interruption, 4 lobby viewport and 2 registration viewport runs passed; mock registration/router/login only, no live provider.",
+        "PGlite migration test verifies atomic private email storage, existing bcrypt login and role denial; focused suite 89 passed. See docs/cloud-acceptance-20261008.md for actual limits.",
+        "Follow-up multi-owner review: 15-character padded name registers without truncation; 16 characters rejected; registration form text 2/4x reaches controls and errors. Crown normal-motion all 15 frame previews verified; 400% computed text reflow fixed. See docs/coordinated-review-20261008.md. Native browser zoom and device performance remain unverified."
+      ]
+    },
+    {
+      "group": "qube-teaching",
+      "decision": "no-change-needed",
+      "reason": "Approved 2D companion art and finite motions affect presentation only. Existing teaching strings, latest hint policy and move explanations are unchanged.",
+      "checkedPages": [
+        "/",
+        "/about/",
+        "/rules/",
+        "/guide/",
+        "/faq/",
+        "game: tutorial, help dialogs, move hints and feedback, promotion/castling, stage/setup explanations, cosmetic preview/equipment guidance"
+      ],
+      "evidence": [
+        "Source review: src/locales/siteContent.ts, privacyReview.ts, securityPrivacy.ts, registrationPrivacy.ts and rendered src/app/privacy/page.tsx; existing rule and account/commerce descriptions reviewed.",
+        "Cloud real-browser fixtures: 47 presentation, 12 Crown interruption, 4 lobby viewport and 2 registration viewport runs passed; mock registration/router/login only, no live provider.",
+        "PGlite migration test verifies atomic private email storage, existing bcrypt login and role denial; focused suite 89 passed. See docs/cloud-acceptance-20261008.md for actual limits.",
+        "Follow-up multi-owner review: 15-character padded name registers without truncation; 16 characters rejected; registration form text 2/4x reaches controls and errors. Crown normal-motion all 15 frame previews verified; 400% computed text reflow fixed. See docs/coordinated-review-20261008.md. Native browser zoom and device performance remain unverified."
+      ]
+    }
+  ]
+}

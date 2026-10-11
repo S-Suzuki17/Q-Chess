@@ -11,8 +11,8 @@ export function QubeTeacher({lang, children, variant = 'panel', className = ''}:
         className={`min-w-0 ${compact ? '' : 'rounded-xl border border-[#6E614C] bg-[#101610] p-4 sm:p-5'} ${className}`}>
         <div className={`flex items-center gap-3 ${compact ? 'mb-3' : 'mb-4'}`}>
             {/* The visible speaker name supplies identity; the portrait is decorative. */}
-            <img src="/qube_icon.jpg" alt="" width={compact ? 32 : 48} height={compact ? 32 : 48}
-                className={`${compact ? 'h-8 w-8' : 'h-12 w-12'} flex-shrink-0 rounded-lg object-cover`} loading="lazy"/>
+            <img src="/assets/qube-companion/qube-neutral.svg" alt="" width={compact ? 32 : 48} height={compact ? 32 : 48}
+                className={`${compact ? 'h-8 w-8' : 'h-12 w-12'} flex-shrink-0 rounded-lg object-contain`} loading="lazy"/>
             <div className="min-w-0"><span className="font-semibold text-[#D4B872]" data-qube-speaker>QUBE</span>
                 <p className="text-sm leading-relaxed text-[#BEB6A8]">{qubeTeaching[language].caption}</p></div>
         </div>

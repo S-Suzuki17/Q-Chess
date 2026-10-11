@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "generator": "Blender 4.3.2, original procedural meshes",
+  "coordinates": {
+    "gltfUp": "+Y",
+    "gltfFront": "+Z",
+    "ground": 0,
+    "origin": "center of base"
+  },
+  "assets": {
+    "coronationSeal": {
+      "model": "coronation-seal.glb",
+      "poster": "coronation-seal.webp",
+      "triangles": 6000,
+      "height": 1.26
+    }
+  },
+  "audio": {
+    "file": "crown-reveal.mp3",
+    "seconds": 3,
+    "requiresExistingSoundEnabled": true
+  },
+  "files": {
+    "coronation-seal.glb": {
+      "bytes": 162816,
+      "sha256": "666e742f7965b1e2ac076e8ee03d12cc5c22c3694e3ca65c1693fa246bf37990"
+    },
+    "coronation-seal.webp": {
+      "bytes": 31304,
+      "sha256": "8a80b9935fb04e26159c81116783cee0f30f5f88fb9492e38b07668faf4bd709",
+      "width": 640,
+      "height": 640,
+      "hasAlpha": true
+    },
+    "crown-reveal.mp3": {
+      "bytes": 36620,
+      "sha256": "54479903f28a2920f1f449da3f7ec0cdb8f7a4db63e6f3518432cf3cc563c677"
+    }
+  },
+  "environment": {
+    "renderer": "original pixel-art castle drawn directly in game code",
+    "rasterBackground": false,
+    "note": "Generated realistic concept plate rejected by user; not included in runtime assets."
+  },
+  "preservedProductionAssets": {
+    "pieces": "/models/{pawn,knight,bishop,rook,queen,king}.glb",
+    "qube": "/qube_icon.jpg",
+    "redesign": false
+  }
+}

@@ -3,11 +3,11 @@ import { gameServerUrl } from './rankedSession';
 import { requestAccountProfile,AccountProfileError } from './accountProfile';
 import {clientReleaseHeaders} from './clientRelease';
 
-export async function registerAccount(username:string,password:string,signal?:AbortSignal):Promise<void>{
+export async function registerAccount(username:string,password:string,email:string,signal?:AbortSignal):Promise<void>{
     try{
         const url=new URL('/auth/register',gameServerUrl());
         if(url.protocol!=='https:'&&!['localhost','127.0.0.1','[::1]'].includes(url.hostname))throw new Error('UNAVAILABLE');
-        const response=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json',...clientReleaseHeaders()},body:JSON.stringify({username,password}),
+        const response=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json',...clientReleaseHeaders()},body:JSON.stringify({username,password,email}),
             credentials:'omit',cache:'no-store',redirect:'error',signal:AbortSignal.any([...(signal?[signal]:[]),AbortSignal.timeout(20000)])});
         if(!response.ok)throw new AccountProfileError(response.status===400?'INVALID_REQUEST':(response.status===409?'CONFLICT':'UNAVAILABLE'));
         if((await response.json())?.registered!==true)throw new Error('UNAVAILABLE');

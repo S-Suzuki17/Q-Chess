@@ -6,7 +6,7 @@ import { circuitAccess } from '../lib/circuitAccess';
 import { dict, Language } from '../locales/dict';
 import { supabase } from '../lib/supabaseClient';
 import { beginOAuthLoginIntent, clearOAuthLoginIntent } from '../lib/oauthLoginIntent';
-import { requestRankedSession } from '../lib/rankedSession';
+import { requestRankedSession, RankedLoginError } from '../lib/rankedSession';
 import { registerAccount } from '../lib/accountSecurity';
 import { AccountProfileError } from '../lib/accountProfile';
 import { accountSecurityText } from '../locales/accountSecurityText';
@@ -16,6 +16,7 @@ import './title-screen.css';
 import { ArrowUpRight, ChevronRight } from 'lucide-react';
 
 import { CommunityFeed } from './CommunityFeed';
+import { LandingGamePreview } from './LandingGamePreview';
 import { Capacitor } from '@capacitor/core';
 import { useAppPlatform } from '../hooks/useAppPlatform';
 import { Browser } from '@capacitor/browser';
@@ -36,6 +37,7 @@ export function TitleScreen({ lang, onLogin, initialMode='select', onOAuthStart,
     const loginRequest=React.useRef<AbortController|null>(null);
     React.useEffect(()=>{mounted.current=true;return()=>{mounted.current=false;loginRequest.current?.abort();};},[]);
     const [inputId, setInputId] = useState('');
+    const [inputEmail, setInputEmail] = useState('');
     const [inputPassword, setInputPassword] = useState('');
     const [keepLoggedIn, setKeepLoggedIn] = useState(false);
     const [error, setError] = useState('');
@@ -76,11 +78,12 @@ export function TitleScreen({ lang, onLogin, initialMode='select', onOAuthStart,
         e.preventDefault();
         if (loading) return;
         setError('');
-        if (!inputId.trim() || !inputPassword.trim()) {
-            setError(matchText(lang, 'IDとパスワードを入力してください。', 'Please enter ID and Password.'));
+        const username=inputId.trim();
+        if (!inputEmail.trim() || !inputId.trim() || !inputPassword.trim()) {
+            setError(matchText(lang, 'メールアドレス、アカウント名、パスワードを入力してください。', 'Please enter email, account name and password.'));
             return;
         }
-        if (!/^[a-zA-Z0-9]{3,15}$/.test(inputId)||[...inputPassword].length<12||new TextEncoder().encode(inputPassword).length>72) {
+        if (inputEmail.trim().length>254||!/^[^\s@<>\x00-\x1f]+@[^\s@<>\x00-\x1f]+\.[^\s@<>\x00-\x1f]+$/.test(inputEmail.trim())||!/^[a-zA-Z0-9]{3,15}$/.test(username)||[...inputPassword].length<12||new TextEncoder().encode(inputPassword).length>72) {
             setError(accountSecurityText(lang,'rules'));
             return;
         }
@@ -91,15 +94,15 @@ export function TitleScreen({ lang, onLogin, initialMode='select', onOAuthStart,
         loginRequest.current?.abort();
         const request=new AbortController();loginRequest.current=request;
         try {
-            await registerAccount(inputId,inputPassword,request.signal);
+            await registerAccount(username,inputPassword,inputEmail.trim().toLowerCase(),request.signal);
             if (!mounted.current || request.signal.aborted) return;
-            try{await requestRankedSession(inputId, inputPassword, keepLoggedIn, AbortSignal.any([request.signal,AbortSignal.timeout(15000)]));}
-            catch{if(mounted.current&&!request.signal.aborted){setMode('login');setError(accountSecurityText(lang,'registered'));}return;}
-            if(mounted.current && !request.signal.aborted)onLogin({ id: inputId, name: inputId, type: 'registered' },attempt);
+            try{await requestRankedSession(username, inputPassword, keepLoggedIn, AbortSignal.any([request.signal,AbortSignal.timeout(15000)]));}
+            catch{if(mounted.current&&!request.signal.aborted){setInputPassword('');setMode('login');setError(accountSecurityText(lang,'registered'));}return;}
+            if(mounted.current && !request.signal.aborted)onLogin({ id: username, name: username, type: 'registered' },attempt);
         } catch (err) {
             if(mounted.current&&!request.signal.aborted){
                 if(err instanceof AccountProfileError && err.code==='CONFLICT') {
-                    setError(matchText(lang, 'このIDは既に使用されています。', 'This ID is already taken.'));
+                    setError(matchText(lang, 'このアカウント名では登録できません。別の名前をお試しください。', 'Registration is unavailable for this account name. Please try another.'));
                 } else {
                     setError(accountSecurityText(lang,err instanceof AccountProfileError&&err.code==='INVALID_REQUEST'?'rules':'failed'));
                 }
@@ -113,6 +116,7 @@ export function TitleScreen({ lang, onLogin, initialMode='select', onOAuthStart,
         e.preventDefault();
         if (loading) return;
         setError('');
+        const username=inputId.trim();
         if (!inputId.trim() || !inputPassword.trim()) {
             setError(matchText(lang, 'IDとパスワードを入力してください。', 'Please enter ID and Password.'));
             return;
@@ -124,30 +128,33 @@ export function TitleScreen({ lang, onLogin, initialMode='select', onOAuthStart,
         loginRequest.current?.abort();
         const request=new AbortController();loginRequest.current=request;
         try {
-            await requestRankedSession(inputId, inputPassword, keepLoggedIn, AbortSignal.any([request.signal,AbortSignal.timeout(30000)]));
-            if(mounted.current && !request.signal.aborted)onLogin({ id: inputId, name: inputId, type: 'registered' },attempt);
+            await requestRankedSession(username, inputPassword, keepLoggedIn, AbortSignal.any([request.signal,AbortSignal.timeout(30000)]));
+            if(mounted.current && !request.signal.aborted)onLogin({ id: username, name: username, type: 'registered' },attempt);
         } catch (err) {
-            if(mounted.current&&!request.signal.aborted)setError(matchText(lang,'ログインに失敗しました','Login failed.'));
+            if(mounted.current&&!request.signal.aborted)setError(err instanceof RankedLoginError && err.status===401
+                ? matchText(lang,'アカウント名またはパスワードが違います。','Incorrect account name or password.')
+                : matchText(lang,'ログインサービスを利用できません。時間をおいて再度お試しください。','Sign-in is unavailable. Please try again shortly.'));
         } finally {
             if(mounted.current)setLoading(false);
         }
     };
 
     return (
-        <div className="title-screen flex flex-col items-center w-full bg-transparent text-[#E8E2D7] font-sans selection:bg-[#B39A62]/30">
-            {/* Minimal Board Pattern Background */}
+        <div data-entry-mode={mode} className="title-screen flex flex-col items-center w-full bg-transparent text-[#E8E2D7] font-sans selection:bg-[#B39A62]/30">
             <div className="title-screen-heading relative z-10">
                 <div className="title-edition"><span aria-hidden="true">◌</span>{t.subtitle}</div>
                 <h1 className="font-serif text-[#E8E2D7] mb-4">
                     <span>Q</span>-GAMBIT
                 </h1>
                 <p className="text-xs md:text-sm tracking-[0.4em] text-[#A89C86] font-light uppercase">{(t as any)?.subtitle2 || "A game of hidden identity"}</p>
-                <div className="title-identities" aria-hidden="true">{['♔','♕','♖','♗','♘','♙'].map(symbol=><span key={symbol}>{symbol}</span>)}</div>
             </div>
+
+            {mode === 'select' && <LandingGamePreview lang={lang} />}
 
             <div className="title-screen-actions relative z-10 w-full flex flex-col gap-6">
                 {mode === 'select' && (
                     <div className="flex flex-col gap-4">
+                        <button onClick={handleGuest} className="title-play">{(t as any)?.guestLogin || "PLAY AS GUEST"}<ArrowUpRight size={24} aria-hidden="true"/></button>
                         {android ? (
                             <a href="https://q-gambit.com/rules/" target="_blank" rel="noopener noreferrer" className="title-tutorial">
                                 {t.rulesButton}<ChevronRight size={24} aria-hidden="true"/>
@@ -157,7 +164,6 @@ export function TitleScreen({ lang, onLogin, initialMode='select', onOAuthStart,
                                 {t.rulesButton}<ChevronRight size={24} aria-hidden="true"/>
                             </Link>
                         )}
-                        <button onClick={handleGuest} className="title-play">{(t as any)?.guestLogin || "PLAY AS GUEST"}<ArrowUpRight size={24} aria-hidden="true"/></button>
                         
                         <div className="title-auth-actions flex flex-col gap-3 mt-4">
                             <button onClick={() => { changeMode('login'); setError(''); }} className="w-full py-3 bg-[#191714]/80 border border-[#A89C86]/30 hover:bg-[#A89C86]/20 transition-colors text-sm tracking-widest text-[#E8E2D7]">{(t as any)?.login || "SIGN IN"}</button>
@@ -169,20 +175,24 @@ export function TitleScreen({ lang, onLogin, initialMode='select', onOAuthStart,
                 {(mode === 'register' || mode === 'login') && (
                     <form onSubmit={mode === 'register' ? handleRegisterSubmit : handleLoginSubmit} className="flex flex-col gap-6 w-full mx-auto p-6 bg-[#191714] border border-[#A89C86]/30">
                         <div className="flex flex-col gap-4">
+                            {mode==='register'&&<input type="email" name="email" autoComplete="email" required maxLength={254}
+                                aria-label={matchText(lang,'メールアドレス','Email address')} placeholder={matchText(lang,'メールアドレス','Email address')}
+                                value={inputEmail} onChange={e=>setInputEmail(e.target.value)} disabled={loading}
+                                className="w-full bg-[#11100E] border border-[#A89C86]/30 p-3 text-[#E8E2D7] text-sm"/>}
                             <input 
                                 type="text" 
-                                placeholder={(t as any).enterName || "USERNAME"}
+                                placeholder={matchText(lang,'アカウント名','Account name')}
                                 value={inputId}
-                                maxLength={mode==='register'?15:128}
+                                maxLength={128}
                                 autoComplete="username"
-                                aria-label={t.enterName||'ID'}
+                                name="username" required aria-label={matchText(lang,'アカウント名','Account name')}
                                 onChange={e => setInputId(e.target.value)}
                                 className="w-full bg-[#11100E] border border-[#A89C86]/30 p-3 text-[#E8E2D7] focus:outline-none focus:border-[#B39A62] text-sm tracking-widest placeholder:text-[#A89C86]/30"
                                 autoFocus
                                 disabled={loading}
                             />
                             <input 
-                                type="password" 
+                                type="password" name="password" required
                                 placeholder={(t as any).password || "PASSWORD"}
                                 value={inputPassword}
                                 autoComplete={mode==='register'?'new-password':'current-password'}

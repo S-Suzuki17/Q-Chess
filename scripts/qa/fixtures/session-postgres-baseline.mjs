@@ -51,7 +51,9 @@ export const combinedPendingMigrations = [...commercePendingMigrations, durableS
 // PR19's original thirteen-file upgrade remains a historical regression target.
 // The current hint-policy proof must also apply these explicit forward files.
 export const hintPolicyMigrations = ['20261008054904_match_hint_tickets_and_free_practice.sql'];
-export const reviewedMigrationInventory = [...combinedPendingMigrations, ...hintPolicyMigrations].sort();
+// PR21 is a separate forward upgrade; do not rewrite PR19/PR20 scenarios.
+export const emailRegistrationMigrations = ['20261008093454_email_account_registration.sql'];
+export const reviewedMigrationInventory = [...combinedPendingMigrations, ...hintPolicyMigrations, ...emailRegistrationMigrations].sort();
 export const combinedHistoricalMigrations = [...historicalSessionMigrations,
     ...commerceHistoricalDependencies.filter(name => !historicalSessionMigrations.includes(name))];
 export const sessionBaselineEvidence = Object.freeze({
@@ -81,6 +83,12 @@ export async function applySessionPending(client) {
 export async function applyHintPolicyRelease(client) {
     await applySessionPending(client);
     for (const name of hintPolicyMigrations) await applySessionFile(client, name);
+}
+// Apply only after the PR20 hint-policy release. The dedicated native suite
+// snapshots existing accounts, wallets and receipts across this exact boundary.
+export async function applyEmailRegistrationForward(client) {
+    await assertReviewedMigrationInventory();
+    for (const name of emailRegistrationMigrations) await applySessionFile(client, name);
 }
 export async function setupSessionBaseline(client, expectedDatabase = 'legacy_session_upgrade') {
     // Only these disposable fixtures are allowed. Never accept a remote client,

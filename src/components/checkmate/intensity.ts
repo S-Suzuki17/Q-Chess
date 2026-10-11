@@ -1,5 +1,5 @@
-/** Unlock difficulty drives spectacle independently of the material family.
- * Keep typography, board propagation and the three-second shot identical.
+/** Unlocks add intentional silhouette detail and rhythm within a fixed accent budget.
+ * Reward ownership, identifiers, unlocks and the three-second duration are untouched.
  */
 export function victoryIntensity(reward: { requiredWins: number }, compact = false) {
     const stage = Math.max(1, Math.min(100, Number.isFinite(reward.requiredWins) ? reward.requiredWins : 1));
@@ -7,15 +7,15 @@ export function victoryIntensity(reward: { requiredWins: number }, compact = fal
     const grade = Math.min(5, Math.floor((stage - 1) / 20) + 1);
     return {
         stage, grade, progress,
-        // Retain a satisfying first reward; late-game richness is added, not faked by stripping it.
-        ornamentCount: Math.round((compact ? 72 : 112) + progress * (compact ? 160 : 320)),
-        chipCount: Math.round((compact ? 24 : 36) + progress * (compact ? 48 : 76)),
-        trailCount: grade === 1 ? 0 : Math.round((compact ? 3 : 5) + progress * (compact ? 15 : 27)),
+        // Total allocated accents (including chips and trails) never exceed 64 / 120.
+        ornamentCount: Math.round((compact ? 18 : 36) + progress * (compact ? 26 : 48)),
+        chipCount: Math.round((compact ? 8 : 16) + progress * 4),
+        trailCount: grade === 1 ? 0 : Math.round(progress * (compact ? 8 : 16)),
         bursts: grade,
-        reach: .62 + progress * 1.22,
-        scale: .72 + progress * .94,
-        foreground: progress * .26,
-        light: .12 + progress * .25,
+        reach: .65 + progress * .55,
+        scale: .72 + progress * .28,
+        foreground: progress * .08,
+        light: .08 + progress * .12,
     };
 }
 export type VictoryIntensity = ReturnType<typeof victoryIntensity>;

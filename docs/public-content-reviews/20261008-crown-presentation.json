@@ -1,0 +1,74 @@
+{
+  "schemaVersion": 1,
+  "status": "completed",
+  "baseRevision": "2be9c0efbe9858049c66c7bcfddbc003e89fc805",
+  "reviewer": "Codex",
+  "changes": [
+    {
+      "path": "src/app/page.tsx",
+      "gitBlob": "75839a53a9adefae2bfd7167bd77644268f6c9ea"
+    },
+    {
+      "path": "src/components/QubeTeacher.tsx",
+      "gitBlob": "7c1b80e842f05f44ee6fdc6b698f29e427bab7c6"
+    },
+    {
+      "path": "src/components/CampaignMode.tsx",
+      "gitBlob": "5adc2022e3a198d4088580e2005af3f51c341829"
+    },
+    {
+      "path": "src/components/ChampionshipCollection.tsx",
+      "gitBlob": "e9f83a867fddb4aef60233530fb23085bd4df85a"
+    },
+    {
+      "path": "src/components/RewardPreview.tsx",
+      "gitBlob": "827d173bfc5de2b730939defc0cd417321aa759d"
+    }
+  ],
+  "reviews": [
+    {
+      "group": "public-guidance-and-navigation",
+      "decision": "no-change-needed",
+      "reason": "The root settings CSS hook and decorative teaching portrait do not change public article, legal, navigation or rule content. The separate landing-preview review covers the new clearly labeled sample link.",
+      "checkedPages": [
+        "/",
+        "/guide/",
+        "/faq/",
+        "/rules/",
+        "/about/",
+        "/contact/",
+        "/privacy/",
+        "/terms/"
+      ],
+      "evidence": [
+        "Source diff review against 2be9c0ef: QubeTeacher changes only decorative portrait src and object-fit; qubeTeaching, siteContent, rules text, game teaching/hint components and their accessibility labels are unchanged.",
+        "CampaignMode source retains the stage rules, cloud-save and hint-scope copy in the Help dialog, stage medals and music guidance, settings-only equipment guidance, and the CrownHintRecovery control in Challenge. Run/stage IDs and free-practice versus ticketed-Crown behavior remain from the base.",
+        "ChampionshipCollection and RewardPreview retain QubeTeacher and the settings-only equipment explanation; opening a preview does not equip or grant a reward.",
+        "Local production export: all eight public routes passed inspectPublicPage with requireQube=true, internal links/anchors and robots/sitemap checks. This is initial-HTML evidence only, not browser or interaction verification.",
+        "433 related Vitest tests passed, including QubeTeacher portrait/content regressions, Crown entry/hint policy/recovery, collection ownership, dialog dismissal and board compatibility. Typecheck and production build passed.",
+        "Browser layout, Help dialog interaction/focus restoration, real WebGL presentation and modified-app mobile behavior remain unverified. No editorial or interaction conclusion is inferred from the static export."
+      ]
+    },
+    {
+      "group": "qube-teaching",
+      "decision": "no-change-needed",
+      "reason": "The teaching portrait is a static approved 2D drawing. Existing teaching words and hint-policy explanations are retained, with Crown introductory explanations moved into its Help dialog to fit the paged screen. The educational meaning, reward ownership and gameplay operations do not change.",
+      "checkedPages": [
+        "/",
+        "/about/",
+        "/rules/",
+        "/guide/",
+        "/faq/",
+        "game: tutorial, help dialogs, move hints and feedback, promotion/castling, stage/setup explanations, cosmetic preview/equipment guidance"
+      ],
+      "evidence": [
+        "Source diff review against 2be9c0ef: QubeTeacher changes only decorative portrait src and object-fit; qubeTeaching, siteContent, rules text, game teaching/hint components and their accessibility labels are unchanged.",
+        "CampaignMode source retains the stage rules, cloud-save and hint-scope copy in the Help dialog, stage medals and music guidance, settings-only equipment guidance, and the CrownHintRecovery control in Challenge. Run/stage IDs and free-practice versus ticketed-Crown behavior remain from the base.",
+        "ChampionshipCollection and RewardPreview retain QubeTeacher and the settings-only equipment explanation; opening a preview does not equip or grant a reward.",
+        "Local production export: all eight public routes passed inspectPublicPage with requireQube=true, internal links/anchors and robots/sitemap checks. This is initial-HTML evidence only, not browser or interaction verification.",
+        "433 related Vitest tests passed, including QubeTeacher portrait/content regressions, Crown entry/hint policy/recovery, collection ownership, dialog dismissal and board compatibility. Typecheck and production build passed.",
+        "Browser layout, Help dialog interaction/focus restoration, real WebGL presentation and modified-app mobile behavior remain unverified. No editorial or interaction conclusion is inferred from the static export."
+      ]
+    }
+  ]
+}

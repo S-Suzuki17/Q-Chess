@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { LANGUAGES } from './dict';
 import { engagementPrivacy } from './engagementPrivacy';
 import { privacyReview } from './privacyReview';
+import { registrationPrivacy } from './registrationPrivacy';
 
 describe('optional gameplay metrics privacy notice', () => {
     it('has a complete notice in every supported language', () => {
@@ -17,7 +18,9 @@ describe('optional gameplay metrics privacy notice', () => {
     it('does not describe the retired Vercel host or optional metrics as disabled', () => {
         for (const { code } of LANGUAGES) {
             const displayed = privacyReview(code);
-            expect(displayed.updated).toBe('2026-09-30');
+            expect(displayed.updated).toBe('2026-10-08');
+            expect(registrationPrivacy[code].length).toBeGreaterThan(40);
+            expect(displayed.sec2li1).toContain(registrationPrivacy[code]);
             expect(displayed.sec3li3).toContain('Cloudflare');
             expect(displayed.sec3li3).not.toContain('Vercel');
             expect(displayed.sec2li3).toContain(engagementPrivacy[code].choice);

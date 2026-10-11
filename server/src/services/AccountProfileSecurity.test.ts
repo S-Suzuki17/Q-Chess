@@ -86,3 +86,27 @@ it.each([1, 2])('does not report global signout before revocation %s settles or 
     expect(response.status).toBe(503); expect(await response.text()).not.toContain('private-password-and-token');
     expect(disconnected).not.toHaveBeenCalled(); expect(gate.blocked('Alice')).toBe(false);
 });
+
+it('validates and normalizes email registration without breaking legacy two-field clients',async()=>{
+ const data={username:'EmailUser',password:'correct-horse-123',email:' Alice@Example.Test '};
+ expect((await fetch(base+'/auth/register',options('',data))).status).toBe(201);
+ expect(store.register).toHaveBeenCalledExactlyOnceWith('EmailUser','correct-horse-123','alice@example.test');
+ for(const email of ['',null,'bad','x@y','x\n@y.test','x'.repeat(255)+'@example.test']){
+  expect((await fetch(base+'/auth/register',options('',{...data,email}))).status).toBe(400);
+ }
+ expect((await fetch(base+'/auth/register',options('',{...data,role:'admin'}))).status).toBe(400);
+ expect(store.register).toHaveBeenCalledOnce();
+});
+
+it('uses the email RPC only for new registration and fails closed on missing deployment schema',async()=>{
+ const {createAccountSecurityStore}=await import('./AccountSecurity');
+ const result=vi.fn().mockResolvedValue({data:true,error:null});
+ const rpc=vi.fn(()=>({abortSignal:result}));
+ const persistence=createAccountSecurityStore({rpc} as any,async()=>null);
+ expect(await persistence.register('Alice123','correct-horse-123',' Alice@Example.Test ')).toBe(true);
+ expect(rpc).toHaveBeenLastCalledWith('register_account_with_email',{p_id:'Alice123',p_password:'correct-horse-123',p_email:'alice@example.test'});
+ expect(await persistence.register('Legacy123','correct-horse-123')).toBe(true);
+ expect(rpc).toHaveBeenLastCalledWith('register_account_secure',{p_id:'Legacy123',p_password:'correct-horse-123'});
+ result.mockResolvedValue({data:null,error:{message:'missing function private schema detail'}});
+ await expect(persistence.register('Alice123','correct-horse-123','alice@example.test')).rejects.toThrow('UNAVAILABLE');
+});

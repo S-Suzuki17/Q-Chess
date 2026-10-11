@@ -1,3 +1,4 @@
+import type { EffectMotif } from '../../config/championshipRewards';
 import {unit, type shotAt} from './timeline';
 import type {ResultStyle} from '../../config/victoryStyles';
 import {victoryIntensity, type VictoryIntensity} from './intensity';
@@ -6,21 +7,21 @@ type Point = [number,number];
 type Paint = string | CanvasGradient;
 export type AtmosphereParticle = {origin:number;row:number;direction:number;speed:number;size:number;aspect:number;delay:number;life:number;spin:number;twist:number;drift:number;corners:number[];depth:number;gravity:number;batch:number};
 export const ATMOSPHERE_END=2.8;
-export function atmosphereParticles(seed:number,compact=false,intensity:VictoryIntensity=victoryIntensity({requiredWins:1},compact)):AtmosphereParticle[]{
+export function atmosphereParticles(seed:number,compact=false,intensity:VictoryIntensity=victoryIntensity({requiredWins:1},compact),motif:EffectMotif='rings'):AtmosphereParticle[]{
     let n=seed>>>0;
     const random=()=>((n=(Math.imul(n,1664525)+1013904223)>>>0)/4294967296);
     return Array.from({length:intensity.ornamentCount},()=>{
-        // Irregular follow-up eruptions, never evenly spaced rings or mirrored fans.
+        // Small depth accents leave the authored hero silhouette readable.
         const batch=Math.floor(random()**1.8*intensity.bursts);
         const depth=random()<intensity.foreground?1.5+random()*.8:.65+random()*.5;
         const delay=.246+batch*.19+random()*.13;
         return {
-            origin:random(),row:random(),direction:random()*Math.PI*2,
-            speed:(190+random()*560)*intensity.reach*depth,
-            size:(4+random()*17)*intensity.scale*depth,aspect:.3+random()*1.6,
+            origin:random(),row:random(),direction:motif==='corona'?-Math.PI*.5+(random()-.5)*1.2:random()*Math.PI*2,
+            speed:(95+random()*190)*intensity.reach*depth,
+            size:(1.6+random()*5.5)*intensity.scale*depth,aspect:.3+random()*1.6,
             delay,life:Math.min(ATMOSPHERE_END-delay, .72+random()*1.2+intensity.progress*.4),
             spin:(random()-.5)*12,twist:random()*Math.PI*2,drift:(random()-.5)*48,
-            corners:Array.from({length:5},()=>.55+random()*.7),depth,gravity:35+random()*65,batch,
+            corners:Array.from({length:5},()=>.55+random()*.7),depth,gravity:motif==='corona'?-15-random()*20:12+random()*25,batch,
         };
     });
 }

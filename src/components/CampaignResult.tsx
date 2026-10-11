@@ -1,8 +1,8 @@
 'use client';
 import {useEffect,useRef} from 'react';
 import {ArrowUpRight,Trophy} from 'lucide-react';
-import {outcomeStars,type CampaignOutcome,type VictoryFinish} from '../config/campaign';
-import {CHAMPIONSHIP_REWARDS,championshipReward} from '../config/championshipRewards';
+import {outcomeStars,type CampaignOutcome,type VictoryFinish,type PieceFinish} from '../config/campaign';
+import {CHAMPIONSHIP_REWARDS} from '../config/championshipRewards';
 import {CIRCUIT_STAGES} from '../config/circuitStages';
 import {battleMusicTitle} from '../config/circuitMusic';
 import {campaignText,rewardName} from '../locales/campaignText';
@@ -11,30 +11,41 @@ import {circuitText} from '../locales/circuitText';
 import type {Language} from '../locales/dict';
 import {VictoryCelebration} from './VictoryCelebration';
 import {RewardSigil} from './RewardArtwork';
+import {crownEncounterForStage} from './crownCollection';
+import {CrownOpponentArtwork,CrownRewardArtwork} from './CrownNavigation';
+import {QubeCompanion} from './QubeCompanion';
 import './campaign.css';
+import './campaign-result-journey.css';
 const duration=(seconds:number)=>`${Math.floor(seconds/60)}:${String(Math.floor(seconds%60)).padStart(2,'0')}`;
-export function CampaignResult({lang,stageId,firstClear,effect,outcome,onNext,onRetry,onBack,saveError,newMusic=[]}: {
-    lang:Language;stageId:number;firstClear:boolean;effect:VictoryFinish;outcome:CampaignOutcome;onNext?:()=>void;onRetry:()=>void;onBack:()=>void;saveError:boolean;newMusic?:readonly string[];
+export function CampaignResult({lang,stageId,firstClear,effect,pieceFinish,foeWhite,outcome,onNext,onRetry,onBack,saveError,newMusic=[]}: {
+    lang:Language;stageId:number;firstClear:boolean;effect:VictoryFinish;pieceFinish?:PieceFinish;foeWhite?:boolean;outcome:CampaignOutcome;onNext?:()=>void;onRetry:()=>void;onBack:()=>void;saveError:boolean;newMusic?:readonly string[];
 }) {
     const dialog=useRef<HTMLDialogElement>(null);
     useEffect(()=>{const node=dialog.current;node?.showModal();return()=>node?.close();},[]);
     const t=(key:Parameters<typeof campaignText>[1])=>campaignText(lang,key);
     const stage=CIRCUIT_STAGES[stageId-1],reward=CHAMPIONSHIP_REWARDS[stageId-1],stars=outcomeStars(outcome,stage.timeControl);
-    const victoryDesign=championshipReward(effect);
+    const encounter={...crownEncounterForStage(stageId),pieceFinish,foeWhite};
+    const nextStage=outcome.won&&stageId<100?CIRCUIT_STAGES[stageId]:null;
     const perMove=stage.timeControl==='10s';
     return <dialog ref={dialog} className="campaign-result" data-result={outcome.won?'win':outcome.draw?'draw':'loss'} aria-labelledby="campaign-result-title" onCancel={event=>event.preventDefault()}>
         <div className="campaign-result-cinema" aria-hidden="true">
-            {outcome.won&&victoryDesign?.kind==='effect'?<VictoryCelebration effect={effect} checkmate={!!outcome.checkmate} preview contained/>:<RewardSigil motif="corona" tier={outcome.won?3:1}/>}
+            {outcome.won?<VictoryCelebration effect={effect} encounter={encounter} checkmate={!!outcome.checkmate} preview contained/>:<RewardSigil motif="corona" tier={1}/>}
+            <QubeCompanion state={outcome.won?'victory':'encouragement'} size={80} className="campaign-result-companion" decorative/>
         </div>
         <div className="campaign-result-card">
             <p>{stageText(lang,'stage')} {stageId} / 100 · {stage.opponent}</p>
             <h2 id="campaign-result-title">{outcome.won?(stageId===100?t('champion'):t('win')):outcome.draw?t('draw'):t('loss')}</h2>
             {outcome.won&&<><div className="campaign-stars" aria-label={`${stars}/3`}>{'★'.repeat(stars)}{'☆'.repeat(3-stars)}</div>
-                <p className="campaign-reward-earned"><Trophy size={18}/>{stageText(lang,firstClear?'newReward':'clearedReward')} · {rewardName(lang,reward.id)}</p></>}
+                <div className="campaign-earned-art" aria-hidden="true"><CrownRewardArtwork kind={reward.kind} id={reward.id}/></div>
+                <p className="campaign-reward-earned" role="status"><Trophy size={18}/>{stageText(lang,firstClear?'newReward':'clearedReward')} · {rewardName(lang,reward.id)}</p></>}
             {outcome.won&&newMusic.map(id=><p className="campaign-reward-earned" key={id} data-star-music-earned={id}><span aria-hidden="true">♫</span>{stageText(lang,'newReward')} · {battleMusicTitle(id)}</p>)}
             <p>{t('noHints')} · {perMove?stageText(lang,'quickMoves'):t('quick')}</p>
             <p>{perMove?`${stageText(lang,'ownMoves')} · ${outcome.playerMoves} / 40`:`${circuitText(lang,'timeLeft')} · ${duration(outcome.remainingSeconds)} / ${duration(outcome.initialSeconds)}`}</p>
             {saveError&&<p role="alert">{t('saveError')}</p>}
+            {nextStage&&onNext&&<div className="campaign-next-encounter" data-next-encounter={nextStage.id}>
+                <span><small>{t('next')}</small><strong>{stageText(lang,'stage')} {nextStage.id} · {nextStage.opponent}</strong></span>
+                <span className="campaign-result-foe" aria-hidden="true"><CrownOpponentArtwork stageId={nextStage.id} player={foeWhite?'white':'black'}/></span>
+            </div>}
             <div className="campaign-result-actions">
                 {onNext&&<button className="campaign-primary" onClick={onNext}>{t('next')}<ArrowUpRight size={18}/></button>}
                 <button onClick={onRetry}>{t('retry')}</button><button onClick={onBack}>{t('back')}</button>

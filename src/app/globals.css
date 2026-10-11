@@ -4,12 +4,34 @@
 :root {
   --background: #11100E;
   --foreground: #E8E2D7;
+  --scrollbar-thumb: #858873;
+  --scrollbar-track: #151813;
+}
+
+/* Keep native scrolling visible, in the site's olive/brass palette. */
+* { scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track); }
+::-webkit-scrollbar { width:12px; height:12px; }
+::-webkit-scrollbar-track { background:var(--scrollbar-track); }
+::-webkit-scrollbar-thumb { background:var(--scrollbar-thumb); border:3px solid var(--scrollbar-track); border-radius:12px; min-height:44px; }
+::-webkit-scrollbar-thumb:hover { background:#b2ad8d; }
+::-webkit-scrollbar-corner { background:var(--scrollbar-track); }
+/* Fixed controls sit outside the scrollbar's hit area, including safe areas. */
+.app-corner-controls { right:calc(max(16px, env(safe-area-inset-right)) + 16px); top:max(16px, env(safe-area-inset-top)); }
+.app-corner-controls button { min-height:44px; }
+.app-corner-controls button:focus-visible { outline:2px solid #e5d7b6; outline-offset:4px; }
+@media(forced-colors:active) {
+  * { scrollbar-color:auto!important; scrollbar-width:auto!important; }
+  ::-webkit-scrollbar-track,::-webkit-scrollbar-corner { background:Canvas; }
+  ::-webkit-scrollbar-thumb { background:ButtonText; border-color:Canvas; }
+  ::-webkit-scrollbar-thumb:hover { background:Highlight; }
+  .app-corner-controls button:focus-visible { outline-color:Highlight; }
 }
 
 /* Entry screens scroll in normal flow; decorations never cover their controls. */
 main[data-screen="title"],main[data-screen="level_select"] { background:#111511; }
-main[data-screen="title"] { overflow-y:auto; justify-content:flex-start; }
-main[data-screen="title"]>div.flex-grow { flex:1 0 auto; }
+main[data-screen="title"] { overflow-y:auto; justify-content:flex-start; scrollbar-gutter:stable; }
+main[data-screen="title"]>div.flex-grow { flex:1 0 auto; margin-top:0; }
+main[data-screen="title"]>div:first-child { margin-bottom:0; }
 main[data-screen="title"]>footer { flex-shrink:0; }
 main[data-screen="title"]>div.pointer-events-none,
 main[data-screen="level_select"]>div.pointer-events-none { display:none; }

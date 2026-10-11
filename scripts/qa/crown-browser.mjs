@@ -49,11 +49,11 @@ try{
         const start=async()=>{
             const expected=await page.evaluate(()=>window.qaEnabled===true);
             const sent=expected?page.waitForRequest(request=>request.method()==='POST'&&new URL(request.url()).pathname==='/crown/first-attempt'):null;
-            await page.locator('[data-stage="1"]').click();await page.locator('.campaign-boss-card .campaign-primary').click();
+            await page.locator('[data-stage="1"]').click();await page.locator('.crown-encounter .campaign-primary').click();
             if(sent)await sent;
         };
-        hold=true;await start();await page.waitForFunction(()=>document.querySelector('.campaign-boss-card .campaign-primary')?.disabled);
-        await page.locator('.campaign-boss-card .campaign-primary').evaluate(button=>button.click());
+        hold=true;await start();await page.waitForFunction(()=>document.querySelector('.crown-encounter .campaign-primary')?.disabled);
+        await page.locator('.crown-encounter .campaign-primary').evaluate(button=>button.click());
         await page.waitForTimeout(50);assert.equal(requests,1);
         await page.locator('[data-stage="2"]').click();hold=false;release?.();
         await page.waitForTimeout(60);assert.equal(await page.locator('[data-crown-board]').count(),0);
@@ -61,7 +61,7 @@ try{
         results.push(`${viewport.width}: repeat click and stage switch discard stale reply; fresh retry enters`);
 
         hold=true;await start();await page.waitForTimeout(60);
-        await page.locator('.campaign-header button').click();hold=false;release?.();
+        await page.locator('.campaign-header button').first().click();hold=false;release?.();
         await page.waitForTimeout(60);assert.equal(await page.locator('[data-crown-board]').count(),0);
         await page.locator('[data-reopen]').click();results.push(`${viewport.width}: Back/unmount discards stale reply`);
 
@@ -78,7 +78,7 @@ try{
         // do not claim an actual watched advertisement or a durable DB grant.
         for(const stage of [1,2,3,1,4]){
             await page.locator(`[data-stage="${stage}"]`).click();
-            await page.locator('.campaign-boss-card .campaign-primary').click();
+            await page.locator('.crown-encounter .campaign-primary').click();
             await page.locator('[data-crown-board]').waitFor();
             await page.locator('[data-leave]').click();
         }
@@ -88,7 +88,7 @@ try{
 
         await page.evaluate(()=>{window.qaEnabled=false;window.qaMembershipHold=true;});const before=requests;
         await start();await page.waitForFunction(()=>!!window.qaReleaseMembership);
-        await page.locator('.campaign-header button').click();await page.evaluate(()=>{window.qaMembershipHold=false;window.qaReleaseMembership();});
+        await page.locator('.campaign-header button').first().click();await page.evaluate(()=>{window.qaMembershipHold=false;window.qaReleaseMembership();});
         await page.waitForTimeout(60);assert.equal(requests,before);assert.equal(await page.locator('[data-crown-board]').count(),0);
         await page.locator('[data-reopen]').click();await start();await page.locator('[data-crown-board]').waitFor();
         await page.locator('[data-leave]').click();results.push(`${viewport.width}: closed gate preserves legacy paid entry and cancels delayed membership lookup`);

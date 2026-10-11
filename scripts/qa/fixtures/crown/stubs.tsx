@@ -20,3 +20,7 @@ export default function Board({campaignLabel,onHome,onComplete,resultPanel}:{cam
 export const RewardPreview=()=>null;
 export const ChampionshipCollection=()=>null;
 export const RewardSigil=()=>null;
+export const BoardRewardArtwork=()=>null;
+export const PieceRewardArtwork=()=>null;
+export const EffectRewardArtwork=()=>null;
+export const MusicRewardArtwork=()=>null;

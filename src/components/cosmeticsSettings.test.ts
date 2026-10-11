@@ -6,6 +6,7 @@ import { CosmeticsSettings } from './CosmeticsSettings';
 import { ChampionshipCollection } from './ChampionshipCollection';
 import { RewardPreview } from './RewardPreview';
 import { CampaignMode } from './CampaignMode';
+import { crownCollectionItems, crownPage } from './crownCollection';
 
 const mocks = vi.hoisted(() => ({ update: vi.fn() }));
 vi.mock('../hooks/useCircuitAccess', () => ({ useCircuitAccess: () => ({ allowed: true, revision: 1 }) }));
@@ -57,8 +58,8 @@ it('Circuit collection offers no cosmetic mutation and explains the 40-own-move 
 it('offers unearned music previews without unlocking or selecting music', () => {
     const progress=emptyCampaign();
     const before=JSON.stringify(progress);
-    const html=renderToStaticMarkup(React.createElement(ChampionshipCollection,{lang:'ja',progress}));
-    expect(html).toContain('data-preview-reward="champion-music-007"');
+    const catalogue=crownCollectionItems(progress,'music');
+    expect(catalogue.some(item=>item.id==='champion-music-007')).toBe(true);
     const player=renderToStaticMarkup(React.createElement(RewardPreview,{lang:'ja',progress,reward:{kind:'music',id:'champion-music-007'},onClose:vi.fn()}));
     expect(player).toContain('Ivory and Wood');
     expect(player).toContain('未獲得');
@@ -69,8 +70,15 @@ it('offers unearned music previews without unlocking or selecting music', () => 
     expect(JSON.stringify(progress)).toBe(before);
 });
 
-it('exposes standard and all 15 distinct reward music previews in the Circuit',()=>{
-    const html=renderToStaticMarkup(React.createElement(CampaignMode,{lang:'ja',user:{id:'member',name:'Player',type:'registered'},onBack:vi.fn(),onLogin:vi.fn()}));
-    expect((html.match(/data-preview-music=/g)??[])).toHaveLength(16);
-    expect(html).toContain('data-preview-music="valkyrie"');
+it('keeps standard and all 15 distinct music rewards reachable through bounded category pages',()=>{
+    const progress=emptyCampaign();
+    const catalogue=crownCollectionItems(progress,'music');
+    expect(catalogue).toHaveLength(16);
+    const pages=Array.from({length:4},(_,page)=>crownPage(catalogue,page,4).items);
+    expect(pages.flat().map(item=>item.id)).toContain('valkyrie');
+    expect(new Set(pages.flat().map(item=>item.id)).size).toBe(16);
+    const html=renderToStaticMarkup(React.createElement(ChampionshipCollection,{lang:'ja',progress,initialCategory:'music'}));
+    expect((html.match(/data-preview-music=/g)??[])).toHaveLength(4);
+    expect(html).toContain('role="tablist"');
+    expect(html).not.toContain('data-equip-reward');
 });

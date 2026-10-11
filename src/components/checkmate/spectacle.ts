@@ -1,3 +1,4 @@
+import {renderCoronation, type CoronationGeometry} from './coronation';
 import {fragmentAt,type Fragment,type shotAt} from './timeline';
 import type {ResultStyle} from '../../config/victoryStyles';
 import { atmosphereParticles, renderAtmosphere,type WordBox,type AtmosphereParticle } from './atmosphere';
@@ -10,9 +11,9 @@ function glow(ctx:CanvasRenderingContext2D,x:number,y:number,rx:number,ry:number
     gradient.addColorStop(0,style.color+'4a');gradient.addColorStop(.4,style.color+'20');gradient.addColorStop(1,style.color+'00');
     ctx.fillStyle=gradient;ctx.fillRect(-rx,-rx,rx*2,rx*2);ctx.restore();
 }
-/** Perspective grid remains below the headline; no trophy, orb or other hero. */
+/** A quiet perspective chess stage anchors the ceremonial geometry. */
 export function renderBoard(ctx:CanvasRenderingContext2D,width:number,height:number,f:ReturnType<typeof shotAt>,style:ResultStyle){
-    const cx=width/2,backY=height*.64,depth=height*.25,half=Math.min(width*.46,470);
+    const cx=width/2,backY=height*.79,depth=height*.17,half=Math.min(width*.46,470);
     const point=(file:number,rank:number):[number,number]=>{const p=rank/8,spread=.46+p*.54;return[cx+(file/8-.5)*half*2*spread,backY+depth*p*p];};
     ctx.save();ctx.globalAlpha=f.reveal;
     const backLeft=point(0,0),backRight=point(8,0),frontRight=point(8,8),frontLeft=point(0,8);
@@ -36,16 +37,18 @@ export function renderBoard(ctx:CanvasRenderingContext2D,width:number,height:num
     }
     ctx.restore();
 }
-export function renderSpectacle(ctx:CanvasRenderingContext2D,points:Fragment[],f:ReturnType<typeof shotAt>,width:number,height:number,reduced:boolean,words:WordBox[],style:ResultStyle,ornaments:AtmosphereParticle[]=atmosphereParticles(1,width<600),trails:BurstTrail[]=[],intensity:VictoryIntensity=victoryIntensity({requiredWins:1},width<600)){
+export function renderSpectacle(ctx:CanvasRenderingContext2D,points:Fragment[],f:ReturnType<typeof shotAt>,width:number,height:number,reduced:boolean,words:WordBox[],style:ResultStyle,ornaments:AtmosphereParticle[]=atmosphereParticles(1,width<600),trails:BurstTrail[]=[],intensity:VictoryIntensity=victoryIntensity({requiredWins:1},width<600),coronation?:CoronationGeometry){
     ctx.clearRect(0,0,width,height);
     const centerY=height*.45,cx=width/2;
     const backdrop=ctx.createRadialGradient(cx,centerY,0,cx,centerY,Math.max(width,height)*.75);
-    backdrop.addColorStop(0,style.ambient);backdrop.addColorStop(.46,'#0b1015');backdrop.addColorStop(1,'#030608');
+    backdrop.addColorStop(0,'#18382d');backdrop.addColorStop(.46,'#0b1c17');backdrop.addColorStop(1,'#030907');
     ctx.fillStyle=backdrop;ctx.fillRect(0,0,width,height);
-    renderBurstTrails(ctx,width,height,f.t,style,words,trails,intensity,reduced);
-    renderAtmosphere(ctx,width,height,f,style,reduced,words,ornaments);
+    const origin=[{x:width*.43,y:height*.25,width:width*.14,height:height*.13}];
+    renderBurstTrails(ctx,width,height,f.t,style,origin,trails,intensity,reduced);
+    renderAtmosphere(ctx,width,height,f,style,reduced,origin,ornaments);
     glow(ctx,cx,centerY,width*.47,height*.32,f.reveal*.65,style);
     renderBoard(ctx,width,height,f,style);
+    if(coronation)renderCoronation(ctx,coronation,width,height,f.t,reduced);
     // All transient light is attached to the word's landing, not a separate hero.
     for(const word of words){
         const baseline=word.y+word.height;

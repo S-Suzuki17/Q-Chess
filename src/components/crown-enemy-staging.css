@@ -1,0 +1,52 @@
+/* A castle-floor plinth around the adopted piece. Its renderer stays untouched. */
+.crown-encounter .crown-enemy-silhouette {
+    position:relative;
+    flex-shrink:0;
+    isolation:isolate;
+}
+.crown-encounter .crown-adopted-piece {
+    position:relative;
+    z-index:1;
+}
+.crown-encounter .crown-adopted-piece::after {
+    content:'';
+    position:absolute;
+    left:-7%;
+    right:-7%;
+    bottom:-8px;
+    height:8px;
+    border-top:2px solid #aab7b5;
+    border-bottom:3px solid #20343c;
+    background:#4a6268;
+    box-shadow:0 4px 0 -1px #11222b;
+    pointer-events:none;
+}
+.crown-screen[data-circuit-stage='100'] .crown-adopted-piece::after {
+    border-top-color:#eed299;
+    background:#9b7949;
+    border-bottom-color:#5c4831;
+}
+/* Narrow phones keep the label in flow instead of laying it over the piece. */
+@media (max-width:380px) {
+    .crown-encounter .crown-opponent {
+        width:100%;
+        min-width:0;
+        gap:5px;
+    }
+    .crown-encounter .crown-enemy-silhouette {
+        width:90px;
+        height:90px;
+    }
+    .crown-encounter .crown-opponent>div {
+        position:static;
+        width:auto;
+        padding-top:0;
+        display:flex;
+        flex-wrap:wrap;
+        gap:2px 6px;
+        text-shadow:inherit;
+    }
+    .crown-encounter .crown-opponent>div>strong {
+        flex-basis:100%;
+    }
+}
