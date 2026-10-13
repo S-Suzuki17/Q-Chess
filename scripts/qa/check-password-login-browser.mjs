@@ -263,6 +263,7 @@ try{
    // error body. Successful login and consent requests must not be self-aborted.
    const requiredFailures=failedRequests.filter(request=>request.path!=='/auth/ranked-session/revoke'
     && !(scenario.exitTerms&&request.path==='/account/current-terms'&&request.method==='GET')
+    && !(scenario.retry&&scenario.authStatus===503&&request.path==='/auth/ranked-session'&&request.responseStatus===503)
     && !(request.path==='/account/current-terms'&&request.responseStatus===503&&(scenario.termsStatus||scenario.consentStatus)));
    if(!scenario.leavePending)assert.deepEqual(requiredFailures,[],scenario.name+': no successful login or consent request should be self-aborted');
    results.push({name:scenario.name,passed:true,elapsedMs:Date.now()-started,termsReads,consentPosts,progressReads,calls,failedRequests});
