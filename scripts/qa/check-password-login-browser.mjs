@@ -152,7 +152,7 @@ try{
    if(scenario.register)await page.getByLabel('メールアドレス',{exact:true}).fill('fixture@example.test');
    if(scenario.persistent)await page.locator('#keepLoggedIn').check();
   };
-  const submit=()=>page.locator('form button[type="submit"]').click();
+  const submit=()=>page.locator('.title-auth-submit').click();
   await open();
   if(scenario.guest){
    await page.getByRole('button',{name:'ゲストとしてプレイ',exact:true}).click();
@@ -180,7 +180,7 @@ try{
    await page.waitForTimeout(200);
    assert.equal(await page.locator(`[data-entry-mode="${scenario.register?'register':'login'}"]`).count(),1,'Pending request must keep its original form');
    assert.equal(await page.getByLabel('アカウント名',{exact:true}).inputValue(),userId);
-   assert.equal(await page.locator('form button[type="submit"]').isDisabled(),true);
+   assert.equal(await page.locator('.title-auth-submit').isDisabled(),true);
   }
   if(!reproduce){
    if(scenario.leavePending){

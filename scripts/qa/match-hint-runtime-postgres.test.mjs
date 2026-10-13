@@ -15,7 +15,7 @@ import net from 'node:net';
 import { io } from 'socket.io-client';
 import { connect, connection, scalar, account, bind, member, snapshot, paidPeriod, wallet, claim } from './commerce-postgres-support.mjs';
 import { setupBaseline } from './fixtures/commerce-postgres-baseline.mjs';
-import { applyHintPolicyRelease, combinedHistoricalMigrations, combinedPendingMigrations, hintPolicyMigrations } from './fixtures/session-postgres-baseline.mjs';
+import { applyHintPolicyRelease, applyRelease22Forward, combinedHistoricalMigrations, combinedPendingMigrations, hintPolicyMigrations, emailRegistrationMigrations, release22Migrations } from './fixtures/session-postgres-baseline.mjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const reportPath = join(tmpdir(), 'match-hint-runtime-postgres-results.json');
@@ -118,6 +118,8 @@ test('real hint policy entrypaths: index/auth/socket/Worker/PostgREST/native SQL
         admin=await open();await setupBaseline(admin);await applyHintPolicyRelease(admin);
         assert.equal(combinedPendingMigrations.length,13);assert.equal(hintPolicyMigrations.length,1);
         assert.equal(await scalar(admin,'select version as result from public.current_terms_policy where singleton'),'2026-10-08.1');
+        await applyRelease22Forward(admin);
+        assert.equal(await scalar(admin,'select version as result from public.current_terms_policy where singleton'),'2026-10-13.1');
         await admin.query(`alter table public.system_status
             add column if not exists maintenance_mode boolean not null default false,add column if not exists announcement_en text not null default '',
             add column if not exists announcement_ja text not null default '',add column if not exists announcements jsonb not null default '{}',
@@ -160,11 +162,11 @@ test('real hint policy entrypaths: index/auth/socket/Worker/PostgREST/native SQL
         await startServer(flags);
         const a=await socketFor(await paid()),b=await socketFor(await paid());
         await admin.query('update public.ticket_wallets set hint_tickets=5 where user_id=any($1::text[])',[[a.user,b.user]]);
-        await check('Terms 8.1 is read and accepted through the actual authenticated HTTP route',async()=>{
+        await check('Terms 13.1 is read and accepted through the actual authenticated HTTP route',async()=>{
             const user=await createAccount({oldTermsOnly:true}),token=await login(user);
-            assert.equal((await request('/account/current-terms',token)).body.currentVersion,'2026-10-08.1');
-            const accepted=await request('/account/current-terms',token,{version:'2026-10-08.1',accepted:true});
-            assert.equal(accepted.status,200);assert.equal(accepted.body.consent.version,'2026-10-08.1');
+            assert.equal((await request('/account/current-terms',token)).body.currentVersion,'2026-10-13.1');
+            const accepted=await request('/account/current-terms',token,{version:'2026-10-13.1',accepted:true});
+            assert.equal(accepted.status,200);assert.equal(accepted.body.consent.version,'2026-10-13.1');
         });
         let savedReceipt,savedRequest,savedUser;
         await check('private hint commits once; a lost HTTP result is recovered while clock and mutation fence remain authoritative',async()=>{
@@ -254,13 +256,14 @@ test('real hint policy entrypaths: index/auth/socket/Worker/PostgREST/native SQL
                 'HintTicketStore','OnlineHintBoard','OnlineHintSearchWorker','CpuPracticeSearch','CpuPracticeSearchWorker','CpuPracticeRoutes','CpuPracticeService','AccountCurrentTerms','SupabaseService'].map(n=>'server/src/services/'+n+'.ts'),
             'scripts/qa/match-hint-runtime-postgres.test.mjs','scripts/qa/shared-match-runtime-child.cjs',
             'scripts/qa/fixtures/session-postgres-baseline.mjs',...combinedHistoricalMigrations.map(n=>'supabase/migrations/'+n),
-            ...[...combinedPendingMigrations,...hintPolicyMigrations].map(n=>'supabase/migrations/'+n)];
+            ...[...combinedPendingMigrations,...hintPolicyMigrations,...emailRegistrationMigrations,...release22Migrations].map(n=>'supabase/migrations/'+n)];
         const inputs=await Promise.all(files.flatMap(path=>path.startsWith('server/src/')?[path,path.replace('server/src/','server/dist/').replace(/\.ts$/,'.js')]:[path])
             .map(async path=>({path,sha256:createHash('sha256').update(await readFile(join(root,path))).digest('hex')})));
         await writeFile(reportPath,JSON.stringify({complete:completed,checks,elapsedMs:Date.now()-startedAt,...(failure?{failure}:{}),inputs,
             realEntrypoint:'server/dist/index.js',realHttpLogin:true,realSocketIo:true,actualCompiledWorker:true,realPostgrest:true,realPostgres:true,
             productGateOverrides:false,database:'fresh loopback commerce_upgrade',syntheticAccountsAndProviderEvidence:true,
-            fixtureHistoricalMigrations:combinedHistoricalMigrations,rawHistoricalRelease13:combinedPendingMigrations,rawForwardPolicyMigrations:hintPolicyMigrations,
+            fixtureHistoricalMigrations:combinedHistoricalMigrations,rawHistoricalRelease13:combinedPendingMigrations,
+            rawForwardPolicyMigrations:[...hintPolicyMigrations,...emailRegistrationMigrations,...release22Migrations],
             rpcCounts:Object.fromEntries([...new Set(trace.map(r=>r.name))].map(n=>[n,trace.filter(r=>r.name===n).length])),
             limitations:['Public dependency fixture + raw13 + forward1 is not all46 hosted schemas/ACL/Auth/Storage replay.',
                 'Billing provider traffic is forbidden; signature/device/browser behavior is outside this runtime proof.',

@@ -42,7 +42,7 @@ let browser;const results=[];
 const proof={userId:'Alice',token:'ranked_'+'a'.repeat(43),expiresAt:Date.now()+60000};
 const oauth={user:{id:'oauth-fixture',is_anonymous:false,user_metadata:{name:'OAuth fixture'}},access_token:'oauth-fixture-token',expires_at:Math.floor(Date.now()/1000)+3600};
 try{
-    browser=await chromium.launch({headless:true});
+    browser=await chromium.launch({headless:true,executablePath:process.env.QG_TEST_CHROMIUM});
     const setup=async({persistent=true,candidate=true,match=false,oauthIntent=false,session=null,initializationError=false,consumeCallback=true}={})=>{
         const context=await browser.newContext({viewport:{width:390,height:844}});let mode='valid',releases=[];let calls=0;
         const errors=[];

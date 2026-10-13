@@ -66,4 +66,18 @@ describe('maintenance final engine admission',()=>{
         vi.setSystemTime(Date.parse('2026-10-13T05:00:00Z'));await f.operations.read();await f.coordinator.begin(f.match);
         expect(f.match.state).toBe('CANCELLED');expect(f.match.engine).toBeUndefined();expect(f.store.void).toHaveBeenCalledOnce();
     });
+    it.each(['ranked','shared'] as const)('refreshes expired operator status after %s database admission before activation',async kind=>{
+        vi.setSystemTime(Date.parse('2026-10-13T05:01:00Z'));
+        const f=await fixture(kind),db=deferred<AdmissionOutcome>();
+        vi.mocked(f.store.admit).mockReturnValue(db.promise);
+        const finalCheck=vi.fn(async()=>await f.operations.admission()===null);
+        const coordinator=new RankedAdmissionCoordinator(f.mm,f.store,f.started,f.notify,
+            {wall:Date.now,mono:Date.now},undefined,finalCheck);
+        f.mm.connectMatch('Alice',f.match.matchId);f.mm.connectMatch('Bob',f.match.matchId);
+        const pending=coordinator.begin(f.match);await flush();
+        vi.setSystemTime(Date.now()+5001);expect(f.operations.newMatchError()).toBe('SERVICE_UNAVAILABLE');
+        db.resolve({state:'active'});await pending;
+        expect(finalCheck).toHaveBeenCalledOnce();expect(f.match.state).toBe('IN_GAME');
+        expect(f.match.engine).toBeDefined();expect(f.started).toHaveBeenCalledOnce();expect(f.store.void).not.toHaveBeenCalled();
+    });
 });

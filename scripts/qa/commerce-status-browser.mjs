@@ -40,7 +40,7 @@ let browser;
 try {
     await new Promise((resolve, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', resolve); });
     const origin = `http://127.0.0.1:${server.address().port}`;
-    browser = await chromium.launch({ headless: true });
+    browser = await chromium.launch({ headless: true, executablePath:process.env.QG_TEST_CHROMIUM });
     if (artifactDir) await mkdir(resolve(artifactDir), { recursive: true });
     for (const width of [390, 1280]) for (const lang of ['en', 'ja']) for (const platform of ['web', 'android']) {
         const context = await browser.newContext({ viewport: { width, height: 844 }, serviceWorkers: 'block' });

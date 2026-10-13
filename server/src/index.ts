@@ -281,6 +281,12 @@ const admission=(rankedAdmissionRecoveryEnabled()||sharedMatchAdmissionRecoveryE
             if(proof)legacySockets.capture(socket,token,proof);
             if(!legacySockets.canAdmit(socket))return false;
         }
+        // Admission/identity I/O can outlast the five-second operator cache.
+        // Refresh it after those awaits; activateMatch still checks the exact
+        // schedule boundary synchronously before constructing the engine.
+        await operations.read();
+        const unavailable=operations.newMatchError();
+        if(unavailable){if(match.admission)match.admission.reason=unavailable;return false;}
         return true;
     }) : undefined;
 const knownSocketProofs=new Map<string,{hash:string;socketId:string}>();

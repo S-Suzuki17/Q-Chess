@@ -104,12 +104,17 @@ export class RankedAdmissionCoordinator {
                 if(changed)this.notify({...result,matchId:match.matchId});
                 return;
             }
-            if (result.state === 'active' && match.admissionProtocol==='shared_v1') {
-                this.choiceRecheckAt.delete(match.matchId);match.awaitingChoices=undefined;
+            if (result.state === 'active') {
+                const shared=match.admissionProtocol==='shared_v1';
+                if(shared){this.choiceRecheckAt.delete(match.matchId);match.awaitingChoices=undefined;}
                 let eligible = false;
-                try { eligible = this.beforeActivate ? await this.beforeActivate(match) : true; } catch { /* fail closed */ }
-                if (!eligible || match.state !== 'ADMITTING' || !match.connected.host || !match.connected.joiner
-                    || this.clock.wall() >= match.createdAt + 15000 || !this.alive()) {
+                // Legacy admission may commit while a player is reconnecting.
+                // Preserve that result; run final asynchronous checks once both
+                // players are connected, while shared admission stays bounded.
+                if(!shared&&(!match.connected.host||!match.connected.joiner))eligible=true;
+                else try { eligible = this.beforeActivate ? await this.beforeActivate(match) : true; } catch { /* fail closed */ }
+                if (!eligible || (shared && (match.state !== 'ADMITTING' || !match.connected.host || !match.connected.joiner
+                    || this.clock.wall() >= match.createdAt + 15000 || !this.alive()))) {
                     await this.voidMatch(match,match.admission?.reason??'prestart_unavailable'); return;
                 }
             }

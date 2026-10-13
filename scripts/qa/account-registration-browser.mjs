@@ -35,12 +35,12 @@ try{
   page.on('pageerror',e=>errors.push(e.message));await context.route('**/*',route=>new URL(route.request().url()).origin===base?route.continue():route.abort());
   const open=async(mode)=>{await page.goto(base);await page.locator(`[data-entry-mode="select"]`).waitFor();await page.getByRole('button',{name:mode==='register'?'アカウント作成':'ログイン',exact:true}).click();};
   const fill=async(name,password,email)=>{await page.getByLabel('アカウント名',{exact:true}).fill(name);await page.locator('input[name="password"]').fill(password);if(email!==undefined)await page.getByLabel('メールアドレス',{exact:true}).fill(email);};
-  const submit=()=>page.locator('form button[type="submit"]').click();
+  const submit=()=>page.locator('.title-auth-submit').click();
   if(formTextOnly){
    for(const factor of [2,4]){
     await open('register');
     const scaleNewText=()=>page.evaluate(factor=>{
-     for(const el of document.querySelectorAll('form input,form label,form button,form p,form span')){
+     for(const el of document.querySelectorAll('.title-auth-dialog input,.title-auth-dialog label,.title-auth-dialog button,.title-auth-dialog p,.title-auth-dialog span')){
       if(el.dataset.qaFontBase)continue;
       const style=getComputedStyle(el),base=parseFloat(style.fontSize);el.dataset.qaFontBase=String(base);
       el.style.setProperty('font-size',`${base*factor}px`,'important');
@@ -52,14 +52,14 @@ try{
      const control=page.locator(selector);await control.scrollIntoViewIfNeeded();
      const bounds=await control.boundingBox();assert(bounds&&bounds.x>=-1&&bounds.x+bounds.width<=viewport.width+1&&bounds.y<viewport.height&&bounds.y+bounds.height>0,`${selector} remains reachable at ${factor}x`);
     };
-    for(const selector of ['input[name="email"]','input[name="username"]','input[name="password"]','#keepLoggedIn','form button[type="submit"]','form>button:last-child'])await reach(selector);
+    for(const selector of ['input[name="email"]','input[name="username"]','input[name="password"]','#keepLoggedIn','.title-auth-submit','.title-auth-dialog footer button[type="button"]'])await reach(selector);
     const name=`TextScale${factor}`;
     await fill(name,'short','scale@example.test');await submit();await page.getByRole('alert').waitFor();await scaleNewText();await reach('[role="alert"]');
-    const layout=await page.evaluate(()=>({viewport:innerWidth,scrollWidth:document.documentElement.scrollWidth,formWidth:document.querySelector('form').getBoundingClientRect().width,fonts:[...document.querySelectorAll('form input,form label,form button')].map(el=>({base:Number(el.dataset.qaFontBase),actual:parseFloat(getComputedStyle(el).fontSize)}))}));
+    const layout=await page.evaluate(()=>({viewport:innerWidth,scrollWidth:document.documentElement.scrollWidth,formWidth:document.querySelector('form').getBoundingClientRect().width,fonts:[...document.querySelectorAll('.title-auth-dialog input,.title-auth-dialog label,.title-auth-dialog button')].map(el=>({base:Number(el.dataset.qaFontBase),actual:parseFloat(getComputedStyle(el).fontSize)}))}));
     assert(layout.scrollWidth<=layout.viewport+1,'no horizontal page overflow');
     for(const font of layout.fonts)assert(Math.abs(font.actual-font.base*factor)<.1);
     await page.screenshot({path:resolve(output,`form-text-${factor}x.png`),fullPage:true});
-    const cancel=page.locator('form>button:last-child');await cancel.click();await page.locator('[data-entry-mode="select"]').waitFor();
+    const cancel=page.locator('.title-auth-dialog footer button[type="button"]');await cancel.click();await page.locator('[data-entry-mode="select"]').waitFor();
     await open('register');await scaleNewText();await fill(name,'correct-horse-17','scale@example.test');await submit();await page.locator('[data-authenticated]').waitFor();assert.equal(await page.locator('[data-authenticated]').innerText(),name);
     results.push({viewport,factor,method:'Only registration form elements: computed font-size and numeric line-height multiplied; excludes hero, native zoom and physical keyboard',layout,inputsSubmitAlertCancelReachable:true,validRegistration:true});
    }

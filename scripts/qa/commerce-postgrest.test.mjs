@@ -14,7 +14,9 @@ import net from 'node:net';
 import { createClient } from '@supabase/supabase-js';
 import { connect, connection, account, scalar, HASH } from './commerce-postgres-support.mjs';
 import { setupBaseline, applyPending, pending } from './fixtures/commerce-postgres-baseline.mjs';
-import { applySessionFile, hintPolicyMigrations } from './fixtures/session-postgres-baseline.mjs';
+import { applySessionFile, hintPolicyMigrations, emailRegistrationMigrations, release22Migrations, applyRelease22Forward } from './fixtures/session-postgres-baseline.mjs';
+
+const forwardMigrations = [...hintPolicyMigrations, ...emailRegistrationMigrations, ...release22Migrations];
 
 test('current commerce adapter through native PostgREST and the hint-policy upgrade', { timeout: 180_000 }, async t => {
     const executable = process.env.QG_TEST_POSTGREST_BIN;
@@ -51,7 +53,7 @@ test('current commerce adapter through native PostgREST and the hint-policy upgr
         }
         await admin.end();
         for(const [name,value] of savedFlags) { if(value === undefined)delete process.env[name]; else process.env[name]=value; }
-        for(const file of [...[...pending,...hintPolicyMigrations].map(name=>'supabase/migrations/'+name),
+        for(const file of [...[...pending,...forwardMigrations].map(name=>'supabase/migrations/'+name),
             'scripts/qa/commerce-postgrest.test.mjs','scripts/qa/commerce-postgres-support.mjs',
             'scripts/qa/fixtures/commerce-postgres-baseline.mjs','scripts/qa/fixtures/session-postgres-baseline.mjs',
             'scripts/qa/fixtures/hosted-release-overlay.sql',
@@ -68,7 +70,7 @@ test('current commerce adapter through native PostgREST and the hint-policy upgr
             postgrestVersion:version.stdout.trim(), sourceSha256, nativePostgreSQL:true,
             actualCompiledAdapter:true, loopbackOnly:true, hostedProductionEquivalent:false,
             realStripeVerified:false, productionData:false,
-            historicalReleaseMigrations:pending,forwardPolicyMigrations:hintPolicyMigrations,
+            historicalReleaseMigrations:pending,forwardPolicyMigrations:forwardMigrations,
             observedHostedCatalogOverlay:{before:overlayBefore,after:overlayAfter,afterScope:'PR19 raw thirteen-file upgrade, before new policy'},
         },null,2)+'\n');
     });
@@ -109,6 +111,7 @@ test('current commerce adapter through native PostgREST and the hint-policy upgr
         // Current compiled adapters require the new terms. The fixed PR19
         // overlay is asserted first; already-released SQL remains unchanged.
         for(const name of hintPolicyMigrations)await applySessionFile(admin,name);
+        await applyRelease22Forward(admin);
         await admin.query("notify pgrst, 'reload schema'");
         const deadline=Date.now()+10_000; let ready=false;
         while(Date.now()<deadline) {
@@ -175,19 +178,19 @@ test('current commerce adapter through native PostgREST and the hint-policy upgr
     });
     await check('compiled current-terms adapter requires explicit acceptance of the new published version',async()=>{
         const oldUser=await account(admin,{oldTermsOnly:true});
-        await admin.query("insert into public.account_terms_consents(user_id,version) values($1,'2026-10-03.1'),($1,'2026-10-07.1')",[oldUser]);
+        await admin.query("insert into public.account_terms_consents(user_id,version) values($1,'2026-10-03.1'),($1,'2026-10-07.1'),($1,'2026-10-08.1')",[oldUser]);
         const before=await currentTerms.readCurrentTerms(api,oldUser);
-        assert.equal(before.currentVersion,'2026-10-08.1');
-        assert.equal(before.effectiveDate,'2026-10-08');
+        assert.equal(before.currentVersion,'2026-10-13.1');
+        assert.equal(before.effectiveDate,'2026-10-13');
         assert.equal(before.consent,null);
         assert.equal(await store.hasCurrentTerms(oldUser),false);
         const stale=await api.rpc('accept_current_account_terms',{p_user_id:oldUser,p_version:'2026-10-07.1'});
         assert.ok(stale.error,'Old-version acceptance must be rejected');
         assert.equal(await store.hasCurrentTerms(oldUser),false);
-        await rpc('accept_current_account_terms',{p_user_id:oldUser,p_version:'2026-10-08.1'});
-        assert.equal((await currentTerms.readCurrentTerms(api,oldUser)).consent.version,'2026-10-08.1');
+        await rpc('accept_current_account_terms',{p_user_id:oldUser,p_version:'2026-10-13.1'});
+        assert.equal((await currentTerms.readCurrentTerms(api,oldUser)).consent.version,'2026-10-13.1');
         assert.equal(await store.hasCurrentTerms(oldUser),true);
-        assert.equal(await scalar(admin,"select count(*)::integer as result from public.account_terms_consents where user_id=$1 and version in ('2026-10-03.1','2026-10-07.1')",[oldUser]),2);
+        assert.equal(await scalar(admin,"select count(*)::integer as result from public.account_terms_consents where user_id=$1 and version in ('2026-10-03.1','2026-10-07.1','2026-10-08.1')",[oldUser]),3);
     });
     await check('compiled store registers consent and fulfills a known 13-hint source exactly once',async()=>{
         user=await account(admin);

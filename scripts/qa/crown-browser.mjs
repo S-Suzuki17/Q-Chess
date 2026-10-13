@@ -49,11 +49,11 @@ try{
         const start=async()=>{
             const expected=await page.evaluate(()=>window.qaEnabled===true);
             const sent=expected?page.waitForRequest(request=>request.method()==='POST'&&new URL(request.url()).pathname==='/crown/first-attempt'):null;
-            await page.locator('[data-stage="1"]').click();await page.locator('.crown-encounter .campaign-primary').click();
+            await page.locator('[data-stage="1"]').click();await page.locator('.map-launch .campaign-primary').click();
             if(sent)await sent;
         };
-        hold=true;await start();await page.waitForFunction(()=>document.querySelector('.crown-encounter .campaign-primary')?.disabled);
-        await page.locator('.crown-encounter .campaign-primary').evaluate(button=>button.click());
+        hold=true;await start();await page.waitForFunction(()=>document.querySelector('.map-launch .campaign-primary')?.disabled);
+        await page.locator('.map-launch .campaign-primary').evaluate(button=>button.click());
         await page.waitForTimeout(50);assert.equal(requests,1);
         await page.locator('[data-stage="2"]').click();hold=false;release?.();
         await page.waitForTimeout(60);assert.equal(await page.locator('[data-crown-board]').count(),0);
@@ -70,7 +70,9 @@ try{
         results.push(`${viewport.width}: browser navigation cancels pending activation`);
 
         hold=true;await start();await page.waitForTimeout(60);await page.evaluate(()=>window.qaRevoke());
-        hold=false;release?.();await page.locator('[data-testid="circuit-login-gate"]').waitFor();
+        hold=false;release?.();await page.locator('[data-testid="circuit-guest-preview"]').waitFor();
+        assert.equal(await page.locator('[data-crown-board]').count(),0);
+        await page.locator('.map-launch button').click();await page.locator('[data-testid="circuit-login-gate"]').waitFor();
         await page.evaluate(()=>window.qaRelogin());await page.locator('.campaign-screen').waitFor();
         assert.equal(await page.locator('[data-crown-board]').count(),0);results.push(`${viewport.width}: revoked authentication and same-account login cannot reuse stale UI continuation`);
 
@@ -78,7 +80,7 @@ try{
         // do not claim an actual watched advertisement or a durable DB grant.
         for(const stage of [1,2,3,1,4]){
             await page.locator(`[data-stage="${stage}"]`).click();
-            await page.locator('.crown-encounter .campaign-primary').click();
+            await page.locator('.map-launch .campaign-primary').click();
             await page.locator('[data-crown-board]').waitFor();
             await page.locator('[data-leave]').click();
         }
