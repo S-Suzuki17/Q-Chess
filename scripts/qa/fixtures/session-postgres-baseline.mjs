@@ -58,8 +58,10 @@ export const emailRegistrationMigrations = ['20261008093454_email_account_regist
 export const release22Migrations = [
     '20261013040752_play_commerce_ledger.sql',
     '20261013071700_conventional_registration_repair.sql',
+    '20261013075800_preserve_legacy_ad_reward_intents.sql',
     '20261013075925_admob_verified_ticket_rewards.sql',
     '20261013115237_play_commerce_terms_release.sql',
+    '20261013135400_play_pending_refund_state.sql',
 ];
 export const reviewedMigrationInventory = [...combinedPendingMigrations, ...hintPolicyMigrations, ...emailRegistrationMigrations, ...release22Migrations].sort();
 export const combinedHistoricalMigrations = [...historicalSessionMigrations,

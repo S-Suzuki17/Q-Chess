@@ -105,9 +105,9 @@ const REGISTRATION_REPAIR = '20261013071700_conventional_registration_repair.sql
 // PLAY_PARALLEL is explicitly accounted for in inventory but NOT applied or tested
 // by this Ad-only suite. At drafting time it is an unrelated parallel WIP file.
 const preceding = [...combinedPendingMigrations, ...hintPolicyMigrations,
-    ...emailRegistrationMigrations, REGISTRATION_REPAIR].sort();
+    ...emailRegistrationMigrations, REGISTRATION_REPAIR,'20261013075800_preserve_legacy_ad_reward_intents.sql'].sort();
 const TERMS_RELEASE = '20261013115237_play_commerce_terms_release.sql';
-const reviewedInventory = [...preceding, PLAY_PARALLEL, MIGRATION, TERMS_RELEASE].sort();
+const reviewedInventory = [...preceding, PLAY_PARALLEL, MIGRATION, TERMS_RELEASE,'20261013135400_play_pending_refund_state.sql'].sort();
 const migrationText = name => readFile(sourceURL('supabase/migrations/' + name), 'utf8');
 const hashTransaction = transaction => createHash('sha256').update('admob:' + transaction).digest('hex');
 const errorCode = (promise, code) => assert.rejects(promise, { code });

@@ -70,9 +70,11 @@ export function createPlayCommerceService(store:PlayCommerceStore,verifier:PlayC
    const token=playToken(rawToken),hash=playCommerceReceiptHash(token);
    const stored=await store.tokenByHash(hash),product=sku??stored?.sku;
    if(!product)throw new PlayCommerceError('BUSY');
-   await receipt(product,token);
+   // A voided notification names an order, not a new entitlement. Its existing
+   // immutable binding is enough to fetch Orders even after Purchases expires.
+   if(!orderId||!stored)await receipt(product,token);
    if(orderId){
-    const bound=await store.tokenByHash(hash);if(!bound)throw new PlayCommerceError('RETIRED');
+    const bound=stored??await store.tokenByHash(hash);if(!bound)throw new PlayCommerceError('RETIRED');
     const lease=await store.acquire(hash);if(!lease)throw new PlayCommerceError('BUSY');
     try{const order=await verifier.historical(bound.sku,token,playOrderId(orderId),bound.test);await store.applyHistorical(hash,lease,order);}
     finally{await store.release(hash,lease).catch(()=>{});}

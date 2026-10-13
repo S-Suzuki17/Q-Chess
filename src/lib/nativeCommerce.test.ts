@@ -30,6 +30,17 @@ describe('native commerce bridge trusts only server and Google boundaries',()=>{
   let allowed=true;mock.api.mockImplementationOnce(async()=>{allowed=false;return intent;});await expect(buyNativeCommerce('alice',price,()=>allowed)).rejects.toThrow();expect(mock.purchase).not.toHaveBeenCalled();
   allowed=true;mock.restore.mockImplementationOnce(async()=>{allowed=false;return{purchases:[{sku:'hints_13',state:'purchased',purchaseToken:'private-fixture-token'}]};});await expect(restoreNativeCommerce('alice',()=>allowed)).rejects.toThrow('AUTH_REQUIRED');expect(mock.dispatch).not.toHaveBeenCalled();
  });
+ it('an unavailable subscription product releases its intent so the corrected catalog can be retried',async()=>{
+  const subscription={...price,sku:'plus_monthly' as const,period:'P1M' as const};let busy=false;
+  mock.api.mockImplementation(async(_user,path)=>{
+   if(path==='/commerce/play/intent/cancel'){busy=false;return {};}
+   if(busy)throw new Error('BUSY');busy=true;return {...intent,sku:subscription.sku};
+  });
+  mock.purchase.mockRejectedValueOnce(new Error('PRODUCT_UNAVAILABLE')).mockResolvedValueOnce({status:'received',purchases:[]});
+  await expect(buyNativeCommerce('alice',subscription,()=>true)).rejects.toThrow('PRODUCT_UNAVAILABLE');
+  expect(busy).toBe(false);expect(await buyNativeCommerce('alice',subscription,()=>true)).toBe('done');
+  expect(mock.purchase).toHaveBeenCalledTimes(2);
+ });
  it('pending has no token submission; committed receipt refreshes state without minting locally',async()=>{
   mock.restore.mockResolvedValueOnce({purchases:[{sku:'hints_13',state:'pending'}]});expect(await restoreNativeCommerce('alice',()=>true)).toBe('pending');expect(mock.api).not.toHaveBeenCalled();
   mock.restore.mockResolvedValueOnce({purchases:[{sku:'hints_13',state:'purchased',purchaseToken:'private-fixture-token'}]});mock.api.mockResolvedValueOnce({userId:'alice',reconciliationPending:false,deliveryPending:true});expect(await restoreNativeCommerce('alice',()=>true)).toBe('pending');expect(mock.resetAds).toHaveBeenCalled();expect(mock.api).toHaveBeenCalledWith('alice','/commerce/play/receipt',{sku:'hints_13',purchaseToken:'private-fixture-token'});

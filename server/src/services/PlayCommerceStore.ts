@@ -64,7 +64,10 @@ export function createPlayCommerceStore(client:SupabaseClient,verifyUser:PlayCom
   async deletionTokens(user){
    const {data:account,error}=await client.from('play_commerce_accounts').select('generation').eq('user_id',user).maybeSingle();
    if(error){if(['42P01','PGRST205'].includes(error.code))return [];return unavailable();}if(!account)return [];
-   const rows=await client.from('play_commerce_tokens').select('token_hash,sku,test,ciphertext,history_cursor').eq('generation',account.generation).eq('retired',false).in('sku',['standard_monthly','plus_monthly']);
+   // Persisted terminal states cannot renew, and Google may no longer resolve
+   // their tokens. CANCELED is intentionally reverified until it has expired.
+   const rows=await client.from('play_commerce_tokens').select('token_hash,sku,test,ciphertext,history_cursor').eq('generation',account.generation).eq('retired',false).in('sku',['standard_monthly','plus_monthly'])
+    .not('state','in','(SUBSCRIPTION_STATE_EXPIRED,SUBSCRIPTION_STATE_PENDING_PURCHASE_CANCELED)');
    if(rows.error||!Array.isArray(rows.data))return unavailable();return rows.data.map(r=>token({tokenHash:r.token_hash,sku:r.sku,test:r.test,ciphertext:r.ciphertext,historyCursor:r.history_cursor}));
   },
   async historicalOrders(hash){const {data,error}=await client.from('play_commerce_orders').select('order_id').eq('token_hash',hash).order('checked_at').limit(4);if(error||!Array.isArray(data))return unavailable();return data.map(r=>r.order_id);},

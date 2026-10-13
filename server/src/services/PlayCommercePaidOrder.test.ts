@@ -45,13 +45,19 @@ describe('[delta] canonical paid order proof',()=>{
         const value=order();value.lineItems[0].subscriptionDetails.offerPhaseDetails=phase;expect(()=>parsePlayCommercePaidOrder('plus_monthly',value,context())).toThrow();
     });
     it('rejects an old enum that contradicts the current base phase',()=>{const value=order();value.lineItems[0].subscriptionDetails.offerPhase='FREE_TRIAL';expect(()=>parsePlayCommercePaidOrder('plus_monthly',value,context())).toThrow();});
-    it('blocks full or pending/processed partial refund history even if state is PROCESSED',()=>{
+    it('holds pending refunds separately from completed revocations even when order state is PROCESSED',()=>{
         for(const state of ['PENDING','PROCESSED_SUCCESSFULLY']){
             const value=order();value.orderHistory.partialRefundEvents=[{state,createTime:value.createTime,...(state==='PROCESSED_SUCCESSFULLY'?{processTime:value.lastEventTime}:{}),refundDetails:{total:money()}}];
-            expect(parsePlayCommercePaidOrder('plus_monthly',value,context())).toMatchObject({paid:false,candidateHints:0,reason:'REFUND_OR_CANCELLATION'});
+            expect(parsePlayCommercePaidOrder('plus_monthly',value,context())).toMatchObject({paid:false,candidateHints:0,reason:state==='PENDING'?'REFUND_PENDING':'REFUND_OR_CANCELLATION'});
         }
         const value=order();value.orderHistory.refundEvent={eventTime:value.lastEventTime,refundDetails:{total:money()}};
         expect(parsePlayCommercePaidOrder('plus_monthly',value,context()).candidateHints).toBe(0);
+    });
+    it('a completed refund still wins over another pending refund event',()=>{
+        const value=order();value.state='PENDING_REFUND';
+        expect(parsePlayCommercePaidOrder('plus_monthly',value,context()).reason).toBe('REFUND_PENDING');
+        value.orderHistory.refundEvent={eventTime:value.lastEventTime,refundDetails:{total:money()}};
+        expect(parsePlayCommercePaidOrder('plus_monthly',value,context()).reason).toBe('REFUND_OR_CANCELLATION');
     });
     it('accepts null optional history/offer fields without inventing refund events',()=>{
         const value=order();Object.assign(value.orderHistory,{partialRefundEvents:null,refundEvent:null,cancellationEvent:null});value.lineItems[0].subscriptionDetails.offerId=null;

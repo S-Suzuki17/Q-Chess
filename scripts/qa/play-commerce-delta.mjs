@@ -15,6 +15,40 @@ export async function playCommerceDelta(t,{admin,a,b,rpc,purchase,apply,status,r
  const ticket=()=>randomUUID().replaceAll('-','').repeat(2);
  const protectedPools=w=>Object.fromEntries(Object.entries(w).filter(([key])=>/^(test_|member_|purchased_|subscription_)/.test(key)));
 
+ await check('review: pending refunds preserve spent and unused balances until a completed reversal',async()=>{
+  const user=await account(admin),e=await purchase(a,user);await apply(a,e);await spend(a,hint(user));
+  for(const state of ['PROCESSED','PENDING_REFUND']){
+   const pending={...e,order:{...e.order,state,paid:false,candidateHints:0,reason:'REFUND_PENDING'}};
+   await apply(a,pending);assert.equal((await status(a,user)).purchasedHintTickets,12);
+   assert.equal(await scalar(a,'select refunded as result from public.play_commerce_orders where order_key=$1',[e.order.orderKey]),false);
+  }
+  await apply(a,e);assert.equal((await status(a,user)).purchasedHintTickets,12,'withdrawn pending refund neither loses nor regrants credit');
+  await apply(a,{...e,order:{...e.order,state:'PARTIALLY_REFUNDED',paid:false,candidateHints:0,reason:'REFUND_OR_CANCELLATION'}});
+  assert.equal((await status(a,user)).purchasedHintTickets,0);
+  await apply(a,e);assert.equal((await status(a,user)).purchasedHintTickets,0,'completed reversal remains sticky');
+ });
+ await check('review: a pending refund before the initial grant can recover once after withdrawal',async()=>{
+  const user=await account(admin),e=await purchase(a,user);
+  await apply(a,{...e,order:{...e.order,state:'PENDING_REFUND',paid:false,candidateHints:0,reason:'REFUND_PENDING'}});
+  assert.equal((await status(a,user)).purchasedHintTickets,0);
+  assert.equal((await apply(a,e)).credited,13);assert.equal((await apply(a,e)).credited,0);
+ });
+ await check('review: historical pending refund preserves current Plus access; completed order revokes it without Purchases',async()=>{
+  const user=await account(admin),e=await purchase(a,user,'plus_monthly');await apply(a,e);
+  await rpc(a,'play_commerce_record_order',[e.tokenHash,e.lease,{...e.order,state:'PENDING_REFUND',paid:false,candidateHints:0,reason:'REFUND_PENDING'},true]);
+  assert.equal((await status(a,user)).active,true);assert.equal((await status(a,user)).subscriptionHintTickets,10);
+  await rpc(a,'play_commerce_record_order',[e.tokenHash,e.lease,{...e.order,state:'REFUNDED',paid:false,candidateHints:0,reason:'REFUND_OR_CANCELLATION'},true]);
+  assert.equal((await status(a,user)).active,false);assert.equal((await status(a,user)).subscriptionHintTickets,0);
+ });
+ await check('review: stored terminal subscriptions allow erasure without a remote cancellation proof',async()=>{
+  for(const state of ['SUBSCRIPTION_STATE_EXPIRED','SUBSCRIPTION_STATE_PENDING_PURCHASE_CANCELED']){
+   const user=await account(admin),e=await purchase(a,user,'standard_monthly');await apply(a,e);
+   await apply(a,{...e,purchase:{...e.purchase,state,active:false,cancelAtPeriodEnd:false}});
+   await erase(a,user,ticket());
+   assert.equal(await scalar(a,'select retired as result from public.play_commerce_tokens where token_hash=$1',[e.tokenHash]),true);
+  }
+ });
+
  await check('delta: every runtime RPC exists, and receipt/history/outbox leases recover without duplication',async()=>{
   assert.equal(await rpc(a,'play_commerce_protocol',[]),1);
   const user=await account(admin),e=await purchase(a,user);await apply(a,e);

@@ -118,7 +118,7 @@ try {
                     await page.getByRole('button', { name: '遊び方', exact: true }).click();
                     await tutorial.waitFor();
                     await page.getByRole('button', { name: '閉じる', exact: true }).click();
-                    await page.getByRole('button', { name: '練習', exact: true }).click();
+                    await page.getByRole('button', { name: 'CPUで練習', exact: true }).click();
                     await page.getByRole('button', { name: '弱い', exact: true }).click();
                     await page.getByRole('button', { name: '白・先手', exact: true }).click();
                     await page.locator('[data-time-control="10m"]').click();

@@ -14,6 +14,30 @@ function fixture(){
  return{store,verifier,service};
 }
 describe('Play durable delivery and cancellation runtime',()=>{
+ it('voided stored orders reconcile after the purchase token has stopped resolving',async()=>{
+  const f=fixture(),orderId='GPA.1234-5678-9012-34567',order={orderId,reason:'REFUND_OR_CANCELLATION',paid:false};
+  f.store.tokenByHash.mockResolvedValue({tokenHash:hash,sku:'hints_13',test:false,ciphertext:vault.seal(token,hash),historyCursor:-1});
+  f.verifier.verify.mockRejectedValue(new Error('purchase token unavailable'));
+  f.verifier.historical.mockResolvedValue(order);
+  await f.service.notification(null,token,orderId);
+  expect(f.verifier.verify).not.toHaveBeenCalled();
+  expect(f.verifier.historical).toHaveBeenCalledWith('hints_13',token,orderId,false);
+  expect(f.store.applyHistorical).toHaveBeenCalledWith(hash,'receipt-lease',order);
+  expect(f.store.release).toHaveBeenCalledWith(hash,'receipt-lease');
+ });
+ it('unknown or invalid voided evidence cannot grant or bypass the canonical Orders check',async()=>{
+  const f=fixture(),orderId='GPA.1234-5678-9012-34567';
+  await expect(f.service.notification(null,token,orderId)).rejects.toThrow('BUSY');
+  f.store.tokenByHash.mockResolvedValue({tokenHash:hash,sku:'plus_monthly',test:true,ciphertext:vault.seal(token,hash),historyCursor:-1});
+  f.verifier.historical.mockRejectedValue(new Error('INVALID_PURCHASE'));
+  await expect(f.service.notification(null,token,orderId)).rejects.toThrow('INVALID_PURCHASE');
+  expect(f.store.applyHistorical).not.toHaveBeenCalled();expect(f.store.apply).not.toHaveBeenCalled();
+  expect(f.store.release).toHaveBeenCalledWith(hash,'receipt-lease');
+ });
+ it('accounts without renewable subscriptions can erase without provider configuration',async()=>{
+  const f=fixture();await createPlayCommerceService(f.store as unknown as PlayCommerceStore,null,null).beforeErase('alice');
+  expect(f.verifier.verify).not.toHaveBeenCalled();expect(f.verifier.cancel).not.toHaveBeenCalled();
+ });
  it('commits canonical evidence before returning, and receipt processing never consumes directly',async()=>{
   const f=fixture();expect(await f.service.receipt('hints_13',token,'alice')).toEqual(applied);expect(f.store.apply).toHaveBeenCalledWith(expect.objectContaining({userId:'alice',tokenHash:hash,lease:'receipt-lease'}));expect(f.verifier.deliver).not.toHaveBeenCalled();expect(f.store.release).toHaveBeenCalledWith(hash,'receipt-lease');
   expect(JSON.stringify(f.store.apply.mock.calls)).not.toContain(token);

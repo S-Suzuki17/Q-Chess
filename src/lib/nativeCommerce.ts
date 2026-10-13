@@ -49,7 +49,9 @@ export async function buyNativeCommerce(userId:string,price:PlayPrice,current:()
  const cancel=async()=>{if(current())await requestRewardApi(userId,'/commerce/play/intent/cancel',{intentId:intent.intentId}).catch(()=>{});};
  let result:Awaited<ReturnType<typeof plugin.commercePurchase>>;
  try{result=await plugin.commercePurchase({...price,accountId:intent.accountId,intentId:intent.intentId});}
- catch(error){if(error instanceof Error&&error.message==='PRICE_CHANGED')await cancel();throw error;}
+ // These native errors occur before launchBillingFlow. Keep ambiguous errors
+ // attached to their intent so a delayed purchase can still be recovered.
+ catch(error){if(error instanceof Error&&['PRICE_CHANGED','PRODUCT_UNAVAILABLE'].includes(error.message))await cancel();throw error;}
  if(result.status==='cancelled'){await cancel();return 'cancelled' as const;}if(result.status!=='received')throw new Error('UNAVAILABLE');
  return submitPurchases(userId,result.purchases,current);
 }

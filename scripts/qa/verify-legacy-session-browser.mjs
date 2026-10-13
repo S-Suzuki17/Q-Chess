@@ -58,6 +58,7 @@ try{
                 return route.fulfill({json:{userId:proof.userId,expiresAt:proof.expiresAt,serverNow:Date.now()}});
             }
             if(url.origin==='https://fixture.invalid'&&url.pathname==='/auth/ranked-session')return route.fulfill({json:{...proof,userId:'Bob',token:'ranked_'+'b'.repeat(43),serverNow:Date.now()}});
+            if(url.origin==='https://fixture.invalid'&&url.pathname==='/auth/oauth-admission')return route.fulfill({json:{userId:'oauth-fixture',admitted:true}});
             if(url.pathname.endsWith('/revoke'))return route.fulfill({status:204,body:''});
             return route.abort();
         });

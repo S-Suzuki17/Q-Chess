@@ -33,6 +33,8 @@ jobs:
             report: play-commerce-postgres.log
           - suite: admob-ticket-rewards
             report: admob-ticket-postgres-draft-results.json
+          - suite: admob-legacy-upgrade
+            report: admob-legacy-upgrade-postgres.log
           - suite: conventional-registration
             report: conventional-registration-postgres-results.json
     services:

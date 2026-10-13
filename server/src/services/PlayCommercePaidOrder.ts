@@ -15,7 +15,7 @@ export type PlayPaidOrderContext=Readonly<{
 export type PlayHistoricalOrderContext=Readonly<{
     packageName:typeof PLAY_COMMERCE_PACKAGE;purchaseToken:string;orderId:string;test:boolean;now?:number;
 }>;
-export type PlayPaidOrderReason='PAID_ORDER'|'ORDER_NOT_PROCESSED'|'REFUND_OR_CANCELLATION'
+export type PlayPaidOrderReason='PAID_ORDER'|'ORDER_NOT_PROCESSED'|'REFUND_OR_CANCELLATION'|'REFUND_PENDING'
     |'ZERO_PAYMENT'|'UNSUPPORTED_PHASE'|'PURCHASE_PHASE_UNSUPPORTED'|'PURCHASE_NOT_GRANTABLE';
 export type PlayCommercePaidOrder=Readonly<{
     sku:CommerceSku;productId:string;type:'subs'|'inapp';orderId:string;tokenHash:string;test:boolean;
@@ -39,8 +39,8 @@ function nonnegativeMoney(value:unknown,currency:string) {
     if(money.currencyCode!==currency||money.amountNanos<0n)return fail();
     return money;
 }
-function refundSignal(history:Record<string,unknown>,currency:string,lastNanos:bigint):boolean {
-    let found=false;
+function refundSignal(history:Record<string,unknown>,currency:string,lastNanos:bigint) {
+    let completed=false,pending=false;
     const eventTime=(value:unknown)=>{
         const parsed=parsePlayTimestamp(value);if(parsed.epochNanoseconds>lastNanos)return fail();return parsed;
     };
@@ -52,7 +52,7 @@ function refundSignal(history:Record<string,unknown>,currency:string,lastNanos:b
     };
     for(const name of ['cancellationEvent','refundEvent']){
         const event=history[name];if(!present(event))continue;
-        if(!object(event))return fail();eventTime(event.eventTime);found=true;
+        if(!object(event))return fail();eventTime(event.eventTime);completed=true;
         if(name==='refundEvent')refundDetails(event.refundDetails);
     }
     if(present(history.partialRefundEvents)){
@@ -62,10 +62,11 @@ function refundSignal(history:Record<string,unknown>,currency:string,lastNanos:b
             const created=eventTime(event.createTime);
             const processed=present(event.processTime)?eventTime(event.processTime):null;
             if(event.state==='PROCESSED_SUCCESSFULLY'&&!processed||processed&&processed.epochNanoseconds<created.epochNanoseconds)return fail();
-            refundDetails(event.refundDetails);found=true;
+            refundDetails(event.refundDetails);
+            if(event.state==='PROCESSED_SUCCESSFULLY')completed=true;else pending=true;
         }
     }
-    return found;
+    return {completed,pending};
 }
 function phase(details:Record<string,unknown>):PlayCommercePaidOrder['offerPhase'] {
     const legacy=details.offerPhase;
@@ -129,7 +130,7 @@ function normalizeBoundOrder(sku:CommerceSku,raw:unknown,context:PlayHistoricalO
         if(processed.epochNanoseconds<created.epochNanoseconds||processed.epochNanoseconds>last.epochNanoseconds)return fail();
     }
     if(raw.state==='PROCESSED'&&!processed)return fail();
-    const hasRefund=refundSignal(history,total.currencyCode,last.epochNanoseconds);
+    const refund=refundSignal(history,total.currencyCode,last.epochNanoseconds);
     let paidPeriod:PlayCommercePaidOrder['paidPeriod']=null;
     let offerPhase:PlayCommercePaidOrder['offerPhase']=null;
     if(product.type==='subs'){
@@ -151,8 +152,9 @@ function normalizeBoundOrder(sku:CommerceSku,raw:unknown,context:PlayHistoricalO
             ||present(details.offerId)||present(details.preorderDetails)||present(details.rentalDetails))return fail();
     }
     let reason:PlayPaidOrderReason='PAID_ORDER';
-    if(raw.state!=='PROCESSED')reason='ORDER_NOT_PROCESSED';
-    else if(hasRefund)reason='REFUND_OR_CANCELLATION';
+    if(refund.completed||['CANCELED','PARTIALLY_REFUNDED','REFUNDED'].includes(raw.state as string))reason='REFUND_OR_CANCELLATION';
+    else if(refund.pending||raw.state==='PENDING_REFUND')reason='REFUND_PENDING';
+    else if(raw.state!=='PROCESSED')reason='ORDER_NOT_PROCESSED';
     else if(total.amountNanos===0n)reason='ZERO_PAYMENT';
     else if(product.type==='subs'&&offerPhase!=='BASE')reason='UNSUPPORTED_PHASE';
     // Purchases and Orders are separate snapshots. Keep access, but hold new credit

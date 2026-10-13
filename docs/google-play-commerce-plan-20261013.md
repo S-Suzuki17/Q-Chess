@@ -1,5 +1,11 @@
 # Google Play内購入・復元の実装と設定計画
 
+2026-10-13 統合後の追記: 有料購入・復元・canonical Orders/Purchases・台帳・再照合・退会取消を実装済み。Play/Adの追加schemaは既存本番へ適用済みだが、販売はOFF。規約13・backend/Webの切替と端末での実Play受入は継続中。以下の「確認できた状態」は実装開始時の観測記録であり、現在の未実装項目一覧ではない。
+
+RTDNの実装済み受信先は `https://q-chess.onrender.com/commerce/play/rtdn`。`PLAY_RTDN_AUDIENCE` はこのURL、`PLAY_RTDN_SERVICE_ACCOUNT_EMAIL` はpush認証identity。購入照合は既存 `PLAY_REWARDS_SERVICE_ACCOUNT_JSON`、暗号化token保管は別のサーバー専用 `PLAY_COMMERCE_TOKEN_KEY`（32byte/64hex）を使用する。新しい永続鍵・IAM権限はまだ作成していない。鍵は単純差替えせず、販売後のrotationでは既存暗号文を保全する移行が必要。
+
+PRレビュー修正: 終了済み購読は保存済み状態により退会時の不要なprovider再照会を除外。保存済みtokenのvoided通知は、Purchasesが失効した場合もcanonical Ordersを直接照合。pending refundは新規付与を保留し、完了するまで既存残高を失効させない。商品取得失敗でPlay画面が開かなかった場合は購入intentを解放する。旧広告表の互換準備SQLと返金状態のforward SQLを追加し、適用済み本体SQLは維持する。
+
 対象: `com.qgambit.app`。基準は既存1.16 / code21（監督によるConsole upload済み、inactive）。次候補は1.17 / code22。Rootはapp/server source担当、監督はConsoleと外部設定の読取・受入担当。現在は実装・ローカル検証と次AAB uploadの準備段階で、production Web/server/DBの適用、商品設定、配信track、実料金の支払いは未実施。
 
 ## 確認できた状態
@@ -53,7 +59,7 @@
 実装後、具体的な対象・差分・戻し方を示して別途適用可否を確認する。新しい恒久credentialや権限を先に作らない。
 
 - 実際のGoogle Cloud project / 既存サーバーidentityを読み取り確認し、既存認証が使えるか確認。最小Play権限は対象アプリの購入・注文確認とack/consumeに必要な権限だけ。広い管理者権限を要求しない。
-- RTDNのtopic / subscription / push先 / audience / publisher権限を具体化。受信URL案は既存APIの `/api/play/notifications`。OIDC署名・issuer・audience・送信identityを確認し、失敗時は受付拒否。
+- RTDNのtopic / subscription / push先 / audience / publisher権限を具体化。実装済み受信URLは既存APIの `/commerce/play/rtdn`。OIDC署名・issuer・audience・送信identityを確認し、失敗時は受付拒否。
 - token再照合用の暗号化保管が必要。新secretを使う場合は用途・設置先・rotation/復旧を明示し、値は出力しない。秘密をWeb assetsに入れない。
 - DB案はPlay所有者・intent・確認済み注文/期間・source台帳・outbox・tombstone。既存hint消費/返還とshared entitlementへつなぐ。実スキーマ互換差分とlocal Postgres検証を作り、productionへは未適用。
 - 戻し方: Play販売と新intentをOFF、購入済み残高・返還・再照合を保つ。商品/台帳を削除するrollbackは行わない。ACK期限と既存購入の保全が必要なのでコード単純revertを復旧としない。

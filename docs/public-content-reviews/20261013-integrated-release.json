@@ -38,7 +38,7 @@
     },
     {
       "path": "server/src/services/PlayCommercePaidOrder.ts",
-      "gitBlob": "8ac435b87cc67dc8a381a64bef2cfa5c5c72cd65"
+      "gitBlob": "50ade7e473ec7384750979292369f4e4160df77d"
     },
     {
       "path": "server/src/services/PlayCommerceProof.ts",
@@ -50,11 +50,11 @@
     },
     {
       "path": "server/src/services/PlayCommerceService.ts",
-      "gitBlob": "68acb2fb2f26de996806e5dc6a943ac00deb3178"
+      "gitBlob": "025bd69d5bb86cac63f012ac928538aa5fa0c851"
     },
     {
       "path": "server/src/services/PlayCommerceStore.ts",
-      "gitBlob": "2f6610c88b75c6c5d55dda1f32ccb46b22ad0a30"
+      "gitBlob": "caa6164080780ea68633995ad23d4386f8f195a1"
     },
     {
       "path": "server/src/services/PlayCommerceTokenVault.ts",
@@ -74,7 +74,7 @@
     },
     {
       "path": "server/src/services/RankedAdmissionCoordinator.ts",
-      "gitBlob": "4bf39ac5a46defcb4dab351e7478842a6c765c26"
+      "gitBlob": "ace79a507708bb34341dd754a389c28f00d17b8f"
     },
     {
       "path": "server/src/services/SupabaseService.ts",
@@ -202,7 +202,7 @@
     },
     {
       "path": "src/lib/nativeCommerce.ts",
-      "gitBlob": "8dadf7b070323e4dec46daaac6b6e7dda953ad7b"
+      "gitBlob": "19d9121606c6a436285c16f827b2869cdafa496f"
     },
     {
       "path": "src/lib/oauthAdmission.ts",
@@ -253,12 +253,20 @@
       "gitBlob": "f4b9196ae720e37fa3dbf62e40c342098f4221f1"
     },
     {
+      "path": "supabase/migrations/20261013075800_preserve_legacy_ad_reward_intents.sql",
+      "gitBlob": "0ed076b7682c459aa61a7d4e8d04f6a19bd765a6"
+    },
+    {
       "path": "supabase/migrations/20261013075925_admob_verified_ticket_rewards.sql",
       "gitBlob": "09ff498ecb2a78bf2de4c98a85eee68e451385c8"
     },
     {
       "path": "supabase/migrations/20261013115237_play_commerce_terms_release.sql",
       "gitBlob": "c953e883c71971a54a123604b484bcec381acc76"
+    },
+    {
+      "path": "supabase/migrations/20261013135400_play_pending_refund_state.sql",
+      "gitBlob": "90187bb9f581386a882cd33f76a5f3c6490a2e02"
     }
   ],
   "reviews": [
@@ -324,13 +332,14 @@
       "evidence": [
         "Source review against current guide/FAQ/privacy/terms and the preserved rules/tutorial dictionaries.",
         "Actual component UI: signup/guest7 cases, native purchase/privacy11 cases; full unit evidence with limited reruns; native PostgreSQL ownership/refund/advertising/deletion delta evidence.",
-        "Configured Android and Web builds succeeded; local Web guard checked eight public pages without enabling Web advertising. These checks do not establish actual Google Play purchases or device acceptance."
+        "Configured Android and Web builds succeeded; local Web guard checked eight public pages without enabling Web advertising. These checks do not establish actual Google Play purchases or device acceptance.",
+        "Release 22 CI follow-up: final admission now refreshes operator status after database/identity awaits; 2 expiry-boundary unit cases and 7 actual index/Socket/Worker/PostgREST/native-PG paths passed. Existing reconnect and started-game behavior retained; no additional public instructions needed."
       ]
     },
     {
       "group": "commerce-and-disclosures",
       "decision": "updated",
-      "reason": "New version 2026-10-13.1 documents Google-displayed regional prices, monthly auto-renewal, cancellation through Play, pending purchases, restoration, refunds and deletion. Web Stripe prices and legacy access stay separate. All 12 privacy notices describe relevant payment/ad processing; Play sales remain OFF.",
+      "reason": "New version 2026-10-13.1 documents Google-displayed regional prices, monthly auto-renewal, cancellation through Play, pending purchases, restoration, refunds and deletion. Web Stripe prices and legacy access stay separate. All 12 privacy notices describe relevant payment/ad processing; Play sales remain OFF. Refund wording describes completed reversals; pending processing does not remove existing stock. Legacy allowance rows stay isolated during upgrade; these fixes need no additional public copy.",
       "checkedPages": [
         "/faq/#hints",
         "/contact/",
@@ -340,7 +349,8 @@
       "evidence": [
         "Source review against current guide/FAQ/privacy/terms and the preserved rules/tutorial dictionaries.",
         "Actual component UI: signup/guest7 cases, native purchase/privacy11 cases; full unit evidence with limited reruns; native PostgreSQL ownership/refund/advertising/deletion delta evidence.",
-        "Configured Android and Web builds succeeded; local Web guard checked eight public pages without enabling Web advertising. These checks do not establish actual Google Play purchases or device acceptance."
+        "Configured Android and Web builds succeeded; local Web guard checked eight public pages without enabling Web advertising. These checks do not establish actual Google Play purchases or device acceptance.",
+        "PR25 review corrections: pending refunds hold only new grants; completed reversals remain sticky. Expired stored subscriptions do not block erasure, and canonical historical Orders handles voided tokens without Purchases. Unit65 and native PostgreSQL Play34/legacy-Ad3 conditions passed; provider/device acceptance remains separate."
       ]
     },
     {

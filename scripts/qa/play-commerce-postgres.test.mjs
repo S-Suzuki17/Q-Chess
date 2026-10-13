@@ -8,7 +8,7 @@ import {combinedPendingMigrations,hintPolicyMigrations,emailRegistrationMigratio
 import {connect,scalar,wallet,account,contended,MAX,HASH} from './commerce-postgres-support.mjs';
 const migration='20261013040752_play_commerce_ledger.sql';
 const preceding=[...combinedPendingMigrations,...hintPolicyMigrations,...emailRegistrationMigrations].sort();
-const after=['20261013071700_conventional_registration_repair.sql','20261013075925_admob_verified_ticket_rewards.sql','20261013115237_play_commerce_terms_release.sql'];
+const after=['20261013071700_conventional_registration_repair.sql','20261013075800_preserve_legacy_ad_reward_intents.sql','20261013075925_admob_verified_ticket_rewards.sql','20261013115237_play_commerce_terms_release.sql','20261013135400_play_pending_refund_state.sql'];
 const text=name=>readFile(new URL('../../supabase/migrations/'+name,import.meta.url),'utf8');
 const hash=value=>createHash('sha256').update('com.qgambit.app:commerce:'+value).digest('hex');
 let sequence=0;

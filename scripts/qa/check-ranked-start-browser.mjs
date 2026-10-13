@@ -354,7 +354,7 @@ try{
     }
     if(scenario.checkCharacter){
      const names=await page.locator('.match-player-name strong').allTextContents();
-     if(cpu){const chosen=crownEnemyForMatch(matchId);assert(names.includes(chosen.name.ja));assert.equal(await page.locator('.match-player [data-crown-enemy-id]').getAttribute('data-crown-enemy-id'),chosen.id);await page.locator('.match-player [data-character-art="blender"]').waitFor();}
+     if(cpu){const chosen=crownEnemyForMatch(matchId);assert(names.includes(chosen.name.ja));assert.equal(await page.locator('.match-player [data-crown-enemy-id]').getAttribute('data-crown-enemy-id'),chosen.id);await page.locator('.match-player [data-character-art="toon"]').waitFor();}
      else{assert(names.includes('CPU 01'),'Human account name resembling CPU is preserved');assert.equal(await page.locator('.match-player [data-crown-enemy-id]').count(),0);}
     }
    }

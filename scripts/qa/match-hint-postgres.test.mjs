@@ -8,7 +8,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { connect, scalar, wallet, account, contended, MAX, HASH, LEGACY_PRICE,
     bind, register, purchase, member, snapshot, paidPeriod, unique } from './commerce-postgres-support.mjs';
 import { setupBaseline, baselineEvidence, historical } from './fixtures/commerce-postgres-baseline.mjs';
-import { combinedPendingMigrations } from './fixtures/session-postgres-baseline.mjs';
+import { combinedPendingMigrations, reviewedMigrationInventory } from './fixtures/session-postgres-baseline.mjs';
 
 // Real PostgreSQL, public repository SQL and synthetic accounts only. This suite
 // deliberately keeps the already-released migration inventories untouched.
@@ -85,8 +85,7 @@ test('native PostgreSQL match hints and free-practice forward upgrade',{timeout:
         const discovered=(await readdir(new URL('../../supabase/migrations/',import.meta.url))).filter(n=>n.endsWith('.sql')&&n>=combinedPendingMigrations[0]).sort();
         // This historical PR20 proof applies only its own forward file. PR21's
         // explicitly reviewed email migration is applied by its dedicated suite.
-        assert.deepEqual(discovered,[...combinedPendingMigrations,MIGRATION,
-            '20261008093454_email_account_registration.sql']);
+        assert.deepEqual(discovered,reviewedMigrationInventory);
         for(const name of combinedPendingMigrations)await admin.query(await readFile(new URL(`../../supabase/migrations/${name}`,import.meta.url),'utf8'));
         a=await connectAs('service_role');b=await connectAs('service_role');await bind(admin);
         oldUser=await fundFree(admin,2);oldSession=await openPractice(a,oldUser);oldRequest=randomUUID();oldReceipt=await oldBuy(a,oldSession,oldRequest);
