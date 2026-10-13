@@ -48,6 +48,14 @@ for (const [name, scope] of Object.entries(publicReleaseFlags)) {
     }
     releaseEnv[name] = String(value === 'true' && (scope !== 'web' || target === 'web'));
 }
+// Native features require deliberate build inputs. They never inherit from a
+// configured Web project. Commerce display still requires server readiness/sales gates.
+const nativeFlags=['NEXT_PUBLIC_ADMOB_LIVE','NEXT_PUBLIC_NATIVE_REWARDS_ENABLED','NEXT_PUBLIC_NATIVE_INTERSTITIAL_ENABLED','NEXT_PUBLIC_NATIVE_COMMERCE_ENABLED'];
+for(const name of nativeFlags){
+    const value=originalEnv[name];
+    if(value!==undefined&&value!=='true'&&value!=='false')throw new Error(`Release flag must be true or false: ${name}`);
+    releaseEnv[name]=String(target==='android'&&value==='true');
+}
 // Unknown public QG names must not piggyback on the shell environment either.
 const inheritedEnv = Object.fromEntries(Object.entries(originalEnv).filter(([name]) => !name.startsWith('NEXT_PUBLIC_QG_')));
 const result = spawnSync(process.execPath, [require.resolve('next/dist/bin/next'), 'build',
@@ -60,8 +68,6 @@ const result = spawnSync(process.execPath, [require.resolve('next/dist/bin/next'
         NEXT_PUBLIC_FOUNDERS_REWARDS_ENABLED: 'false',
         NEXT_PUBLIC_SUPABASE_URL: url, NEXT_PUBLIC_SUPABASE_ANON_KEY: key,
         NEXT_PUBLIC_SERVER_URL: server,
-        NEXT_PUBLIC_ADMOB_LIVE: 'false', NEXT_PUBLIC_NATIVE_REWARDS_ENABLED: 'false',
-        NEXT_PUBLIC_NATIVE_INTERSTITIAL_ENABLED: 'false',
         NEXT_PUBLIC_ENGAGEMENT_METRICS_ENABLED: String(webMetricsEnabled),
     },
 });

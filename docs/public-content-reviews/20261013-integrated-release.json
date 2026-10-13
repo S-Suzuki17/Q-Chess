@@ -1,0 +1,395 @@
+{
+  "schemaVersion": 1,
+  "status": "completed",
+  "baseRevision": "584252f3475165384b1e09ddc04d5cd03af68ba6",
+  "reviewer": "Codex integration: source and public copy review, 2026-10-13",
+  "changes": [
+    {
+      "path": "server/src/matchmaking/MatchmakingService.ts",
+      "gitBlob": "6ad93827b53c502de7941f185c2776c989e44aee"
+    },
+    {
+      "path": "server/src/presentation/crownEnemies.ts",
+      "gitBlob": "86a620af5abeb4484c8584fb3b12233113da0fd6"
+    },
+    {
+      "path": "server/src/services/AccountCurrentTerms.ts",
+      "gitBlob": "c19af2631d962023a95ce8f2d2f9711b2b47644e"
+    },
+    {
+      "path": "server/src/services/AccountNamePolicy.ts",
+      "gitBlob": "e139992c7ce954e1a4ccbb2899023944ed51d430"
+    },
+    {
+      "path": "server/src/services/AccountSecurity.ts",
+      "gitBlob": "8e61a03953f4b1526b294fbccec930c590dca098"
+    },
+    {
+      "path": "server/src/services/AccountSecurityRoutes.ts",
+      "gitBlob": "63d20b6613a1e5c020a7067922c5c8b3c158a3f3"
+    },
+    {
+      "path": "server/src/services/PlayCommerceCatalog.ts",
+      "gitBlob": "ff80d3bd47cf548d9a115800c666ff9469512a8e"
+    },
+    {
+      "path": "server/src/services/PlayCommerceNotifications.ts",
+      "gitBlob": "191cc505f271278bce1ae1a4d9eb0dd426a70be9"
+    },
+    {
+      "path": "server/src/services/PlayCommercePaidOrder.ts",
+      "gitBlob": "50ade7e473ec7384750979292369f4e4160df77d"
+    },
+    {
+      "path": "server/src/services/PlayCommerceProof.ts",
+      "gitBlob": "5870deb98afd0d972ce827b71754755598022aed"
+    },
+    {
+      "path": "server/src/services/PlayCommerceRoutes.ts",
+      "gitBlob": "2652a4c89bf13e154eb04ae1d8933237500ba4d8"
+    },
+    {
+      "path": "server/src/services/PlayCommerceService.ts",
+      "gitBlob": "025bd69d5bb86cac63f012ac928538aa5fa0c851"
+    },
+    {
+      "path": "server/src/services/PlayCommerceStore.ts",
+      "gitBlob": "caa6164080780ea68633995ad23d4386f8f195a1"
+    },
+    {
+      "path": "server/src/services/PlayCommerceTokenVault.ts",
+      "gitBlob": "199a35f6f7ba7e806c22420855ddf1727b1afa3a"
+    },
+    {
+      "path": "server/src/services/PlayCommerceValues.ts",
+      "gitBlob": "1742213ae4f82d34c81d9e28e8af71c2dddf22df"
+    },
+    {
+      "path": "server/src/services/PlayCommerceVerifier.ts",
+      "gitBlob": "983fdc3ce4890d3a650df3cc3391db3ea0f51a77"
+    },
+    {
+      "path": "server/src/services/PrivateGameRecords.ts",
+      "gitBlob": "879e3b3b931530c835a9ddbb63f431a71c04357d"
+    },
+    {
+      "path": "server/src/services/RankedAdmissionCoordinator.ts",
+      "gitBlob": "ace79a507708bb34341dd754a389c28f00d17b8f"
+    },
+    {
+      "path": "server/src/services/SupabaseService.ts",
+      "gitBlob": "b61fbf4960a52a63313179f1f743a334eb43caa3"
+    },
+    {
+      "path": "src/app/layout.tsx",
+      "gitBlob": "1275a0d305b1ef5c75964e384642e1fe978d2592"
+    },
+    {
+      "path": "src/app/page.tsx",
+      "gitBlob": "30c7997b504c9965c3ea6840976955fc9a7fb798"
+    },
+    {
+      "path": "src/components/CampaignMode.tsx",
+      "gitBlob": "b48d54dbdcd052173a0edcb1049a069dcb4b60ef"
+    },
+    {
+      "path": "src/components/CampaignResult.tsx",
+      "gitBlob": "9254c92a40ca81b13831fe023820cad4386ad825"
+    },
+    {
+      "path": "src/components/CrownCharacterBody.tsx",
+      "gitBlob": "84e6360137f153ed70ff801d8865d2bea966f12f"
+    },
+    {
+      "path": "src/components/CrownEnemyPortrait.tsx",
+      "gitBlob": "f5165098c241af94e4ba3ebfb8f2ea2fcc249186"
+    },
+    {
+      "path": "src/components/CrownEntryMotion.tsx",
+      "gitBlob": "49142dda435f1e964f36914b0aef9f328dd401da"
+    },
+    {
+      "path": "src/components/LevelSelect.tsx",
+      "gitBlob": "24d7843434b64a6aadff467cb7781da59f49f0b5"
+    },
+    {
+      "path": "src/components/LobbyTicketSummary.tsx",
+      "gitBlob": "be9cbab0a9689dc42022d52bf11e94e94d0b467b"
+    },
+    {
+      "path": "src/components/LocalGameBoard.tsx",
+      "gitBlob": "730ec821984d96989a3f5b2da7cd4bd2b5bc91f8"
+    },
+    {
+      "path": "src/components/MatchLayout.tsx",
+      "gitBlob": "82ece8fe1325fda4d7503e76cf0ff3c15b749063"
+    },
+    {
+      "path": "src/components/NativeAdPrivacySettings.tsx",
+      "gitBlob": "9487690f9c9f4b2b4128525e2d0f1c8c93cfc4d0"
+    },
+    {
+      "path": "src/components/NativeCommercePanel.tsx",
+      "gitBlob": "55ed9b57cb16940c990e1d16cbef78339b86d6f9"
+    },
+    {
+      "path": "src/components/OnlineGameBoard.tsx",
+      "gitBlob": "84f1d007786a09f38dbcb59bee3f23e0130cd246"
+    },
+    {
+      "path": "src/components/PixelCastleCorridor.tsx",
+      "gitBlob": "cc0986146ed1549606aa0b1b19308171f5246e3e"
+    },
+    {
+      "path": "src/components/QubeTeacher.tsx",
+      "gitBlob": "3c70649ec11fe8662dc0d21010114eb7829a6451"
+    },
+    {
+      "path": "src/components/SiteInformation.tsx",
+      "gitBlob": "9ee3abf0334cfc70629e907131f2b41dc9e2fbc4"
+    },
+    {
+      "path": "src/components/TermsGate.tsx",
+      "gitBlob": "991942f6dfd4d6c26e6a322ec9a1b5518895bb78"
+    },
+    {
+      "path": "src/components/TitleScreen.tsx",
+      "gitBlob": "9ef947204013773051c57a3c5814fd0b407520cc"
+    },
+    {
+      "path": "src/components/castle-quest-journey.css",
+      "gitBlob": "69c3989c3782609c050f8c09ee624a2eeb021930"
+    },
+    {
+      "path": "src/components/crown-reference.css",
+      "gitBlob": "ce5d9ac9eafb795d72b4703dfcbec6efef2b2be9"
+    },
+    {
+      "path": "src/components/lobby-reference.css",
+      "gitBlob": "393b20b178a431696d3894e034c08e39ee42b4c3"
+    },
+    {
+      "path": "src/config/campaign.ts",
+      "gitBlob": "5929da084e24b621ee81aba45b9e688c2b1fbfee"
+    },
+    {
+      "path": "src/config/circuitStages.ts",
+      "gitBlob": "f4d2676fd8493814fe1e16697c57e2a28752b191"
+    },
+    {
+      "path": "src/config/crownEnemies.ts",
+      "gitBlob": "432bb3df85dba0a01e9d826245002e03aa3be5a6"
+    },
+    {
+      "path": "src/config/currentTerms.ts",
+      "gitBlob": "7993de0b1d98789367aa200ea695af7cf6563f95"
+    },
+    {
+      "path": "src/config/salesTermsDraft.ts",
+      "gitBlob": "7d3c57cfbdf7c8ecacedd52a93f4905ab0022a6f"
+    },
+    {
+      "path": "src/hooks/useBoardPreferences.ts",
+      "gitBlob": "64ebad0e9021be3881a084359e76706eb42c3918"
+    },
+    {
+      "path": "src/lib/castleQuestJourney.ts",
+      "gitBlob": "0fc664ca3b2fe38a2590038051469d8fc2f705c2"
+    },
+    {
+      "path": "src/lib/nativeAds.ts",
+      "gitBlob": "e5f448036ef71d120feb6ed34eccdcc514f24367"
+    },
+    {
+      "path": "src/lib/nativeCommerce.ts",
+      "gitBlob": "19d9121606c6a436285c16f827b2869cdafa496f"
+    },
+    {
+      "path": "src/lib/oauthAdmission.ts",
+      "gitBlob": "45af15ef7c098f126e2ca4334086277bdbb1236e"
+    },
+    {
+      "path": "src/locales/aboutContent.ts",
+      "gitBlob": "53f94c948f84bfb818d7fca9b8e83469cc24c0d8"
+    },
+    {
+      "path": "src/locales/castleQuestText.ts",
+      "gitBlob": "bfe5ccc5da170729bbf5e0482b1eb434ee37f55e"
+    },
+    {
+      "path": "src/locales/commerceText.ts",
+      "gitBlob": "fd267ddbd6cd16a68db4fba3c367a22a2f0b254b"
+    },
+    {
+      "path": "src/locales/hintScopeText.ts",
+      "gitBlob": "a1ae826fc92906462e7f206adee03d91fafa30ee"
+    },
+    {
+      "path": "src/locales/matchText.ts",
+      "gitBlob": "0fc3b676297a09bb1960fc44ee4f96ff46998f62"
+    },
+    {
+      "path": "src/locales/nativeCommercePrivacy.ts",
+      "gitBlob": "7ca354348c04cf01b041cfeafb2f2d972cbf9d7e"
+    },
+    {
+      "path": "src/locales/playCommerceText.ts",
+      "gitBlob": "765a51c4fbe7e68d77097d12b5b3f0047080fe66"
+    },
+    {
+      "path": "src/locales/privacyReview.ts",
+      "gitBlob": "b38343ddc37ea7973cd377a69df9938f7accc419"
+    },
+    {
+      "path": "src/locales/siteContent.ts",
+      "gitBlob": "1c69edfccd0500aacceea9042bf4abd09643d595"
+    },
+    {
+      "path": "supabase/migrations/20261013040752_play_commerce_ledger.sql",
+      "gitBlob": "3ed813c0e0f7a0c24a6cd08aaca72f294f9f8542"
+    },
+    {
+      "path": "supabase/migrations/20261013071700_conventional_registration_repair.sql",
+      "gitBlob": "f4b9196ae720e37fa3dbf62e40c342098f4221f1"
+    },
+    {
+      "path": "supabase/migrations/20261013075800_preserve_legacy_ad_reward_intents.sql",
+      "gitBlob": "0ed076b7682c459aa61a7d4e8d04f6a19bd765a6"
+    },
+    {
+      "path": "supabase/migrations/20261013075925_admob_verified_ticket_rewards.sql",
+      "gitBlob": "09ff498ecb2a78bf2de4c98a85eee68e451385c8"
+    },
+    {
+      "path": "supabase/migrations/20261013115237_play_commerce_terms_release.sql",
+      "gitBlob": "c953e883c71971a54a123604b484bcec381acc76"
+    },
+    {
+      "path": "supabase/migrations/20261013135400_play_pending_refund_state.sql",
+      "gitBlob": "90187bb9f581386a882cd33f76a5f3c6490a2e02"
+    }
+  ],
+  "reviews": [
+    {
+      "group": "start-and-controls",
+      "decision": "updated",
+      "reason": "Guest entry bypasses the account consent gate, map previews are read-only, and registered challenge starts retain authorization. JA/EN guide/FAQ describe guest tutorial/practice and signed-in challenge play. Registration labels and dialogs agree across all 12 supported languages.",
+      "checkedPages": [
+        "/guide/#start",
+        "/faq/#guest"
+      ],
+      "evidence": [
+        "Source review against current guide/FAQ/privacy/terms and the preserved rules/tutorial dictionaries.",
+        "Actual component UI: signup/guest7 cases, native purchase/privacy11 cases; full unit evidence with limited reruns; native PostgreSQL ownership/refund/advertising/deletion delta evidence.",
+        "Configured Android and Web builds succeeded; local Web guard checked eight public pages without enabling Web advertising. These checks do not establish actual Google Play purchases or device acceptance."
+      ]
+    },
+    {
+      "group": "candidates-and-outcomes",
+      "decision": "no-change-needed",
+      "reason": "No move, candidate, checkmate or entanglement rules changed. Preserved candidate examples, promotion/castling explanations and fixed board controls; neutral map presentation does not alter game outcomes.",
+      "checkedPages": [
+        "/rules/",
+        "/guide/#candidates",
+        "/guide/#outcomes",
+        "/guide/#practice",
+        "/guide/#chain",
+        "/faq/#move",
+        "/faq/#win"
+      ],
+      "evidence": [
+        "Source review against current guide/FAQ/privacy/terms and the preserved rules/tutorial dictionaries.",
+        "Actual component UI: signup/guest7 cases, native purchase/privacy11 cases; full unit evidence with limited reruns; native PostgreSQL ownership/refund/advertising/deletion delta evidence.",
+        "Configured Android and Web builds succeeded; local Web guard checked eight public pages without enabling Web advertising. These checks do not establish actual Google Play purchases or device acceptance."
+      ]
+    },
+    {
+      "group": "hints-and-clock",
+      "decision": "no-change-needed",
+      "reason": "Practice/tutorial hints stay free. Paid non-practice requests spend verified source stock once and restoration cannot revive revoked stock. CPU clock and reward conditions remain unchanged; guide/FAQ and hint scope copy match.",
+      "checkedPages": [
+        "/guide/#start",
+        "/faq/#clock",
+        "/faq/#hints"
+      ],
+      "evidence": [
+        "Source review against current guide/FAQ/privacy/terms and the preserved rules/tutorial dictionaries.",
+        "Actual component UI: signup/guest7 cases, native purchase/privacy11 cases; full unit evidence with limited reruns; native PostgreSQL ownership/refund/advertising/deletion delta evidence.",
+        "Configured Android and Web builds succeeded; local Web guard checked eight public pages without enabling Web advertising. These checks do not establish actual Google Play purchases or device acceptance."
+      ]
+    },
+    {
+      "group": "accounts-connections-and-saves",
+      "decision": "updated",
+      "reason": "Reviewed privacy/contact/FAQ against verified login, explicit OAuth admission, weekly Tuesday 11-14 JST maintenance, account deletion and retained replay fences. Updated 12-language privacy copy describes conditional Android advertising and encrypted Play token processing.",
+      "checkedPages": [
+        "/faq/#connection",
+        "/faq/#save",
+        "/faq/#privacy",
+        "/contact/",
+        "/privacy/"
+      ],
+      "evidence": [
+        "Source review against current guide/FAQ/privacy/terms and the preserved rules/tutorial dictionaries.",
+        "Actual component UI: signup/guest7 cases, native purchase/privacy11 cases; full unit evidence with limited reruns; native PostgreSQL ownership/refund/advertising/deletion delta evidence.",
+        "Configured Android and Web builds succeeded; local Web guard checked eight public pages without enabling Web advertising. These checks do not establish actual Google Play purchases or device acceptance.",
+        "Release 22 CI follow-up: final admission now refreshes operator status after database/identity awaits; 2 expiry-boundary unit cases and 7 actual index/Socket/Worker/PostgREST/native-PG paths passed. Existing reconnect and started-game behavior retained; no additional public instructions needed."
+      ]
+    },
+    {
+      "group": "commerce-and-disclosures",
+      "decision": "updated",
+      "reason": "New version 2026-10-13.1 documents Google-displayed regional prices, monthly auto-renewal, cancellation through Play, pending purchases, restoration, refunds and deletion. Web Stripe prices and legacy access stay separate. All 12 privacy notices describe relevant payment/ad processing; Play sales remain OFF. Refund wording describes completed reversals; pending processing does not remove existing stock. Legacy allowance rows stay isolated during upgrade; these fixes need no additional public copy.",
+      "checkedPages": [
+        "/faq/#hints",
+        "/contact/",
+        "/privacy/",
+        "/terms/"
+      ],
+      "evidence": [
+        "Source review against current guide/FAQ/privacy/terms and the preserved rules/tutorial dictionaries.",
+        "Actual component UI: signup/guest7 cases, native purchase/privacy11 cases; full unit evidence with limited reruns; native PostgreSQL ownership/refund/advertising/deletion delta evidence.",
+        "Configured Android and Web builds succeeded; local Web guard checked eight public pages without enabling Web advertising. These checks do not establish actual Google Play purchases or device acceptance.",
+        "PR25 review corrections: pending refunds hold only new grants; completed reversals remain sticky. Expired stored subscriptions do not block erasure, and canonical historical Orders handles voided tokens without Purchases. Unit65 and native PostgreSQL Play34/legacy-Ad3 conditions passed; provider/device acceptance remains separate."
+      ]
+    },
+    {
+      "group": "public-guidance-and-navigation",
+      "decision": "updated",
+      "reason": "All eight public pages and retained navigation were reviewed; QUBE posts remain retired. Static Web guard passed, ownership metadata and ad SDK exclusion preserved. Guide/FAQ and About follow neutral 100-tile challenge terminology.",
+      "checkedPages": [
+        "/",
+        "/guide/",
+        "/faq/",
+        "/rules/",
+        "/about/",
+        "/contact/",
+        "/privacy/",
+        "/terms/"
+      ],
+      "evidence": [
+        "Source review against current guide/FAQ/privacy/terms and the preserved rules/tutorial dictionaries.",
+        "Actual component UI: signup/guest7 cases, native purchase/privacy11 cases; full unit evidence with limited reruns; native PostgreSQL ownership/refund/advertising/deletion delta evidence.",
+        "Configured Android and Web builds succeeded; local Web guard checked eight public pages without enabling Web advertising. These checks do not establish actual Google Play purchases or device acceptance."
+      ]
+    },
+    {
+      "group": "qube-teaching",
+      "decision": "updated",
+      "reason": "QUBE hint, tutorial and operational feedback remain. Map/result use neutral tile presentation; actual piece inference, legal moves, CPU and stars are unchanged. No retired manuscript content was restored.",
+      "checkedPages": [
+        "/",
+        "/about/",
+        "/rules/",
+        "/guide/",
+        "/faq/",
+        "game: tutorial, help dialogs, move hints and feedback, promotion/castling, stage/setup explanations, cosmetic preview/equipment guidance"
+      ],
+      "evidence": [
+        "Source review against current guide/FAQ/privacy/terms and the preserved rules/tutorial dictionaries.",
+        "Actual component UI: signup/guest7 cases, native purchase/privacy11 cases; full unit evidence with limited reruns; native PostgreSQL ownership/refund/advertising/deletion delta evidence.",
+        "Configured Android and Web builds succeeded; local Web guard checked eight public pages without enabling Web advertising. These checks do not establish actual Google Play purchases or device acceptance."
+      ]
+    }
+  ]
+}

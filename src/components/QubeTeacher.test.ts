@@ -13,14 +13,14 @@ describe('QUBE teaching presentation', () => {
     it('falls back to English for an unsupported runtime language', () => {
         const html = renderToStaticMarkup(createElement(QubeTeacher, {lang: 'xx' as Language, children: 'Keep the instruction'}));
         expect(html).toContain('lang="en"');
-        expect(html).toContain(qubeTeaching.en.caption);
+        expect(html).not.toContain(qubeTeaching.en.caption);
         expect(html).toContain('Keep the instruction');
     });
     it.each(LANGUAGES.map(item => item.code))('preserves instructional content and a localized speaker in %s', lang => {
         const html = renderToStaticMarkup(createElement(QubeTeacher, {lang, variant: 'compact', children: createElement('p', {role: 'status'}, 'Keep the actual instruction')}));
         expect(html).toContain('data-qube-teacher');
         expect(html).toMatch(/data-qube-speaker="[^"]*">QUBE/);
-        expect(html).toContain(qubeTeaching[lang].caption);
+        expect(html).not.toContain(qubeTeaching[lang].caption);
         expect(html).toContain('alt=""');
         expect(html).toContain('src="/assets/qube-companion/qube-neutral.svg"');
         expect(html).not.toContain('data-qube-state');

@@ -1,0 +1,4 @@
+import React from 'react';
+import {CastleQuestScene} from '../../../../src/components/CastleQuestScene';
+import {CROWN_ENEMIES} from '../../../../src/config/crownEnemies';
+export function CastleSceneReview(){return <main style={{background:'#102019',color:'#e8d6b2',padding:20,minHeight:'100dvh'}}><h1 style={{fontSize:20,marginBottom:16}}>Six opposing castle encounters · one scene graph · unchanged QUBE</h1><div style={{display:'grid',gridTemplateColumns:'repeat(3,minmax(0,1fr))',gap:16}}>{CROWN_ENEMIES.map(enemy=><figure key={enemy.id} style={{margin:0}}><figcaption style={{marginBottom:6}}>{enemy.name.ja} / {enemy.name.en} · {enemy.foe}</figcaption><div data-scene-review={enemy.id} style={{height:360,position:'relative',border:'1px solid #53656d',borderRadius:12,overflow:'hidden'}}><CastleQuestScene stageId={enemy.stageId}/></div></figure>)}</div></main>;}

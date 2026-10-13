@@ -2,6 +2,7 @@ import { CHAMPIONSHIP_REWARDS, ARCHIVED_REWARDS, type ChampionshipReward } from 
 import { rewardUnlocked, type CampaignProgress } from '../config/campaign';
 import { CIRCUIT_MUSIC } from '../config/circuitMusic';
 import { FOUNDERS_ITEMS } from '../config/founders';
+import { crownEnemyForStage } from '../config/crownEnemies';
 
 export const CROWN_CATEGORIES = ['board', 'piece', 'avatar', 'effect', 'music'] as const;
 export type CrownCategory = typeof CROWN_CATEGORIES[number];
@@ -41,6 +42,6 @@ export type CrownEncounter = { stageId: number; foe: CrownFoe; finalBoss: boolea
 /** Presentation only. CPU strength, unlocks and outcomes remain in circuitStages. */
 export function crownEncounterForStage(stageId: number): CrownEncounter {
  const bounded=Math.min(100,Math.max(1,Math.trunc(stageId)||1));
- const foe: CrownFoe=bounded===100?'king':(['pawn','knight','bishop','rook','queen'] as const)[Math.min(4,Math.floor((bounded-1)/20))];
+ const foe: CrownFoe=crownEnemyForStage(bounded).foe;
  return {stageId:bounded,foe,finalBoss:bounded===100};
 }

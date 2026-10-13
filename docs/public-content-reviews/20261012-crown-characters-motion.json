@@ -1,0 +1,177 @@
+{
+  "schemaVersion": 1,
+  "status": "completed",
+  "baseRevision": "584252f3475165384b1e09ddc04d5cd03af68ba6",
+  "reviewer": "Codex /root (source owner; actual JA/EN guidance, gameplay source and isolated browser evidence review)",
+  "changes": [
+    {
+      "path": "server/src/matchmaking/MatchmakingService.ts",
+      "gitBlob": "47927e5e41f8e2f7898b711ff585bbc37a6203da"
+    },
+    {
+      "path": "server/src/presentation/crownEnemies.ts",
+      "gitBlob": "86a620af5abeb4484c8584fb3b12233113da0fd6"
+    },
+    {
+      "path": "server/src/services/PrivateGameRecords.ts",
+      "gitBlob": "879e3b3b931530c835a9ddbb63f431a71c04357d"
+    },
+    {
+      "path": "server/src/services/SupabaseService.ts",
+      "gitBlob": "5cd54c73624152aa9236546f503dfffdb37e6816"
+    },
+    {
+      "path": "src/components/CampaignMode.tsx",
+      "gitBlob": "01a63bfe7077656e318705e0d063ec84e905d264"
+    },
+    {
+      "path": "src/components/CampaignResult.tsx",
+      "gitBlob": "00fd080a5c92b2e5404deeb3595d33c294edf6b9"
+    },
+    {
+      "path": "src/components/CrownCharacterBody.tsx",
+      "gitBlob": "e628c1f895138bb970d6120acf6a3772af299daa"
+    },
+    {
+      "path": "src/components/CrownEnemyPortrait.tsx",
+      "gitBlob": "f5165098c241af94e4ba3ebfb8f2ea2fcc249186"
+    },
+    {
+      "path": "src/components/CrownEntryMotion.tsx",
+      "gitBlob": "00a44a099aef516ede459f9eee90aba271405c03"
+    },
+    {
+      "path": "src/components/LocalGameBoard.tsx",
+      "gitBlob": "8f44862a9e61d337c95c84aecaad80b4970ff2fa"
+    },
+    {
+      "path": "src/components/MatchLayout.tsx",
+      "gitBlob": "82ece8fe1325fda4d7503e76cf0ff3c15b749063"
+    },
+    {
+      "path": "src/components/OnlineGameBoard.tsx",
+      "gitBlob": "84f1d007786a09f38dbcb59bee3f23e0130cd246"
+    },
+    {
+      "path": "src/components/QubeTeacher.tsx",
+      "gitBlob": "3c70649ec11fe8662dc0d21010114eb7829a6451"
+    },
+    {
+      "path": "src/config/campaign.ts",
+      "gitBlob": "5929da084e24b621ee81aba45b9e688c2b1fbfee"
+    },
+    {
+      "path": "src/config/circuitStages.ts",
+      "gitBlob": "f4d2676fd8493814fe1e16697c57e2a28752b191"
+    },
+    {
+      "path": "src/config/crownEnemies.ts",
+      "gitBlob": "432bb3df85dba0a01e9d826245002e03aa3be5a6"
+    },
+    {
+      "path": "src/hooks/useBoardPreferences.ts",
+      "gitBlob": "64ebad0e9021be3881a084359e76706eb42c3918"
+    }
+  ],
+  "reviews": [
+    {
+      "group": "start-and-controls",
+      "decision": "no-change-needed",
+      "reason": "Crown adds optional finite reveal, immediate start and return actions after the existing authenticated stage permit. Guest/practice entry, account consent and public guide startup instructions are unchanged. Reading the saved 2D preference earlier changes initial renderer cost, not game controls.",
+      "checkedPages": [
+        "/guide/#start",
+        "/faq/#guest"
+      ],
+      "evidence": [
+        "Reviewed JA/EN guide startup steps and guest FAQ in src/locales/siteContent.ts against CampaignMode, CrownEntryMotion and useBoardPreferences. Public reading still needs no account; this task does not integrate the separate guest/tutorial/CPU-entry worktrees.",
+        "crown-six-character-motion-20261012/result.json passes 18 cases, including cancel/Escape/back/focus restoration, paused introduction, reduced/hidden state, 3D and 2D fallback and unchanged CPU practice. crown-text-scale-20261012/result.json adds 375px German doubled-text real board input."
+      ]
+    },
+    {
+      "group": "candidates-and-outcomes",
+      "decision": "no-change-needed",
+      "reason": "Player portraits and the optional finite board-arrival border change presentation only. Candidate icons, movement/capture identity constraints, wins, engines and board piece assets remain unchanged; six opponent roles do not imply six new game rules.",
+      "checkedPages": [
+        "/rules/",
+        "/guide/#candidates",
+        "/guide/#outcomes",
+        "/guide/#practice",
+        "/guide/#chain",
+        "/faq/#move",
+        "/faq/#win"
+      ],
+      "evidence": [
+        "Read JA/EN guide candidate/outcome/practice/chain sections and move/win FAQ in siteContent.ts with the existing rules dictionaries/visual movement diagrams. The shared character catalogue supplies names and artwork, never legal moves or candidate identities.",
+        "The accepted 122-test unit receipt covers circuit CPU/clock preservation, adopted Crown piece staging, MatchLayout and hint presentation. Actual Crown browser tests select e2, execute a legal highlighted move, and exercise the real 3D board and its 2D fallback."
+      ]
+    },
+    {
+      "group": "hints-and-clock",
+      "decision": "no-change-needed",
+      "reason": "Practice hints remain free. Outside practice, existing explicit ticket/auth/current-terms gates remain in place; the visual patch changes no hint request, consumption or reuse contract. Introductions continue to pause game time, and the three stage clock controls are unchanged.",
+      "checkedPages": [
+        "/guide/#start",
+        "/faq/#clock",
+        "/faq/#hints"
+      ],
+      "evidence": [
+        "Compared JA/EN hintHelp and hints/clock FAQ in siteContent.ts with LocalGameBoard/OnlineGameBoard and the unchanged useMoveHint core. Current terms 2026-10-08.1, sales, price and refund source files are unchanged relative to 584252f.",
+        "The related useMoveHint tests are included in crown-six-character-unit-20261012.log. Crown motion checks keep the 10-second clock paused while hidden in the introduction, allow immediate start once, and retain normal free-practice presentation. Android build helper preserves existing default-off usage flags and forces sales/ads off; this task does not enable ticket switches."
+      ]
+    },
+    {
+      "group": "accounts-connections-and-saves",
+      "decision": "no-change-needed",
+      "reason": "Only curated computer display names are added to new self-owned unranked CPU histories, and ranked CPU names derive from the existing random match UUID. Existing ownership, mode/ID validation, human profile names, auth, namespace IDs, rating, reconnect, history retention and account data policies are unchanged. No schema or existing rows are altered.",
+      "checkedPages": [
+        "/faq/#connection",
+        "/faq/#save",
+        "/faq/#privacy",
+        "/contact/",
+        "/privacy/"
+      ],
+      "evidence": [
+        "Read JA/EN connection/save/privacy FAQ, current account data/contact paths and privacyReview.ts; compared PrivateGameRecords, SupabaseService and MatchmakingService diffs. Known catalogue names are allowlisted; names from human/private records or arbitrary CPU-looking names cannot forge a computer history label.",
+        "crown-private-record-final-unit-run2-20261012.log passes the updated nine record tests. The first EPERM attempt ran zero tests and is not success evidence. Existing accepted 122 tests already cover original record invariants and explicit CPU metadata.",
+        "The actual configured Android export passes npc-white-reconnect, npc-black-reconnect and human-named-cpu in separate results.json receipts. A match keeps the same name/portrait after reconnect; human CPU 01 is preserved. All HTTP/WebSocket traffic is isolated. Backend name support is prepared but has not been deployed; no durable-history rollout is claimed."
+      ]
+    },
+    {
+      "group": "public-guidance-and-navigation",
+      "decision": "updated",
+      "reason": "The shared public QubeTeacher keeps the speaker identity, artwork and actual child instructions while removing its automatic generic caption. Crown names/art and optional entrance actions are synchronized within gameplay. Public routes, navigation, legal/contact copy, guide/FAQ facts, index metadata and retired-post removal remain unchanged; the maintenance map now detects the new presentation sources.",
+      "checkedPages": [
+        "/",
+        "/guide/",
+        "/faq/",
+        "/rules/",
+        "/about/",
+        "/contact/",
+        "/privacy/",
+        "/terms/"
+      ],
+      "evidence": [
+        "Reviewed QubeTeacher and its callers against JA/EN siteContent, rules dictionaries and qubeTeaching copy. Only the generic introductory caption is removed; tutorial/hint/rules children, operational feedback and accessible QUBE identification stay. The QubeTeacher tests assert both removal and preserved instructions/status.",
+        "Reviewed shared six-entry catalogue, cyclic stage assignment, CampaignMode/Result and portrait selection. Accepted motion evidence checks 100 accessible stage names and one current portrait, final King, room/intro/board name identity and actual input. Blender provenance, editable master, creation hashes and 798076-byte full/atlas images are documented without restoring QUBE posts.",
+        "Compared changed-file list with public guide/about/contact/privacy/terms, sitemap, robots and siteMetadata files. No new page or public URL is introduced; source review does not claim this new change is deployed."
+      ]
+    },
+    {
+      "group": "qube-teaching",
+      "decision": "updated",
+      "reason": "QUBE presentation is quieter: the repeated general caption and Crown with-QUBE tag are removed. The original seated QUBE, speaker label, accessible identification, actual teaching/hint text, move feedback, rule explanations and stage/admission guidance remain; no new teaching facts or retired posts are generated.",
+      "checkedPages": [
+        "/",
+        "/about/",
+        "/rules/",
+        "/guide/",
+        "/faq/",
+        "game: tutorial, help dialogs, move hints and feedback, promotion/castling, stage/setup explanations, cosmetic preview/equipment guidance"
+      ],
+      "evidence": [
+        "Read QubeTeacher.tsx and its shared guide/rules/candidate/help usages; compared its diff with the unchanged actual children and qubeTeaching dictionaries. The QubeTeacher tests verify real instructions, welcome/status and QUBE identification while rejecting the removed general caption.",
+        "The real-component six-character gallery includes unchanged QUBE. Accepted Crown and configured online browser images retain the QUBE help speaker and operational instructions, while no automatic general paragraph is added. Native sales/ads and all existing hint gates are unchanged."
+      ]
+    }
+  ]
+}

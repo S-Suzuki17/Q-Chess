@@ -6,6 +6,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import GameBoard from '../components/GameBoard';
 import {NativeRewardSettings} from '../components/NativeRewardSettings';
+import {NativeAdPrivacySettings} from '../components/NativeAdPrivacySettings';
 import {FoundersSettings} from '../components/FoundersSettings';
 import {useFoundersRewards} from '../hooks/useFoundersRewards';
 import {foundersText} from '../locales/foundersText';
@@ -34,6 +35,7 @@ import { restoredLegacyUser, restoredOnlineMatch } from '../lib/legacySessionRes
 import { rememberActiveOnlineMatch, forgetActiveOnlineMatch } from '../lib/activeOnlineMatchCache';
 import { useLegacySessionRestoration } from '../hooks/useLegacySessionRestoration';
 import { clearOAuthLoginIntent, hasOAuthLoginIntent, completedOAuthCallback } from '../lib/oauthLoginIntent';
+import {requireOAuthAdmission} from '../lib/oauthAdmission';
 
 
 import { useCampaignProgress } from '../hooks/useCampaignProgress';
@@ -164,6 +166,15 @@ export default function Home() {
                     const {data,error}=await supabase.auth.getUser();
                     const verified=data.user;
                     if(error||!verified||verified.is_anonymous||verified.id!==session.user.id)return;
+                    if(oauthIntent.current===attempt){
+                        try{await requireOAuthAdmission(session.access_token,verified.id);}
+                        catch(error){
+                            // Discard this rejected new local login so reload cannot turn it
+                            // into a restored session. Never sign out a newer auth attempt.
+                            if(active&&circuitAccess.getSnapshot().revision===attempt)await supabase.auth.signOut({scope:'local'});
+                            throw error;
+                        }
+                    }
                     let profile:{name?:string;avatar_url?:string}|null=null;
                     try { const result=await supabase.from('profiles').select('name, avatar_url').eq('id',verified.id).single();profile=result.data; } catch { /* Appearance is optional. */ }
                     const u:User={id:verified.id,name:profile?.name||verified.user_metadata?.full_name||verified.user_metadata?.name||'Player',avatar_url:profile?.avatar_url,type:'registered'};
@@ -360,7 +371,7 @@ export default function Home() {
         <main data-screen={gameState} className={`fixed inset-0 flex flex-col items-center justify-between bg-[#11100E] text-[#E8E2D7] font-sans overflow-x-hidden ${gameState === 'title' ? 'overflow-y-auto' : 'overflow-hidden'}`}>
             <div className="relative z-40 w-full max-w-5xl flex items-center justify-between text-sm mb-4 shrink-0">
                 {/* 右上のコントロール群 */}
-                <div className={`app-corner-controls fixed right-4 top-4 z-40 flex gap-2 items-center ${showSettings || hideSettingsGlobal || gameState === 'playing' || gameState === 'campaign' ? 'hidden' : ''}`}>
+                <div className={`app-corner-controls fixed right-4 top-4 z-40 flex gap-2 items-center ${showSettings || hideSettingsGlobal || gameState === 'level_select' || gameState === 'playing' || gameState === 'campaign' ? 'hidden' : ''}`}>
                     <button
                         onClick={() => setShowSettings(true)}
                         className="px-3 py-2 bg-[#2A2621] border border-[#4A4238] text-[#D4B872] rounded hover:bg-[#3B342C] transition-colors font-sans font-bold tracking-widest flex items-center justify-center text-xs"
@@ -372,7 +383,7 @@ export default function Home() {
 
             {showSettings && (
                 <SettingsDialog label={dict[lang].settings} onClose={()=>setShowSettings(false)}>
-                    <div className="bg-[#2A2621] border border-[#4A4238] rounded-xl p-8 w-full max-w-md shadow-2xl font-sans max-h-[90vh] overflow-y-auto">
+                    <div className="bg-[#2A2621] border border-[#4A4238] rounded-xl p-4 sm:p-8 w-full max-w-md shadow-2xl font-sans max-h-[90vh] overflow-y-auto">
                         <div className="flex justify-between items-center mb-8">
                             <h2 className="text-2xl font-serif text-[#D4B872]">⚙️ {dict[lang]?.settings || 'SETTINGS'}</h2>
                             <button aria-label={matchText(lang,'閉じる','Close')} onClick={() => setShowSettings(false)} className="text-gray-400 hover:text-white text-xl min-w-11 min-h-11">✕</button>
@@ -455,6 +466,7 @@ export default function Home() {
                             <CampaignCloudPanel key={cloud.userId??'guest'} lang={lang} cloud={cloud} locked={matchDesignLocked}/>
                             {android && <FoundersSettings lang={lang} accountName={user?.name} progress={campaignProgress} rewards={foundersRewards} locked={matchDesignLocked}/>}
                             {android && user && <NativeRewardSettings key={user.id} userId={user.id} lang={lang} locked={matchDesignLocked}/>}
+                            {android && <NativeAdPrivacySettings lang={lang} locked={matchDesignLocked}/>}
                             {android && <AppSupportLinks lang={lang}/>}
                             {webContent && <SiteLinks lang={lang} newTab/>}
 

@@ -7,13 +7,12 @@ import {termsText} from '../locales/termsText';
 import {TermsDocument} from './TermsDocument';
 import {AccountDeletionPanel} from './AccountDeletionPanel';
 import {currentAccountTermsStatus,acceptCurrentAccountTerms} from '../lib/currentAccountTerms';
-import {CURRENT_TERMS_VERSION,currentTermsEffective} from '../config/currentTerms';
 import {PUBLIC_SUPPORT_EMAIL} from '../config/publicContact';
 
 type Status='loading'|'needed'|'accepted'|'error'|'updated';
 interface TermsRequest{identity:string;controller:AbortController;ready:boolean}
 
-/** Show only the current document; an account's saved consent survives signing out. */
+/** Registered consent stays account-scoped; guest practice needs no acceptance. */
 export function TermsGate({user,lang,playing,children,onExit,onReady}:{user:User|null;lang:Language;playing:boolean;children?:ReactNode;onExit:()=>void;onReady:(id:string)=>void}){
     const identity=user?`${user.type}:${user.id}`:'none',id=user?.id,type=user?.type;
     const [state,setState]=useState<{identity:string;status:Status}>(()=>({identity,status:'loading'}));
@@ -34,12 +33,8 @@ export function TermsGate({user,lang,playing,children,onExit,onReady}:{user:User
         setChecked(false);setBusy(false);setState({identity,status:'loading'});
         if(!id)return;
         const scope:TermsRequest={identity,controller:new AbortController(),ready:false};request.current=scope;
-        if(type!=='registered'){
-            let accepted=false;try{accepted=localStorage.getItem('qg_guest_terms')===CURRENT_TERMS_VERSION;}catch{}
-            if(!currentTermsEffective())setState({identity,status:'updated'});
-            else if(accepted)complete(scope,id);
-            else setState({identity,status:'needed'});
-        }else void currentAccountTermsStatus(id,scope.controller.signal).then(value=>{
+        if(type==='guest')complete(scope,id);
+        else void currentAccountTermsStatus(id,scope.controller.signal).then(value=>{
             if(!active(scope))return;
             if(value.accepted)complete(scope,id);
             else setState({identity,status:value.effective?'needed':'updated'});
@@ -48,17 +43,16 @@ export function TermsGate({user,lang,playing,children,onExit,onReady}:{user:User
     },[identity,id,type,retry]);
     const accept=async()=>{
         const scope=request.current;
-        if(!user||!scope||!active(scope)||!checked||status!=='needed'||pending.current)return;
+        if(user?.type!=='registered'||!scope||!active(scope)||!checked||status!=='needed'||pending.current)return;
         pending.current=scope;setBusy(true);
         try{
-            if(user.type==='registered')await acceptCurrentAccountTerms(user.id,scope.controller.signal);
-            else try{localStorage.setItem('qg_guest_terms',CURRENT_TERMS_VERSION);}catch{/* Session consent still works. */}
+            await acceptCurrentAccountTerms(user.id,scope.controller.signal);
             complete(scope,user.id);
         }catch(error){if(active(scope))setState({identity:scope.identity,status:error instanceof Error&&error.message==='TERMS_UPDATED'?'updated':'error'});}
         finally{if(pending.current===scope)pending.current=null;if(active(scope))setBusy(false);}
     };
     const exit=()=>{request.current?.controller.abort();request.current=null;pending.current=null;onExit();};
-    if(!user||playing||status==='accepted')return children;
+    if(!user||user.type==='guest'||playing||status==='accepted')return children;
     // A pending check is not a request for consent. In particular, do not flash
     // the document on every reload while the account's saved consent is fetched.
     // Keep access closed until that response; a local cache is not authorization.

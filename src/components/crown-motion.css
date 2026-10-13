@@ -1,0 +1,119 @@
+/* The central adopted piece is never restyled. Regalia remains around its silhouette. */
+.crown-enemy-portrait { --enemy-accent:#e9cf97;position:relative;display:block;width:128px;height:136px;flex-shrink:0;pointer-events:none;isolation:isolate;color:var(--enemy-accent); }
+.crown-enemy-regalia { position:absolute;inset:0;width:100%;height:100%;opacity:.72; }
+.crown-enemy-core { position:absolute;left:24%;top:24%;width:52%;height:52%;display:block; }
+.crown-enemy-core .crown-adopted-piece { display:block;width:100%;height:100%; }
+.crown-enemy-core .crown-adopted-piece::after { display:none; }
+.crown-enemy-crest { position:absolute;width:30px;height:30px;bottom:0;left:calc(50% - 15px);background:#11201ee6;padding:3px;border:1px solid currentColor;border-radius:50%; }
+.crown-enemy-portrait-compact { width:42px;height:44px; }
+.crown-enemy-portrait-compact .crown-enemy-core { left:19%;top:18%;width:62%;height:62%; }
+.crown-enemy-portrait-compact .crown-enemy-crest { width:15px;height:15px;left:calc(50% - 7.5px);padding:1px;border-width:1px; }
+.crown-enemy-portrait-compact .crown-enemy-regalia { opacity:.55; }
+.crown-character-body { position:absolute;display:block;left:50%;top:0;right:auto;bottom:auto;aspect-ratio:8/9;width:auto;height:100%;overflow:hidden;transform:translateX(-50%); }
+.crown-character-flat,.crown-character-still,.crown-character-layers { position:absolute;inset:0;width:100%;height:100%;object-fit:contain; }
+.crown-character-still { z-index:1; }
+.crown-character-body[data-character-art='toon']>.crown-character-flat { visibility:hidden; }
+.crown-character-layers { display:none;z-index:2; }
+.crown-character-body[data-character-variant='atlas']>.crown-character-layers { display:block; }
+.crown-character-layers i { position:absolute;inset:0;display:block;background-repeat:no-repeat;background-size:300% 300%; }
+[data-crown-motion='active'] .crown-character-articulated>.crown-character-layers,
+.match-intro:not(.crown-match-intro) .crown-character-articulated>.crown-character-layers { display:block; }
+[data-crown-motion='active'] .crown-character-articulated>.crown-character-still { opacity:0!important; }
+.crown-character-compact>.crown-character-still,.crown-character-compact>.crown-character-flat { width:160%;height:160%;max-width:none;left:-30%;top:-4%; }
+.intro-player>.crown-enemy-portrait { width:88px;height:96px; }
+.crown-enemy-portrait>.crown-enemy-crest { right:0;left:auto;bottom:0;width:18px;height:18px;opacity:.8; }
+.crown-enemy-regalia { display:none; }
+.crown-enemy-portrait-compact .crown-enemy-crest { display:none; }
+.crown-enemy-portrait-compact .crown-character-body { left:50%;top:0;right:auto;bottom:auto; }
+.crown-character-body [data-character-part] { transform-box:fill-box;transform-origin:center; }
+[data-crown-motion='active'] .crown-character-body [data-character-part='head'] { animation:crown-character-head 1.1s ease-out both; }
+[data-crown-motion='active'] .crown-character-body [data-character-part='right-hand'] { animation:crown-character-hand 1s ease-out both;transform-origin:25% 15%; }
+[data-crown-motion='active'] .crown-character-body [data-character-part='left-hand'] { animation:crown-character-hand 1.2s ease-out reverse both;transform-origin:75% 15%; }
+[data-crown-motion='active'] .crown-character-body [data-character-part='left-foot'] { animation:crown-character-step .75s ease-out both; }
+[data-crown-motion='active'] .crown-character-body [data-character-part='right-foot'] { animation:crown-character-step 1.05s ease-out both; }
+@keyframes crown-character-head { 0% { transform:rotate(-3deg) translateY(3px); } 55% { transform:rotate(2deg) translateY(-2px); } 100% { transform:none; } }
+@keyframes crown-character-hand { 0% { transform:rotate(0deg); } 45% { transform:rotate(-8deg); } 100% { transform:none; } }
+@keyframes crown-character-step { 0% { transform:translateY(-3px); } 60% { transform:translateY(1px); } 100% { transform:none; } }
+.crown-screen .crown-enemy-silhouette { width:132px;height:140px;background:none; }
+.crown-screen .crown-enemy-silhouette .crown-enemy-portrait { width:128px;height:136px; }
+.crown-screen .crown-enemy-silhouette svg { width:100%;height:100%;stroke-width:2;filter:none;animation:none; }
+.crown-screen .crown-enemy-silhouette .crown-enemy-crest { width:30px;height:30px;stroke-width:3; }
+.crown-screen .crown-opponent-info strong { font-size:clamp(14px,1.5vw,19px);line-height:1.4;overflow-wrap:anywhere; }
+.crown-enemy-title { color:#e0cfaa; }
+.crown-screen .crown-route-node strong { white-space:nowrap;flex-shrink:0;font-variant-numeric:tabular-nums; }
+@media(max-width:380px) { .crown-screen .crown-route-node strong { font-size:11px;letter-spacing:-.04em; } }
+.crown-room-motion { overflow:hidden; }
+.crown-chamber-light { position:absolute;inset:0;overflow:hidden;border-radius:inherit;pointer-events:none;z-index:0;opacity:0; }
+.crown-chamber-light video { width:100%;height:100%;object-fit:cover;mix-blend-mode:screen;opacity:0; }
+[data-crown-video='ready']>.crown-chamber-light video { opacity:.6; }
+.crown-light-shaft { position:absolute;width:36%;height:180%;left:14%;top:-35%;transform:rotate(25deg);background:linear-gradient(90deg,transparent,#dcc79b16,transparent); }
+.crown-room-motion>.crown-encounter-copy,.crown-room-motion>.crown-next-reward,.crown-room-motion>.crown-launch { position:relative;z-index:1; }
+.crown-room-motion[data-crown-motion='active']>.crown-castle-scene { animation:crown-room-approach 1.4s cubic-bezier(.16,.8,.22,1) both; }
+.crown-room-motion[data-crown-motion='active'] .crown-enemy-portrait { animation:var(--crown-enemy-animation,crown-enemy-advance) 1.1s cubic-bezier(.18,.8,.24,1) both; }
+[data-crown-motion='active']>.crown-chamber-light { animation:crown-light-pass 1.4s ease-out both; }
+.crown-enemy-portrait[data-enemy-entrance='vault'] { --crown-enemy-animation:crown-enemy-vault; }
+.crown-enemy-portrait[data-enemy-entrance='glide'] { --crown-enemy-animation:crown-enemy-glide; }
+.crown-enemy-portrait[data-enemy-entrance='descend'] { --crown-enemy-animation:crown-enemy-descend; }
+.crown-enemy-portrait[data-enemy-entrance='turn'] { --crown-enemy-animation:crown-enemy-turn; }
+.crown-enemy-portrait[data-enemy-entrance='coronation'] { --crown-enemy-animation:crown-enemy-coronation; }
+.crown-match-intro { padding:24px 28px 18px;width:min(760px,calc(100vw - 24px));max-height:calc(100dvh - 24px);border-color:#aa936b80;background:#12201d;border-radius:22px;overflow:auto;isolation:isolate;animation:none!important; }
+.crown-match-intro::backdrop { background:#080e0c9e;backdrop-filter:none; }
+.crown-intro-room { position:absolute;inset:0;z-index:-1;overflow:hidden;pointer-events:none;opacity:.55; }
+.crown-intro-room svg { width:100%;height:100%;object-fit:cover;image-rendering:pixelated; }
+.crown-intro-heading { position:relative;z-index:1; }
+.crown-intro-heading>span { color:#ebcf98;letter-spacing:.24em;font-size:9px; }
+.crown-intro-heading p { color:#c6d0c7;font-size:11px;line-height:1.5;margin:7px 0; }
+.crown-match-intro .crown-intro-heading h2 { margin:8px 0 2px;font:500 clamp(20px,3vw,30px)/1.3 var(--font-geist-sans),system-ui,sans-serif; }
+.crown-intro-stage { position:relative;z-index:1;display:flex;align-items:flex-end;justify-content:center;min-height:180px;margin:4px 0 6px; }
+.crown-intro-stage>.crown-enemy-portrait { width:180px;height:186px; }
+.crown-intro-companion { width:80px;height:88px;position:absolute;left:calc(50% + 90px);bottom:16px; }
+.crown-intro-identity { position:relative;z-index:1;display:grid;gap:7px;margin-bottom:20px; }
+.crown-intro-identity strong { font-size:clamp(17px,3vw,25px);font-weight:500;line-height:1.3;overflow-wrap:anywhere; }
+.crown-intro-identity>span { font-size:11px;line-height:1.6;color:#cad3c9; }
+.crown-intro-actions { position:relative;z-index:1;display:flex;gap:12px;justify-content:space-between;padding-top:14px;border-top:1px solid #ccb78535; }
+.crown-intro-actions button { display:flex;justify-content:center;align-items:center;gap:8px;min-height:44px;min-width:0;padding:9px 14px;border:1px solid #c6ba965e;border-radius:10px;background:#14221fde;color:#eadfc4;font-size:12px;line-height:1.4;touch-action:manipulation;cursor:pointer; }
+.crown-intro-actions [data-crown-skip] { background:#e7d2a1;color:#12201b;border-color:#e7d2a1; }
+.crown-intro-actions button:focus-visible { outline:2px solid #fff0c9;outline-offset:3px; }
+.crown-match-intro[data-crown-motion='active'] .crown-intro-room { animation:crown-room-approach 1.8s cubic-bezier(.16,.8,.22,1) both; }
+.crown-match-intro[data-crown-motion='active'] .crown-intro-stage>.crown-enemy-portrait { animation:var(--crown-enemy-animation,crown-enemy-advance) 1.2s cubic-bezier(.18,.8,.24,1) both; }
+.crown-match-intro[data-crown-motion='active']>.crown-chamber-light { animation-duration:1.8s; }
+.crown-match-intro[data-crown-motion='active'] .crown-intro-identity { animation:crown-identity-rise 1.1s cubic-bezier(.2,.8,.2,1) both; }
+.crown-board-arrival { position:absolute;inset:3px;z-index:3;pointer-events:none;border-radius:inherit;overflow:hidden;opacity:0; }
+.crown-board-arrival i { position:absolute;inset:0;border:2px solid #e9ce985e; }
+.crown-board-arrival i+i { inset:7px;border-width:1px;border-color:#9bbdb850; }
+.crown-board-arrival[data-crown-motion='active'] { animation:crown-board-light .56s ease-out both; }
+@keyframes crown-room-approach { from { transform:translateY(10px) scale(1.035); } to { transform:none; } }
+@keyframes crown-enemy-advance { 0% { transform:translateY(18px) scale(.94);opacity:.45; } 58% { transform:translateY(-3px) scale(1.025);opacity:1; } 100% { transform:none;opacity:1; } }
+@keyframes crown-enemy-vault { 0% { transform:translate(-16px,18px) rotate(-7deg);opacity:.45; } 52% { transform:translate(3px,-8px) rotate(2deg);opacity:1; } 100% { transform:none;opacity:1; } }
+@keyframes crown-enemy-glide { from { transform:translateX(-28px);opacity:.4; } to { transform:none;opacity:1; } }
+@keyframes crown-enemy-descend { from { transform:translateY(-20px) scale(.98);opacity:.4; } to { transform:none;opacity:1; } }
+@keyframes crown-enemy-turn { from { transform:perspective(700px) rotateY(-35deg);opacity:.4; } to { transform:none;opacity:1; } }
+@keyframes crown-enemy-coronation { 0% { transform:translateY(12px) scale(.86);opacity:.45; } 65% { transform:scale(1.035);opacity:1; } 100% { transform:none;opacity:1; } }
+@keyframes crown-light-pass { 0% { opacity:0;transform:translateX(-7%); } 25% { opacity:.9; } 70% { opacity:.65; } 100% { opacity:0;transform:translateX(7%); } }
+@keyframes crown-identity-rise { from { transform:translateY(6px);opacity:.55; } to { transform:none;opacity:1; } }
+@keyframes crown-board-light { 0% { opacity:0; } 25% { opacity:1; } 100% { opacity:0; } }
+@media(max-width:700px) {
+ .crown-screen .crown-enemy-silhouette { width:100%;max-width:108px;height:112px; }
+ .crown-screen .crown-enemy-silhouette .crown-enemy-portrait { width:100px;height:108px; }
+ .crown-screen .crown-enemy-silhouette .crown-enemy-crest { width:24px;height:24px;left:calc(50% - 12px); }
+ .crown-match-intro { padding:18px 16px 14px; }
+ .crown-intro-stage { min-height:158px; }
+ .crown-intro-stage>.crown-enemy-portrait { width:150px;height:160px; }
+ .crown-intro-companion { left:calc(50% + 63px);width:64px;height:72px; }
+ .crown-intro-companion .qube-companion { width:64px; }
+ .crown-intro-actions { gap:8px; }
+ .crown-intro-actions button { padding:9px 10px;font-size:11px; }
+}
+@media(max-height:600px) and (max-width:700px) {
+ .crown-screen .crown-enemy-silhouette { height:70px; }
+ .crown-screen .crown-enemy-silhouette .crown-enemy-portrait { width:68px;height:70px; }
+ .crown-match-intro { padding-top:12px; }
+ .crown-intro-stage { min-height:115px; }
+ .crown-intro-stage>.crown-enemy-portrait { width:110px;height:116px; }
+ .crown-intro-identity { margin-bottom:12px; }
+}
+@media(prefers-reduced-motion:reduce) {
+ .crown-room-motion *, .crown-room-motion *::before, .crown-room-motion *::after,
+ .crown-match-intro *, .crown-board-arrival { animation:none!important;transition:none!important; }
+ .crown-chamber-light { display:none; }
+}

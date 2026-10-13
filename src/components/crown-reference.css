@@ -1,0 +1,36 @@
+/* Portrait castle composition, with QUBE in the foreground and a separate reward surface. */
+.crown-reference { max-width:1140px;margin:auto;padding:12px;gap:12px;background:radial-gradient(ellipse at 45% 0,#19302a44,transparent 65%),#0d1916;color:#ded8bf; }
+.crown-reference .crown-header { margin:0;padding:0;gap:10px; }
+.crown-reference .crown-header h1 { font-size:clamp(18px,4.5vw,25px);line-height:1.35; }
+.crown-reference .crown-header>button { min-width:44px;min-height:44px;border-radius:12px; }.crown-reference .crown-header>button:first-child>span { display:none; }
+.crown-reference .crown-tabs { border-radius:15px;padding:4px;min-height:49px; }.crown-reference .crown-tabs button { min-height:39px;font-size:13px; }
+.crown-reference .crown-progress { min-height:24px;font-size:10px;gap:10px; }
+.crown-reference .crown-challenge { height:auto;min-height:100%;gap:10px; }
+.crown-reference .crown-encounter { flex:1;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(170px,1fr) minmax(155px,auto) auto;gap:10px;min-height:510px;padding:12px;border-radius:18px;background:#111e24;border-color:#66777570; }
+.crown-reference .crown-encounter::before { opacity:.13;background:#061315; }
+.crown-reference .crown-castle-scene { position:absolute;grid-column:1/2;grid-row:2/4;inset:0;opacity:1;border-radius:0;pointer-events:none; }.crown-reference .pixel-castle-corridor { width:100%;height:100%; }
+.crown-reference .crown-encounter-copy { position:static!important;grid-column:1;grid-row:1;justify-content:flex-start;padding-top:14px;padding-bottom:12px;min-width:0; }
+.crown-reference .crown-encounter h2 { font-size:clamp(22px,5.8vw,34px);line-height:1.3;font-weight:650;letter-spacing:-.04em;margin:0 0 10px; }
+.crown-reference .crown-encounter h2 span { color:#ede7ce;white-space:nowrap; }.crown-reference .crown-eyebrow { font-size:10px;letter-spacing:0;line-height:1.5; }
+.crown-reference .crown-encounter .crown-opponent { position:static;display:block;width:100%; }
+.crown-reference .crown-opponent>.crown-opponent-info { position:static;display:grid;grid-template-columns:1fr;gap:4px;width:auto;max-width:46%;padding:0;text-shadow:0 1px 5px #001; }
+.crown-reference .crown-opponent-info strong { font-size:15px;font-weight:550;line-height:1.4; }.crown-reference .crown-opponent .crown-opponent-info>span { font-size:10px;color:#c2c7c2; }
+.crown-reference .crown-encounter .crown-enemy-silhouette { position:absolute;grid-column:1/2;grid-row:2/3;left:50%;top:auto;right:auto;bottom:8px;transform:translateX(-50%);width:126px;height:142px;max-width:none;z-index:2;background:none;pointer-events:none; }
+.crown-reference .crown-enemy-silhouette .crown-enemy-portrait { width:126px;height:142px; }.crown-reference .crown-enemy-silhouette .crown-enemy-crest { display:none; }
+.crown-reference .crown-encounter>.crown-companion { position:absolute;grid-column:1 / 2;grid-row:3 / 4;left:8px;bottom:14px;top:auto;right:auto;display:block;width:112px;z-index:3;pointer-events:none;transform:none; }
+.crown-reference .crown-companion .qube-companion { width:112px;height:auto; }
+.crown-reference .crown-encounter>.crown-next-reward { position:relative!important;inset:auto!important;z-index:4;grid-column:1;grid-row:3;justify-self:end;align-self:end;margin:0 0 0 auto;width:104px;max-width:32%;padding:9px 7px;gap:4px;justify-content:flex-start;min-height:0;border-radius:12px;background:#08181ad9;border-color:#80917640;box-shadow:inset 0 1px #d7cda00a; }
+.crown-reference .crown-encounter>.crown-next-reward .crown-eyebrow { text-align:center;color:#ddc792;font-size:9px; }.crown-reference .crown-next-art { flex:none;min-height:0;height:54px;max-height:54px;width:100%; }.crown-reference .crown-next-art>svg { max-height:54px; }
+.crown-reference .crown-encounter>.crown-next-reward>strong { font-size:10px;line-height:1.45;text-align:center; }.crown-reference .crown-preview-label { margin-top:2px;font-size:10px; }
+.crown-reference .crown-launch { grid-row:4;grid-column:1/-1;position:relative!important;z-index:5;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:8px 10px;padding-top:0;border:0; }
+.crown-reference .crown-launch .campaign-side { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px; }.crown-reference .campaign-side legend { position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%); }
+.crown-reference .crown-launch .campaign-side button { min-height:46px;font-size:10px;line-height:1.4;padding:8px 4px;border-radius:12px;white-space:normal;overflow-wrap:anywhere; }
+.crown-reference .crown-launch .campaign-primary { min-height:49px;font-size:13px;line-height:1.4;border-radius:13px;padding:12px;white-space:normal;overflow-wrap:anywhere; }
+.crown-reference .crown-objective { font-size:9px;line-height:1.5;color:#bbc2b8;margin:3px 0 0; }
+.crown-reference .crown-route { grid-template-columns:repeat(5,minmax(0,1fr));gap:6px; }.crown-reference .crown-route::before { display:none; }.crown-reference .crown-route-node { min-height:46px;padding:6px 4px;border-radius:12px;gap:4px; }.crown-reference .crown-route-node strong { font-size:11px; }
+.crown-reference .crown-route-piece { width:18px;height:20px; }.crown-reference .crown-pager { gap:10px; }.crown-reference .crown-pager>button { min-width:44px;min-height:44px;border-radius:12px; }.crown-reference .crown-route-caption { font-size:10px; }
+@media(min-width:800px){.crown-reference{padding:20px;}.crown-reference .crown-encounter{min-height:530px;padding:20px 24px;}.crown-reference .crown-encounter-copy{padding-top:16px;padding-bottom:12px;}.crown-reference .crown-encounter .crown-enemy-silhouette{width:160px;height:180px;bottom:8px;}.crown-reference .crown-enemy-silhouette .crown-enemy-portrait{width:160px;height:180px;}.crown-reference .crown-encounter>.crown-companion{left:9%;bottom:14px;width:150px;}.crown-reference .crown-companion .qube-companion{width:150px;}.crown-reference .crown-encounter>.crown-next-reward{right:auto;max-width:24%;margin-right:5%;width:160px;}.crown-reference .crown-route{grid-template-columns:repeat(10,minmax(0,1fr));}.crown-reference .crown-encounter>.crown-next-reward>strong{font-size:12px;}.crown-reference .crown-next-art{height:64px;max-height:64px;}}
+@media(max-width:340px){.crown-reference{padding:9px;gap:9px;}.crown-reference .crown-encounter{padding:10px;gap:8px;min-height:510px;}.crown-reference .crown-encounter>.crown-next-reward{width:92px;padding:8px 5px;}.crown-reference .crown-encounter>.crown-companion{left:2px;width:98px;}.crown-reference .crown-companion .qube-companion{width:98px;}.crown-reference .crown-encounter .crown-enemy-silhouette,.crown-reference .crown-enemy-silhouette .crown-enemy-portrait{width:116px;height:132px;}.crown-reference .crown-launch{gap:8px;}.crown-reference .crown-launch .campaign-primary{font-size:12px;padding:10px;}}
+@media(max-height:500px){.crown-reference .crown-tab-panel{overflow:auto;}.crown-reference .crown-challenge{height:auto;}.crown-reference .crown-encounter{flex:none;min-height:400px;}.crown-reference .crown-encounter-copy{padding-top:32px;}}
+
+.castle-scene-graph{position:absolute;inset:0;width:100%;height:100%;}

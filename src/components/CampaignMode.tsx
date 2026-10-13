@@ -1,6 +1,6 @@
 'use client';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ArrowLeft, ArrowUpRight, Check, ChevronLeft, ChevronRight, Info, LockKeyhole, Trophy, ChessPawn, ChessKnight, ChessBishop, ChessRook, ChessQueen, ChessKing } from 'lucide-react';
+import { ArrowLeft, ArrowUpRight, ChevronLeft, ChevronRight, Info, Trophy } from 'lucide-react';
 import { rewardUnlocked, totalCircuitStars, type CampaignOutcome } from '../config/campaign';
 import { CHAMPIONSHIP_REWARDS } from '../config/championshipRewards';
 import { championshipText } from '../locales/championshipText';
@@ -22,7 +22,7 @@ import { randomCPUPersonality } from '../config/cpuPersonalities';
 import { requestCircuitInterstitial } from '../lib/adPolicy';
 import { circuitAccess } from '../lib/circuitAccess';
 import { useCircuitAccess } from '../hooks/useCircuitAccess';
-import { CircuitLoginGate } from './CircuitLoginGate';
+import { GuestCircuitPreview } from './GuestCircuitPreview';
 import {cloudText} from '../locales/cloudText';
 import { crownAdmissionEnabled } from '../config/crownAdmission';
 import { authorizeCrownStage } from '../lib/crownAdmission';
@@ -31,20 +31,20 @@ import {QubeTeacher} from './QubeTeacher';
 import {hintScopeText} from '../locales/hintScopeText';
 import {cosmeticsSettingsText} from '../locales/cosmeticsSettingsText';
 import {CrownHintRecovery} from './CrownHintRecovery';
-import { PixelCastleBackdrop } from './PixelCastleBackdrop';
-import { crownEncounterForStage } from './crownCollection';
 import { crownNavigationText } from '../locales/crownNavigationText';
-import { CrownInfoDialog, CrownOpponentArtwork, CrownRewardArtwork, CrownTabs } from './CrownNavigation';
+import { CrownInfoDialog, CrownRewardArtwork, CrownTabs } from './CrownNavigation';
+import {ChallengeMap,type MapJourney} from './ChallengeMap';
+import {challengeMapFrontier} from '../lib/challengeMapProgress';
+import {hundredMapText} from '../locales/hundredMapText';
+import {castleQuestNextStage} from '../lib/castleQuestJourney';
 import './campaign.css';
-import './crown-enemy-staging.css';
-import {QubeCompanion} from './QubeCompanion';
-import './crown-companion-scene.css';
+import './challenge-map.css';
 
 
 type CampaignProps={lang:Language;user:User;onBack:()=>void;onLogin:()=>void;onPlayingChange?:(playing:boolean)=>void};
 export function CampaignMode(props:CampaignProps) {
     const {allowed,revision}=useCircuitAccess(props.user);
-    if(!allowed)return <CircuitLoginGate lang={props.lang} onBack={props.onBack} onLogin={props.onLogin}/>;
+    if(!allowed)return <GuestCircuitPreview lang={props.lang} onBack={props.onBack} onLogin={props.onLogin}/>;
     return <MemberCircuit key={`${props.user.id}:${revision}`} {...props}/>;
 }
 
@@ -56,6 +56,7 @@ function MemberCircuit({lang,user,onBack,onPlayingChange}:CampaignProps) {
     const [tab,setTab]=useState<'challenge'|'collection'>('challenge');
     const [showInfo,setShowInfo]=useState(false);
     const previousFocus=useRef<HTMLElement|null>(null);
+    const screen=useRef<HTMLElement|null>(null),returnFocus=useRef(false);
     const [firstClear,setFirstClear]=useState(false);
     const [run,setRun]=useState(0);
     const [crownRunId,setCrownRunId]=useState<string|undefined>();
@@ -67,6 +68,9 @@ function MemberCircuit({lang,user,onBack,onPlayingChange}:CampaignProps) {
     const [runDesign,setRunDesign]=useState(()=>({music:progress.music,effect:progress.effect,piece:progress.piece}));
     const [starting,setStarting]=useState(false);
     const [entryError,setEntryError]=useState(false);
+    const [journey,setJourney]=useState<MapJourney|null>(null);
+    const [runProgress,setRunProgress]=useState(progress);
+    const finishedRun=useRef(false);
     const [entry]=useState(()=>createCrownEntryController({
         enabled:crownAdmissionEnabled,authorize:authorizeCrownStage,
         legacyPaid:async(userId,signal)=>{
@@ -78,11 +82,17 @@ function MemberCircuit({lang,user,onBack,onPlayingChange}:CampaignProps) {
     const runPermit=useRef<(()=>boolean)|null>(null);
     useEffect(()=>()=>{entry.cancel();runPermit.current=null;onPlayingChange?.(false);},[entry,onPlayingChange]);
     useEffect(()=>{
-        const cancel=()=>{entry.cancel();setStarting(false);};
+        if(activeId===null&&returnFocus.current){
+            returnFocus.current=false;
+            screen.current?.querySelector<HTMLButtonElement>('.map-launch .campaign-primary')?.focus({preventScroll:true});
+        }
+    },[activeId]);
+    useEffect(()=>{
+        const cancel=()=>{entry.cancel();setStarting(false);setJourney(null);};
         window.addEventListener('popstate',cancel);
         return()=>window.removeEventListener('popstate',cancel);
     },[entry]);
-    const cancelEntry=()=>{entry.cancel();setStarting(false);setEntryError(false);};
+    const cancelEntry=()=>{entry.cancel();setStarting(false);setEntryError(false);setJourney(null);};
     useEffect(()=>{
         if(activeId) soundManager.playBGM(battleMusicUrl(runDesign.music));
         else soundManager.stopBGM();
@@ -91,25 +101,29 @@ function MemberCircuit({lang,user,onBack,onPlayingChange}:CampaignProps) {
     const t=(key:Parameters<typeof campaignText>[1])=>campaignText(lang,key);
     const loop=(key:Parameters<typeof championshipText>[1])=>championshipText(lang,key);
     const nav=(key:Parameters<typeof crownNavigationText>[1])=>crownNavigationText(lang,key);
-    const cleared=progress.stageStars?.length??0;
+    // A failed localStorage write retains session data, but must not advance the saved map.
+    const mapProgress=storageError?runProgress:progress;
+    const cleared=mapProgress.stageStars?.length??0;
     const selected=selection??Math.min(cleared+1,100);
     const stage=CIRCUIT_STAGES[selected-1],reward=CHAMPIONSHIP_REWARDS[selected-1];
     const page=chosenPage??Math.floor((selected-1)/10);
-    const currentStage=Math.min(cleared+1,100);
-    const stars=totalCircuitStars(progress);
-    const selectedStars=progress.stageStars?.[selected-1]??0;
-    const unlocked=stageUnlocked(progress,selected);
+    const currentStage=challengeMapFrontier(mapProgress);
+    const stars=totalCircuitStars(mapProgress);
+    const selectedStars=mapProgress.stageStars?.[selected-1]??0;
+    const unlocked=stageUnlocked(mapProgress,selected);
     const rememberFocus=()=>{previousFocus.current=document.activeElement as HTMLElement;};
     const closeOverlay=()=>{setPreview(null);setShowInfo(false);previousFocus.current?.focus();};
     const selectStage=(id:number)=>{cancelEntry();setSelected(id);setPage(Math.floor((id-1)/10));};
     const complete=useCallback((result:CampaignOutcome)=>{
-        if(!activeId||!runPermit.current?.()||!circuitAccess.canPlay(user))return;
+        if(!activeId||finishedRun.current||!runPermit.current?.()||!circuitAccess.canPlay(user))return;
+        finishedRun.current=true;
         update(value=>finishStage(value,activeId,result));
         setOutcome(result);
     },[activeId,update,user]);
     const start=async(id:number)=>{
-        if(!circuitAccess.canPlay(user)||!loaded||!stageUnlocked(progress,id))return;
+        if(!circuitAccess.canPlay(user)||!loaded||!stageUnlocked(mapProgress,id))return;
         if(entry.pending)return;
+        setJourney(null);
         const permit=circuitAccess.permit(user);
         setStarting(true);setEntryError(false);
         const result=await entry.start(user.id,id,permit);
@@ -117,30 +131,44 @@ function MemberCircuit({lang,user,onBack,onPlayingChange}:CampaignProps) {
         setStarting(false);
         if(result.state!=='ready'){setEntryError(true);return;}
         if(!result.canActivate())return;
+        finishedRun.current=false;
+        setRunProgress(mapProgress);
         runPermit.current=permit;
         setCrownRunId(crypto.randomUUID());
         setRunPersonality(randomCPUPersonality());
         setRunDesign({music:progress.music,effect:progress.effect,piece:progress.piece});setRunMusic(CIRCUIT_MUSIC.filter(track=>rewardUnlocked(progress,track.id)).map(track=>track.id));onPlayingChange?.(true);
         setFirstClear(!progress.stageStars?.[id-1]);setSelected(id);setOutcome(null);setRun(value=>value+1);setActiveId(id);
     };
-    const leaveStage=()=>{runPermit.current=null;cancelEntry();setActiveId(null);onPlayingChange?.(false);};
+    const leaveStage=()=>{runPermit.current=null;returnFocus.current=true;cancelEntry();setActiveId(null);onPlayingChange?.(false);};
     const afterResult=async(action:()=>void)=>{
         const permit=runPermit.current;
         if(!permit?.())return;
         if(permit()&&runPermit.current===permit)action();
     };
+    const nextStage=activeId?castleQuestNextStage(progress,activeId,outcome,storageError):null;
+    const goNext=()=>{
+        if(!activeId||!nextStage||!finishedRun.current||!runPermit.current?.()||!circuitAccess.canPlay(user))return;
+        const from=activeId;
+        leaveStage();
+        setSelected(nextStage);setPage(Math.floor((nextStage-1)/10));
+        setJourney(firstClear?{from,to:nextStage,token:crypto.randomUUID(),finished:false}:null);
+    };
+    const arrived=(token:string)=>{
+        if(!journey||journey.token!==token||journey.finished)return;
+        setJourney(current=>current?.token===token?{...current,finished:true}:current);
+    };
     if(activeId) {
         const active=CIRCUIT_STAGES[activeId-1];
         return <LocalGameBoard key={`${activeId}-${run}`} lang={lang} user={user} cpuLevel={active.strength<12?1:active.strength<23?3:5}
             crownStageId={activeId} crownRunId={crownRunId}
-            cpuPersonality={runPersonality} cpuSearchProfile={active.search} campaignLabel={`${stageText(lang,'stage')} ${activeId} / 100 · ${loop('strength')} ${active.strength}`} opponentLabel={active.opponent}
+            cpuPersonality={runPersonality} cpuSearchProfile={active.search} campaignLabel={`${hundredMapText(lang,'tile')} ${activeId} / 100 · ${loop('strength')} ${active.strength}`} opponentLabel="CPU"
             onlineRole={side} timeControl={active.timeControl} onComplete={complete} onHome={leaveStage}
             resultPanel={outcome&&<CampaignResult lang={lang} stageId={activeId} firstClear={firstClear} effect={runDesign.effect} pieceFinish={runDesign.piece} foeWhite={side==='black'} outcome={outcome} saveError={storageError}
                 newMusic={CIRCUIT_MUSIC.filter(track=>!runMusic.includes(track.id)&&rewardUnlocked(progress,track.id)).map(track=>track.id)}
                 onRetry={()=>void afterResult(()=>start(activeId))} onBack={()=>void afterResult(leaveStage)}
-                onNext={outcome.won&&activeId<100?()=>void afterResult(()=>start(activeId+1)):undefined}/>}/>;
+                onNext={nextStage?goNext:undefined}/>}/>;
     }
-    return <section className="campaign-screen crown-screen" data-circuit-stage={selected} aria-label={t('title')}>
+    return <section ref={screen} className="campaign-screen crown-screen map-screen" data-circuit-stage={selected} aria-label={t('title')}>
         <header className="campaign-header crown-header">
             <button onClick={()=>{cancelEntry();onBack();}} aria-label={t('back')}><ArrowLeft size={18}/><span>{t('back')}</span></button>
             <div><span className="crown-brand">Q-GAMBIT</span><h1>{t('title')}</h1></div>
@@ -152,42 +180,30 @@ function MemberCircuit({lang,user,onBack,onPlayingChange}:CampaignProps) {
         {entryError&&<p className="campaign-save-error" role="alert">{nav('entryError')}</p>}
         <div className="crown-panels">
         <div className="crown-tab-panel" role="tabpanel" id="crown-main-panel-challenge" aria-labelledby="crown-main-tab-challenge" hidden={tab!=='challenge'} tabIndex={0}>
-        <div className="crown-challenge">
+        <div className="crown-challenge" data-map-layout>
             <CrownHintRecovery userId={user.id} lang={lang}/>
             <section className="crown-progress" aria-label={loop('record')}>
                 <span><Trophy size={15} aria-hidden="true"/>{t('cleared')} <b>{cleared}/100</b></span>
                 <progress max={100} value={cleared} aria-label={t('cleared')}/>
                 <span className="crown-stars" aria-label={`${musicMilestoneText(lang,'total')} ${stars}/300`}>★ {stars}/300</span>
             </section>
-            <article className="crown-encounter" data-stage-unlocked={unlocked}>
-                <div className="crown-castle-scene"><PixelCastleBackdrop stageId={selected}/></div>
-                <div className="crown-encounter-copy">
-                    <p className="crown-eyebrow">{selectedStars?nav('improveStars'):unlocked?nav('nextStage'):t('locked')}</p>
-                    <h2>{stageText(lang,'stage')} <span>{String(selected).padStart(3,'0')}</span></h2>
-                    <div className="crown-opponent"><span className="crown-enemy-silhouette" aria-hidden="true"><CrownOpponentArtwork stageId={selected} player={side==='white'?'black':'white'}/></span><span className="crown-companion"><QubeCompanion key={selected} state={starting?'anticipation':'idle'} size={72} paused={tab!=='challenge'}/><span className="crown-companion-label">{nav('withQube')}</span></span><div className="crown-opponent-info"><strong>{selected===100?nav('kingBoss'):stage.opponent}</strong><span>{loop('strength')} {stage.strength}/34</span><span>{stage.timeControl==='10m'?dict[lang].tc10m:stage.timeControl==='3m'?dict[lang].tc3m:dict[lang].tc10s}</span></div></div>
-                </div>
-                <button className="crown-next-reward" data-preview-reward={reward.id} onClick={()=>{cancelEntry();rememberFocus();setPreview({kind:reward.kind,id:reward.id});}} aria-label={`${circuitText(lang,'preview')} · ${rewardName(lang,reward.id)}`}>
-                    <span className="crown-eyebrow">{rewardUnlocked(progress,reward.id)?stageText(lang,'clearedReward'):nav('firstClear')}</span>
-                    <span className="crown-next-art"><CrownRewardArtwork kind={reward.kind} id={reward.id}/></span>
-                    <strong>{rewardName(lang,reward.id)}</strong>
-                    <span className="crown-preview-label">{circuitText(lang,'preview')} <ArrowUpRight size={15}/></span>
-                </button>
-                <div className="crown-launch">
+                <div className="map-launch map-top-launch"><p className="map-selected">{hundredMapText(lang,'selected')} · {hundredMapText(lang,'tile')} {selected} / 100</p>
                     <fieldset className="campaign-side"><legend>{nav('chooseSide')}</legend>{(['white','black'] as const).map(value=><button key={value} type="button" aria-pressed={side===value} onClick={()=>{cancelEntry();setSide(value);}}>{t(value)}</button>)}</fieldset>
                     <button className="campaign-primary" disabled={starting||!loaded||!unlocked} onClick={()=>void start(selected)}>{starting||!loaded?dict[lang].loading:unlocked?selectedStars?t('retry'):t('challenge'):t('locked')}<ArrowUpRight size={20}/></button>
-                    <p className="crown-objective">{!unlocked?nav('lockedGoal'):cleared===100?nav('completeGoal'):`★ ${t('win')} · ★ ${t('noHints')} · ★ ${stage.timeControl==='10s'?stageText(lang,'quickMoves'):t('quick')}`}</p>
+                    <p className="map-objective">{!unlocked?nav('lockedGoal'):cleared===100?hundredMapText(lang,'complete'):`★ ${t('win')} · ★ ${t('noHints')} · ★ ${stage.timeControl==='10s'?stageText(lang,'quickMoves'):t('quick')}`}</p>
                 </div>
-            </article>
-            <nav className="crown-journey" aria-label={nav('castleRoute')}>
-                <div className="crown-route">{CIRCUIT_STAGES.slice(page*10,page*10+10).map(item=>{
-                    const available=stageUnlocked(progress,item.id),earned=progress.stageStars?.[item.id-1]??0,Enemy=opponentIcon(item.id);
-                    return <button key={item.id} className="crown-route-node" aria-pressed={selected===item.id} aria-label={`${stageText(lang,'stage')} ${item.id} · ${item.opponent} · ${earned?`${earned}/3 ★`:available?nav('nextStage'):t('locked')}`} onClick={()=>selectStage(item.id)} data-stage={item.id} data-cleared={earned>0} data-locked={!available}>
-                        <Enemy className="crown-route-piece" size={22} aria-hidden="true"/><strong>{String(item.id).padStart(2,'0')}</strong>
-                        <span className="crown-route-status" aria-hidden="true">{earned?<Check size={12}/>:available?<ArrowUpRight size={12}/>:<LockKeyhole size={11}/>}</span>
-                    </button>;
-                })}</div>
-                <div className="crown-pager"><button disabled={page===0} onClick={()=>{cancelEntry();setPage(page-1);}} aria-label={loop('previous')}><ChevronLeft size={18}/></button><div className="crown-route-caption"><span>{stageText(lang,'stage')} {page*10+1}–{page*10+10} / 100</span><button className="crown-jump-current" onClick={()=>selectStage(currentStage)} disabled={selected===currentStage&&page===Math.floor((currentStage-1)/10)}>{cleared===100?t('cleared'):nav('nextStage')} {currentStage}<ArrowUpRight size={14}/></button></div><button disabled={page===9} onClick={()=>{cancelEntry();setPage(page+1);}} aria-label={loop('next')}><ChevronRight size={18}/></button></div>
-            </nav>
+            <div className="map-layout">
+            <div><ChallengeMap lang={lang} progress={mapProgress} selected={selected} page={page} journey={journey?.to===selected?journey:null} onSelect={selectStage} onArrival={arrived}/>
+                <div className="map-pager"><button disabled={page===0} onClick={()=>{cancelEntry();setPage(page-1);}} aria-label={loop('previous')}><ChevronLeft size={18}/></button><div><span>{hundredMapText(lang,'tile')} {page*10+1}–{page*10+10} / 100</span><button onClick={()=>selectStage(currentStage)} disabled={selected===currentStage&&page===Math.floor((currentStage-1)/10)}>{hundredMapText(lang,'current')} {currentStage}<ArrowUpRight size={14}/></button></div><button disabled={page===9} onClick={()=>{cancelEntry();setPage(page+1);}} aria-label={loop('next')}><ChevronRight size={18}/></button></div>
+            </div>
+            <article className="map-challenge-card">
+                <div className="map-challenge-copy">
+                    <p className="crown-eyebrow">{selectedStars?nav('improveStars'):unlocked?nav('nextStage'):t('locked')}</p>
+                    <h2>{hundredMapText(lang,'tile')} <span>{selected}</span></h2>
+                    <div className="map-challenge-meta"><span>CPU · {loop('strength')} {stage.strength}/34</span><span>{stage.timeControl==='10m'?dict[lang].tc10m:stage.timeControl==='3m'?dict[lang].tc3m:dict[lang].tc10s}</span></div>
+                </div>
+                <button className="map-reward" data-preview-reward={reward.id} onClick={()=>{cancelEntry();rememberFocus();setPreview({kind:reward.kind,id:reward.id});}} aria-label={`${circuitText(lang,'preview')} · ${rewardName(lang,reward.id)}`}><span className="map-reward-art"><CrownRewardArtwork kind={reward.kind} id={reward.id}/></span><small>{rewardUnlocked(mapProgress,reward.id)?stageText(lang,'clearedReward'):nav('firstClear')}</small><strong>{rewardName(lang,reward.id)}</strong><span>{circuitText(lang,'preview')}<ArrowUpRight size={15}/></span></button>
+            </article></div>
         </div>
         </div>
         <div className="crown-tab-panel" role="tabpanel" id="crown-main-panel-collection" aria-labelledby="crown-main-tab-collection" hidden={tab!=='collection'} tabIndex={0}>
@@ -197,7 +213,7 @@ function MemberCircuit({lang,user,onBack,onPlayingChange}:CampaignProps) {
         {preview&&<RewardPreview lang={lang} reward={preview} progress={progress} onClose={closeOverlay}/>}
         {showInfo&&<CrownInfoDialog title={nav('details')} closeLabel={circuitText(lang,'close')} onClose={closeOverlay}>
             <QubeTeacher lang={lang} variant="compact">
-            <p>{nav('insideCastle')}</p><p>{stageText(lang,'intro')}</p><p>{stageText(lang,'rules')}</p><p>{cloudText(lang,'help')}</p><p>{hintScopeText(lang)}</p>
+            <p>{hundredMapText(lang,'help')}</p><p>{stageText(lang,'rules')}</p><p>{cloudText(lang,'help')}</p><p>{hintScopeText(lang)}</p>
             <p>★ {t('win')}<br/>★ {t('noHints')}<br/>★ {stage.timeControl==='10s'?stageText(lang,'quickMoves'):t('quick')}</p>
             <p>{musicMilestoneText(lang,'help')}</p><p>{cosmeticsSettingsText(lang,'settingsOnly')}</p>
             </QubeTeacher>
@@ -205,6 +221,3 @@ function MemberCircuit({lang,user,onBack,onPlayingChange}:CampaignProps) {
     </section>;
 }
 
-function opponentIcon(stageId:number) {
-    return {pawn:ChessPawn,knight:ChessKnight,bishop:ChessBishop,rook:ChessRook,queen:ChessQueen,king:ChessKing}[crownEncounterForStage(stageId).foe];
-}

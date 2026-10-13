@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { AccountAvatar } from './AccountAvatar';
 import { stageText } from '../locales/stageText';
 import { dict, type Language } from '../locales/dict';
@@ -9,7 +9,7 @@ import { RankBadgeArtwork } from './RankBadgeArtwork';
 import './match-intro.css';
 import { soundManager } from '../lib/SoundService';
 
-export type IntroPlayer={name:string;avatar?:string;frame?:string;rating?:number|null;detail?:string};
+export type IntroPlayer={name:string;avatar?:string;frame?:string;rating?:number|null;detail?:string;artwork?:ReactNode};
 /** Only block input when the owning engine has paused its clock. */
 export function MatchIntro({lang,white,black,label,onDone,duration=3200,blocking=true}:{lang:Language;white:IntroPlayer;black:IntroPlayer;label:string;onDone:()=>void;duration?:number;blocking?:boolean}) {
     const dialog=useRef<HTMLDialogElement>(null),done=useRef(onDone);
@@ -28,7 +28,7 @@ export function MatchIntro({lang,white,black,label,onDone,duration=3200,blocking
             const badge=badgeFromRating(player.rating);
             const rated=typeof player.rating==='number'&&Number.isFinite(player.rating)&&player.rating>=0;
             return <section key={index} className="intro-player" data-side={index?'black':'white'}>
-            <AccountAvatar name={player.name} url={player.avatar} frame={player.frame} size={88} lang={lang}/>
+            {player.artwork??<AccountAvatar name={player.name} url={player.avatar} frame={player.frame} size={88} lang={lang}/>}
             <strong title={player.name}>{player.name}</strong>
             <small>{player.detail??`${dict[lang].ratingLabel} · ${Number.isFinite(player.rating)?Math.floor(player.rating!):'—'}`}</small>
             {!player.detail&&<div className="intro-rank" data-intro-badge={badge?.id??'none'}>

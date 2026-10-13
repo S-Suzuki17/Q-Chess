@@ -1,4 +1,5 @@
 import { isRankedUserId } from './RankedAuth';
+import { knownCrownEnemyName } from '../presentation/crownEnemies';
 
 export const PRIVATE_RECORD_LIMIT = 10;
 export const MAX_LOCAL_RECORD_BYTES = 2 * 1024 * 1024;
@@ -90,10 +91,13 @@ export function parseLocalGameRecord(value: unknown, userId: string): LocalGameR
     } else if (value.cpu_level !== null && value.cpu_level !== undefined) return null;
     try { if (Buffer.byteLength(JSON.stringify(value), 'utf8') > MAX_LOCAL_RECORD_BYTES) return null; }
     catch { return null; }
-    // Display names are replaced by the server's actual profile / CPU labels.
+    // Only the computer's curated original-character name may survive. The
+    // authenticated player's name still comes from the actual profile. These
+    // self-only unrated records cannot grant a stage, reward or settlement.
+    const rivalName=value.mode==='cpu'?knownCrownEnemyName(value.white_id===userId?value.black_player:value.white_player)??'':'';
     return {
         id: value.id.toLowerCase(), white_id: value.white_id as string | null, black_id: value.black_id as string | null,
-        white_player: '', black_player: '', winner: value.winner as LocalGameRecord['winner'], mode: value.mode as LocalGameRecord['mode'],
+        white_player: value.white_id===userId?'':rivalName, black_player:value.black_id===userId?'':rivalName, winner: value.winner as LocalGameRecord['winner'], mode: value.mode as LocalGameRecord['mode'],
         cpu_level: value.mode === 'cpu' ? value.cpu_level as number : null, time_control: value.time_control as LocalGameRecord['time_control'],
         moves: value.moves as Record<string, unknown>[], total_moves: value.moves.length,
     };

@@ -13,8 +13,7 @@ export function QubeTeacher({lang, children, variant = 'panel', className = ''}:
             {/* The visible speaker name supplies identity; the portrait is decorative. */}
             <img src="/assets/qube-companion/qube-neutral.svg" alt="" width={compact ? 32 : 48} height={compact ? 32 : 48}
                 className={`${compact ? 'h-8 w-8' : 'h-12 w-12'} flex-shrink-0 rounded-lg object-contain`} loading="lazy"/>
-            <div className="min-w-0"><span className="font-semibold text-[#D4B872]" data-qube-speaker>QUBE</span>
-                <p className="text-sm leading-relaxed text-[#BEB6A8]">{qubeTeaching[language].caption}</p></div>
+            <span className="font-semibold text-[#D4B872]" data-qube-speaker>QUBE</span>
         </div>
         <div className="min-w-0 space-y-3" data-qube-explanation>{children}</div>
     </div>;

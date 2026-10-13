@@ -20,6 +20,13 @@ const base: ComponentProps<typeof MatchLayout> = {
 const render = (overrides: Partial<typeof base> = {}) => renderToStaticMarkup(createElement(MatchLayout, {...base,...overrides}));
 
 describe('Match decision feedback', () => {
+    it.each(LANGUAGES.map(language=>language.code))('renders opponent, black-side and spectator thinking in %s',lang=>{
+        const thinking=lang==='en'?'THINKING':matchText(lang,'思考中','Thinking...');
+        for(const state of [{currentTurn:'black' as const},{bottomSide:'black' as const},{spectator:true},{currentTurn:'black' as const,is2D:false}]){
+            const html=render({lang,...state});
+            expect(html).toContain(`<b>${thinking}</b>`);expect(html).not.toContain('undefined');
+        }
+    });
     it.each(LANGUAGES.map(language=>language.code))('shows an explicit free or 1-ticket action and QUBE explanations in %s',lang=>{
         expect(render({lang,hintAccess:'free'})).toContain(moveHintText(lang).free);
         expect(render({lang,hintAccess:'ticket'})).toContain(moveHintText(lang).ticket);

@@ -76,7 +76,7 @@ try {
     });
     const origin = `http://127.0.0.1:${server.address().port}/`;
     const allowedOrigin = new URL(origin).origin;
-    browser = await chromium.launch({ headless: true });
+    browser = await chromium.launch({ headless: true, executablePath:process.env.QG_TEST_CHROMIUM });
     if (artifactDir) await mkdir(resolve(artifactDir), { recursive: true });
     for (const width of [390, 1280]) for (const lang of ['en', 'ja']) {
         const context = await browser.newContext({ viewport: { width, height: 844 }, serviceWorkers: 'block' });

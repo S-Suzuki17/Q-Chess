@@ -2,6 +2,7 @@ import type {Language} from './dict';
 import {securityPrivacy,cloudStoragePrivacy} from './securityPrivacy';
 import {registrationPrivacy} from './registrationPrivacy';
 import {engagementPrivacy} from './engagementPrivacy';
+import {nativeCommercePrivacy} from './nativeCommercePrivacy';
 const revised:Record<Language,readonly string[]>={
   "en": [
     "Google ads: Advertising and ad-based daily limits are disabled in this release. H5 Games Ads is not activated. If ads are enabled later, required consent and child-audience protections must be in place first.",
@@ -102,4 +103,4 @@ const hosting:Record<Language,string>={
     pt:'Cloudflare Pages hospeda o site, Render executa o servidor de partidas e Supabase guarda dados de contas e jogos. Esses provedores podem tratar logs operacionais necessários.',
     ta:'இணையதளம் Cloudflare Pages-இலும் ஆட்டச் சேவையகம் Render-இலும் இயங்குகின்றன; கணக்கு, ஆட்டத் தரவு Supabase-இல் இருக்கும். இவை அவசியமான செயல்பாட்டு பதிவுகளைச் செயலாக்கலாம்.',
 };
-export function privacyReview(lang:Language){const p=revised[lang];return {updated:'2026-10-08',sec3li1:p[0],sec3li3:hosting[lang],sec4p:`${p[1]} ${cloudStoragePrivacy[lang]}`,sec5p:p[2],sec6p:p[3],sec2li1:`${p[4]} ${registrationPrivacy[lang]}`,sec2li3:`${engagementPrivacy[lang].choice} ${securityPrivacy[lang]}`};}
+export function privacyReview(lang:Language){const p=revised[lang];return {updated:'2026-10-13',sec3li1:nativeCommercePrivacy[lang].ads,sec3li3:hosting[lang],sec4p:`${p[1]} ${cloudStoragePrivacy[lang]}`,sec5p:p[2],sec6p:p[3],sec2li1:`${p[4]} ${registrationPrivacy[lang]}`,sec2li3:`${engagementPrivacy[lang].choice} ${securityPrivacy[lang]} ${nativeCommercePrivacy[lang].payments}`};}

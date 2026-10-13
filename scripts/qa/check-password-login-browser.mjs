@@ -12,9 +12,10 @@ import {build,createServer} from 'vite';
 import {chromium} from 'playwright';
 const repo=resolve(dirname(fileURLToPath(import.meta.url)),'../..');
 const args=process.argv.slice(2),reproduce=args.includes('--reproduce-current');
+const onlyCases=args.find(arg=>arg.startsWith('--cases='))?.slice(8).split(',');
 const positional=args.filter(arg=>!arg.startsWith('--'));
 assert.equal(positional.length<=1,true);
-assert(args.every(arg=>!arg.startsWith('--')||arg==='--reproduce-current'),'Unknown flag');
+assert(args.every(arg=>!arg.startsWith('--')||arg==='--reproduce-current'||arg.startsWith('--cases=')),'Unknown flag');
 const evidence=resolve(positional[0]??'scratch/password-login');
 const root=resolve(repo,'scripts/qa/fixtures/password-login'),stub=resolve(root,'stubs.tsx');
 const named=new Set(['LevelSelect','useAppPlatform','useNativeAuthLinks','useCampaignProgress','useFoundersRewards']);
@@ -53,7 +54,7 @@ const termsVersion=termsSource.match(/CURRENT_TERMS_VERSION\s*=\s*'([^']+)'/)[1]
 const termsDate=termsSource.match(/CURRENT_TERMS_EFFECTIVE_DATE[^=]*=\s*'([^']+)'/)[1];
 const progress={version:2,stars:{},ascensions:[],stageStars:[],board:'standard',piece:'standard',effect:'standard',music:'standard',avatar:'standard'};
 const password='synthetic-password-17',userId='LocalLoginQA';
-const scenarios=reproduce?[{name:'reproduce-four-second-password-login',width:390,authDelay:4000}]:[
+let scenarios=reproduce?[{name:'reproduce-four-second-password-login',width:390,authDelay:4000}]:[
  {name:'password-four-second-session',width:390,authDelay:4000},
  {name:'password-persistent-reload',width:1280,authDelay:600,persistent:true,reload:true},
  {name:'password-incorrect',width:390,authStatus:401},
@@ -68,8 +69,9 @@ const scenarios=reproduce?[{name:'reproduce-four-second-password-login',width:39
  {name:'consent-read-outage-retry',width:390,termsStatus:503},
  {name:'consent-save-failure-retry',width:390,needsTerms:true,consentStatus:503,reload:true,persistent:true},
  {name:'logout-during-consent-check',width:390,termsDelay:2000,exitTerms:true},
- {name:'guest-current-consent-persists-in-browser',width:390,guest:true},
+ {name:'guest-direct-play-without-consent',width:390,guest:true},
 ];
+if(onlyCases){assert(onlyCases.every(name=>scenarios.some(scenario=>scenario.name===name)),'Unknown case');scenarios=scenarios.filter(scenario=>onlyCases.includes(scenario.name));}
 await mkdir(evidence,{recursive:true});
 await build(config);
 const server=await createServer(config);await server.listen();const origin=server.resolvedUrls.local[0];
@@ -150,24 +152,20 @@ try{
    if(scenario.register)await page.getByLabel('メールアドレス',{exact:true}).fill('fixture@example.test');
    if(scenario.persistent)await page.locator('#keepLoggedIn').check();
   };
-  const submit=()=>page.locator('form button[type="submit"]').click();
+  const submit=()=>page.locator('.title-auth-submit').click();
   await open();
   if(scenario.guest){
    await page.getByRole('button',{name:'ゲストとしてプレイ',exact:true}).click();
-   await page.locator('[data-terms-checkbox]').waitFor();
-   assert((await page.locator('[data-terms-document]').textContent()).includes(termsVersion));
-   assert(!(await page.locator('[data-terms-document]').textContent()).includes('2026-09-25.1'));
-   await page.locator('[data-terms-checkbox]').check();await page.locator('[data-terms-accept]').click();
    await page.locator('[data-testid="lobby"]').waitFor();
-   assert.equal(await page.evaluate(()=>localStorage.getItem('qg_guest_terms')),termsVersion);
-   assert.equal(await page.evaluate(()=>window.qaTermsScreens),1);
+   assert.equal(await page.evaluate(()=>localStorage.getItem('qg_guest_terms')),'2026-09-25.1','Unused legacy acceptance remains unchanged; guest does not read it as authority or write a new value');
+   assert.equal(await page.evaluate(()=>window.qaTermsScreens),0);
    await page.getByRole('button',{name:'Fixture logout',exact:true}).click();await page.locator('[data-entry-mode="select"]').waitFor();
    await page.getByRole('button',{name:'ゲストとしてプレイ',exact:true}).click();await page.locator('[data-testid="lobby"]').waitFor();
-   assert.equal(await page.evaluate(()=>window.qaTermsScreens),1);
+   assert.equal(await page.evaluate(()=>window.qaTermsScreens),0);
    await page.reload();await page.locator('[data-testid="lobby"]').waitFor();
    assert.equal(await page.evaluate(()=>window.qaTermsScreens),0);
    assert.deepEqual(calls,[]);assert.deepEqual(errors,[]);assert.deepEqual(unexpected,[]);
-   results.push({name:scenario.name,passed:true,consentScope:'same-browser',newGuestIdentitySkipsSavedCurrentConsent:true});
+   results.push({name:scenario.name,passed:true,noConsentRequested:true,noGuestAcceptanceStored:true,noAccountTermsApiCalled:true});
    await page.screenshot({path:resolve(evidence,scenario.name+'.png'),fullPage:true});await context.close();continue;
   }
   await enter();const started=Date.now();await submit();
@@ -182,7 +180,7 @@ try{
    await page.waitForTimeout(200);
    assert.equal(await page.locator(`[data-entry-mode="${scenario.register?'register':'login'}"]`).count(),1,'Pending request must keep its original form');
    assert.equal(await page.getByLabel('アカウント名',{exact:true}).inputValue(),userId);
-   assert.equal(await page.locator('form button[type="submit"]').isDisabled(),true);
+   assert.equal(await page.locator('.title-auth-submit').isDisabled(),true);
   }
   if(!reproduce){
    if(scenario.leavePending){
@@ -265,6 +263,7 @@ try{
    // error body. Successful login and consent requests must not be self-aborted.
    const requiredFailures=failedRequests.filter(request=>request.path!=='/auth/ranked-session/revoke'
     && !(scenario.exitTerms&&request.path==='/account/current-terms'&&request.method==='GET')
+    && !(scenario.retry&&scenario.authStatus===503&&request.path==='/auth/ranked-session'&&request.responseStatus===503)
     && !(request.path==='/account/current-terms'&&request.responseStatus===503&&(scenario.termsStatus||scenario.consentStatus)));
    if(!scenario.leavePending)assert.deepEqual(requiredFailures,[],scenario.name+': no successful login or consent request should be self-aborted');
    results.push({name:scenario.name,passed:true,elapsedMs:Date.now()-started,termsReads,consentPosts,progressReads,calls,failedRequests});

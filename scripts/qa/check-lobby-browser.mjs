@@ -74,6 +74,7 @@ try {
         await page.locator('.lobby-recent-row').nth(9).waitFor({ state:'attached' });
         await page.locator('.lobby-rating strong').filter({ hasText:'1000' }).waitFor();
         assert.equal(await page.locator('.lobby-recent-row').count(), 10);
+        await page.locator('.lobby-library > summary').click();
         if (releaseFlagsOn) {
             await page.locator('.reward-balances dd').first().waitFor();
             assert.match(await page.locator('.reward-balances dd').nth(0).innerText(), /^4\b/);
@@ -83,11 +84,16 @@ try {
         assert.equal(await page.locator('[data-lobby-cosmetic="board"]').getAttribute('data-reward-id'), 'walnut');
         assert.ok(await lobby.evaluate(node => node.scrollWidth <= node.clientWidth + 1), `lobby overflow ${width}`);
         assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `page overflow ${width}`);
-        const history = page.locator('.lobby-recent-list');
-        assert.ok(await history.evaluate(node => node.scrollHeight > node.clientHeight), 'history is independently scrollable');
-        await history.evaluate(node => node.scrollTop = node.scrollHeight);
-        assert.ok(await history.evaluate(node => node.scrollTop > 0));
-        await history.evaluate(node => node.scrollTop = 0);
+        await page.locator('.lobby-bottom-navigation button').nth(1).click();
+        const historyPanel=page.locator('div.fixed.inset-0').filter({has:page.getByRole('heading',{level:3,name:/棋譜/})});
+        const history=historyPanel.locator('.overflow-y-auto');
+        await history.getByRole('button').nth(9).waitFor();
+        assert.equal(await history.getByRole('button').count(),10);
+        if(await history.evaluate(node=>node.scrollHeight>node.clientHeight)){
+            await history.evaluate(node=>node.scrollTop=node.scrollHeight);
+            assert.ok(await history.evaluate(node=>node.scrollTop>0),'replay history scrolls when its rows exceed the viewport');
+        }
+        await historyPanel.getByRole('button',{name:'✕',exact:true}).click();
         await page.screenshot({ path:resolve(artifacts, `lobby-${width}.png`) });
         await page.getByRole('button', { name:'ランク対局', exact:false }).first().click();
         await page.locator('[data-time-control="3m"]').waitFor();
@@ -152,23 +158,24 @@ try {
             await page.getByRole('button',{name:'アカウント',exact:true}).click();
             await page.getByRole('button',{name:'ログアウト',exact:true}).click();
             await page.getByRole('button',{name:'ゲストとしてプレイ',exact:true}).click();
-            await page.locator('[data-terms-gate]').waitFor();
-            await page.getByRole('checkbox').check();
-            await page.getByRole('button',{name:'同意して続ける',exact:true}).click();
             await lobby.waitFor();
+            assert.equal(await page.locator('[data-terms-gate]').count(),0);
             await verifyFreePractice('guest');
             await page.locator('.lobby-campaign-action').click();
-            await page.getByRole('button',{name:'ログインしてプレイ',exact:true}).waitFor();
-            assert.equal(await page.locator('.crown-encounter .campaign-primary').count(),0,'guest cannot start account-bound Crown progress');
+            await page.locator('[data-testid="circuit-guest-preview"]').waitFor();
+            assert.equal(await page.locator('[data-map-overview-tile]').count(),100);
+            await page.locator('.map-launch button').click();
+            await page.locator('[data-testid="circuit-login-gate"]').waitFor();
+            assert.equal(await page.locator('.match-layout').count(),0,'guest preview cannot start account-bound Crown progress');
             // Reload restores the explicitly owned synthetic registered fixture
             // through the same real session-status route, without live sign-in.
             await page.reload({waitUntil:'domcontentloaded'});await lobby.waitFor();
         }
         await page.locator('.lobby-campaign-action').click();
-        await page.locator('.crown-encounter .campaign-primary').waitFor();
-        const boss=await page.locator('.crown-encounter').boundingBox(),stages=await page.locator('.crown-journey').boundingBox();
-        if(width<=700)assert.ok(boss.y<stages.y,'mobile puts the selected challenge before the stage list');
-        await page.locator('.crown-encounter .campaign-primary').click();
+        await page.locator('.map-launch .campaign-primary').waitFor();
+        const launch=await page.locator('.map-launch').boundingBox(),stages=await page.locator('.challenge-map').boundingBox();
+        if(width<=700)assert.ok(launch.y<stages.y,'mobile puts the selected challenge before the stage list');
+        await page.locator('.map-launch .campaign-primary').click();
         await page.locator('.match-layout').waitFor();
         await page.locator('[data-hint-access="ticket"]').waitFor();
         assert.equal(await page.locator('[data-hint-access="ticket"]').innerText(),'ヒント券を使用（1枚）');

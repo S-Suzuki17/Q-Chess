@@ -29,6 +29,14 @@ jobs:
             report: email-registration-postgres-results.json
           - suite: match-hint
             report: qg-match-hint-postgres-results.json
+          - suite: play-commerce
+            report: play-commerce-postgres.log
+          - suite: admob-ticket-rewards
+            report: admob-ticket-postgres-draft-results.json
+          - suite: admob-legacy-upgrade
+            report: admob-legacy-upgrade-postgres.log
+          - suite: conventional-registration
+            report: conventional-registration-postgres-results.json
     services:
       postgres:
         image: postgres:17.11-bookworm
@@ -55,7 +63,10 @@ jobs:
           cache-dependency-path: package-lock.json
       - run: npm ci
       - name: Verify complete public upgrade and independent-backend accounting
-        run: node --test --test-timeout=180000 scripts/qa/${{ matrix.suite }}-postgres.test.mjs
+        shell: bash
+        run: |
+          set -o pipefail
+          node --test --test-timeout=180000 scripts/qa/${{ matrix.suite }}-postgres.test.mjs | tee /tmp/${{ matrix.suite }}-postgres.log
       - name: Retain synthetic verification report
         if: always()
         uses: actions/upload-artifact@v7

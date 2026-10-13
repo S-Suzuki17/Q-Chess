@@ -53,7 +53,17 @@ export const combinedPendingMigrations = [...commercePendingMigrations, durableS
 export const hintPolicyMigrations = ['20261008054904_match_hint_tickets_and_free_practice.sql'];
 // PR21 is a separate forward upgrade; do not rewrite PR19/PR20 scenarios.
 export const emailRegistrationMigrations = ['20261008093454_email_account_registration.sql'];
-export const reviewedMigrationInventory = [...combinedPendingMigrations, ...hintPolicyMigrations, ...emailRegistrationMigrations].sort();
+// Release 22 has its own forward-upgrade proofs. Historical PR19/20/21
+// scenarios keep their original boundaries; current compiled adapters apply all.
+export const release22Migrations = [
+    '20261013040752_play_commerce_ledger.sql',
+    '20261013071700_conventional_registration_repair.sql',
+    '20261013075800_preserve_legacy_ad_reward_intents.sql',
+    '20261013075925_admob_verified_ticket_rewards.sql',
+    '20261013115237_play_commerce_terms_release.sql',
+    '20261013135400_play_pending_refund_state.sql',
+];
+export const reviewedMigrationInventory = [...combinedPendingMigrations, ...hintPolicyMigrations, ...emailRegistrationMigrations, ...release22Migrations].sort();
 export const combinedHistoricalMigrations = [...historicalSessionMigrations,
     ...commerceHistoricalDependencies.filter(name => !historicalSessionMigrations.includes(name))];
 export const sessionBaselineEvidence = Object.freeze({
@@ -89,6 +99,10 @@ export async function applyHintPolicyRelease(client) {
 export async function applyEmailRegistrationForward(client) {
     await assertReviewedMigrationInventory();
     for (const name of emailRegistrationMigrations) await applySessionFile(client, name);
+}
+export async function applyRelease22Forward(client) {
+    await applyEmailRegistrationForward(client);
+    for (const name of release22Migrations) await applySessionFile(client, name);
 }
 export async function setupSessionBaseline(client, expectedDatabase = 'legacy_session_upgrade') {
     // Only these disposable fixtures are allowed. Never accept a remote client,

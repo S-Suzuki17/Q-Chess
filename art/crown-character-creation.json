@@ -1,0 +1,175 @@
+{
+  "createdAt": "2026-10-12T13:03:42.003808+00:00",
+  "application": "Blender 5.2.2 LTS",
+  "factoryStartupObjects": [
+    "Camera",
+    "Cube",
+    "Light"
+  ],
+  "sourceBlend": "C:/Users/souta/Documents/Codex/2026-10-07/q-gambit-continuation-20261007/work/crown-motion-20261012\\art\\crown-enemies.blend",
+  "sourceScript": "scripts/assets/create-crown-characters.py",
+  "originalQubeAndBoardAssetsRead": false,
+  "characters": [
+    {
+      "id": "crown-pawn",
+      "stageId": 1,
+      "objects": 27,
+      "parts": [
+        "left-foot",
+        "right-foot",
+        "body",
+        "left-hand",
+        "right-hand",
+        "head"
+      ],
+      "files": [
+        {
+          "name": "crown-pawn.png",
+          "bytes": 56053,
+          "sha256": "ffeb72f8b2a259986f0e4fa81ab736fae4a8b451fc402fd26300a77598bff555"
+        },
+        {
+          "name": "crown-pawn-atlas.png",
+          "bytes": 54466,
+          "sha256": "701ed398173b3fdb6765847c9ad4d5038b341869dae6213a4bbd0cc39d04e883"
+        }
+      ],
+      "bytes": 110519
+    },
+    {
+      "id": "crown-knight",
+      "stageId": 2,
+      "objects": 30,
+      "parts": [
+        "left-foot",
+        "right-foot",
+        "body",
+        "left-hand",
+        "right-hand",
+        "head"
+      ],
+      "files": [
+        {
+          "name": "crown-knight.png",
+          "bytes": 58667,
+          "sha256": "43c74e776e520e1a9568207823ae6d4379360e723e0159d4e6d7946ad73b5769"
+        },
+        {
+          "name": "crown-knight-atlas.png",
+          "bytes": 58424,
+          "sha256": "1d1da0f18601d107814b91d50a02d5c079df9865f3c019b382713dd55703f7e6"
+        }
+      ],
+      "bytes": 117091
+    },
+    {
+      "id": "crown-bishop",
+      "stageId": 3,
+      "objects": 31,
+      "parts": [
+        "cape",
+        "left-foot",
+        "right-foot",
+        "body",
+        "left-hand",
+        "right-hand",
+        "head"
+      ],
+      "files": [
+        {
+          "name": "crown-bishop.png",
+          "bytes": 63442,
+          "sha256": "1ad31f4ec10162e46d75b56d32974a5ca63e8ac93fe4e08a96201cdddd44a78e"
+        },
+        {
+          "name": "crown-bishop-atlas.png",
+          "bytes": 73866,
+          "sha256": "ca6fe8ead716d492f677ee57a102212b2a29e1ca69e5152efb54a5c7342de288"
+        }
+      ],
+      "bytes": 137308
+    },
+    {
+      "id": "crown-rook",
+      "stageId": 4,
+      "objects": 32,
+      "parts": [
+        "left-foot",
+        "right-foot",
+        "body",
+        "left-hand",
+        "right-hand",
+        "head"
+      ],
+      "files": [
+        {
+          "name": "crown-rook.png",
+          "bytes": 60376,
+          "sha256": "f3fd3ba21eac8336018b078b77bb45a1efc83d3d705ac38ae3d7a4af5f757b5c"
+        },
+        {
+          "name": "crown-rook-atlas.png",
+          "bytes": 63229,
+          "sha256": "3c606d14023e31f6c60d64935630ab779b3d95fb94390efd70824395f4d11897"
+        }
+      ],
+      "bytes": 123605
+    },
+    {
+      "id": "crown-queen",
+      "stageId": 5,
+      "objects": 34,
+      "parts": [
+        "cape",
+        "left-foot",
+        "right-foot",
+        "body",
+        "left-hand",
+        "right-hand",
+        "head"
+      ],
+      "files": [
+        {
+          "name": "crown-queen.png",
+          "bytes": 65936,
+          "sha256": "a0b0bfd98662ae9a371ee1afa1b22a0e16a97b2389b2774c03172a9474e73d72"
+        },
+        {
+          "name": "crown-queen-atlas.png",
+          "bytes": 86613,
+          "sha256": "87e6fbd71588fa6c6edcc7339a08b87248fa7da1b041c859de7780a30709bf0b"
+        }
+      ],
+      "bytes": 152549
+    },
+    {
+      "id": "crown-king",
+      "stageId": 100,
+      "objects": 39,
+      "parts": [
+        "cape",
+        "left-foot",
+        "right-foot",
+        "body",
+        "left-hand",
+        "right-hand",
+        "head"
+      ],
+      "files": [
+        {
+          "name": "crown-king.png",
+          "bytes": 66490,
+          "sha256": "08e5096d9687b57c129de49616f80164165e30c737fe348f2ae34e4dd8cea134"
+        },
+        {
+          "name": "crown-king-atlas.png",
+          "bytes": 90514,
+          "sha256": "739deb8655a40ce59665d378225bf6d3ab2593038ce244909937d6d25530c2c9"
+        }
+      ],
+      "bytes": 157004
+    }
+  ],
+  "totalBytes": 798076,
+  "runtime": "Only selected smooth RGBA render/layer assets load; no Blender runtime or authoring scene ships."
+}

@@ -3,7 +3,7 @@ export type RewardOutcome='credited'|'pending'|'cancelled'|'unavailable'|'busy';
 type Dependencies={
  enabled:()=>boolean;
  request:(userId:string,path:string,body?:unknown)=>Promise<Record<string,unknown>>;
- show:(kind:RewardKind,proof:{userId:string;intentId:string})=>Promise<string>;
+ show:(kind:RewardKind,proof:{accountId:string;intentId:string})=>Promise<string>;
  wait:(ms:number)=>Promise<void>;
 };
 /** Serializes the complete intent -> SDK -> server confirmation sequence, not
@@ -17,7 +17,7 @@ export function createRewardFlow(deps:Dependencies){
   try{
    const {intentId}=await deps.request(userId,'/ads/reward',{kind});
    if(typeof intentId!=='string'||!/^\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(intentId))return 'unavailable';
-   const result=await deps.show(kind,{userId:intentId,intentId});
+   const result=await deps.show(kind,{accountId:userId,intentId});
    if(result!=='earned')return result==='dismissed'?'cancelled':result==='busy'?'busy':'unavailable';
    earned=true;
    for(let i=0;i<5;i++){

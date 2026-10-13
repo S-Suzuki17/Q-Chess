@@ -42,7 +42,7 @@ let browser;const results=[];
 const proof={userId:'Alice',token:'ranked_'+'a'.repeat(43),expiresAt:Date.now()+60000};
 const oauth={user:{id:'oauth-fixture',is_anonymous:false,user_metadata:{name:'OAuth fixture'}},access_token:'oauth-fixture-token',expires_at:Math.floor(Date.now()/1000)+3600};
 try{
-    browser=await chromium.launch({headless:true});
+    browser=await chromium.launch({headless:true,executablePath:process.env.QG_TEST_CHROMIUM});
     const setup=async({persistent=true,candidate=true,match=false,oauthIntent=false,session=null,initializationError=false,consumeCallback=true}={})=>{
         const context=await browser.newContext({viewport:{width:390,height:844}});let mode='valid',releases=[];let calls=0;
         const errors=[];
@@ -58,6 +58,7 @@ try{
                 return route.fulfill({json:{userId:proof.userId,expiresAt:proof.expiresAt,serverNow:Date.now()}});
             }
             if(url.origin==='https://fixture.invalid'&&url.pathname==='/auth/ranked-session')return route.fulfill({json:{...proof,userId:'Bob',token:'ranked_'+'b'.repeat(43),serverNow:Date.now()}});
+            if(url.origin==='https://fixture.invalid'&&url.pathname==='/auth/oauth-admission')return route.fulfill({json:{userId:'oauth-fixture',admitted:true}});
             if(url.pathname.endsWith('/revoke'))return route.fulfill({status:204,body:''});
             return route.abort();
         });

@@ -4,10 +4,11 @@ import {supabase} from './supabaseClient';
 import {gameServerUrl,readRankedSession} from './rankedSession';
 import {isAndroidApp,nativeAds} from './nativeAds';
 import {createRewardFlow} from './rewardFlow';
+import {DAILY_LOGIN_REWARD_CHANGED_EVENT} from './dailyLoginRewards';
 export type RewardKind='hint'|'online';
 export const nativeRewardsEnabled=()=>canShowVerifiedAccountAds()&&isAndroidApp()&&process.env.NEXT_PUBLIC_NATIVE_REWARDS_ENABLED==='true';
 export async function requestRewardApi(userId:string,path:string,body?:unknown):Promise<Record<string,unknown>>{
- if(!userId||/^(guest|anon|cpu|ai[:_-])/i.test(userId))throw new Error('AUTH_REQUIRED');
+ if(!userId||/^(?:guest(?:[-_]|$)|anon(?:ymous)?(?:[-_]|$)|cpu(?:[-_]|$)|ai(?::|$)|supabase-)/i.test(userId))throw new Error('AUTH_REQUIRED');
  let token=readRankedSession(userId)?.token;
  if(!token){
   const {data,error}=await supabase.auth.getSession();const session=data.session;
@@ -27,8 +28,13 @@ export async function readRewardBalance(userId:string){
 }
 /** Explicit user opt-in only. A local SDK reward never changes the balance.
  * Server SSV may arrive later; reopening settings fetches the durable balance. */
-export const watchNativeReward=createRewardFlow({
+const rewardFlow=createRewardFlow({
  enabled:nativeRewardsEnabled,request:requestRewardApi,
  show:(kind,proof)=>nativeAds.reward(kind,proof),
  wait:ms=>new Promise(resolve=>setTimeout(resolve,ms)),
 });
+export async function watchNativeReward(userId:string,kind:RewardKind){
+ const result=await rewardFlow(userId,kind);
+ if(result==='credited')window.dispatchEvent(new CustomEvent(DAILY_LOGIN_REWARD_CHANGED_EVENT,{detail:{userId}}));
+ return result;
+}

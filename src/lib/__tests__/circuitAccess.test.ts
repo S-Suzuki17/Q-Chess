@@ -73,7 +73,7 @@ describe('Crown Circuit login requirement',()=>{
     });
     it('keeps entry, stage start, result, delayed next-stage and identity replacement guarded',()=>{
         const source=readFileSync('src/components/CampaignMode.tsx','utf8');
-        expect(source).toContain('if(!allowed)return <CircuitLoginGate');
+        expect(source).toContain('if(!allowed)return <GuestCircuitPreview');
         expect(source).toContain('key={`${props.user.id}:${revision}`}');
         expect(source).toContain('!runPermit.current?.()');
         expect(source).toContain('if(!circuitAccess.canPlay(user)||!loaded');

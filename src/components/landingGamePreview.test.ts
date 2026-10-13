@@ -42,7 +42,7 @@ describe('landing board preview', () => {
 
     it('does not crowd the sign-in form with a board preview', () => {
         const html = renderToStaticMarkup(createElement(TitleScreen, { lang: 'en', onLogin: () => {}, initialMode: 'login' }));
-        expect(html).not.toContain('data-game-preview');
+        expect(html.match(/<dialog[\s\S]*?<\/dialog>/)?.[0]).not.toContain('data-game-preview');
         expect(html).toContain('autoComplete="username"');
     });
 });
@@ -66,7 +66,7 @@ describe('landing scrolling and accessibility contracts', () => {
         expect(css).toContain('width:100%; height:auto; aspect-ratio:8/5');
         expect(css).not.toContain('object-fit:cover');
         expect(css).toContain('@media(max-width:767px) and (max-height:640px)');
-        expect(css).not.toMatch(/overflow\s*:\s*hidden|position\s*:\s*absolute/);
+        expect(css.split('.title-auth-dialog')[0]).not.toMatch(/overflow\s*:\s*hidden|position\s*:\s*absolute/);
         expect(css).toContain('min-height:52px');
     });
 });

@@ -18,13 +18,18 @@ import { createProfileAvatarRouter } from './services/ProfileAvatarRoutes';
 import { createAdRewardRouter } from './services/AdRewardRoutes';
 import {createFoundersRewardRouter} from './services/FoundersRewardRoutes';
 import {createPlayRewardVerifier} from './services/PlayRewardVerifier';
+import {createPlayCommerceVerifier} from './services/PlayCommerceVerifier';
+import {playTokenVault} from './services/PlayCommerceTokenVault';
+import {createPlayCommerceService} from './services/PlayCommerceService';
+import {createPlayCommerceRouter} from './services/PlayCommerceRoutes';
+import {createPlayNotificationRouter,createPlayNotificationIdentity} from './services/PlayCommerceNotifications';
 import type { MatchSession, QueueMode } from './matchmaking/MatchmakingService';
 import { AccountWriteGate } from './services/AccountDeletion';
 import { accountRequestGuard, createAccountDeletionRouter } from './services/AccountDeletionRoutes';
 import { createAccountRecoveryRouter } from './services/AccountRecoveryRoutes';
 import { createAccountProfileRouter } from './services/AccountProfileRoutes';
 import { createAccountSecurityRouter } from './services/AccountSecurityRoutes';
-import {createServiceOperations} from './services/ServiceOperations';
+import {createServiceOperations,createOAuthAdmissionHandler} from './services/ServiceOperations';
 import {createAccountProgressRouter} from './services/AccountProgressRoutes';
 import {createAccountTermsRouter} from './services/AccountTermsRoutes';
 import {createCurrentTermsRouter} from './services/AccountCurrentTermsRoutes';
@@ -152,8 +157,14 @@ const cancelStripeBeforeErase = STRIPE_ACCOUNT_DELETION_GUARD_READY
     })
     : async (_userId: string) => { /* Billing remains hard OFF; no Stripe records can originate here. */ };
 app.use(stripeBillingRouters.webhook);
+const playCommerceStore=supabaseService.playCommerceStore();
+const playCommerce=createPlayCommerceService(playCommerceStore,createPlayCommerceVerifier(),playTokenVault(process.env.PLAY_COMMERCE_TOKEN_KEY));
+const playNotificationIdentity=createPlayNotificationIdentity();
+app.use(createPlayNotificationRouter(playCommerce,playNotificationIdentity));
+setInterval(()=>{void playCommerce.tick().catch(()=>{/* Durable jobs retry; never log purchase tokens or provider responses. */});},30000).unref();
 const operations=createServiceOperations(supabaseService.serviceStatusLoader());
 app.use(operations.loginGuard);
+app.post('/auth/oauth-admission',createOAuthAdmissionHandler(operations,token=>supabaseService.verifyUser(token)));
 app.get('/service/status',async(_req,res)=>{
     res.setHeader('Cache-Control','no-store');
     try{res.json({...await operations.read(),serverTime:Date.now()});}
@@ -165,7 +176,7 @@ app.use(createAccountDeletionRouter(rankedAuth,deletionStore,accountGate,
     id=>{
         runtime.forgetReceipts(matchmaking.forgetAccount(id));
         for(const socket of io.sockets.sockets.values())if(socket.data.userId===id){socket.data.explicitlyRevoked=true;socket.emit('session_revoked',{reason:'revoked'});socket.disconnect(true);}
-    },cancelStripeBeforeErase));
+    },async id=>{await cancelStripeBeforeErase(id);await playCommerce.beforeErase(id);}));
 app.use(createAccountRecoveryRouter(rankedAuth,supabaseService.accountRecoveryStore(),accountGate,
     id=>matchmaking.accountBusy(id)||runtime.isSavingAccount(id)||hintBusy(id),
     id=>{ for(const socket of io.sockets.sockets.values())if(socket.data.userId===id){socket.data.explicitlyRevoked=true;socket.emit('session_revoked',{reason:'revoked'});socket.disconnect(true);} },
@@ -198,6 +209,7 @@ app.use(createRankedRefundRouter(rankedAuth, {
     read: id => supabaseService.rankedRefundBalance(id),
 }, accountGate,()=>rankedAdmissionRecoveryEnabled()||sharedMatchAdmissionRecoveryEnabled()));
 app.use(stripeBillingRouters.membership);
+app.use(createPlayCommerceRouter(rankedAuth,playCommerceStore,playCommerce,accountGate,()=>process.env.PLAY_COMMERCE_ENABLED==='true'&&playNotificationIdentity!==null));
 app.use(createAccountProfileRouter(rankedAuth,supabaseService.accountProfileStore(),accountGate));
 app.use(createPrivateGameRecordRouter(rankedAuth,supabaseService));
 app.use(createProfileAvatarRouter(rankedAuth,supabaseService.profileAvatarStore(),accountGate));
@@ -222,6 +234,7 @@ const io = new Server(server, {
 });
 
 const matchmaking = new MatchmakingService(io,rankedTicketAdmissionEnabled(),sharedMatchAdmissionEnabled());
+matchmaking.newMatchError=operations.newMatchError;
 function sendMatchStart(match:MatchSession) {
     if(!match.engine||(match.admission&&!admission?.canAdvance(match)))return;
     for(const id of Object.values(match.players)) {
@@ -268,6 +281,12 @@ const admission=(rankedAdmissionRecoveryEnabled()||sharedMatchAdmissionRecoveryE
             if(proof)legacySockets.capture(socket,token,proof);
             if(!legacySockets.canAdmit(socket))return false;
         }
+        // Admission/identity I/O can outlast the five-second operator cache.
+        // Refresh it after those awaits; activateMatch still checks the exact
+        // schedule boundary synchronously before constructing the engine.
+        await operations.read();
+        const unavailable=operations.newMatchError();
+        if(unavailable){if(match.admission)match.admission.reason=unavailable;return false;}
         return true;
     }) : undefined;
 const knownSocketProofs=new Map<string,{hash:string;socketId:string}>();
@@ -547,6 +566,8 @@ io.on('connection', (socket: Socket) => {
     }
     try {if(!await verifyAdmission())return fail('AUTH_REQUIRED');}
     catch{return fail('AUTH_UNAVAILABLE');}
+    const finalUnavailable=await operations.admission(socket.handshake.auth.client);
+    if(finalUnavailable)return fail(finalUnavailable);
     if(attempt!==queueAttempt||!currentOwner())return;
     if(cpuPractice?.isBusy(userId))return fail('CPU_PRACTICE_PENDING');
     if(hintBusy(userId))return fail('HINT_PURCHASE_PENDING');
@@ -644,6 +665,15 @@ io.on('connection', (socket: Socket) => {
         try{if(!await verifyAdmission()){socket.emit('queue_error',{code:'AUTH_REQUIRED'});return;}}
         catch{if(currentOwner())socket.emit('queue_error',{code:'AUTH_UNAVAILABLE'});return;}
     }
+    if(matchmaking.getMatch(data.matchId)?.state!=='IN_GAME'){
+        const finalUnavailable=await operations.admission(socket.handshake.auth.client);
+        if(!currentOwner())return;
+        if(finalUnavailable){
+            if(reserved.admissionProtocol==='shared_v1'||reserved.admission)void admission?.cancel(reserved,finalUnavailable);
+            socket.emit('queue_error',{code:finalUnavailable,message:finalUnavailable});return;
+        }
+    }
+    if(!currentOwner())return;
     const result = matchmaking.connectMatch(userId, data.matchId, data.userName, data.avatarUrl, data.avatarFrame,data.introVersion,rating);
 
     if(!result.success)return;

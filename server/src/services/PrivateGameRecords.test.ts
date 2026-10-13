@@ -1,10 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import { parseLocalGameRecord, MAX_LOCAL_MOVES } from './PrivateGameRecords';
+import { CROWN_ENEMIES } from '../presentation/crownEnemies';
 
 export const sampleMove = () => ({ turn: 1, player: 'white', tokenId: 'token_17', from: [6, 0], to: [4, 0], possibleTypes: ['Pawn'], replayVersion: 2, changes: [[17,32,32,1,0]], extra: { precise: 'preserved' } });
 export const sampleRecord = () => ({ id: '9e477b83-4213-4d82-b9dc-f7dcae5a028b', white_id: 'Alice', black_id: 'ai', white_player: 'spoof', black_player: 'spoof', winner: 'white_wins', mode: 'cpu', cpu_level: 3, time_control: '3m', moves: [sampleMove()], total_moves: 1 });
 
 describe('private local record boundary', () => {
+    it('keeps only the six curated NPC names and never trusts a submitted human profile name', () => {
+        for(const enemy of CROWN_ENEMIES)for(const name of [enemy.name.ja,enemy.name.en]){
+            const value={...sampleRecord(),black_player:name};
+            expect(parseLocalGameRecord(value,'Alice')).toMatchObject({white_player:'',black_player:name,mode:'cpu',white_id:'Alice',black_id:'ai',cpu_level:3});
+        }
+        for(const name of ['CPU','CPU 01','Seia · Ash Gate','Aureus, the Last King','玉座の守護者','Another real player'])expect(parseLocalGameRecord({...sampleRecord(),black_player:name},'Alice')?.black_player).toBe('');
+        expect(parseLocalGameRecord({...sampleRecord(),white_id:'ai',black_id:'Alice',white_player:'Aureus',black_player:'Impersonated'},'Alice')).toMatchObject({white_player:'Aureus',black_player:''});
+    });
     it('binds both colors to the authenticated owner and preserves precise replay / additional move metadata', () => {
         const record = sampleRecord();
         expect(parseLocalGameRecord(record,'Alice')).toMatchObject({ mode: 'cpu', white_player:'', black_player:'', moves: record.moves });

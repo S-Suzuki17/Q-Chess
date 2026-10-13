@@ -1,0 +1,224 @@
+{
+  "schemaVersion": 1,
+  "status": "completed",
+  "baseRevision": "584252f3475165384b1e09ddc04d5cd03af68ba6",
+  "reviewer": "Codex /root, source owner; actual JA/EN copy/source and accepted isolated browser evidence review",
+  "changes": [
+    {
+      "path": "server/src/matchmaking/MatchmakingService.ts",
+      "gitBlob": "47927e5e41f8e2f7898b711ff585bbc37a6203da"
+    },
+    {
+      "path": "server/src/presentation/crownEnemies.ts",
+      "gitBlob": "86a620af5abeb4484c8584fb3b12233113da0fd6"
+    },
+    {
+      "path": "server/src/services/PrivateGameRecords.ts",
+      "gitBlob": "879e3b3b931530c835a9ddbb63f431a71c04357d"
+    },
+    {
+      "path": "server/src/services/SupabaseService.ts",
+      "gitBlob": "5cd54c73624152aa9236546f503dfffdb37e6816"
+    },
+    {
+      "path": "src/app/page.tsx",
+      "gitBlob": "c0e71ce3a375655e0da2a266b8964315dec0b0e3"
+    },
+    {
+      "path": "src/components/CampaignMode.tsx",
+      "gitBlob": "99f06009c94650b5cbd767ebc23f90d384c288ff"
+    },
+    {
+      "path": "src/components/CampaignResult.tsx",
+      "gitBlob": "00fd080a5c92b2e5404deeb3595d33c294edf6b9"
+    },
+    {
+      "path": "src/components/CrownCharacterBody.tsx",
+      "gitBlob": "e628c1f895138bb970d6120acf6a3772af299daa"
+    },
+    {
+      "path": "src/components/CrownEnemyPortrait.tsx",
+      "gitBlob": "f5165098c241af94e4ba3ebfb8f2ea2fcc249186"
+    },
+    {
+      "path": "src/components/CrownEntryMotion.tsx",
+      "gitBlob": "00a44a099aef516ede459f9eee90aba271405c03"
+    },
+    {
+      "path": "src/components/LevelSelect.tsx",
+      "gitBlob": "24d7843434b64a6aadff467cb7781da59f49f0b5"
+    },
+    {
+      "path": "src/components/LobbyTicketSummary.tsx",
+      "gitBlob": "be9cbab0a9689dc42022d52bf11e94e94d0b467b"
+    },
+    {
+      "path": "src/components/LocalGameBoard.tsx",
+      "gitBlob": "8f44862a9e61d337c95c84aecaad80b4970ff2fa"
+    },
+    {
+      "path": "src/components/MatchLayout.tsx",
+      "gitBlob": "82ece8fe1325fda4d7503e76cf0ff3c15b749063"
+    },
+    {
+      "path": "src/components/OnlineGameBoard.tsx",
+      "gitBlob": "84f1d007786a09f38dbcb59bee3f23e0130cd246"
+    },
+    {
+      "path": "src/components/PixelCastleCorridor.tsx",
+      "gitBlob": "d8be05548c9d609360d5cf6817791662a1aaa5d0"
+    },
+    {
+      "path": "src/components/QubeTeacher.tsx",
+      "gitBlob": "3c70649ec11fe8662dc0d21010114eb7829a6451"
+    },
+    {
+      "path": "src/components/TermsGate.tsx",
+      "gitBlob": "991942f6dfd4d6c26e6a322ec9a1b5518895bb78"
+    },
+    {
+      "path": "src/components/crown-reference.css",
+      "gitBlob": "3e581d798def4a18cc77194a4be57169dbb16518"
+    },
+    {
+      "path": "src/components/lobby-reference.css",
+      "gitBlob": "393b20b178a431696d3894e034c08e39ee42b4c3"
+    },
+    {
+      "path": "src/config/campaign.ts",
+      "gitBlob": "5929da084e24b621ee81aba45b9e688c2b1fbfee"
+    },
+    {
+      "path": "src/config/circuitStages.ts",
+      "gitBlob": "f4d2676fd8493814fe1e16697c57e2a28752b191"
+    },
+    {
+      "path": "src/config/crownEnemies.ts",
+      "gitBlob": "432bb3df85dba0a01e9d826245002e03aa3be5a6"
+    },
+    {
+      "path": "src/hooks/useBoardPreferences.ts",
+      "gitBlob": "64ebad0e9021be3881a084359e76706eb42c3918"
+    },
+    {
+      "path": "src/locales/siteContent.ts",
+      "gitBlob": "60781206275746ec809e408141a37b56594e7a1f"
+    }
+  ],
+  "reviews": [
+    {
+      "group": "start-and-controls",
+      "decision": "updated",
+      "reason": "JA/EN startup/guest FAQ now match the authorized guest-no-checkbox behavior and CPUで練習 label. The new Home uses existing match/setup/tutorial/history/reward handlers; Crown still uses existing authenticated stage admission. Settings appears once on Home and remains on Title.",
+      "checkedPages": [
+        "/guide/#start",
+        "/faq/#guest"
+      ],
+      "evidence": [
+        "Read the six changed JA/EN guide/FAQ strings against TermsGate, LevelSelect, page and unchanged gameplay/admission hooks. No account-creation requirement or consent gate is added to reading public articles.",
+        "Actual configured Android Home passes7 view/language/text/guest cases in home-final/home-result.json. It verifies real fixture1273 profile, no fabricated tickets, mode/CPU setup cancel/focus, history/ranking, previews and guest Crown rejection. Final Crown6 layouts verify geometry and controls; old QUBE-overlap images are superseded."
+      ]
+    },
+    {
+      "group": "candidates-and-outcomes",
+      "decision": "no-change-needed",
+      "reason": "Player portraits and the optional finite board-arrival border change presentation only. Candidate icons, movement/capture identity constraints, wins, engines and board piece assets remain unchanged; six opponent roles do not imply six new game rules.",
+      "checkedPages": [
+        "/rules/",
+        "/guide/#candidates",
+        "/guide/#outcomes",
+        "/guide/#practice",
+        "/guide/#chain",
+        "/faq/#move",
+        "/faq/#win"
+      ],
+      "evidence": [
+        "Read JA/EN guide candidate/outcome/practice/chain sections and move/win FAQ in siteContent.ts with the existing rules dictionaries/visual movement diagrams. The shared character catalogue supplies names and artwork, never legal moves or candidate identities.",
+        "The accepted 122-test unit receipt covers circuit CPU/clock preservation, adopted Crown piece staging, MatchLayout and hint presentation. Actual Crown browser tests select e2, execute a legal highlighted move, and exercise the real 3D board and its 2D fallback."
+      ]
+    },
+    {
+      "group": "hints-and-clock",
+      "decision": "no-change-needed",
+      "reason": "Practice hints remain free. Outside practice, existing explicit ticket/auth/current-terms gates remain in place; the visual patch changes no hint request, consumption or reuse contract. Introductions continue to pause game time, and the three stage clock controls are unchanged.",
+      "checkedPages": [
+        "/guide/#start",
+        "/faq/#clock",
+        "/faq/#hints"
+      ],
+      "evidence": [
+        "Compared JA/EN hintHelp and hints/clock FAQ in siteContent.ts with LocalGameBoard/OnlineGameBoard and the unchanged useMoveHint core. Current terms 2026-10-08.1, sales, price and refund source files are unchanged relative to 584252f.",
+        "The related useMoveHint tests are included in crown-six-character-unit-20261012.log. Crown motion checks keep the 10-second clock paused while hidden in the introduction, allow immediate start once, and retain normal free-practice presentation. Android build helper preserves existing default-off usage flags and forces sales/ads off; this task does not enable ticket switches."
+      ]
+    },
+    {
+      "group": "accounts-connections-and-saves",
+      "decision": "no-change-needed",
+      "reason": "Guest-only consent/storage handling is removed while registered current-version checking, account ownership, controller cancellation and stale-response guards remain. New free-ticket summary is an optional read of an existing validated endpoint, with account-bound results and unknown fallback. Existing account deletion/privacy/contact/history retention and computer-name constraints remain.",
+      "checkedPages": [
+        "/faq/#connection",
+        "/faq/#save",
+        "/faq/#privacy",
+        "/contact/",
+        "/privacy/"
+      ],
+      "evidence": [
+        "Compared the older preserved guest worktree behavior with current TermsGate and adapted only that behavior. No older file replaces the newer identity/AbortController implementation; unused qg_guest_terms remains unchanged.",
+        "TermsGate25 tests pass. Added real Home/Title/TermsGate browser3 cases verify guest direct entry with legacy storage unchanged, registered consent required before progress, and logout during a pending check. The full Home7 cases additionally verify an unseeded guest key remains null and no account terms API is requested.",
+        "Source/API review retains human profile names, self-owned history validation and private10-game retention. Existing accepted record9 tests and six-entry naming tests are retained. No schema/row, authentication or server publication occurs."
+      ]
+    },
+    {
+      "group": "commerce-and-disclosures",
+      "decision": "updated",
+      "reason": "JA/EN public startup wording now explicitly distinguishes guest practice from registered-account/current-terms and ticket-use checks. Latest legal text/version, price, refunds, purchase gates, account deletion and registered consent RPC contracts are unchanged. Header shows verified free stock only; membership/purchased/refund stocks remain separate.",
+      "checkedPages": [
+        "/faq/#hints",
+        "/contact/",
+        "/privacy/",
+        "/terms/"
+      ],
+      "evidence": [
+        "Reviewed currentTerms, terms/legal page, privacy/contact and the source diff. The legal document and policy version are unchanged. LobbyTicketSummary performs only an enabled/eligible GET using the existing DailyLoginStatus parser; no claim, purchase or client credit is introduced.",
+        "Home7 and targeted registered/guest3 browser cases use isolated transport. Unknown/off amounts are em dashes, not0; guest entry has no acceptance POST; registered missing-consent and interrupted-check controls remain. Existing Android helper still forces sales/ads/native rewards off and preserves default-off usage switches."
+      ]
+    },
+    {
+      "group": "public-guidance-and-navigation",
+      "decision": "updated",
+      "reason": "Updated actual JA/EN guest entry and practice wording, quieter QUBE presentation and source mapping for new Home/Crown components/styles. Public routes/index/canonical/contact/legal facts are unchanged. User reference screenshots are not shipped as backgrounds; the corridor is a new original direct SVG.",
+      "checkedPages": [
+        "/",
+        "/guide/",
+        "/faq/",
+        "/rules/",
+        "/about/",
+        "/contact/",
+        "/privacy/",
+        "/terms/"
+      ],
+      "evidence": [
+        "Read guide/FAQ startup, candidate/outcome/hint/clock/save/privacy sections, rules dictionaries and current legal/contact source alongside the new real UI. QUBE artwork/teaching children and archived-post removal remain.",
+        "Final Home7 and corrected Crown6 images/operations are independently accepted by the supervisor. QUBE/reward/controls/labels have measured non-overlap, including375px German doubled text. Equipment/music previews and saved hint recovery remain reachable.",
+        "Six character rendering source, editable Blender master,12 hashes/798076-byte budget and provenance are preserved. No placeholder enemy title, WIN banner, hardcoded reference account counts, Browser chrome or screenshot background is added. This source is not yet published to Web."
+      ]
+    },
+    {
+      "group": "qube-teaching",
+      "decision": "updated",
+      "reason": "Generic QUBE caption removal is retained; real explanation/hint/help/feedback children remain. New Home restores saved hint recovery in its own slot, and Crown places original seated QUBE in the left foreground. JA/EN changed startup copy describes navigation/guest access, not new rules or teaching facts.",
+      "checkedPages": [
+        "/",
+        "/about/",
+        "/rules/",
+        "/guide/",
+        "/faq/",
+        "game: tutorial, help dialogs, move hints and feedback, promotion/castling, stage/setup explanations, cosmetic preview/equipment guidance"
+      ],
+      "evidence": [
+        "Compared new Home/Crown markup with the original QubeCompanion/QubeArtwork, QubeTeacher and LatestMatchHintRecovery components. Their logic/artwork is not replaced. Guest instructions and CPU labels are updated; candidate chains, promotion/castling, hint conditions, replay semantics and reward rules are unchanged.",
+        "Existing QubeTeacher/instruction and hint tests remain accepted. Corrected Crown6 and Home7 actual-component/export evidence confirm visible QUBE and operational navigation. No retired QUBE posts are recreated or reintroduced."
+      ]
+    }
+  ]
+}

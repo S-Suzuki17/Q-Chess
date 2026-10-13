@@ -1,4 +1,4 @@
-import {createPublicKey,verify} from 'node:crypto';
+import {createHash,createPublicKey,verify} from 'node:crypto';
 
 const KEY_URL='https://www.gstatic.com/admob/reward/verifier-keys.json';
 const UNITS:Record<string,{kind:'hint'|'online';item:string}>={
@@ -6,7 +6,7 @@ const UNITS:Record<string,{kind:'hint'|'online';item:string}>={
  '2288802662':{kind:'online',item:'online_uses'},
 };
 type KeySet={keys:{keyId:number;pem:string}[]};
-export type VerifiedAdReward={kind:'hint'|'online';intentId:string;transactionId:string;timestamp:number};
+export type VerifiedAdReward={kind:'hint'|'online';intentId:string;transactionId:string;timestamp:number;evidenceSha256:string};
 
 /** Verifies Google evidence only. The caller must additionally atomically check a
  * server-issued, unexpired intent and unique transaction before granting credit.
@@ -52,7 +52,8 @@ export class AdMobVerification {
   const intentId=params.get('custom_data')??'',transactionId=params.get('transaction_id')??'';
   if(!config||params.get('reward_amount')!=='3'||params.get('reward_item')!==config.item)return null;
   if(!Number.isSafeInteger(timestamp)||timestamp<=0||timestamp>this.now()+300000)return null;
-  if(!/^[0-9a-f-]{36}$/i.test(intentId)||!/^\w{8,128}$/.test(transactionId))return null;
-  return{kind:config.kind,intentId,transactionId,timestamp};
+  if(!/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(intentId)||!/^\w{8,128}$/.test(transactionId))return null;
+  if(params.get('user_id')!==intentId)return null;
+  return{kind:config.kind,intentId,transactionId,timestamp,evidenceSha256:createHash('sha256').update(match[1],'utf8').digest('hex')};
  }
 }

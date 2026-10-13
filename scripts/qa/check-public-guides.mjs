@@ -76,7 +76,7 @@ try {
                 const move = page.locator('details#move'); await move.locator('summary').click();
                 assert.ok(await move.locator('[data-qube-explanation] > p').isVisible());
                 await page.screenshot({ path: resolve(artifacts, `faq-${lang}-${width}.png`) });
-                await move.locator('a').click(); await page.locator('.game-page').waitFor();
+                await move.locator('a').click(); await page.locator('[data-learning-entry]').waitFor();
                 await page.locator('[data-learning-entry] a[href="/guide/"]').click();
                 await page.getByLabel('ガイドの言語 / Guide language').selectOption(lang === 'ja' ? 'en' : 'ja');
                 await page.locator(`[data-learning-article="guide"][lang="${lang === 'ja' ? 'en' : 'ja'}"]`).waitFor();
@@ -91,14 +91,13 @@ try {
                 }
                 if (lang === 'ja') {
                     // Validate the guide's instructions on the actual local UI.
-                    // Guest consent is stored only in this disposable browser.
+                    // Guests enter directly; no account-consent state is created.
                     await page.evaluate(() => localStorage.setItem('qg_language', 'ja'));
                     await page.goto(origin, { waitUntil: 'domcontentloaded' });
                     await page.getByRole('button', { name: 'ゲストとしてプレイ', exact: true }).click();
-                    await page.locator('[data-terms-gate]').waitFor();
-                    await page.getByRole('checkbox').check();
-                    await page.getByRole('button', { name: '同意して続ける', exact: true }).click();
                     await page.locator('.lobby-studio').waitFor();
+                    assert.equal(await page.locator('[data-terms-gate]').count(), 0);
+                    assert.equal(await page.evaluate(() => localStorage.getItem('qg_guest_terms')), null);
                     // Exercise the real tutorial through its supported 2D fallback.
                     // Model failure is deliberate here; no backend or 3D assertion is made.
                     await page.getByRole('button', { name: '遊び方', exact: true }).click();
@@ -119,7 +118,7 @@ try {
                     await page.getByRole('button', { name: '遊び方', exact: true }).click();
                     await tutorial.waitFor();
                     await page.getByRole('button', { name: '閉じる', exact: true }).click();
-                    await page.getByRole('button', { name: '練習', exact: true }).click();
+                    await page.getByRole('button', { name: 'CPUで練習', exact: true }).click();
                     await page.getByRole('button', { name: '弱い', exact: true }).click();
                     await page.getByRole('button', { name: '白・先手', exact: true }).click();
                     await page.locator('[data-time-control="10m"]').click();

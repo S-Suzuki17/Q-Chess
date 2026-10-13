@@ -8,7 +8,7 @@ const h = vi.hoisted(() => {
     const sockets = new Map<string, any>(), sessions = new Map<string, any>();
     const blocked=vi.fn(async()=>false);
     const admissionStore={renew:vi.fn(async()=>true),admit:vi.fn(async()=>({state:'active'})),void:vi.fn(async()=>({state:'voided'})),recover:vi.fn(async()=>[]),read:vi.fn(async()=>null),busy:vi.fn(async()=>false)};
-    const service = {rankedAdmissionStore:()=>admissionStore, cleanupOldRecords: vi.fn(), verifyLegacyPassword: vi.fn(), verifyUser: vi.fn(),
+    const service = {playCommerceStore:()=>({}), rankedAdmissionStore:()=>admissionStore, cleanupOldRecords: vi.fn(), verifyLegacyPassword: vi.fn(), verifyUser: vi.fn(),
         rankedReady: vi.fn(), getMatchRating: vi.fn(), settleRankedMatch: vi.fn(), recordUnratedMatch: vi.fn(), profileAvatarStore: vi.fn(()=>({})), adRewardStore: vi.fn(()=>({})), engagementMetricsStore: vi.fn(()=>({})), foundersStore: vi.fn(()=>({})), stripeMembershipStore: vi.fn(()=>({})),
         admitRankedMatch: vi.fn(), voidRankedAdmission: vi.fn(), cpuPracticeService: vi.fn() };
     const mm = { registerSocket: vi.fn((userId, socketId) => sessions.set(userId, { userId, socketId, state: 'IDLE' })),
@@ -41,6 +41,8 @@ vi.mock('../game/GameEngine', () => ({ GameEngine: class {
 vi.mock('./PrivateGameRecordRoutes', () => ({ createPrivateGameRecordRouter: vi.fn(() => () => {}) }));
 vi.mock('./ProfileAvatarRoutes', () => ({ createProfileAvatarRouter: vi.fn(() => () => {}) }));
 vi.mock('./AdRewardRoutes', () => ({ createAdRewardRouter: vi.fn(() => () => {}) }));
+vi.mock('./PlayCommerceRoutes',()=>({createPlayCommerceRouter:()=>()=>{}}));
+vi.mock('./PlayCommerceNotifications',()=>({createPlayNotificationIdentity:()=>null,createPlayNotificationRouter:()=>()=>{}}));
 vi.mock('./EngagementMetricsRoutes', () => ({ createEngagementMetricsRouter: vi.fn(() => () => {}) }));
 vi.mock('./FoundersRewardRoutes', () => ({ createFoundersRewardRouter: vi.fn(() => () => {}) }));
 vi.mock('./AccountDeletionRoutes', () => ({ createAccountDeletionRouter: vi.fn(() => () => {}), accountRequestGuard: vi.fn(() => () => {}) }));

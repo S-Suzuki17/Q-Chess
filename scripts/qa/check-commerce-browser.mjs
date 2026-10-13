@@ -20,7 +20,7 @@ await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
 const origin = `http://127.0.0.1:${server.address().port}`;
 let browser;
 try {
-    browser = await chromium.launch({headless:true});
+    browser = await chromium.launch({headless:true,executablePath:process.env.QG_TEST_CHROMIUM});
     for (const width of [390,1280]) {
         const page=await browser.newPage({viewport:{width,height:844}});
         await page.route('**/*',route=>new URL(route.request().url()).origin===origin

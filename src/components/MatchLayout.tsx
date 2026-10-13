@@ -19,7 +19,7 @@ import type { VictoryFinish } from '../config/campaign';
 import { VictoryCelebration } from './VictoryCelebration';
 
 type Side = 'white' | 'black';
-type Player = { name: string; clock: string; rating?: number | null; avatar?: string; frame?: string; emote?: string };
+type Player = { name: string; clock: string; rating?: number | null; avatar?: string; frame?: string; emote?: string; artwork?: ReactNode };
 const TYPES: PieceType[] = ['King', 'Queen', 'Rook', 'Bishop', 'Knight', 'Pawn'];
 const SYMBOLS = ['♔', '♕', '♖', '♗', '♘', '♙'];
 const NAMES = ['キング', 'クイーン', 'ルーク', 'ビショップ', 'ナイト', 'ポーン'];
@@ -40,7 +40,7 @@ interface Props {
     onResetView: () => void;
     onHome: () => void; onRules: () => void; onResign: () => void;
     showMoveHints: boolean; onHintsChange: (show: boolean) => void;
-    board: ReactNode; notice?: ReactNode; children?: ReactNode;
+    board: ReactNode; boardArrival?: ReactNode; notice?: ReactNode; children?: ReactNode;
     victory?:boolean; victoryEffect?:VictoryFinish;
     resultVisible?:boolean; checkNotice?:string; checkEvent?:string|number;
 }
@@ -84,7 +84,7 @@ export function MatchLayout(props: Props) {
         const urgent = !props.finished && minutes * 60 + seconds <= 30;
         const captured = props.tokens.filter(token => token.isCaptured && token.player !== side);
         return <section className={`match-player ${active ? 'is-active' : ''}`} aria-label={label(side === 'white' ? '白の対局者' : '黒の対局者', `${side} player`)}>
-            <AccountAvatar name={player.name} url={player.avatar} frame={player.frame} size={36} rating={player.rating} lang={props.lang}/>
+            {player.artwork ?? <AccountAvatar name={player.name} url={player.avatar} frame={player.frame} size={36} rating={player.rating} lang={props.lang}/>}
             <div className="match-player-name"><strong title={player.name}>{player.name}</strong>
                 <span>{label(side === 'white' ? '白' : '黒', side === 'white' ? 'White' : 'Black')}{player.rating != null && ` · ${player.rating}`}
                     {active && <b>{label(side === props.bottomSide && !props.spectator ? 'あなたの手番' : '思考中', side === props.bottomSide && !props.spectator ? 'YOUR TURN' : 'THINKING')}</b>}
@@ -125,7 +125,7 @@ export function MatchLayout(props: Props) {
 
         <main className={`match-main ${hasAdvice ? 'has-advice' : ''}`}>
             {playerBar(topSide)}
-            <div className={`match-board-area ${props.checkmate ? 'is-checkmate' : ''}`} data-testid="match-board">{props.board}
+            <div className={`match-board-area ${props.checkmate ? 'is-checkmate' : ''}`} data-testid="match-board">{props.board}{props.boardArrival}
                 {props.checkmate && !props.resultVisible && !(props.victory && props.victoryEffect?.startsWith('champion-effect-')) && <div className="checkmate-celebration" role="status" data-testid="checkmate-celebration">
                     <span aria-hidden="true">♔</span><strong>{label('チェックメイト！','Checkmate!')}</strong>
                 </div>}

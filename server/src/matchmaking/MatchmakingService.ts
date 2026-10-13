@@ -1,4 +1,5 @@
 import { Server } from 'socket.io';
+import { crownEnemyForMatch, crownEnemyName } from '../presentation/crownEnemies';
 import { v4 as uuidv4 } from 'uuid';
 import { GameEngine } from '../game/GameEngine';
 import { createInitialBoard } from '../game/quantumChess';
@@ -53,6 +54,7 @@ export interface MatchSession {
 }
 
 export class MatchmakingService {
+    public newMatchError?: () => string | null;
     public canAdmitPlayer?: (userId: string) => boolean;
     public onForfeit?: (match:MatchSession)=>void;
     public onAdmissionCancel?: (match:MatchSession,reason:string)=>void;
@@ -430,12 +432,18 @@ export class MatchmakingService {
 
     /** Only admission acknowledgement, or the free release path, may call this. */
     public activateMatch(match:MatchSession, authority?:{canAdvance:()=>boolean;safeUntil:()=>number}):boolean {
+        if(match.engine||!['CONNECTING','WAITING_FOR_JOINER','ADMITTING'].includes(match.state))return false;
+        const unavailable=this.newMatchError?.();
+        if(unavailable){
+            if(this.requiresAdmission(match))this.onAdmissionCancel?.(match,unavailable);
+            else {this.finishMatch(match,'CANCELLED');this.io.to(match.matchId).emit('match_cancelled',{matchId:match.matchId,reason:unavailable});}
+            return false;
+        }
         if(!match.engine&&this.canAdmitPlayer&&Object.values(match.players).some(id=>id!==match.cpu?.id&&!this.canAdmitPlayer!(id))){
             if(this.requiresAdmission(match))this.onAdmissionCancel?.(match,'authentication_required');
             else {this.finishMatch(match,'CANCELLED');this.io.to(match.matchId).emit('match_cancelled',{matchId:match.matchId,reason:'authentication_required'});}
             return false;
         }
-        if(match.engine||!['CONNECTING','WAITING_FOR_JOINER','ADMITTING'].includes(match.state))return false;
         if(!match.connected.host||!match.connected.joiner)return false;
         if(this.requiresAdmission(match)&&(!authority||match.admission?.state!=='active'||!authority.canAdvance()))return false;
         match.engine=new GameEngine(match.matchId,match.players.host,match.players.joiner,createInitialBoard(),
@@ -518,7 +526,7 @@ export class MatchmakingService {
             const profile=cpuProfileForRating(session.rating!,session.timeControl!);
             const match:MatchSession={matchId,mode:'ranked',...(this.requireSharedAdmission?{admissionProtocol:'shared_v1' as const}:{}),state:'CONNECTING',timeControl:session.timeControl!,
                 players:{host:side==='host'?cpuId:id,joiner:side==='joiner'?cpuId:id},
-                playerNames:{[humanSide]:session.userName,[side]:`CPU · ${profile.rating}`},
+                playerNames:{[humanSide]:session.userName,[side]:crownEnemyName('en',crownEnemyForMatch(matchId))},
                 connected:{host:side==='host',joiner:side==='joiner'},createdAt:now,
                 appearances:{[humanSide]:{rating:session.rating},[side]:{rating:profile.rating,intro:true}},
                 cpu:{id:cpuId,side,profile}};

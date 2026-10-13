@@ -33,8 +33,9 @@ describe('shared game / platform-specific services', () => {
         expect(source).toContain("const target=process.argv[3]??'android'");
         expect(source).toContain("if(!['android','web'].includes(target))throw new Error('Invalid build target')");
         expect(source).toContain('NEXT_PUBLIC_APP_TARGET: target');
-        for (const flag of ['FOUNDERS_REWARDS_ENABLED', 'ADMOB_LIVE', 'NATIVE_REWARDS_ENABLED', 'NATIVE_INTERSTITIAL_ENABLED']) {
-            expect(source).toContain(`NEXT_PUBLIC_${flag}: 'false'`);
-        }
+        expect(source).toContain("NEXT_PUBLIC_FOUNDERS_REWARDS_ENABLED: 'false'");
+        for (const flag of ['ADMOB_LIVE','NATIVE_REWARDS_ENABLED','NATIVE_INTERSTITIAL_ENABLED','NATIVE_COMMERCE_ENABLED'])
+            expect(source).toContain(`'NEXT_PUBLIC_${flag}'`);
+        expect(source).toContain("releaseEnv[name]=String(target==='android'&&value==='true')");
     });
 });

@@ -3,6 +3,7 @@ import {renderToStaticMarkup} from 'react-dom/server';
 import {describe,it,expect,vi} from 'vitest';
 import {LANGUAGES,dict} from '../locales/dict';
 import {TermsGate} from './TermsGate';
+import {currentAccountTermsStatus,acceptCurrentAccountTerms} from '../lib/currentAccountTerms';
 
 vi.mock('../lib/currentAccountTerms',()=>({currentAccountTermsStatus:vi.fn(),acceptCurrentAccountTerms:vi.fn()}));
 vi.mock('./AccountDeletionPanel',()=>({AccountDeletionPanel:()=>null}));
@@ -20,5 +21,12 @@ describe('terms gate startup',()=>{
         for(const props of [{user:null,playing:false},{user,playing:true}]){
             expect(renderToStaticMarkup(createElement(TermsGate,{...props,lang:'ja',onExit:()=>{},onReady:()=>{}},'GAME'))).toBe('GAME');
         }
+    });
+    it.each(LANGUAGES.map(({code})=>code))('lets guests reach practice directly without a consent document (%s)',lang=>{
+        const guest={id:'GUEST-reference-fixture',name:'Guest',type:'guest' as const};
+        const html=renderToStaticMarkup(createElement(TermsGate,{user:guest,lang,playing:false,onExit:()=>{},onReady:()=>{}},'LOCAL PRACTICE'));
+        expect(html).toBe('LOCAL PRACTICE');
+        expect(currentAccountTermsStatus).not.toHaveBeenCalled();
+        expect(acceptCurrentAccountTerms).not.toHaveBeenCalled();
     });
 });

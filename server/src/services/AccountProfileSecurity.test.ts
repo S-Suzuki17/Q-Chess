@@ -2,7 +2,7 @@ import express from 'express';
 import http from 'node:http';
 import type {AddressInfo} from 'node:net';
 import {afterEach,beforeEach,expect,it,vi} from 'vitest';
-import {RankedAuth} from './RankedAuth';
+import {RankedAuth,isRankedUserId} from './RankedAuth';
 import {AccountWriteGate} from './AccountDeletion';
 import {createAccountSecurityRouter} from './AccountSecurityRoutes';
 import {validRegistration,verifiedTokenSessionId,type AccountSecurityStore} from './AccountSecurity';
@@ -25,6 +25,18 @@ it('requires strong bounded registration without rejecting international passwor
 it('normalizes impersonation checks without substring-blocking ordinary international names',()=>{
     for(const name of ['Q-Gambit','ｑｕｂｅ','QGambitOfficial','Admin','運営','shit'])expect(permittedAccountName(name)).toBe(false);
     for(const name of ['Shital','Adminson','太郎','தமிழ்','Élodie'])expect(permittedAccountName(name)).toBe(true);
+});
+it('rejects reserved identities before registration while ordinary similar names can sign in',async()=>{
+    for(const id of ['Guest','gUeSt','Anon','Anonymous','CPU','cpu']){
+        expect(isRankedUserId(id)).toBe(false);
+        expect(validRegistration(id,'correct-horse-123')).toBe(false);
+        expect((await fetch(base+'/auth/register',options('',{username:id,password:'correct-horse-123',email:'fixture@example.test'}))).status).toBe(400);
+    }
+    expect(store.register).not.toHaveBeenCalled();
+    for(const id of ['Guestly','Anon17','Anonymous17','CPU17','Alice123']){
+        expect(isRankedUserId(id)).toBe(true);
+        expect(validRegistration(id,'correct-horse-123')).toBe(true);
+    }
 });
 it('sends only validated registration fields to storage and bounds attempts',async()=>{
     for(const bad of [{username:'Alice',password:'short'},{username:'Alice',password:'correct-horse-123',rating:9999}])expect((await fetch(base+'/auth/register',options('',bad))).status).toBe(400);

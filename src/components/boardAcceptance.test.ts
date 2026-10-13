@@ -8,7 +8,8 @@ const read = (path: string) => readFileSync(path, 'utf8');
 describe('player-approved board contract', () => {
     it('makes the original 3D board available by default without a campaign unlock', () => {
         const preferences = read('src/hooks/useBoardPreferences.ts');
-        expect(preferences).toContain('[is2DView, setIs2DView] = useState(false)');
+        expect(preferences).toContain("localStorage.getItem('qchess_is2DView') === 'true'");
+        expect(preferences).toContain('catch { return false; }');
         const layout = read('src/components/MatchLayout.tsx');
         const button3D = layout.split('\n').find(line => line.includes('>3D</button>'));
         expect(button3D).toBeTruthy();

@@ -3,12 +3,13 @@ import type { CPUSearchProfile } from './cpuDifficulty';
 import type { CampaignOutcome,CampaignProgress,CPUPersonality } from './campaign';
 import { outcomeStars } from './campaign';
 import { circuitSearchProfile } from '../../server/src/quantum-engine/ai/searchProfiles';
+import { crownEnemyForStage } from './crownEnemies';
 
 export const CIRCUIT_STAGE_COUNT=100;
 export const CIRCUIT_STAGES=Array.from({length:CIRCUIT_STAGE_COUNT},(_,index)=>{
     const strength=Math.floor(index/3)+1;
     return {id:index+1,strength,timeControl:(['10m','3m','10s'] as TimeControl[])[index%3],
-        opponent:`CPU ${String(strength).padStart(2,'0')}`,
+        opponent:crownEnemyForStage(index+1).name.en,
         personality:('balanced' as CPUPersonality),
         search:circuitSearchProfile(strength) satisfies CPUSearchProfile};
 });

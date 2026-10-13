@@ -1,0 +1,33 @@
+{
+  "createdAt": "2026-10-12T11:13:06.255Z",
+  "source": "Original deterministic Canvas2D/PCM authoring in scripts/assets/render-crown-entry.mjs",
+  "externalApplication": "FFmpeg n7.0.1-playwright-build-1011",
+  "video": {
+    "codec": "VP8",
+    "width": 640,
+    "height": 360,
+    "fps": 30,
+    "seconds": 1.8,
+    "frames": 54,
+    "audio": false,
+    "loop": false
+  },
+  "audio": {
+    "codec": "PCM signed 16-bit mono",
+    "rate": 22050,
+    "seconds": 1.8,
+    "peakDbfs": -28.04352651553153
+  },
+  "files": [
+    {
+      "name": "chamber-light.webm",
+      "bytes": 33848,
+      "sha256": "308c8e81852b5a094b79ee1e20b415993dd6bb666b0ddb9487729becf0e57daf"
+    },
+    {
+      "name": "chamber-entry.wav",
+      "bytes": 79424,
+      "sha256": "b03aa8274664334471a0c1730e5987ea500e3c6ed9e9db88cc8bd0386211415d"
+    }
+  ]
+}
