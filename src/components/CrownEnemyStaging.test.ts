@@ -8,7 +8,7 @@ import { QuantumPieceUI } from './QuantumPieceUI';
 import type { PieceType } from '../config/gameConfig';
 
 const encounters: [number, PieceType][] = [
-    [1, 'Pawn'], [21, 'Knight'], [41, 'Bishop'], [61, 'Rook'], [81, 'Queen'], [100, 'King'],
+    [1, 'Pawn'], [2, 'Knight'], [3, 'Bishop'], [4, 'Rook'], [5, 'Queen'], [100, 'King'],
 ];
 
 describe('castle enemy staging preserves adopted pieces', () => {

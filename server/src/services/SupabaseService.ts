@@ -10,6 +10,7 @@ import type { LocalGameRecord, PrivateGameRecord, PrivateGameStats } from './Pri
 import { createProfileAvatarStore } from './ProfileAvatars';
 import { createAdRewardStore } from './AdRewardStore';
 import {createFoundersStore} from './FoundersRewards';
+import {createPlayCommerceStore} from './PlayCommerceStore';
 import { createAccountDeletionStore } from './AccountDeletion';
 import { createRecoveryStore } from './AccountRecovery';
 import { createAccountProfileStore } from './AccountProfiles';
@@ -79,6 +80,7 @@ export class SupabaseService {
     public stripeRetireCommerceCheckouts() { return createStripeRetireCommerceCheckouts(this.supabase); }
     public engagementMetricsStore() { return createEngagementMetricsStore(this.supabase); }
     public foundersStore() {return createFoundersStore(this.supabase,token=>this.verifyUser(token));}
+    public playCommerceStore() {return createPlayCommerceStore(this.supabase,token=>this.verifyUser(token));}
     public accountDeletionStore() { return createAccountDeletionStore(this.supabase, token => this.verifyUser(token)); }
     public accountRecoveryStore() {
         return createRecoveryStore(this.supabase, () => createClient(supabaseUrl, supabaseKey, {
@@ -187,7 +189,7 @@ export class SupabaseService {
         // Namespace client IDs by authenticated owner. A client cannot overwrite
         // another user's record or impersonate a server-owned match UUID.
         const id=uuidv5(`q-gambit:local:${record.mode}:${userId}:${record.id}`,uuidv5.URL);
-        const opponentName=record.mode==='cpu'?'CPU':'Opponent';
+        const opponentName=record.mode==='cpu'?(record.white_id===userId?record.black_player:record.white_player)||'CPU':'Opponent';
         const {error}=await this.supabase.from('game_records').upsert({...record,id,
             white_player:record.white_id===userId?name:opponentName,black_player:record.black_id===userId?name:opponentName,
         },{onConflict:'id',ignoreDuplicates:true}).abortSignal(AbortSignal.timeout(5000));

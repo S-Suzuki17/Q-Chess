@@ -3,12 +3,13 @@ import type {AdMobPlugin} from '@capacitor-community/admob';
 import {acceptAdEntitlement,resetAdEntitlement,canShowVerifiedAccountAdsFor} from '../sharedAdEligibility';
 import {NativeAds} from '../nativeAds';
 import {ADMOB_TEST_UNITS,ADMOB_UNITS} from '../../config/nativeAds';
+import {createRewardFlow} from '../rewardFlow';
 
 vi.mock('@capacitor-community/admob',()=>({
  RewardAdPluginEvents:{Rewarded:'reward',Dismissed:'dismiss',FailedToShow:'fail'},
  InterstitialAdPluginEvents:{Dismissed:'interstitialDismiss',FailedToShow:'interstitialFail'},
 }));
-const proof={userId:'opaque-account',intentId:'server-issued-intent'};
+const proof={accountId:'actual-account',intentId:'server-issued-intent'};
 function fixture(supported=true,live=false,canShowAds: (userId?:string)=>boolean=()=>true){
  const events=new Map<string,()=>void>();
  const removed=vi.fn();
@@ -35,13 +36,13 @@ describe('Android AdMob lifecycle',()=>{
  });
  it.each(['paid','unknown','different_account'] as const)('reward and interstitial do not prepare after %s during listener setup',async change=>{
   for(const kind of ['reward','interstitial']){
-   acceptAdEntitlement(proof.userId,{plan:'free',noAds:false,unlimitedOnlineRanked:false,periodEnd:null});
+   acceptAdEntitlement(proof.accountId,{plan:'free',noAds:false,unlimitedOnlineRanked:false,periodEnd:null});
    const f=fixture(true,false,canShowVerifiedAccountAdsFor),register=f.sdk.addListener.getMockImplementation()!;
    let release!:()=>void;const pending=new Promise<void>(resolve=>{release=resolve;});
    f.sdk.addListener.mockImplementationOnce(async(name,fn)=>{await pending;return register(name,fn);});
    const result=kind==='reward'?f.ads.reward('hint',proof):f.ads.interstitial();await flush();
    expect(f.sdk.addListener).toHaveBeenCalledOnce();
-   if(change==='paid')acceptAdEntitlement(proof.userId,{plan:'plus',noAds:true,unlimitedOnlineRanked:true,periodEnd:'2099-01-01'});
+   if(change==='paid')acceptAdEntitlement(proof.accountId,{plan:'plus',noAds:true,unlimitedOnlineRanked:true,periodEnd:'2099-01-01'});
    else if(change==='unknown')resetAdEntitlement();
    else acceptAdEntitlement('other-account',{plan:'free',noAds:false,unlimitedOnlineRanked:false,periodEnd:null});
    release();expect(await result).toBe('unavailable');
@@ -60,7 +61,7 @@ describe('Android AdMob lifecycle',()=>{
   expect(await f.ads.interstitial()).toBe('busy');
   expect(f.sdk.initialize).toHaveBeenCalledWith({initializeForTesting:true,tagForChildDirectedTreatment:true,tagForUnderAgeOfConsent:true,maxAdContentRating:'General'});
   expect(f.sdk.requestConsentInfo).toHaveBeenCalledWith({tagForUnderAgeOfConsent:true});
-  expect(f.sdk.prepareRewardVideoAd).toHaveBeenCalledWith({adId:ADMOB_TEST_UNITS.hint,isTesting:true,ssv:{userId:proof.userId,customData:proof.intentId}});
+  expect(f.sdk.prepareRewardVideoAd).toHaveBeenCalledWith({adId:ADMOB_TEST_UNITS.hint,isTesting:true,ssv:{userId:proof.intentId,customData:proof.intentId}});
   let settled=false;void result.then(()=>{settled=true;});
   f.events.get('reward')!();await flush();expect(settled).toBe(false);
   f.events.get('dismiss')!();expect(await result).toBe('earned');expect(f.removed).toHaveBeenCalledTimes(3);
@@ -69,9 +70,39 @@ describe('Android AdMob lifecycle',()=>{
   const f=fixture();const result=f.ads.reward('online',proof);await flush();f.events.get('dismiss')!();expect(await result).toBe('dismissed');
  });
  it('cannot request ads when consent disallows them, but can reopen privacy options',async()=>{
-  const f=fixture();f.sdk.requestConsentInfo.mockResolvedValue({status:'REQUIRED',canRequestAds:false});
-  expect(await f.ads.interstitial()).toBe('unavailable');expect(f.sdk.prepareInterstitial).not.toHaveBeenCalled();
-  expect(await f.ads.privacy()).toBe(true);expect(f.sdk.showPrivacyOptionsForm).toHaveBeenCalledOnce();
+  const f=fixture();f.sdk.requestConsentInfo.mockResolvedValue({status:'REQUIRED',canRequestAds:false,privacyOptionsRequirementStatus:'REQUIRED'});
+  expect(await f.ads.interstitial()).toBe('unavailable');expect(f.sdk.prepareInterstitial).not.toHaveBeenCalled();expect(f.sdk.initialize).not.toHaveBeenCalled();
+  expect(await f.ads.privacy()).toBe('opened');expect(f.sdk.showPrivacyOptionsForm).toHaveBeenCalledOnce();expect(f.sdk.initialize).not.toHaveBeenCalled();
+ });
+ it('privacy requirement distinguishes unnecessary, unknown and failed checks without initializing ads',async()=>{
+  const f=fixture();
+  f.sdk.requestConsentInfo.mockResolvedValue({status:'NOT_REQUIRED',canRequestAds:false,privacyOptionsRequirementStatus:'NOT_REQUIRED'});
+  expect(await f.ads.privacyRequirement()).toBe('NOT_REQUIRED');expect(await f.ads.privacy()).toBe('not-required');expect(f.sdk.showPrivacyOptionsForm).not.toHaveBeenCalled();
+  f.sdk.requestConsentInfo.mockResolvedValue({status:'UNKNOWN',canRequestAds:false,privacyOptionsRequirementStatus:'UNKNOWN'});expect(await f.ads.privacyRequirement()).toBe('UNKNOWN');expect(await f.ads.privacy()).toBe('unavailable');
+  f.sdk.requestConsentInfo.mockRejectedValueOnce(new Error('network'));expect(await f.ads.privacyRequirement()).toBe('FAILED');expect(f.sdk.initialize).not.toHaveBeenCalled();
+ });
+ it('obtains UMP permission before MobileAds initialization and applies child flags before any ad request',async()=>{
+  const f=fixture();const result=f.ads.interstitial();await flush();
+  expect(f.sdk.requestConsentInfo.mock.invocationCallOrder[0]).toBeLessThan(f.sdk.initialize.mock.invocationCallOrder[0]);
+  expect(f.sdk.initialize.mock.invocationCallOrder[0]).toBeLessThan(f.sdk.prepareInterstitial.mock.invocationCallOrder[0]);
+  f.events.get('interstitialDismiss')!();expect(await result).toBe('dismissed');
+ });
+ it('does not initialize after an account becomes ad-free while UMP is open',async()=>{
+  acceptAdEntitlement(proof.accountId,{plan:'free',noAds:false,unlimitedOnlineRanked:false,periodEnd:null});
+  const f=fixture(true,false,canShowVerifiedAccountAdsFor);let complete!:(value:{status:'NOT_REQUIRED';canRequestAds:boolean})=>void;
+  f.sdk.requestConsentInfo.mockImplementationOnce(()=>new Promise(resolve=>{complete=resolve;}));
+  const result=f.ads.interstitial();await flush();
+  acceptAdEntitlement(proof.accountId,{plan:'plus',noAds:true,unlimitedOnlineRanked:true,periodEnd:'2099-01-01'});
+  complete({status:'NOT_REQUIRED',canRequestAds:true});expect(await result).toBe('unavailable');expect(f.sdk.initialize).not.toHaveBeenCalled();
+ });
+ it('joins the real reward flow to verified-account eligibility, then waits for SDK close and server confirmation',async()=>{
+  const accountId='actual-account',intentId='00000000-0000-4000-8000-000000000001';
+  acceptAdEntitlement(accountId,{plan:'free',noAds:false,unlimitedOnlineRanked:false,periodEnd:null});
+  const f=fixture(true,false,canShowVerifiedAccountAdsFor),request=vi.fn(async(_owner:string,path:string)=>path==='/ads/reward'?{intentId}:{status:'credited'});
+  const run=createRewardFlow({enabled:()=>true,request,show:(kind,p)=>f.ads.reward(kind,p),wait:async()=>{}});
+  const result=run(accountId,'hint');await flush();expect(f.sdk.prepareRewardVideoAd).toHaveBeenCalledWith(expect.objectContaining({ssv:{userId:intentId,customData:intentId}}));
+  f.events.get('reward')!();await flush();expect(request).toHaveBeenCalledTimes(1);
+  f.events.get('dismiss')!();expect(await result).toBe('credited');expect(request).toHaveBeenLastCalledWith(accountId,'/ads/reward/'+intentId);
  });
  it('selects live units only with explicit opt-in and cleans up on show failure',async()=>{
   const f=fixture(true,true);f.sdk.showRewardVideoAd.mockRejectedValue(new Error('failed'));

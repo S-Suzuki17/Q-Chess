@@ -54,10 +54,10 @@ describe('public learning guides', () => {
         for (const reason of c.chainReasons) expect(guide).toContain(reason);
         for (const item of c.faqs) {
             expect(faq).toContain(item.answer);
-            expect(faq).toContain(`href="${item.href.replace(/\/(?=#|$)/g, '')}"`);
+            if(item.href) expect(faq).toContain(`href="${item.href.replace(/\/(?=#|$)/g, '')||'/'}"`);
         }
         expect(guide.match(/<details\b/g)).toHaveLength(3);
-        expect(faq.match(/<details\b/g)).toHaveLength(9);
+        expect(faq.match(/<details\b/g)).toHaveLength(c.faqs.length);
         for (const html of [guide, faq]) {
             expect(html).toContain(`lang="${lang}"`);
             expect(html).not.toContain('undefined');

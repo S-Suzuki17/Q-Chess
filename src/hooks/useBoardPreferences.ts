@@ -3,7 +3,11 @@ import { campaignStore } from '../lib/campaignStore';
 import { initialMatchAppearance } from '../lib/matchAppearance';
 
 export function useBoardPreferences() {
-    const [is2DView, setIs2DView] = useState(false);
+    // Restoring 2D before mounting the renderer avoids a discarded WebGL startup.
+    const [is2DView, setIs2DView] = useState(() => {
+        try { return typeof window !== 'undefined' && localStorage.getItem('qchess_is2DView') === 'true'; }
+        catch { return false; }
+    });
     const [boardDesign, setBoardDesign] = useState<'classic'|'marble'|'neon'>('classic');
     const [isLoaded, setIsLoaded] = useState(false);
     const [appearance]=useState(()=>initialMatchAppearance(campaignStore.getSnapshot(),()=>localStorage));

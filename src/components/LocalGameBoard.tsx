@@ -1,4 +1,5 @@
 'use client';
+import {castleQuestText} from '../locales/castleQuestText';
 
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { matchText } from '../locales/matchText';
@@ -15,6 +16,8 @@ import { QuantumPieceUI } from './QuantumPieceUI';
 import { Board3D } from './Board3D';
 import { MatchResultDialog } from './MatchResultDialog';
 import { MatchIntro } from './MatchIntro';
+import {MapBoardFocus,MapMatchIntro} from './ChallengeMap';
+import {crownRivalName} from '../config/crownEnemies';
 import { MatchLayout } from './MatchLayout';
 import { QubeTeacher } from './QubeTeacher';
 import { Board2D } from './Board2D';
@@ -93,6 +96,9 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
     useEffect(()=>{hintLanguage.current=lang;},[lang]);
     const [crownSession,setCrownSession]=useState<CrownRunSnapshot|null>(null);
     const activePersonality = cpuPersonality ?? localPersonality;
+    const npcName = freePractice
+        ? `${opponentLabel || `CPU (${matchText(lang,cpuDifficulty(cpuLevel).ja,cpuDifficulty(cpuLevel).en)})`} · ${cpuPersonalityText(lang,activePersonality)}`
+        : crownStageId ? opponentLabel || 'CPU' : opponentLabel || crownRivalName(lang,cpuLevel);
     const [crownPending,setCrownPending]=useState(false);
     const [crownNeedsSync,setCrownNeedsSync]=useState(false);
     const crownBusy=useRef(false);
@@ -564,8 +570,8 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
         let active = true;
         setSaveState('saving');
         const record: GameRecord = {
-            white_player: playerSide === 'white' ? user.name || 'Player' : roomId ? fetchedOpponentName || 'Opponent' : 'CPU',
-            black_player: playerSide === 'black' ? user.name || 'Player' : roomId ? fetchedOpponentName || 'Opponent' : 'CPU',
+            white_player: playerSide === 'white' ? user.name || 'Player' : roomId ? fetchedOpponentName || 'Opponent' : freePractice ? 'CPU' : npcName,
+            black_player: playerSide === 'black' ? user.name || 'Player' : roomId ? fetchedOpponentName || 'Opponent' : freePractice ? 'CPU' : npcName,
             white_id: playerSide === 'white' ? user.id : undefined,
             black_id: playerSide === 'black' ? user.id : undefined,
             winner, mode: roomId ? 'private' : 'cpu', cpu_level: roomId ? undefined : cpuLevel, time_control: timeControl,
@@ -578,7 +584,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
             else setSaveState('failed');
         });
         return () => { active = false; };
-    }, [winner, moveHistory, user?.id, user?.name, roomId, cpuLevel, savedRecordId, playerSide, timeControl, saveAttempt, onlineRole, matchMode, fetchedOpponentName, replaySave]);
+    }, [winner, moveHistory, user?.id, user?.name, roomId, cpuLevel, savedRecordId, playerSide, timeControl, saveAttempt, onlineRole, matchMode, fetchedOpponentName, replaySave, freePractice, npcName]);
 
     // 選択中のトークンが移動可能なマス（候補）を算出
     const validMoves = useMemo(() => {
@@ -819,7 +825,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
 
     const playerName = user?.name || 'Player';
     const fallbackOpponent = (opponentId && opponentId.startsWith('GUEST-')) ? 'Guest' : 'Opponent';
-    const opponentName = roomId ? (fetchedOpponentName || fallbackOpponent) : `${opponentLabel || `CPU (${matchText(lang,cpuDifficulty(cpuLevel).ja,cpuDifficulty(cpuLevel).en)})`} · ${cpuPersonalityText(lang, activePersonality)}`;
+    const opponentName = roomId ? (fetchedOpponentName || fallbackOpponent) : npcName;
     const myRole = onlineRole === 'spectator' ? 'white' : (onlineRole || 'white');
     const checkmate = useMemo(() => {
         if (!winner || winner === 'draw') return false;
@@ -869,8 +875,10 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
             is2D={is2DView} onViewChange={setIs2DView}
             onResetView={() => setViewResetKey(key => key + 1)}
             onHome={() => setShowHomeConfirm(true)} onRules={() => setShowRules(true)} onResign={() => setShowResignConfirm(true)}
+            boardArrival={crownStageId&&introDone?<MapBoardFocus/>:undefined}
             showMoveHints={showMoveHints} onHintsChange={setShowMoveHints}
             notice={disconnectTimeLeft !== null ? (matchText(lang, '再接続を待っています… ', 'Waiting for reconnection… ')) + disconnectTimeLeft + 's' : errorMsg || undefined}
+            
             board={is2DView ? (
                     <Board2D quietLayout boardDesign={boardDesign} boardFinish={boardFinish} hintMove={hintMove} autoRotate={false}
                     tokens={tokens}
@@ -900,9 +908,9 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
                 )}
         >
 
-            {!introDone&&<MatchIntro lang={lang} label={campaignLabel||t.vsCPU||'CPU'} onDone={finishIntro}
+            {!introDone&&(crownStageId&&!roomId&&onHome?<MapMatchIntro lang={lang} stageId={crownStageId} side={playerSide} label={campaignLabel||castleQuestText(lang,'title')} onDone={finishIntro} onCancel={onHome}/>:<MatchIntro lang={lang} label={campaignLabel||t.vsCPU||'CPU'} onDone={finishIntro}
                 white={{name:whiteName,rating:whiteRatingToDisplay,avatar:myRole==='white'?user?.avatar_url:undefined,frame:myRole==='white'?avatarFrame:undefined,detail:myRole==='black'?matchText(lang,cpuDifficulty(cpuLevel).ja,cpuDifficulty(cpuLevel).en):undefined}}
-                black={{name:blackName,rating:blackRatingToDisplay,avatar:myRole==='black'?user?.avatar_url:undefined,frame:myRole==='black'?avatarFrame:undefined,detail:myRole==='white'?matchText(lang,cpuDifficulty(cpuLevel).ja,cpuDifficulty(cpuLevel).en):undefined}}/>}
+                black={{name:blackName,rating:blackRatingToDisplay,avatar:myRole==='black'?user?.avatar_url:undefined,frame:myRole==='black'?avatarFrame:undefined,detail:myRole==='white'?matchText(lang,cpuDifficulty(cpuLevel).ja,cpuDifficulty(cpuLevel).en):undefined}}/>)}
             {winner && showGameOver && campaignLabel && resultPanel}
             {winner && showGameOver && !campaignLabel && (
                 <MatchResultDialog lang={lang} winner={winner} side={onlineRole==='spectator'?'spectator':playerSide}>

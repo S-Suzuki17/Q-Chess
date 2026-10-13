@@ -1,0 +1,17 @@
+import assert from 'node:assert/strict';
+import {chromium} from 'playwright';
+import {mkdir,writeFile} from 'node:fs/promises';
+import {resolve} from 'node:path';
+import {startMotionFixture} from './crown-motion-server.mjs';
+const output=resolve(process.argv[2]??'scratch/castle-scene-review');await mkdir(output,{recursive:true});
+const {server,base}=await startMotionFixture();let browser;
+try{
+ browser=await chromium.launch({headless:true,executablePath:process.env.QG_TEST_CHROMIUM});const context=await browser.newContext({viewport:{width:1280,height:1000},reducedMotion:'reduce'}),page=await context.newPage();
+ await context.route('**/*',route=>new URL(route.request().url()).origin===base?route.continue():route.abort());
+ await page.goto(base+'/?view=scene-review');await page.locator('[data-castle-actor]').last().waitFor();await page.waitForTimeout(100);
+ const geometry=await page.locator('[data-scene-review]').evaluateAll(nodes=>nodes.map(node=>{const actor=node.querySelector('[data-castle-actor]'),shadow=node.querySelector('[data-castle-contact-shadow="enemy"] ellipse'),matrix=actor.parentElement.getScreenCTM(),foot=node.querySelector('[data-character-part="right-foot"]').getBoundingClientRect(),contact=shadow.getBoundingClientRect(),qube=node.querySelector('[data-qube-artwork]').getScreenCTM(),frame=node.getBoundingClientRect();const inside=selector=>{const r=node.querySelector(selector).getBoundingClientRect();return r.left>=frame.left&&r.right<=frame.right&&r.top>=frame.top&&r.bottom<=frame.bottom;};return{id:node.dataset.sceneReview,sameSvg:actor.ownerSVGElement===shadow.ownerSVGElement&&node.querySelector('[data-qube-artwork]').ownerSVGElement===actor.ownerSVGElement,uniformEnemy:Math.abs(matrix.a-matrix.d),uniformQube:Math.abs(qube.a-qube.d),qubeFull:['head','body','hand-right','leg-left','leg-right'].every(part=>inside('[data-qube-part="'+part+'"]')),enemyFull:inside('[data-castle-actor]'),footGap:Math.abs(foot.bottom-(contact.top+contact.height/2)),imagePlates:node.querySelectorAll('image').length};}));
+ for(const item of geometry){assert(item.sameSvg);assert(item.qubeFull,'QUBE full body within scene '+item.id);assert(item.enemyFull);assert(item.uniformEnemy<.001);assert(item.uniformQube<.001);assert(item.footGap<4);assert.equal(item.imagePlates,0);}
+ await page.screenshot({path:resolve(output,'six-unified-castle-scenes.png'),fullPage:true});
+ for(const scene of await page.locator('[data-scene-review]').all()){const id=await scene.getAttribute('data-scene-review');await scene.screenshot({path:resolve(output,id+'.png')});await scene.locator('[data-character-part="head"]').screenshot({path:resolve(output,id+'-face.png')});assert.equal(await scene.locator('[data-castle-vault]').count(),0,'No arches in current scene');assert.equal(await scene.locator('[data-character-part="gear"]>*').count(),0,'No weapons in current scene');const svg=await scene.locator('svg.pixel-castle-corridor').evaluate(n=>new XMLSerializer().serializeToString(n));await writeFile(resolve(output,id+'.svg'),svg);}
+ await writeFile(resolve(output,'result.json'),JSON.stringify({pass:true,createdAt:new Date().toISOString(),source:'CastleQuestScene.tsx / crownToonArt.ts / PixelCastleCorridor.tsx single scene graph',geometry,scope:'Actual scene geometry, both actors, architecture, floor/contact/light in one SVG. Isolated Chromium; no production account or DB.'},null,2)+'\n');await context.close();
+}finally{await browser?.close();await server.close();}

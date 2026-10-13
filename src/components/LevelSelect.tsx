@@ -32,11 +32,13 @@ import { QubeTeacher } from './QubeTeacher';
 import { LatestMatchHintRecovery } from './CrownHintRecovery';
 import { hintScopeText } from '../locales/hintScopeText';
 import { InteractiveTutorial } from './InteractiveTutorial';
-import { ArrowUpRight, Swords, Dices, UsersRound, LogIn, Crown } from 'lucide-react';
+import { ArrowUpRight, Swords, Dices, UsersRound, LogIn, Crown, Settings2, House, History, Trophy, Gift } from 'lucide-react';
 import { LobbyShowcase } from './LobbyShowcase';
 import { LobbyBrandMark, LobbyChessArtwork } from './LobbyChessArtwork';
 import type { VisualReward } from './RewardPreview';
 import './lobby-studio.css';
+import './lobby-reference.css';
+import {LobbyTicketSummary} from './LobbyTicketSummary';
 import { campaignText } from '../locales/campaignText';
 import { useCircuitAccess } from '../hooks/useCircuitAccess';
 import { circuitAccessText } from '../locales/circuitAccessText';
@@ -71,6 +73,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
     const historyCopy = replayText(lang);
     const {progress:cosmetics}=useCampaignProgress();
     const {allowed:circuitAllowed}=useCircuitAccess(user);
+    const library=React.useRef<HTMLDetailsElement>(null);
     const [practiceLevel, setPracticeLevel] = React.useState<CPULevel>(3);
     const [practiceSide, setPracticeSide] = React.useState<'white' | 'black'>('white');
     const [showAdModal, setShowAdModal] = React.useState(false);
@@ -328,7 +331,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
         };
     }, []);
     return (
-        <div className="lobby-studio w-full h-full flex flex-col bg-transparent text-[#E8E2D7] font-sans px-6 py-6 md:px-8 md:py-8 overflow-hidden relative">
+        <div className="lobby-studio lobby-reference w-full h-full flex flex-col bg-transparent text-[#E8E2D7] font-sans px-6 py-6 md:px-8 md:py-8 overflow-hidden relative">
             {lobbyPreview && <RewardPreview lang={lang} reward={lobbyPreview} progress={cosmetics} onClose={() => setLobbyPreview(null)}/>}
             {showTutorial && <InteractiveTutorial lang={lang} onClose={() => setShowTutorial(false)} />}
 
@@ -641,6 +644,8 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
 
             {/* --- HOME SCREEN MAIN UI --- */}
 
+            <div className="lobby-home-tools"><button type="button" onClick={()=>window.dispatchEvent(new Event('qg-open-settings'))}><Settings2 size={16} aria-hidden="true"/>{t.settings}</button></div>
+
             <div className="lobby-heading flex justify-between items-center w-full max-w-lg mx-auto shrink-0 z-10 pt-4">
                 <div className="lobby-brand"><span className="lobby-brand-mark"><LobbyBrandMark/></span><span>Q-GAMBIT</span></div>
                 <div className="flex items-center gap-4">
@@ -650,7 +655,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
                             <span className="text-[10px] tracking-widest text-[#A89C86] font-mono">{queueStats[-1]} {matchText(lang,'オンライン','Online')}</span>
                         </div>
                     )}
-                    <div className="lobby-rating" title={t.ratingLabel}><AccountAvatar name={user.name} url={displayAvatarUrl} frame={cosmetics.avatar} size={38} lang={lang}/><span><small>{user.name}</small><strong><Crown size={18} aria-hidden="true"/>{userProfile?.rating_10m !== undefined ? Math.floor(userProfile.rating_10m) : '—'}</strong></span></div>
+                    <div className="lobby-player-panel"><div className="lobby-rating" title={t.ratingLabel}><AccountAvatar name={user.name} url={displayAvatarUrl} frame={cosmetics.avatar} size={38} lang={lang}/><span><small>{userProfile?.id===user.id?userProfile.name:user.name}</small><strong><Crown size={18} aria-hidden="true"/>{userProfile?.id===user.id&&userProfile.rating_10m !== undefined ? Math.floor(userProfile.rating_10m) : '—'}</strong></span></div><LobbyTicketSummary user={user} lang={lang} allowed={circuitAllowed}/></div>
                 </div>
             </div>
 
@@ -675,7 +680,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
 
                     <div className="lobby-shortcuts flex gap-2">
                         <button onClick={handleVsCpuClick} className="flex-1 py-4 bg-transparent border border-[#A89C86]/20 hover:bg-[#24211D] text-xs tracking-[0.2em] transition-colors text-[#A89C86] hover:text-[#E8E2D7] uppercase">
-                            {(t as any).practice}
+                            {lang==='ja'?'CPUで練習':`${(t as any).practice} · CPU`}
                         </button>
                         <button onClick={() => setShowTutorial(true)} className="flex-1 py-4 bg-[#B39A62]/10 border border-[#B39A62]/30 hover:bg-[#B39A62]/30 text-xs tracking-[0.2em] transition-colors text-[#D4B872] hover:text-[#E8E2D7] uppercase font-bold">
                             {(t as any).rulesButton || "HOW TO PLAY"}
@@ -685,10 +690,10 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
                     {onCampaign && <button type="button" className="lobby-campaign-action" onClick={onCampaign}>
                         <Crown size={24} aria-hidden="true"/><span>{campaignText(lang, 'title')}<small>{!circuitAllowed && circuitAccessText(lang, 'action')}</small></span><ArrowUpRight size={20} aria-hidden="true"/>
                     </button>}
+                    <div className="lobby-hint-recovery">{user.type==='registered'&&<LatestMatchHintRecovery key={user.id} userId={user.id} lang={lang}/>}</div>
                 </div>
 
                 <div className="lobby-recent flex flex-col w-full">
-                    {user.type==='registered'&&<LatestMatchHintRecovery key={user.id} userId={user.id} lang={lang}/>}
                     <div className="border-b border-[#A89C86]/20 pb-2 mb-2 flex justify-between items-end">
                         <span className="text-[10px] tracking-[0.2em] text-[#A89C86] uppercase">{(t as any).recentGames}</span>
                     </div>
@@ -720,16 +725,16 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
                 </div>
             </div>
 
-            <LobbyShowcase user={user} lang={lang} progress={cosmetics} onPreview={setLobbyPreview}
+            <details ref={library} className="lobby-library"><summary><Gift size={17} aria-hidden="true"/>{campaignText(lang,'rewards')}<ArrowUpRight size={16} aria-hidden="true"/></summary><LobbyShowcase user={user} lang={lang} progress={cosmetics} onPreview={setLobbyPreview}
                 onRewards={rewardsAvailable ? onOpenRewards : undefined}
-                onSettings={() => window.dispatchEvent(new Event('qg-open-settings'))}/>
+                onSettings={() => window.dispatchEvent(new Event('qg-open-settings'))}/></details>
 
-            <div className="lobby-navigation shrink-0 w-full max-w-lg mx-auto flex flex-wrap justify-center sm:justify-between items-center border-t border-[#A89C86]/20 pt-6 pb-2 text-[10px] tracking-[0.2em] text-[#A89C86] gap-y-4 z-10">
-                <div className="flex gap-6 justify-center w-full sm:w-auto">
-                    <button onClick={() => setShowReplays(true)} className="hover:text-[#E8E2D7] transition-colors uppercase">{t.gameReplays}</button>
-                    <button onClick={() => { setShowLeaderboard(true); loadLeaderboard(); }} className="hover:text-[#E8E2D7] transition-colors uppercase">{t.globalRankings}</button>
-                </div>
-            </div>
+            <nav className="lobby-navigation lobby-bottom-navigation" aria-label={lang==='ja'?'ホームのメニュー':'Home navigation'}>
+                <button type="button" aria-current="page" onClick={()=>{if(library.current)library.current.open=false;document.querySelector('.lobby-studio')?.scrollTo({top:0});}}><House aria-hidden="true"/><span>{t.home}</span></button>
+                <button type="button" onClick={()=>setShowReplays(true)}><History aria-hidden="true"/><span>{t.gameReplays}</span></button>
+                <button type="button" onClick={()=>{setShowLeaderboard(true);loadLeaderboard();}}><Trophy aria-hidden="true"/><span>{t.globalRankings}</span></button>
+                <button type="button" onClick={()=>{if(rewardsAvailable&&onOpenRewards)onOpenRewards();else if(library.current){library.current.open=true;library.current.scrollIntoView({block:'start'});}}}><Gift aria-hidden="true"/><span>{campaignText(lang,'rewards')}</span></button>
+            </nav>
         </div>
     );
 }

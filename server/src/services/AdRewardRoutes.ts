@@ -11,14 +11,21 @@ export function createAdRewardRouter(auth:RankedSessionAuthority,store:AdRewardS
   const v=attempts.get(key)??{count:0,until:now+60000};
   if(v.count>=max||attempts.size>=10000)return false;v.count++;attempts.set(key,v);return true;
  };
- router.use('/ads',(_req,res,next)=>{res.setHeader('Cache-Control','no-store');if(!enabled()){res.status(503).json({code:'ADS_DISABLED'});return;}next();});
+ router.use('/ads',async(req,res,next)=>{
+  res.setHeader('Cache-Control','no-store');
+  // Turning off new offers never strands an already-issued reward. The ready
+  // protocol remains mandatory for callbacks and owner-only recovery reads.
+  if(req.method!=='GET'&&!enabled()){res.status(503).json({code:'ADS_DISABLED'});return;}
+  try{if(!await store.ready()){res.status(503).json({code:'ADS_UNAVAILABLE'});return;}next();}
+  catch{res.status(503).json({code:'ADS_UNAVAILABLE'});}
+ });
  // Raw original query required for signature verification; never log its contents.
  router.get('/ads/admob/ssv',async(req,res)=>{
   if(!allow('ssv',300)){res.sendStatus(429);return;}
   try{
    const reward=await verifier.verifyQuery(req.originalUrl.split('?')[1]??'');
    if(!reward){res.sendStatus(400);return;}
-   if(!await store.credit(reward)){res.sendStatus(400);return;}
+   await store.credit(reward);
    res.sendStatus(200);
   }catch{res.sendStatus(503);}
  });
@@ -46,7 +53,7 @@ export function createAdRewardRouter(auth:RankedSessionAuthority,store:AdRewardS
   if(!req.body||Object.keys(req.body).length!==1||!['hint','online'].includes(req.body.kind)){res.sendStatus(400);return;}
   res.json({intentId:await store.intent(res.locals.adUser,req.body.kind)});
  }));
- // No public credit/consume endpoint. Game operations must call consume server-side.
+ // No public credit endpoint. Existing game operations spend the free tickets.
  const error:ErrorRequestHandler=(_error,_req,res,_next)=>{res.status(400).json({code:'INVALID_BODY'});};
  router.use(error);return router;
 }

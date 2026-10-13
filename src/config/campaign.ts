@@ -8,6 +8,7 @@ import { avatarFrame,type AvatarFrameId } from './avatarFrames';
 import { parseStageStars } from './circuitStages';
 import type { TimeControl } from '../types/game';
 import {isFoundersItem,FOUNDERS_PIECE_ID} from './founders';
+import { CROWN_ENEMIES } from './crownEnemies';
 
 export type BossId = 'nox' | 'ember' | 'oracle' | 'sovereign';
 export type BoardFinish = 'standard' | 'slate' | 'obsidian' | 'walnut' | 'mahogany' | 'marble' | ChampionBoardId;
@@ -15,10 +16,10 @@ export type PieceFinish = 'standard' | 'iceglass' | 'neonglass' | 'copper' | 'ja
 export type VictoryFinish = 'standard' | ChampionEffectId;
 export const CAMPAIGN_STORAGE_KEY = 'qg_campaign_v1';
 export const BOSSES: readonly {id:BossId; name:string; symbol:string; level:CPULevel; personality:CPUPersonality; reward:BoardFinish | PieceFinish; rewardKind:'board'|'piece'}[] = [
-    {id:'nox', name:'CPU 01', symbol:'♞', level:1, personality:'balanced', reward:'mahogany', rewardKind:'board'},
-    {id:'ember', name:'CPU 02', symbol:'♜', level:3, personality:'attacker', reward:'ebony', rewardKind:'piece'},
-    {id:'oracle', name:'CPU 03', symbol:'♝', level:3, personality:'guardian', reward:'marble', rewardKind:'board'},
-    {id:'sovereign', name:'CPU 04', symbol:'♛', level:5, personality:'balanced', reward:'alabaster', rewardKind:'piece'},
+    {id:'nox', name:CROWN_ENEMIES[1].name.en, symbol:'♞', level:1, personality:'balanced', reward:'mahogany', rewardKind:'board'},
+    {id:'ember', name:CROWN_ENEMIES[3].name.en, symbol:'♜', level:3, personality:'attacker', reward:'ebony', rewardKind:'piece'},
+    {id:'oracle', name:CROWN_ENEMIES[2].name.en, symbol:'♝', level:3, personality:'guardian', reward:'marble', rewardKind:'board'},
+    {id:'sovereign', name:CROWN_ENEMIES[5].name.en, symbol:'♛', level:5, personality:'balanced', reward:'alabaster', rewardKind:'piece'},
 ];
 
 export interface CampaignProgress {

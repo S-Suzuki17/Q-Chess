@@ -1,4 +1,10 @@
 /** Deliberately small, reviewable rules, not a claim of universal language moderation. */
+export function permittedRegistrationName(value:string):boolean {
+    return /^[A-Za-z0-9]{3,15}$/.test(value)
+        && !/^(?:guest|anon|anonymous|cpu)$/i.test(value)
+        && permittedAccountName(value);
+}
+
 export function permittedAccountName(value: string): boolean {
     const text=value.normalize('NFKC').toLowerCase();
     const compact=text.replace(/[\p{P}\p{Z}\p{Cf}]/gu,'');

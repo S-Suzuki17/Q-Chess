@@ -1,12 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { recoveryEmail } from './AccountRecovery';
-import { permittedAccountName } from './AccountNamePolicy';
+import { registrationEmail, registrationIssues } from './RegistrationValidation';
 
 export function validRegistration(id:unknown,password:unknown):id is string {
-    return typeof id==='string' && /^[A-Za-z0-9]{3,15}$/.test(id) && permittedAccountName(id)
-        && typeof password==='string' && [...password].length>=12 && Buffer.byteLength(password,'utf8')<=72
-        && !/[\p{Cc}]/u.test(password) && !/^(?:password|qwerty|123456|abcdef|letmein)[\d!@#$]*$/i.test(password)
-        && new Set(password).size>=4;
+    return registrationIssues(id,password,undefined,false).length===0;
 }
 /** Decode only AFTER getUser has verified the signed token. Never authorize from decoded claims alone. */
 export function verifiedTokenSessionId(token:string,verifiedUserId:string):string|null {
@@ -28,7 +24,7 @@ export function createAccountSecurityStore(client:SupabaseClient,verifyUser:Acco
         verifyUser,
         async ready(){try{const {data,error}=await client.rpc('account_security_version');return !error&&data===1;}catch{return false;}},
         async restricted(id){const {data,error}=await client.from('account_restrictions').select('blocked').eq('user_id',id).maybeSingle();if(error)throw new Error('UNAVAILABLE');return data?.blocked===true;},
-        async register(id,password,email){if(!validRegistration(id,password)||(email!==undefined&&!recoveryEmail(email)))throw new Error('INVALID_REQUEST');const {data,error}=await client.rpc(email===undefined?'register_account_secure':'register_account_with_email',email===undefined?{p_id:id,p_password:password}:{p_id:id,p_password:password,p_email:recoveryEmail(email)}).abortSignal(AbortSignal.timeout(10000));if(error)throw new Error('UNAVAILABLE');return data===true;},
+        async register(id,password,email){if(!validRegistration(id,password)||(email!==undefined&&!registrationEmail(email)))throw new Error('INVALID_REQUEST');const {data,error}=await client.rpc(email===undefined?'register_account_secure':'register_account_with_email',email===undefined?{p_id:id,p_password:password}:{p_id:id,p_password:password,p_email:registrationEmail(email)}).abortSignal(AbortSignal.timeout(10000));if(error)throw new Error('UNAVAILABLE');return data===true;},
         async signOutAll(token){const {error}=await client.auth.admin.signOut(token,'global');if(error)throw new Error('UNAVAILABLE');},
     };
 }

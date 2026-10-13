@@ -8,9 +8,9 @@ function setup(){
 }
 describe('reward confirmation flow',()=>{
  it('does nothing while disabled',async()=>{const f=setup();f.enabled.mockReturnValue(false);expect(await f.run('alice','hint')).toBe('unavailable');expect(f.request).not.toHaveBeenCalled();});
- it('returns credited only after server confirmation and sends Google no account identifier',async()=>{
+ it('returns credited only after server confirmation and keeps the real eligibility owner separate from the opaque intent',async()=>{
   const f=setup();expect(await f.run('alice','hint')).toBe('credited');
-  expect(f.show).toHaveBeenCalledWith('hint',{userId:intentId,intentId});
+  expect(f.show).toHaveBeenCalledWith('hint',{accountId:'alice',intentId});
   expect(f.request).toHaveBeenLastCalledWith('alice',`/ads/reward/${intentId}`);
  });
  it('does not poll for grants after an incomplete view',async()=>{

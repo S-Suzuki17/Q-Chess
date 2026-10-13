@@ -1,11 +1,11 @@
-import {generateKeyPairSync,sign} from 'node:crypto';
+import {createHash,generateKeyPairSync,sign} from 'node:crypto';
 import {describe,expect,it,vi} from 'vitest';
 import {AdMobVerification} from '../../../server/src/services/AdMobVerification';
 
 const {publicKey,privateKey}=generateKeyPairSync('ec',{namedCurve:'prime256v1'});
 const now=Date.now();
 const intent='00000000-0000-4000-8000-000000000001';
-const body=`ad_unit=8141474158&custom_data=${intent}&reward_amount=3&reward_item=hint_uses&timestamp=${now}&transaction_id=abcdef0123456789`;
+const body=`ad_unit=8141474158&custom_data=${intent}&reward_amount=3&reward_item=hint_uses&timestamp=${now}&transaction_id=abcdef0123456789&user_id=${intent}`;
 const signed=(value:string)=>`${value}&signature=${sign('sha256',Buffer.from(value),privateKey).toString('base64url')}&key_id=7`;
 function fixture(){
  const fetchKeys=vi.fn(async()=>({keys:[{keyId:7,pem:publicKey.export({type:'spki',format:'pem'}).toString()}]}));
@@ -14,7 +14,7 @@ function fixture(){
 describe('AdMob SSV signature verification (no real impressions)',()=>{
  it('accepts signed evidence and caches public keys',async()=>{
   const {verifier,fetchKeys}=fixture();
-  expect(await verifier.verifyQuery(signed(body))).toEqual({kind:'hint',intentId:intent,transactionId:'abcdef0123456789',timestamp:now});
+  expect(await verifier.verifyQuery(signed(body))).toEqual({kind:'hint',intentId:intent,transactionId:'abcdef0123456789',timestamp:now,evidenceSha256:createHash('sha256').update(body).digest('hex')});
   await verifier.verifyQuery(signed(body));expect(fetchKeys).toHaveBeenCalledOnce();
  });
  it('rejects altered signed bytes, duplicate parameters and unknown keys',async()=>{

@@ -26,3 +26,33 @@ it('global logout posts no selectable account and requires an acknowledged resul
 it('provides security and support text in all twelve languages',()=>{
     for(const lang of ['ja','en','zh','ru','fr','de','es','tr','pl','hi','pt','ta'] as const)for(const key of ['logoutAll','confirm','explain','failed','registered','rules','copy','copied'] as const)expect(accountSecurityText(lang,key).length).toBeGreaterThan(1);
 });
+
+it('uses only allowlisted registration field/reason pairs from a 400 response',async()=>{
+    const fetcher=vi.fn();vi.stubGlobal('fetch',fetcher);
+    fetcher.mockResolvedValue(new Response(JSON.stringify({code:'INVALID_REGISTRATION',field:'password',reason:'weak',message:'private detail',password:'private input'}),{status:400}));
+    let error=await registerAccount('Alice','correct-horse-123','alice@example.test').catch(e=>e);
+    expect(error).toMatchObject({registrationCode:'INVALID_REQUEST',issue:{field:'password',reason:'weak'}});
+    expect(JSON.stringify(error)).not.toContain('private');
+    for(const body of [
+        {code:'INVALID_REGISTRATION',field:'email',reason:'weak'},
+        {code:'INVALID_REGISTRATION',field:'email',reason:'already_exists'},
+        {code:'INVALID_REGISTRATION',field:'__proto__',reason:'format'},
+        {code:'UPSTREAM_ERROR',field:'password',reason:'weak'},
+        {code:'INVALID_REQUEST'},[],null,
+    ]){
+        fetcher.mockResolvedValue(new Response(JSON.stringify(body),{status:400}));
+        error=await registerAccount('Alice','correct-horse-123','alice@example.test').catch(e=>e);
+        expect(error.registrationCode).toBe('INVALID_REQUEST');expect(error.issue).toBeUndefined();
+    }
+    fetcher.mockResolvedValue(new Response('{',{status:400}));
+    await expect(registerAccount('Alice','correct-horse-123','alice@example.test')).rejects.toMatchObject({registrationCode:'INVALID_REQUEST',issue:undefined});
+});
+
+it('distinguishes generic conflict, rate limiting and unavailable service without leaking response details',async()=>{
+    const fetcher=vi.fn();vi.stubGlobal('fetch',fetcher);
+    for(const [status,code] of [[409,'CONFLICT'],[429,'TRY_LATER'],[503,'UNAVAILABLE']] as const){
+        fetcher.mockResolvedValue(new Response(JSON.stringify({field:'email',reason:'format',message:'private account detail'}),{status}));
+        const error=await registerAccount('Alice','correct-horse-123','alice@example.test').catch(e=>e);
+        expect(error.registrationCode).toBe(code);expect(error.issue).toBeUndefined();expect(JSON.stringify(error)).not.toContain('private');
+    }
+});

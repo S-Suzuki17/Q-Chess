@@ -4,7 +4,7 @@ const labels:Record<Language,readonly string[]>={
       "About Q-Gambit",
       "Contact",
       "How it works",
-      "Crown Circuit",
+      "100-Tile Challenge",
       "Help & feedback",
       "Back to game",
       "Example"
@@ -13,7 +13,7 @@ const labels:Record<Language,readonly string[]>={
       "Q-Gambitについて",
       "お問い合わせ",
       "遊び方の基本",
-      "クラウン・サーキット",
+      "100マスチャレンジ",
       "ヘルプ・不具合報告",
       "ゲームへ戻る",
       "具体例"
@@ -31,7 +31,7 @@ const labels:Record<Language,readonly string[]>={
       "О Q-Gambit",
       "Связаться",
       "Основы игры",
-      "Crown Circuit",
+      "Испытание из 100 клеток",
       "Помощь и отзывы",
       "Вернуться к игре",
       "Пример"
@@ -40,7 +40,7 @@ const labels:Record<Language,readonly string[]>={
       "À propos de Q-Gambit",
       "Contact",
       "Principes du jeu",
-      "Crown Circuit",
+      "Défi des 100 cases",
       "Aide et retours",
       "Retour au jeu",
       "Exemple"
@@ -49,7 +49,7 @@ const labels:Record<Language,readonly string[]>={
       "Über Q-Gambit",
       "Kontakt",
       "Spielprinzip",
-      "Crown Circuit",
+      "100-Felder-Herausforderung",
       "Hilfe und Feedback",
       "Zurück zum Spiel",
       "Beispiel"
@@ -58,7 +58,7 @@ const labels:Record<Language,readonly string[]>={
       "Acerca de Q-Gambit",
       "Contacto",
       "Cómo funciona",
-      "Crown Circuit",
+      "Desafío de 100 casillas",
       "Ayuda y comentarios",
       "Volver al juego",
       "Ejemplo"
@@ -67,7 +67,7 @@ const labels:Record<Language,readonly string[]>={
       "Q-Gambit hakkında",
       "İletişim",
       "Oyun temelleri",
-      "Crown Circuit",
+      "100 Kare Mücadelesi",
       "Yardım ve geri bildirim",
       "Oyuna dön",
       "Örnek"
@@ -76,7 +76,7 @@ const labels:Record<Language,readonly string[]>={
       "O Q-Gambit",
       "Kontakt",
       "Zasady gry",
-      "Crown Circuit",
+      "Wyzwanie 100 pól",
       "Pomoc i opinie",
       "Powrót do gry",
       "Przykład"
@@ -85,7 +85,7 @@ const labels:Record<Language,readonly string[]>={
       "Q-Gambit के बारे में",
       "संपर्क",
       "खेल की मूल बातें",
-      "क्राउन सर्किट",
+      "100 खाने की चुनौती",
       "मदद और सुझाव",
       "खेल पर लौटें",
       "उदाहरण"
@@ -94,7 +94,7 @@ const labels:Record<Language,readonly string[]>={
       "Sobre Q-Gambit",
       "Contato",
       "Como funciona",
-      "Crown Circuit",
+      "Desafio de 100 casas",
       "Ajuda e comentários",
       "Voltar ao jogo",
       "Exemplo"
@@ -252,9 +252,9 @@ export const learningCopy: Record<LearningLanguage, LearningCopy> = {
     startTitle: '1. ゲストで練習を始める',
     hintHelp: '練習対局のQUBEヒントは無料で、ヒント券を使いません。練習以外の対局では、新しいヒント1回につき券1枚を使います。券を使うには登録アカウントでのログインと最新の利用規約への同意が必要です。同じ取得結果の再表示に追加の券は不要です。表示された元の駒と行き先を見比べ、どの候補が消えるかを自分でも考えてみよう。',
     steps: [
-      { title: 'ゲームを開き、ゲストを選ぶ', text: '「ゲームへ戻る」からトップへ進み、「ゲストとしてプレイ」を選びます。初回は最新の利用規約とプライバシー説明を確認する画面が出ます。内容に同意して続けるとロビーに入ります。同じブラウザーに最新規約の同意記録が残っていれば、次回は確認画面を表示しません。ガイドとルールを読むための同意やアカウント作成は不要です。' },
+      { title: 'ゲームを開き、ゲストを選ぶ', text: '「ゲームへ戻る」からトップへ進み、「ゲストとしてプレイ」を選ぶとホームへ進めます。ゲストでチュートリアルやCPU練習を試すための同意チェックはありません。登録アカウントの利用や券を使う機能では、最新の利用規約を確認します。同じアカウントで現在の規約に一度同意すると、再ログインごとに同意を求めません。ガイドとルールを読むための同意やアカウント作成も不要です。' },
       { title: 'チュートリアルで選択を試す', text: 'ロビーの「遊び方」でチュートリアルを開き、案内された駒をタップまたはクリックし、示された移動先を選びます。駒を選ぶ操作と、移動先を決める操作は別です。説明を読み、候補が減る様子を確認してから次へ進んでください。' },
-      { title: 'CPU練習の条件を決める', text: 'ロビーの「練習」から強さ、白・先手か黒・後手、時間を選びます。最初は弱いCPU、白・先手、10分を選ぶと候補を確認する余裕ができます。10分と3分は自分の対局全体の持ち時間、1手10秒は手番ごとの制限です。' },
+      { title: 'CPU練習の条件を決める', text: 'ホームの「CPUで練習」から強さ、白・先手か黒・後手、時間を選びます。最初は弱いCPU、白・先手、10分を選ぶと候補を確認する余裕ができます。10分と3分は自分の対局全体の持ち時間、1手10秒は手番ごとの制限です。' },
       { title: '自分の駒と移動先を選ぶ', text: '自分の手番になったら駒の候補アイコンを確認して選び、表示された移動先をタップまたはクリックします。相手の手番には待ちます。着手後は移動した駒だけでなく、ほかの駒の候補が変わっていないかも見てください。' },
     ],
     sections: [
@@ -296,7 +296,8 @@ export const learningCopy: Record<LearningLanguage, LearningCopy> = {
     faqTitle: 'よくある質問と困ったときの対処',
     faqIntro: '始め方、候補の見方、通信や保存で迷ったときの確認先です。ガイドとルールはログイン前に読めます。解決しない場合は、問い合わせに必要な情報を末尾で確認してください。',
     faqs: [
-      { id: 'guest', question: 'アカウントを作らずに試せますか？', answer: 'ゲストでチュートリアルとCPU練習を試せます。トップでゲストを選び、初回の規約確認を経てロビーへ進みます。「遊び方」でチュートリアル、「練習」でCPUとの対局を開けます。ランク対局やクラウン・サーキットなどにはログインが必要です。ゲストの端末内データを、別の端末でも復元できるアカウント保存と同じものとして扱わないでください。', href: '/guide/#start', link: '開始手順を読む' },
+      { id: 'maintenance', question: 'Web版・PC版の定期メンテナンスはいつですか？', answer: '毎週火曜日11:00〜14:00（日本時間・JST）です。メンテナンス中は新規ログインと新しいオンライン対局を停止します。進行中の対局とオフライン練習は続けられます。実施状況・変更・臨時メンテナンスは画面と公式案内をご確認ください。', href: '/', link: '画面の案内を確認する' },
+      { id: 'guest', question: 'アカウントを作らずに試せますか？', answer: 'ゲストでチュートリアルとCPU練習を試せます。トップでゲストを選ぶと、同意チェックなしでホームへ進めます。「遊び方」でチュートリアル、「CPUで練習」で対局条件を開けます。ランク対局や100マスチャレンジなどにはログインが必要で、登録利用者の最新規約確認は維持しています。ゲストの端末内データを、別の端末でも復元できるアカウント保存と同じものとして扱わないでください。', href: '/guide/#start', link: '開始手順を読む' },
       { id: 'identity', question: '正体は最初から決まっていて、ランダムに当てるのですか？', answer: '残っている候補と駒数の制約から、成立する正体を絞り込む仕組みです。候補のどれかが動ける着手を選ぶと、動けない候補が外れます。「見えない正解を確率で当てる」操作ではありません。量子という名前は不確定な情報の着想で、実際の量子現象の再現ではありません。', href: '/guide/#candidates', link: '候補の読み方を確認する' },
       { id: 'move', question: '動けそうなマスを選んでも動けないのはなぜ？', answer: '自分の手番と駒か、残る候補にその動きがあるか、途中に障害物や行き先に味方がいないかを確認します。最後のキング候補を王手にさらす手や、全体の正体枠と矛盾する手は認められません。ポーンの前進と取り方も別です。候補アイコンを見て駒を選び直し、表示された移動先を確認してください。', href: '/rules/', link: '駒の移動図とルールを見る' },
       { id: 'win', question: 'キング候補の駒を取ったのに終わりません', answer: 'ほかに生きたキング候補が残れば対局は続きます。最後の候補がなくなる捕獲と、確定キングのチェックメイトは別の決着です。取った駒の見た目だけで勝敗を判断せず、残る候補とゲームの結果表示を確認してください。', href: '/guide/#outcomes', link: '勝敗の説明を読む' },
@@ -314,9 +315,9 @@ export const learningCopy: Record<LearningLanguage, LearningCopy> = {
     startTitle: '1. Start a guest practice game',
     hintHelp: 'QUBE hints are free in practice games and do not use tickets. Outside practice, each new hint uses one ticket. To use tickets, sign in to a registered account and accept the current terms. Showing the same retrieved result again does not use another ticket. Compare the source piece with the destination and try explaining which candidates disappear.',
     steps: [
-      { title: 'Open the game and choose Guest', text: 'Use “Back to game”, then “Play as Guest” on the title screen. On your first visit, review the current terms and privacy information. If you agree, continue to the lobby. The consent screen will not appear again while acceptance of the current terms remains saved in the same browser. Reading this guide or the rules requires neither account creation nor consent to play.' },
+      { title: 'Open the game and choose Guest', text: 'Use “Back to game”, then “Play as Guest” on the title screen to enter Home. Guest tutorial and CPU practice do not require a consent checkbox. Registered-account and ticket-use features check the current terms. Once the same account accepts the current version, signing in again does not request it again. Reading this guide or the rules requires neither account creation nor consent to play.' },
       { title: 'Try selecting a piece in the tutorial', text: 'Open “HOW TO PLAY” in the lobby to start the tutorial. Tap or click the instructed piece, then choose the indicated destination. Selecting a piece and choosing where it goes are separate actions. Read the explanation and watch the candidates change before continuing.' },
-      { title: 'Choose your practice conditions', text: 'Open “PRACTICE” and choose difficulty, White (first) or Black (second), and time. Start with a weaker CPU, White and 10 minutes to leave room for reading candidates. The 10-minute and 3-minute modes give each player a total game clock; 10 seconds per move is a turn-by-turn limit.' },
+      { title: 'Choose your practice conditions', text: 'Open the CPU practice action on Home and choose difficulty, White (first) or Black (second), and time. Start with a weaker CPU, White and 10 minutes to leave room for reading candidates. The 10-minute and 3-minute modes give each player a total game clock; 10 seconds per move is a turn-by-turn limit.' },
       { title: 'Choose your piece and destination', text: 'On your turn, inspect the candidate icons and select your piece, then tap or click a displayed destination. Wait during the opponent’s turn. After your move, check other pieces too: a team-wide constraint can change their candidates without moving them.' },
     ],
     sections: [
@@ -358,7 +359,8 @@ export const learningCopy: Record<LearningLanguage, LearningCopy> = {
     faqTitle: 'Frequently asked questions and troubleshooting',
     faqIntro: 'Find the next step when starting, reading candidates or checking a connection or saved game. The guide and rules are available before sign-in. If the problem remains, use the contact instructions to report useful details.',
     faqs: [
-      { id: 'guest', question: 'Can I try it without creating an account?', answer: 'Guests can use the tutorial and CPU practice. Choose Guest on the title screen and review the first-visit terms to enter the lobby. “HOW TO PLAY” opens the tutorial; “PRACTICE” opens CPU games. Ranked play and Crown Circuit require sign-in. Guest data stored on a device should not be treated as account-backed progress that can be restored on another device.', href: '/guide/#start', link: 'Read the starting steps' },
+      { id: 'maintenance', question: 'When is maintenance for the Web and PC versions?', answer: 'Every Tuesday, 11:00–14:00 Japan Standard Time (JST). During maintenance, new sign-ins and new online games are paused. Ongoing games and offline practice remain available. Check the in-game and official notices for current status, changes and additional maintenance.', href: '/', link: 'Check the in-game notices' },
+      { id: 'guest', question: 'Can I try it without creating an account?', answer: 'Guests can use the tutorial and CPU practice. Choose Guest on the title screen to enter Home without a consent checkbox. The how-to-play action opens the tutorial; CPU practice opens its setup. Ranked play and 100-Tile Challenge require sign-in, and registered users still check the current terms. Guest data stored on a device should not be treated as account-backed progress that can be restored on another device.', href: '/guide/#start', link: 'Read the starting steps' },
       { id: 'identity', question: 'Am I guessing a secretly fixed identity at random?', answer: 'The game narrows identities using the remaining candidates and piece-count constraints. Choose a move that a candidate can perform, and incompatible candidates are removed. You are not making a probability-based guess at an invisible answer. “Quantum” describes uncertainty as an inspiration, rather than a simulation of physical quantum phenomena.', href: '/guide/#candidates', link: 'Learn to read candidates' },
       { id: 'move', question: 'Why can’t my piece move to a square that seems possible?', answer: 'Check whose turn it is, whether it is your piece, whether a remaining candidate can make that move, and whether a blocker or friendly destination piece prevents it. Moves leaving your last possible King in check or contradicting the team’s identity slots are rejected. Pawn movement and captures differ too. Select the piece again and inspect its candidate icons and displayed destinations.', href: '/rules/', link: 'See movement diagrams and rules' },
       { id: 'win', question: 'I captured a King candidate. Why did play continue?', answer: 'Play continues when another living King candidate remains. Capturing the final candidate and checkmating a confirmed King are different finishes. Check the remaining candidates and result display rather than judging the outcome only by the appearance of the captured piece.', href: '/guide/#outcomes', link: 'Read about game outcomes' },

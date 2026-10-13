@@ -34,7 +34,7 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   title: "Q-GAMBIT - 量子チェス・新感覚ボードゲーム (Quantum Superposition Chess)",
-  description: "Q-GAMBIT (キュー・ギャンビット) は駒の正体が隠された量子チェス風の新感覚ボードゲーム。CPU対戦、オンライン対局、クラウンサーキットなど豊富なモードで遊べるブラウザチェスゲームです。A chess variant with hidden piece identities. Play CPU practice, online matches and Crown Circuit.",
+  description: "Q-GAMBIT (キュー・ギャンビット) は駒の正体が隠された量子チェス風の新感覚ボードゲーム。CPU対戦、オンライン対局、100マスチャレンジなど豊富なモードで遊べるブラウザチェスゲームです。A chess variant with hidden piece identities. Play CPU practice, online matches and 100-Tile Challenge.",
   keywords: ["Q-Gambit", "q-gambit", "キューギャンビット", "チェス", "量子チェス", "ボードゲーム", "ブラウザゲーム", "オンライン対戦", "chess", "quantum chess", "board game"],
   metadataBase: new URL("https://q-gambit.com"),
   alternates: { canonical: "https://q-gambit.com/" },
@@ -52,7 +52,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: "Q-GAMBIT - 量子チェス・新感覚ボードゲーム",
-    description: "Q-GAMBIT (キュー・ギャンビット) は駒の正体が隠された量子チェス風の新感覚ボードゲーム。CPU対戦、オンライン対局、クラウンサーキットなど豊富なモードで遊べるブラウザチェスゲームです。",
+    description: "Q-GAMBIT (キュー・ギャンビット) は駒の正体が隠された量子チェス風の新感覚ボードゲーム。CPU対戦、オンライン対局、100マスチャレンジなど豊富なモードで遊べるブラウザチェスゲームです。",
     url: "https://q-gambit.com",
     siteName: "Q-GAMBIT",
     images: [

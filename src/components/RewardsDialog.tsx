@@ -9,6 +9,7 @@ import { CurrentTermsConsentPanel } from './CurrentTermsConsentPanel';
 import { MemberTicketsPanel } from './MemberTicketsPanel';
 import { RankedRefundBalancePanel } from './RankedRefundBalancePanel';
 import { StripeMembershipPanel } from './StripeMembershipPanel';
+import { NativeCommercePanel } from './NativeCommercePanel';
 import { rewardsHubEnabled } from '../config/rewardsHub';
 
 /** A deliberate destination, never an automatic offer or a purchase action. */
@@ -27,6 +28,7 @@ export function RewardsDialog({ user, lang, onClose }: { user: User; lang: Langu
                 <MemberTicketsPanel user={user} lang={lang}/>
                 <RankedRefundBalancePanel user={user} lang={lang}/>
                 <StripeMembershipPanel user={user} lang={lang}/>
+                <NativeCommercePanel user={user} lang={lang}/>
             </div>
         </div>
     </SettingsDialog>;

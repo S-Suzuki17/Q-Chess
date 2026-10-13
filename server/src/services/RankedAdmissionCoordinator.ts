@@ -119,7 +119,8 @@ export class RankedAdmissionCoordinator {
                     canAdvance: () => this.canAdvance(match),
                     safeUntil: () => this.safeUntil(),
                 })) this.onStarted(match);
-                else if (match.admissionProtocol==='shared_v1') await this.voidMatch(match,match.admission?.reason??'prestart_unavailable');
+                else if (match.admissionProtocol==='shared_v1'||this.matchmaking.newMatchError?.())
+                    await this.voidMatch(match,match.admission?.reason??'prestart_unavailable');
             } else if (result.state === 'active' || match.state === 'VOIDING') {
                 await this.voidMatch(match, match.admission?.reason ?? 'owner_unavailable');
             } else this.finish(match, result);

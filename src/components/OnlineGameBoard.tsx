@@ -33,6 +33,8 @@ import { filterPossibilities, onlineKingInCheck } from '../lib/onlineMovement';
 import { supabase } from '../lib/supabaseClient';
 import { isRatedPlayer, openingRating } from '../lib/onlineRatings';
 import { cpuOpponent, ratingSettlement, matchCancellation, type RatingSettlement } from '../lib/rankedProtocol';
+import { confirmedCrownEnemyForMatch, crownEnemyName } from '../config/crownEnemies';
+import { CrownEnemyPortrait } from './CrownEnemyPortrait';
 import { RankedSettlement } from './RankedSettlement';
 import { rankedText } from '../locales/rankedText';
 import { RankedCancellationNotice } from './RankedCancellationNotice';
@@ -273,7 +275,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
         }
         triggerEmote(onlineRole, emote);
         setShowEmoteMenu(false);
-    }, [roomId, onlineRole, triggerEmote, socket]);
+    }, [roomId, onlineRole, triggerEmote, socket, setShowEmoteMenu]);
 
     // The current time-control rating is public profile data, never a guessed value.
     useEffect(()=>{
@@ -663,8 +665,9 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
     const opponentServerName = isHost ? joinerServerName : hostServerName;
     const resolvedOpponent = getOpponentLabel(opponentId, opponentServerName, fetchedOpponentName);
 
-    const whiteName = cpu?.side==='host'?'CPU':onlineRole==='spectator'?(hostServerName||playerLabel):isHost ? (user?.name || playerLabel) : resolvedOpponent;
-    const blackName = cpu?.side==='joiner'?'CPU':onlineRole==='spectator'?(joinerServerName||playerLabel):!isHost ? (user?.name || playerLabel) : resolvedOpponent;
+    const npcEnemy = confirmedCrownEnemyForMatch(roomId ?? '',cpu);
+    const whiteName = cpu?.side==='host'&&npcEnemy?crownEnemyName(lang,npcEnemy):onlineRole==='spectator'?(hostServerName||playerLabel):isHost ? (user?.name || playerLabel) : resolvedOpponent;
+    const blackName = cpu?.side==='joiner'&&npcEnemy?crownEnemyName(lang,npcEnemy):onlineRole==='spectator'?(joinerServerName||playerLabel):!isHost ? (user?.name || playerLabel) : resolvedOpponent;
     const playerName = isHost ? whiteName : blackName;
     const opponentName = isHost ? blackName : whiteName;
     const loginPrompt=(['AUTH_REQUIRED','SESSION_REPLACED'].includes(connectionError??'')||startError==='AUTH_REQUIRED')&&user&&!user.id.startsWith('GUEST-')?<div className="p-3 text-center">
@@ -721,8 +724,8 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
         <MatchLayout
             victory={onlineRole!=='spectator' && winner===`${onlineRole}_wins`} victoryEffect={victoryEffect}
             lang={lang} mode={gameState.mode==='ranked'||matchMode==='ranked'?`${t.ranked}${cpu?' · CPU':''}`:matchText(lang, 'オンライン対局', 'ONLINE MATCH')}
-            white={{name:whiteName,clock:formatTime(timeLeftWhite),rating:whiteRating,frame:isHost?avatarFrame:gameState.playerFrames?.host,avatar:isHost ? (user?.avatar_url || hostAvatarUrl) : hostAvatarUrl,emote:activeEmotes.white ? EMOTES[activeEmotes.white].emoji : undefined}}
-            black={{name:blackName,clock:formatTime(timeLeftBlack),rating:blackRating,frame:onlineRole==='black'?avatarFrame:gameState.playerFrames?.joiner,avatar:onlineRole==='black' ? (user?.avatar_url || joinerAvatarUrl) : joinerAvatarUrl,emote:activeEmotes.black ? EMOTES[activeEmotes.black].emoji : undefined}}
+            white={{name:whiteName,clock:formatTime(timeLeftWhite),rating:whiteRating,frame:isHost?avatarFrame:gameState.playerFrames?.host,avatar:isHost ? (user?.avatar_url || hostAvatarUrl) : hostAvatarUrl,emote:activeEmotes.white ? EMOTES[activeEmotes.white].emoji : undefined,artwork:cpu?.side==='host'&&npcEnemy?<CrownEnemyPortrait enemy={npcEnemy} player="white" compact/>:undefined}}
+            black={{name:blackName,clock:formatTime(timeLeftBlack),rating:blackRating,frame:onlineRole==='black'?avatarFrame:gameState.playerFrames?.joiner,avatar:onlineRole==='black' ? (user?.avatar_url || joinerAvatarUrl) : joinerAvatarUrl,emote:activeEmotes.black ? EMOTES[activeEmotes.black].emoji : undefined,artwork:cpu?.side==='joiner'&&npcEnemy?<CrownEnemyPortrait enemy={npcEnemy} player="black" compact/>:undefined}}
             bottomSide={bottomPlayer} currentTurn={currentTurn} spectator={onlineRole === 'spectator'} finished={!!winner} resultVisible={showGameOver} checkNotice={showCheckWarning&&!winner?t.check:undefined} checkEvent={checkEvent} checkmate={!!winner && gameState.gameOverReason === 'checkmate'}
             tokens={tokens} selectedTokenId={selectedTokenId} 
             validMoveCount={validMoves.length} onClearSelection={() => setSelectedTokenId(null)}
@@ -768,8 +771,8 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
         >
             {loginPrompt}
             {introDuration>0&&<MatchIntro lang={lang} label={timeControl==='10s'?t.tc10s:timeControl==='3m'?t.tc3m:t.tc10m} duration={introDuration} onDone={finishIntro}
-                white={{name:whiteName,avatar:isHost?user?.avatar_url||hostAvatarUrl:hostAvatarUrl,frame:isHost?avatarFrame:gameState.playerFrames?.host,rating:whiteRating,detail:cpu?.side==='host'?`${rankedText(lang,'cpu')} · ${Math.floor(cpu.rating)}`:undefined}}
-                black={{name:blackName,avatar:onlineRole==='black'?user?.avatar_url||joinerAvatarUrl:joinerAvatarUrl,frame:onlineRole==='black'?avatarFrame:gameState.playerFrames?.joiner,rating:blackRating,detail:cpu?.side==='joiner'?`${rankedText(lang,'cpu')} · ${Math.floor(cpu.rating)}`:undefined}}/>}
+                white={{name:whiteName,avatar:isHost?user?.avatar_url||hostAvatarUrl:hostAvatarUrl,frame:isHost?avatarFrame:gameState.playerFrames?.host,rating:whiteRating,detail:cpu?.side==='host'?`${rankedText(lang,'cpu')} · ${Math.floor(cpu.rating)}`:undefined,artwork:cpu?.side==='host'&&npcEnemy?<CrownEnemyPortrait enemy={npcEnemy} player="white"/>:undefined}}
+                black={{name:blackName,avatar:onlineRole==='black'?user?.avatar_url||joinerAvatarUrl:joinerAvatarUrl,frame:onlineRole==='black'?avatarFrame:gameState.playerFrames?.joiner,rating:blackRating,detail:cpu?.side==='joiner'?`${rankedText(lang,'cpu')} · ${Math.floor(cpu.rating)}`:undefined,artwork:cpu?.side==='joiner'&&npcEnemy?<CrownEnemyPortrait enemy={npcEnemy} player="black"/>:undefined}}/>}
             {winner && showGameOver && (
                 <MatchResultDialog lang={lang} winner={winner} side={onlineRole??'spectator'}>
                         {(gameState.mode==='ranked'||matchMode==='ranked')&&onlineRole!=='spectator'&&<RankedSettlement lang={lang} settlement={settledRating?.matchId===roomId?settledRating:null}/>}

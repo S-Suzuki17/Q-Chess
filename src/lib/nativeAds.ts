@@ -5,15 +5,17 @@ import {ADMOB_UNITS,ADMOB_TEST_UNITS,nativeAdsLive} from '../config/nativeAds';
 import {soundManager} from './SoundService';
 
 export type AdResult='earned'|'dismissed'|'unavailable'|'busy'|'failed';
+export type AdPrivacyRequirement='REQUIRED'|'NOT_REQUIRED'|'UNKNOWN'|'FAILED';
 export const isAndroidApp=()=>Capacitor.isNativePlatform()&&Capacitor.getPlatform()==='android';
 type Listener={remove:()=>Promise<void>};
-type RewardProof={userId:string;intentId:string};
+type RewardProof={accountId:string;intentId:string};
 
 /** Native completion is a UI signal, NOT a verified server receipt.
  * Credits must come from the authenticated allowance API after Google SSV. */
 export class NativeAds {
     private busy=false;
     private sdk?:Promise<AdMobPlugin>;
+    private initialized?:Promise<void>;
     private pendingOperations=new Set<Promise<unknown>>();
     /** A timeout releases UI, not the native operation. Block another request
      * until it settles so late SDK callbacks cannot cross reward intents. */
@@ -25,34 +27,46 @@ export class NativeAds {
         finally{clearTimeout(timer);}
     }
     constructor(private supported=isAndroidApp,private live=nativeAdsLive,private load=async()=> (await import('@capacitor-community/admob')).AdMob,private canShowAds=canShowVerifiedAccountAdsFor,private adAccount=verifiedAdAccountId){}
-    private async initialize(){
-        const ad=await this.bounded(this.sdk??=this.load().then(async sdk=>{
-            // Conservative default for a mixed audience: never assume an adult.
-            // The plugin applies this configuration BEFORE MobileAds.initialize.
-            await sdk.initialize({initializeForTesting:!this.live(),tagForChildDirectedTreatment:true,tagForUnderAgeOfConsent:true,maxAdContentRating:'General' as MaxAdContentRating});
-            return sdk;
-        }).catch(error=>{this.sdk=undefined;throw error;}));
-        return ad;
+    private async provider(){
+        // Loading the Capacitor bridge and UMP does not initialize MobileAds.
+        return this.bounded(this.sdk??=this.load().catch(error=>{this.sdk=undefined;throw error;}));
     }
-    private async ready(){
-        const ad=await this.initialize();
+    private async ready(canShow:()=>boolean){
+        const ad=await this.provider();
         let consent=await this.bounded(ad.requestConsentInfo({tagForUnderAgeOfConsent:true}));
         if(consent.status==='REQUIRED'&&consent.isConsentFormAvailable)consent=await ad.showConsentForm();
-        return consent.canRequestAds?ad:null;
+        if(!consent.canRequestAds||!canShow())return null;
+        // Consent and account eligibility precede possible SDK preloading.
+        // The plugin applies the child/under-age/General flags before initialize.
+        await this.bounded(this.initialized??=ad.initialize({initializeForTesting:!this.live(),tagForChildDirectedTreatment:true,tagForUnderAgeOfConsent:true,maxAdContentRating:'General' as MaxAdContentRating}).catch(error=>{this.initialized=undefined;throw error;}));
+        return ad;
     }
-    async privacy():Promise<boolean>{
-        if(!this.supported()||this.busy||this.pendingOperations.size)return false;
+    async privacyRequirement():Promise<AdPrivacyRequirement>{
+        if(!this.supported()||this.busy||this.pendingOperations.size)return 'UNKNOWN';
+        this.busy=true;
+        try{
+            const ad=await this.provider(),info=await this.bounded(ad.requestConsentInfo({tagForUnderAgeOfConsent:true}));
+            return info.privacyOptionsRequirementStatus==='REQUIRED'?'REQUIRED':info.privacyOptionsRequirementStatus==='NOT_REQUIRED'?'NOT_REQUIRED':'UNKNOWN';
+        }catch{return 'FAILED';}finally{this.busy=false;}
+    }
+    async privacy():Promise<'opened'|'not-required'|'unavailable'>{
+        if(!this.supported()||this.busy||this.pendingOperations.size)return 'unavailable';
         this.busy=true;
         // Privacy choices must remain accessible even when ads are not permitted.
-        try{const ad=await this.initialize();await this.bounded(ad.requestConsentInfo({tagForUnderAgeOfConsent:true}));await ad.showPrivacyOptionsForm();return true;}catch{return false;}finally{this.busy=false;}
+        try{
+            const ad=await this.provider(),info=await this.bounded(ad.requestConsentInfo({tagForUnderAgeOfConsent:true}));
+            if(info.privacyOptionsRequirementStatus==='NOT_REQUIRED')return 'not-required';
+            if(info.privacyOptionsRequirementStatus!=='REQUIRED')return 'unavailable';
+            await ad.showPrivacyOptionsForm();return 'opened';
+        }catch{return 'unavailable';}finally{this.busy=false;}
     }
     async reward(kind:'hint'|'online',proof:RewardProof):Promise<AdResult>{
-        if(!proof.userId||!proof.intentId)return 'unavailable';
-        return this.show(kind,{userId:proof.userId,intentId:proof.intentId});
+        if(!proof.accountId||!proof.intentId)return 'unavailable';
+        return this.show(kind,proof);
     }
     async interstitial():Promise<AdResult>{return this.show('circuit');}
     private async show(kind:keyof typeof ADMOB_UNITS,proof?:RewardProof):Promise<AdResult>{
-        const accountId=proof?.userId??this.adAccount()??undefined;
+        const accountId=proof?.accountId??this.adAccount()??undefined;
         const canShow=()=>this.canShowAds(accountId);
         if(!this.supported()||!canShow())return 'unavailable';
         if(this.busy||this.pendingOperations.size)return 'busy';
@@ -60,7 +74,7 @@ export class NativeAds {
         const listeners:Listener[]=[];
         let resumeAudio:(()=>void)|undefined;
         try{
-            const ad=await this.ready();if(!ad||!canShow())return 'unavailable';
+            const ad=await this.ready(canShow);if(!ad||!canShow())return 'unavailable';
             const {RewardAdPluginEvents:R,InterstitialAdPluginEvents:I}=await import('@capacitor-community/admob');
             const rewarded=kind!=='circuit';let earned=false;let showing=false;
             let finish!:(result:AdResult)=>void;
@@ -79,7 +93,9 @@ export class NativeAds {
             // switch or a paid/unknown entitlement transition. Recheck at the
             // provider-request boundary, with the reward intent's account bound.
             if(!canShow())return 'unavailable';
-            const prepare=rewarded?ad.prepareRewardVideoAd({...options,ssv:{userId:proof!.userId,customData:proof!.intentId}}):ad.prepareInterstitial(options);
+            // Eligibility uses the actual owner locally. Google receives only
+            // the random server intent, never the account name or Auth ID.
+            const prepare=rewarded?ad.prepareRewardVideoAd({...options,ssv:{userId:proof!.intentId,customData:proof!.intentId}}):ad.prepareInterstitial(options);
             await this.bounded(prepare);
             if(!canShow())return 'unavailable';
             resumeAudio=soundManager.pauseForAd();

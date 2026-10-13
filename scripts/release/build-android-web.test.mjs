@@ -88,3 +88,13 @@ test('forces Android commercial switches OFF while keeping independently approve
 test('rejects malformed switch values rather than silently enabling a partial release',()=>{
     for(const value of ['1','TRUE','yes',' true','',null]) assert.throws(()=>run({},'web',{NEXT_PUBLIC_QG_STRIPE_WEB_CHECKOUT_ENABLED:value}),/true or false/);
 });
+test('native flags require explicit Android inputs and cannot enter a Web release',()=>{
+    const native=['NEXT_PUBLIC_ADMOB_LIVE','NEXT_PUBLIC_NATIVE_REWARDS_ENABLED','NEXT_PUBLIC_NATIVE_INTERSTITIAL_ENABLED','NEXT_PUBLIC_NATIVE_COMMERCE_ENABLED'];
+    const flags=Object.fromEntries(native.map(key=>[key,'true']));
+    for(const key of native){
+        assert.equal(run(flags,'android')[2].env[key],'true');
+        assert.equal(run(flags,'web')[2].env[key],'false');
+        assert.equal(run({},'android',flags)[2].env[key],'false');
+        assert.throws(()=>run({[key]:'yes'},'android'),/true or false/);
+    }
+});

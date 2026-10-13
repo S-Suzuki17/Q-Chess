@@ -10,6 +10,7 @@ useEffect(effect:()=>void|(()=>void),deps:any[]){const i=h.cursor++,prev=h.slots
 vi.mock('../lib/supabaseClient',()=>({oauthCallbackAtStartup:h.callback,supabase:{auth:{initialize:h.initialize,getSession:h.session,getUser:h.user,onAuthStateChange:(fn:any)=>{h.auth.add(fn);return {data:{subscription:{unsubscribe:()=>h.auth.delete(fn)}}};},signOut:async()=>({error:null})},from:()=>({select:()=>({eq:()=>({single:async()=>({data:{name:'OAuth'},error:null})})})})}}));
 vi.mock('../lib/SoundService',()=>({soundManager:{getConfig:()=>({bgmVolume:0,seVolume:0}),resumeBGM(){},playBGM(){},stopBGM(){},subscribe:()=>()=>{}}}));
 vi.mock('../lib/engagementMetrics',()=>({recordVisit:()=>{}}));
+vi.mock('../lib/oauthAdmission',()=>({requireOAuthAdmission:vi.fn(async()=>{})}));
 vi.mock('../lib/SocketContext',()=>({SocketProvider:()=>null}));
 vi.mock('../hooks/useAppPlatform',()=>({useAppPlatform:()=>({android:false,webContent:false})}));
 vi.mock('../hooks/useNativeAuthLinks',()=>({useNativeAuthLinks:()=>({failed:false,dismiss:()=>{}})}));
@@ -44,7 +45,7 @@ import {clearRankedSession,requestRankedSession} from '../lib/rankedSession';
 const local=new Map<string,string>(),tab=new Map<string,string>(),key='qg_ranked_session_v1';
 const storage=(data:Map<string,string>)=>({getItem:(k:string)=>data.get(k)??null,setItem:(k:string,v:string)=>data.set(k,v),removeItem:(k:string)=>data.delete(k)});
 const proof={userId:'Alice',token:'ranked_'+'a'.repeat(43),expiresAt:Date.now()+60000};
-const oauth={user:{id:'oauth-user',is_anonymous:false,user_metadata:{name:'OAuth'}}};
+const oauth={access_token:'fixture-oauth-token',user:{id:'oauth-user',is_anonymous:false,user_metadata:{name:'OAuth'}}};
 const response=()=>new Response(JSON.stringify({userId:proof.userId,expiresAt:proof.expiresAt,serverNow:Date.now()}));
 let tree:any;
 function render(){h.cursor=0;tree=Home();h.effects.splice(0).forEach(fn=>fn());return tree;}

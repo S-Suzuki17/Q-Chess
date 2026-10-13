@@ -22,7 +22,7 @@ it.each(CROWN_CATEGORIES)('renders the selected %s category with all five panel 
  expect(html).not.toContain('data-equip-reward');
 });
 it('reuses adopted 2D pieces without introducing enemy models or posters',()=>{
- const queen=renderToStaticMarkup(React.createElement(CrownOpponentArtwork,{stageId:99}));
+ const queen=renderToStaticMarkup(React.createElement(CrownOpponentArtwork,{stageId:5}));
  const king=renderToStaticMarkup(React.createElement(CrownOpponentArtwork,{stageId:100}));
  expect(queen).toContain('data-current-piece="Queen"');
  expect(queen).toContain('♛');

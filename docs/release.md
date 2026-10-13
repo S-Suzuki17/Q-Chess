@@ -17,7 +17,7 @@ GitHubへのpushだけではCloudflareに反映されない。旧Vercel公開（
 ## Android
 capacitor.config.json の webDir は out。
 作業用コピーに本番設定がない場合、`node scripts/release/build-android-web.cjs <本番設定済みプロジェクトのパス>` でWebを作成する。
-この処理は許可した公開設定のみを読み込み、秘密キーを拒否する。広告とAndroidの販売・外部請求導線はOFFに固定。券利用は既定OFFの明示フラグで制御する（docs/t3-web-release-flags-20261003.md）。環境ファイルを複写・ログ出力しない。
+この処理は許可した公開設定のみを読み込み、秘密キーを拒否する。Androidの広告・報酬・対局間広告・Google Play購入UIは既定OFFで、ビルド時の明示フラグだけで有効化する。Web向け設定ファイルからこれらを継承せず、Webビルドでは常にOFF。購入開始にはサーバーとDBの販売許可も必要で、UIフラグだけでは販売を開始しない。AndroidのStripe外部請求と事前登録特典はOFFを維持する。券利用は既定OFFの明示フラグで制御する（docs/t3-web-release-flags-20261003.md）。環境ファイルを複写・ログ出力しない。
 通常の設定なし `npm run build` の out/ を配布用アプリに使用しない。
 対象の設定でWebをビルドし、ローカルに導入済みのCapacitor CLIでAndroidへ同期する。
 Web専用／アプリ専用の境界は docs/platform-boundaries.md。Androidビルドでは `NEXT_PUBLIC_APP_TARGET=android` を明示する。

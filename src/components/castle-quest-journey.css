@@ -1,0 +1,52 @@
+/* A finite trip through layered rooms. No progress, clocks or admission depend on CSS. */
+.castle-travel-controls{display:none;grid-column:1/-1;grid-row:5;position:relative;z-index:6;align-items:center;justify-content:space-between;gap:10px;font-size:11px;line-height:1.5;min-width:0;}
+.castle-travel-controls button{border:1px solid #d7cba069;background:#102125;color:#e7dbc0;border-radius:10px;padding:8px 11px;min-height:44px;max-width:60%;font-size:inherit;line-height:1.5;cursor:pointer;}
+.castle-travel-controls button:focus-visible{outline:2px solid #f5e4b1;outline-offset:3px;}
+.crown-reference [data-castle-journey][data-crown-motion='active']>.castle-travel-controls{display:flex;}
+.crown-reference [data-castle-journey]>.crown-castle-scene{animation:none;}
+.pixel-castle-corridor [data-castle-layer]{transform-box:view-box;transform-origin:50% 56%;}
+[data-castle-journey][data-crown-motion='active'] [data-castle-layer='far']{animation:castle-depth-far 2.6s ease-in-out both;}
+[data-castle-journey][data-crown-motion='active'] [data-castle-layer='middle']{animation:castle-depth-middle 2.6s ease-in-out both;}
+[data-castle-journey][data-crown-motion='active'] [data-castle-layer='near']{animation:castle-depth-near 2.6s ease-in-out both;}
+[data-castle-journey][data-crown-motion='active'] [data-castle-layer='floor']{animation:castle-depth-floor 2.6s ease-in-out both;}
+.crown-reference [data-castle-journey][data-crown-motion='active'] .castle-scene-qube{animation:castle-qube-travel 2.6s cubic-bezier(.3,.1,.2,1) both;transform-box:fill-box;transform-origin:50% 85%;}
+[data-castle-journey][data-crown-motion='active'] .castle-scene-qube [data-qube-part]{transform-box:fill-box;}
+[data-castle-journey][data-crown-motion='active'] .castle-scene-qube [data-qube-part='leg-left']{transform-origin:55% 0;animation:castle-qube-step .32s ease-in-out 5 alternate;}
+[data-castle-journey][data-crown-motion='active'] .castle-scene-qube [data-qube-part='leg-right']{transform-origin:45% 0;animation:castle-qube-step .32s ease-in-out 5 alternate-reverse;}
+[data-castle-journey][data-crown-motion='active'] .castle-scene-qube [data-qube-part='arm-left']{transform-origin:80% 5%;animation:castle-qube-arm .4s ease-in-out 4 alternate;}
+[data-castle-journey][data-crown-motion='active'] .castle-scene-qube [data-qube-part='arm-right']{transform-origin:20% 5%;animation:castle-qube-arm .4s ease-in-out 4 alternate-reverse;}
+[data-castle-journey][data-crown-motion='active'] .castle-scene-qube [data-qube-part='body']{transform-origin:center bottom;animation:castle-qube-body .4s ease-in-out 4 alternate;}
+[data-castle-journey][data-crown-motion='active'] .castle-scene-qube [data-qube-part='head']{transform-origin:55% 85%;animation:castle-qube-look 2.6s ease-in-out both;}
+.crown-reference [data-castle-journey][data-crown-motion='active'] [data-castle-view='to'] .castle-scene-enemy{animation:castle-next-enemy 2.6s ease-out both;}
+@keyframes castle-depth-far{0%{transform:none;}55%{transform:scale(1.7) translateY(6px);opacity:.15;}58%{transform:scale(.82);opacity:0;}100%{transform:none;opacity:1;}}
+@keyframes castle-depth-middle{0%{transform:none;}55%{transform:scale(2.6) translateY(13px);opacity:0;}58%{transform:scale(.72);opacity:0;}100%{transform:none;opacity:1;}}
+@keyframes castle-depth-near{0%{transform:none;}49%{transform:scale(4) translateY(26px);opacity:0;}58%{transform:scale(.66);opacity:0;}100%{transform:none;opacity:1;}}
+@keyframes castle-depth-floor{0%{transform:none;}55%{transform:scale(3.1);opacity:.15;}58%{transform:scale(.74);opacity:0;}100%{transform:none;opacity:1;}}
+@keyframes castle-qube-travel{0%,100%{transform:none;}35%,65%{transform:rotate(-2deg);}80%{transform:rotate(1deg);}}
+@keyframes castle-qube-step{from{transform:rotate(-5deg) translateY(2px);}to{transform:rotate(6deg) translateY(-3px);}}
+@keyframes castle-qube-arm{from{transform:rotate(-6deg);}to{transform:rotate(8deg);}}
+@keyframes castle-qube-body{from{transform:translateY(1px) rotate(-1deg);}to{transform:translateY(-2px) rotate(1deg);}}
+@keyframes castle-qube-look{0%,100%{transform:none;}20%,65%{transform:rotate(6deg) translateX(2px);}}
+@keyframes castle-next-enemy{0%,58%{transform:translateY(-12px) scale(.62);opacity:0;}82%{transform:translateY(2px) scale(1.08);opacity:1;}100%{transform:none;opacity:1;}}
+@media(prefers-reduced-motion:reduce){[data-castle-journey] *{animation:none!important;}.castle-travel-controls{display:none!important;}}
+
+.castle-scene-enemy{transform-box:fill-box;transform-origin:center bottom;}
+
+.crown-match-intro .crown-intro-stage{height:240px;min-height:240px;overflow:hidden;border-radius:12px;background:#111e29;}
+.crown-match-intro[data-crown-motion='active'] .castle-scene-enemy{animation:castle-enemy-advance 1.1s ease-out both;}
+@media(max-height:500px){.crown-match-intro .crown-intro-stage{height:180px;min-height:180px;}}
+
+.castle-guide-line{grid-column:1/-1;grid-row:6;display:flex;align-items:center;gap:8px;background:#0a1822cc;border:1px solid #8f98794d;border-radius:10px;padding:5px 8px;font-size:11px;line-height:1.5;min-width:0;overflow-wrap:anywhere;}
+.castle-guide-line>span{flex:1;min-width:0;}.castle-guide-line b{font-size:9px;letter-spacing:.04em;color:#d7c387;}.castle-guide-line button{min-width:44px;min-height:44px;display:grid;place-items:center;cursor:pointer;}
+[data-castle-view]{transform-box:view-box;transform-origin:50% 56%;}
+[data-castle-view='from'],[data-castle-doorway]{display:none;}
+[data-castle-journey][data-crown-motion='active'] [data-castle-view='from']{display:block;animation:castle-leave-chamber 2.6s ease-in-out both;}
+[data-castle-journey][data-crown-motion='active'] [data-castle-view='to']{animation:castle-enter-chamber 2.6s ease-out both;}
+[data-castle-journey][data-crown-motion='active'] [data-castle-doorway]{display:block;transform-box:view-box;transform-origin:center;animation:castle-pass-door 2.6s ease-in-out both;}
+[data-old-defeated]{transform:translateY(5px) rotate(14deg);opacity:.65;transform-box:fill-box;transform-origin:center bottom;}
+[data-old-defeated] [data-character-part='head']{transform-box:fill-box;transform-origin:center bottom;transform:rotate(12deg) translateY(6px);}
+[data-old-defeated] [data-character-part='gear']{transform-box:fill-box;transform-origin:center bottom;transform:rotate(45deg) translateY(6px);}
+@keyframes castle-leave-chamber{0%{transform:none;opacity:1;}50%{transform:scale(1.8) translateY(12px);opacity:1;}62%,100%{transform:scale(2.2) translateY(24px);opacity:0;}}
+@keyframes castle-enter-chamber{0%,48%{transform:scale(.72);opacity:0;}65%{transform:scale(.8);opacity:1;}100%{transform:none;opacity:1;}}
+@keyframes castle-pass-door{0%,24%{transform:scale(.65);opacity:0;}46%{transform:scale(1);opacity:.8;}62%{transform:scale(3);opacity:.2;}100%{transform:scale(4);opacity:0;}}
+@media(prefers-reduced-motion:reduce){[data-castle-view='from'],[data-castle-doorway]{display:none!important;}[data-castle-view='to']{transform:none!important;opacity:1!important;}}

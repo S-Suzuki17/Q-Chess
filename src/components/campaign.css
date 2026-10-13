@@ -136,7 +136,7 @@
 .crown-opponent { display:flex; align-items:center; gap:14px; }
 .crown-opponent>div { display:grid; gap:5px; }
 .crown-opponent strong { font-size:18px; font-weight:500; }
-.crown-opponent div>span { font-size:11px; color:#c0c8c4; }
+.crown-opponent .crown-opponent-info>span { font-size:11px; color:#c0c8c4; }
 .crown-enemy-silhouette { display:grid; place-items:center; width:88px; height:92px; color:#f2ead6; background:radial-gradient(ellipse at bottom,#dabf7d38,transparent 66%); }
 .crown-enemy-silhouette svg { width:68px; height:68px; stroke-width:1.1; filter:drop-shadow(0 8px 5px #0008); }
 .crown-companion { display:flex; align-items:center; gap:9px; margin-top:15px; font-size:10px; color:#d4ddd6; }
@@ -223,7 +223,7 @@
  .crown-enemy-silhouette { width:45px; height:62px; }
  .crown-enemy-silhouette svg { width:44px; height:54px; }
  .crown-opponent strong { font-size:15px; }
- .crown-opponent div>span { font-size:10px; }
+ .crown-opponent .crown-opponent-info>span { font-size:10px; }
  .crown-companion { margin-top:10px; font-size:9px; gap:6px; }
  .crown-companion img { width:27px; height:27px; }
  .crown-companion b { display:none; }
@@ -296,7 +296,7 @@
 .crown-enemy-silhouette { width:clamp(90px,13vw,160px); height:clamp(105px,17vh,175px); }
 .crown-adopted-piece { display:block; width:74%; aspect-ratio:1; max-height:100%; pointer-events:none; }.crown-adopted-piece>div { cursor:default; }
 .crown-encounter-copy { text-shadow:0 2px 8px #0009; }
-@media (max-width:700px) { .crown-enemy-silhouette { width:68px; height:86px; }.crown-opponent { gap:3px; }.crown-opponent strong { font-size:13px; }.crown-opponent div>span { font-size:9px; }.crown-opponent div { min-width:0; } }
+@media (max-width:700px) { .crown-enemy-silhouette { width:68px; height:86px; }.crown-opponent { gap:3px; }.crown-opponent strong { font-size:13px; }.crown-opponent .crown-opponent-info>span { font-size:9px; }.crown-opponent div { min-width:0; } }
 @media (max-height:720px) { .crown-enemy-silhouette { width:66px; height:65px; } }
 /* QUBE shares the encounter foreground; the adversary remains the focal figure. */
 .crown-opponent { position:relative; gap:22px; }
@@ -315,14 +315,14 @@
  .crown-companion img { width:30px; height:30px; border-radius:7px; }
  .crown-companion-label { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); }
  .crown-opponent strong { font-size:13px; }
- .crown-opponent div>span { font-size:10px; line-height:1.4; }
+ .crown-opponent .crown-opponent-info>span { font-size:10px; line-height:1.4; }
  .crown-encounter { grid-template-columns:minmax(0,1.1fr) minmax(0,1fr); }
 }
 @media (max-width:380px) {
  .crown-opponent { display:grid; grid-template-columns:1fr; }
  .crown-enemy-silhouette { width:105px; height:100px; }
  .crown-opponent>div { position:absolute; left:68px; top:6px; width:66px; text-shadow:0 1px 5px #000,0 0 12px #000; }
- .crown-opponent div>span { font-size:10px; }
+ .crown-opponent .crown-opponent-info>span { font-size:10px; }
 }
 @media (max-height:600px) {
  .crown-encounter { min-height:218px; }

@@ -42,6 +42,6 @@ it('reserves the King boss for the real final stage and keeps every stage mapped
   expect(encounter.foe==='king').toBe(stageId===100);
  }
  expect(crownEncounterForStage(1).foe).toBe('pawn');
- expect(crownEncounterForStage(99).foe).toBe('queen');
+ expect(crownEncounterForStage(99).foe).toBe('rook');
  expect(crownEncounterForStage(100)).toEqual({stageId:100,foe:'king',finalBoss:true});
 });

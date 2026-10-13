@@ -13,6 +13,7 @@ const require=createRequire(import.meta.url);
 const {chromium}=require('playwright');
 const {GameEngine}=require('../../server/dist/game/GameEngine.js');
 const {createInitialBoard}=require('../../server/dist/game/quantumChess.js');
+const {crownEnemyForMatch}=require('../../server/dist/presentation/crownEnemies.js');
 const [staticDirectory='out',evidenceDirectory='scratch/ranked-start',onlyCase,...extra]=process.argv.slice(2);
 assert.equal(extra.length,0,'Unexpected CLI argument');
 const root=resolve(staticDirectory),evidence=resolve(evidenceDirectory);
@@ -33,6 +34,9 @@ const user={id:'RankedStartQA',name:'Ranked QA',type:'registered'};
 const proof={userId:user.id,token:'ranked_'+'r'.repeat(43),expiresAt:Date.now()+3600000};
 const progress={version:2,stars:{},ascensions:[],stageStars:[],board:'standard',piece:'standard',effect:'standard',music:'standard',avatar:'standard'};
 const scenarios=[
+ {name:'npc-white-reconnect',opponent:'cpu',side:'host',tc:'10m',seconds:600,width:375,reconnect:true,characterSeed:101,checkCharacter:true},
+ {name:'npc-black-reconnect',opponent:'cpu',side:'joiner',tc:'3m',seconds:180,width:1280,reconnect:true,characterSeed:102,checkCharacter:true},
+ {name:'human-named-cpu',opponent:'human',side:'host',tc:'10m',seconds:600,width:375,peerName:'CPU 01',checkCharacter:true},
  {name:'human-normal',opponent:'human',side:'host',tc:'10m',seconds:600,width:1440,playMove:true,reconnect:true},
  {name:'cpu-white-10s',opponent:'cpu',side:'host',tc:'10s',seconds:10,width:1280},
  {name:'cpu-black-3m',opponent:'cpu',side:'joiner',tc:'3m',seconds:180,width:360},
@@ -64,10 +68,10 @@ try{
  browser=await chromium.launch({headless:true,...(process.env.QG_TEST_CHROMIUM?{executablePath:process.env.QG_TEST_CHROMIUM}:{})});
  for(let index=0;index<selected.length;index++){
   const scenario=selected[index],context=await browser.newContext({viewport:{width:scenario.width,height:scenario.height??(scenario.width<500?800:960)},reducedMotion:'reduce',serviceWorkers:'block'});
-  const matchId='00000000-0000-4000-8000-'+String(index+1).padStart(12,'0'),opponentId=scenario.opponent==='cpu'?'ai:'+matchId:'RankedPeerQA';
+  const matchId='00000000-0000-4000-8000-'+String(scenario.characterSeed??index+1).padStart(12,'0'),opponentId=scenario.opponent==='cpu'?'ai:'+matchId:'RankedPeerQA';
   const hostId=scenario.side==='host'?user.id:opponentId,joinerId=scenario.side==='joiner'?user.id:opponentId;
   const cpu=scenario.opponent==='cpu'?{side:scenario.side==='host'?'joiner':'host',rating:1000,level:2}:undefined;
-  const engine=new GameEngine(matchId,hostId,joinerId,createInitialBoard(),scenario.seconds,{host:hostId===user.id?user.name:'Opponent QA',joiner:joinerId===user.id?user.name:'Opponent QA'},4000,true);
+  const engine=new GameEngine(matchId,hostId,joinerId,createInitialBoard(),scenario.seconds,{host:hostId===user.id?user.name:scenario.peerName??'Opponent QA',joiner:joinerId===user.id?user.name:scenario.peerName??'Opponent QA'},4000,true);
   engine.setMatchMetadata({mode:scenario.mode??'ranked',...(cpu?{cpu}:{})});
   engine.setPlayerRating(scenario.side,1000);
   if(!cpu)engine.setPlayerRating(scenario.side==='host'?'joiner':'host',1100);
@@ -176,7 +180,7 @@ try{
    if(url.pathname==='/rewards/daily-login')return route.fulfill({json:dailyStatus()});
    if(url.pathname==='/membership/stripe/status')return route.fulfill({json:memberStatus()});
    if(url.pathname==='/rest/v1/profiles'){
-    const rows=[{id:user.id,name:user.name,rating_10m:1000,rating_3m:1000,rating_10s:1000},{id:opponentId,name:'Opponent QA',rating_10m:1100,rating_3m:1100,rating_10s:1100}];
+    const rows=[{id:user.id,name:user.name,rating_10m:1000,rating_3m:1000,rating_10s:1000},{id:opponentId,name:scenario.peerName??'Opponent QA',rating_10m:1100,rating_3m:1100,rating_10s:1100}];
     return route.fulfill({json:request.headers().accept?.includes('vnd.pgrst.object')?rows[0]:rows});
    }
    if(url.pathname==='/system-status')return route.fulfill({json:{maintenance:false,minimumClientVersion:1}});
@@ -316,6 +320,10 @@ try{
     assert.equal(await page.locator('[aria-labelledby="queue-title"]').count(),0);
     assert.equal(introAcks,0,'Intro is acknowledged only after presentation');
     const clocks=await page.locator('.match-clock').allTextContents();
+    if(scenario.checkCharacter&&cpu){
+     const chosen=crownEnemyForMatch(matchId);await page.locator('.intro-player [data-crown-enemy-id="'+chosen.id+'"]').waitFor();
+     assert((await intro.locator('.intro-player strong').allTextContents()).includes(chosen.name.ja));
+    }
     await page.waitForTimeout(100);assert.deepEqual(await page.locator('.match-clock').allTextContents(),clocks);
     await intro.waitFor({state:'detached'});
     assert(introAcks>0);assert.equal(state().introPending,false);
@@ -343,6 +351,11 @@ try{
      assert(connections>=2,'Transport reconnect performed');
      assert(connectRequests>=2,'Board requested resume');
      assert.equal(queues,1,'Resume does not queue or choose another ticket');
+    }
+    if(scenario.checkCharacter){
+     const names=await page.locator('.match-player-name strong').allTextContents();
+     if(cpu){const chosen=crownEnemyForMatch(matchId);assert(names.includes(chosen.name.ja));assert.equal(await page.locator('.match-player [data-crown-enemy-id]').getAttribute('data-crown-enemy-id'),chosen.id);await page.locator('.match-player [data-character-art="blender"]').waitFor();}
+     else{assert(names.includes('CPU 01'),'Human account name resembling CPU is preserved');assert.equal(await page.locator('.match-player [data-crown-enemy-id]').count(),0);}
     }
    }
    await page.screenshot({path:resolve(evidence,scenario.name+'-final.png'),animations:'disabled'});

@@ -7,9 +7,11 @@ import { dict, Language } from '../locales/dict';
 import { supabase } from '../lib/supabaseClient';
 import { beginOAuthLoginIntent, clearOAuthLoginIntent } from '../lib/oauthLoginIntent';
 import { requestRankedSession, RankedLoginError } from '../lib/rankedSession';
-import { registerAccount } from '../lib/accountSecurity';
-import { AccountProfileError } from '../lib/accountProfile';
+import { registerAccount, AccountRegistrationError } from '../lib/accountSecurity';
 import { accountSecurityText } from '../locales/accountSecurityText';
+import { registrationFieldText, registrationFormText } from '../locales/registrationValidationText';
+import { authFormText } from '../locales/authFormText';
+import { registrationFormIssues, type RegistrationIssue, type RegistrationField } from '../../server/src/services/RegistrationValidation';
 import { AccountRecoveryPanel } from './AccountRecoveryPanel';
 import Link from 'next/link';
 import './title-screen.css';
@@ -33,6 +35,16 @@ export function TitleScreen({ lang, onLogin, initialMode='select', onOAuthStart,
     const { android, webContent } = useAppPlatform();
     const t = { ...dict['en'], ...(dict[lang] || {}) } as any;
     const [mode, setMode] = useState<'select' | 'register' | 'login' | 'rules'>(initialMode);
+    const authDialog=React.useRef<HTMLDialogElement>(null);
+    const authTrigger=React.useRef<HTMLElement|null>(null);
+    const formText=(key:Parameters<typeof authFormText>[1])=>authFormText(lang,key);
+    React.useEffect(()=>{
+        if(mode!=='register'&&mode!=='login')return;
+        const node=authDialog.current;
+        if(!node)return;
+        node.showModal();
+        return()=>{node.close();authTrigger.current?.focus({preventScroll:true});};
+    },[mode]);
     const mounted=React.useRef(false);
     const loginRequest=React.useRef<AbortController|null>(null);
     React.useEffect(()=>{mounted.current=true;return()=>{mounted.current=false;loginRequest.current?.abort();};},[]);
@@ -42,8 +54,31 @@ export function TitleScreen({ lang, onLogin, initialMode='select', onOAuthStart,
     const [keepLoggedIn, setKeepLoggedIn] = useState(false);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+    const [fieldIssues, setFieldIssues] = useState<RegistrationIssue[]>([]);
+    const formId = React.useId();
+    const registrationInputs = React.useRef<Partial<Record<RegistrationField, HTMLInputElement | null>>>({});
+    const pendingFocus = React.useRef<RegistrationField | null>(null);
+    React.useEffect(() => {
+        if (!loading && pendingFocus.current) {
+            registrationInputs.current[pendingFocus.current]?.focus();
+            pendingFocus.current = null;
+        }
+    }, [fieldIssues, loading]);
+    const showFieldIssues = (issues: RegistrationIssue[]) => {
+        pendingFocus.current = issues[0]?.field ?? null;
+        setFieldIssues(issues);
+    };
+    const clearFieldIssue = (field: RegistrationField) => setFieldIssues(issues => issues.filter(issue => issue.field !== field));
+    const fieldIssue = (field: RegistrationField) => mode === 'register' ? fieldIssues.find(issue => issue.field === field) : undefined;
+    const fieldDescription = (field: RegistrationField) => mode !== 'register' ? undefined
+        : fieldIssue(field) ? `${formId}-${field}-error` : field === 'email' ? undefined : `${formId}-rules`;
+    const fieldError = (field: RegistrationField) => {
+        const issue = fieldIssue(field);
+        return issue && <p id={`${formId}-${field}-error`} role="alert" className="mt-2 text-red-400 text-sm break-words">{registrationFieldText(lang, issue)}</p>;
+    };
 
-    const changeMode = (next: typeof mode) => { clearOAuthLoginIntent(); onOAuthCancel?.(); setMode(next); };
+    const changeMode = (next: typeof mode) => { if(mode==='select')authTrigger.current=document.activeElement instanceof HTMLElement?document.activeElement:null; clearOAuthLoginIntent(); onOAuthCancel?.(); pendingFocus.current=null; setFieldIssues([]); setError(''); setMode(next); };
+    const cancelAuthentication=()=>{loginRequest.current?.abort();setLoading(false);changeMode('select');};
 
     const handleOAuthLogin = async (provider: 'google' | 'discord') => {
         if (loading) return;
@@ -78,13 +113,11 @@ export function TitleScreen({ lang, onLogin, initialMode='select', onOAuthStart,
         e.preventDefault();
         if (loading) return;
         setError('');
+        setFieldIssues([]);
         const username=inputId.trim();
-        if (!inputEmail.trim() || !inputId.trim() || !inputPassword.trim()) {
-            setError(matchText(lang, 'メールアドレス、アカウント名、パスワードを入力してください。', 'Please enter email, account name and password.'));
-            return;
-        }
-        if (inputEmail.trim().length>254||!/^[^\s@<>\x00-\x1f]+@[^\s@<>\x00-\x1f]+\.[^\s@<>\x00-\x1f]+$/.test(inputEmail.trim())||!/^[a-zA-Z0-9]{3,15}$/.test(username)||[...inputPassword].length<12||new TextEncoder().encode(inputPassword).length>72) {
-            setError(accountSecurityText(lang,'rules'));
+        const issues=registrationFormIssues(inputId,inputPassword,inputEmail,registrationInputs.current.email?.validity.typeMismatch);
+        if (issues.length) {
+            showFieldIssues(issues);
             return;
         }
 
@@ -101,10 +134,11 @@ export function TitleScreen({ lang, onLogin, initialMode='select', onOAuthStart,
             if(mounted.current && !request.signal.aborted)onLogin({ id: username, name: username, type: 'registered' },attempt);
         } catch (err) {
             if(mounted.current&&!request.signal.aborted){
-                if(err instanceof AccountProfileError && err.code==='CONFLICT') {
-                    setError(matchText(lang, 'このアカウント名では登録できません。別の名前をお試しください。', 'Registration is unavailable for this account name. Please try another.'));
+                if(err instanceof AccountRegistrationError && err.issue) {
+                    showFieldIssues([err.issue]);
                 } else {
-                    setError(accountSecurityText(lang,err instanceof AccountProfileError&&err.code==='INVALID_REQUEST'?'rules':'failed'));
+                    const code=err instanceof AccountRegistrationError?err.registrationCode:'UNAVAILABLE';
+                    setError(registrationFormText(lang,code==='CONFLICT'?'conflict':code==='INVALID_REQUEST'?'invalid':code==='TRY_LATER'?'tryLater':'unavailable'));
                 }
             }
         } finally {
@@ -149,10 +183,10 @@ export function TitleScreen({ lang, onLogin, initialMode='select', onOAuthStart,
                 <p className="text-xs md:text-sm tracking-[0.4em] text-[#A89C86] font-light uppercase">{(t as any)?.subtitle2 || "A game of hidden identity"}</p>
             </div>
 
-            {mode === 'select' && <LandingGamePreview lang={lang} />}
+            <LandingGamePreview lang={lang} />
 
             <div className="title-screen-actions relative z-10 w-full flex flex-col gap-6">
-                {mode === 'select' && (
+                {(
                     <div className="flex flex-col gap-4">
                         <button onClick={handleGuest} className="title-play">{(t as any)?.guestLogin || "PLAY AS GUEST"}<ArrowUpRight size={24} aria-hidden="true"/></button>
                         {android ? (
@@ -173,34 +207,49 @@ export function TitleScreen({ lang, onLogin, initialMode='select', onOAuthStart,
                 )}
 
                 {(mode === 'register' || mode === 'login') && (
-                    <form onSubmit={mode === 'register' ? handleRegisterSubmit : handleLoginSubmit} className="flex flex-col gap-6 w-full mx-auto p-6 bg-[#191714] border border-[#A89C86]/30">
+                    <dialog ref={authDialog} className="title-auth-dialog" aria-labelledby={`${formId}-title`} onCancel={event=>{event.preventDefault();cancelAuthentication();}}>
+                    <header><h2 id={`${formId}-title`}>{mode==='register'?t.createAccount:t.login}</h2><button type="button" onClick={cancelAuthentication} aria-label={t.cancel}>×</button></header>
+                    <div className="title-auth-scroll">
+                    <form id={`${formId}-auth`} noValidate={mode === 'register'} onSubmit={mode === 'register' ? handleRegisterSubmit : handleLoginSubmit} className="flex flex-col gap-4 w-full mx-auto">
                         <div className="flex flex-col gap-4">
-                            {mode==='register'&&<input type="email" name="email" autoComplete="email" required maxLength={254}
-                                aria-label={matchText(lang,'メールアドレス','Email address')} placeholder={matchText(lang,'メールアドレス','Email address')}
-                                value={inputEmail} onChange={e=>setInputEmail(e.target.value)} disabled={loading}
-                                className="w-full bg-[#11100E] border border-[#A89C86]/30 p-3 text-[#E8E2D7] text-sm"/>}
+                            {mode==='register'&&<div><input type="email" name="email" autoComplete="email" required maxLength={254}
+                                ref={element=>{registrationInputs.current.email=element;}}
+                                aria-invalid={!!fieldIssue('email')||undefined} aria-describedby={fieldDescription('email')}
+                                aria-label={formText('email')} placeholder={formText('email')}
+                                value={inputEmail} onChange={e=>{setInputEmail(e.target.value);clearFieldIssue('email');}} disabled={loading}
+                                className="w-full bg-[#11100E] border border-[#A89C86]/30 p-3 text-[#E8E2D7] text-sm"/>{fieldError('email')}</div>}
+                            <div>
                             <input 
                                 type="text" 
-                                placeholder={matchText(lang,'アカウント名','Account name')}
+                                placeholder={formText('account')}
                                 value={inputId}
                                 maxLength={128}
                                 autoComplete="username"
-                                name="username" required aria-label={matchText(lang,'アカウント名','Account name')}
-                                onChange={e => setInputId(e.target.value)}
+                                ref={element=>{registrationInputs.current.username=element;}}
+                                aria-invalid={!!fieldIssue('username')||undefined} aria-describedby={fieldDescription('username')}
+                                name="username" required aria-label={formText('account')}
+                                onChange={e => {setInputId(e.target.value);clearFieldIssue('username');}}
                                 className="w-full bg-[#11100E] border border-[#A89C86]/30 p-3 text-[#E8E2D7] focus:outline-none focus:border-[#B39A62] text-sm tracking-widest placeholder:text-[#A89C86]/30"
                                 autoFocus
                                 disabled={loading}
                             />
+                            {fieldError('username')}
+                            </div>
+                            <div>
                             <input 
                                 type="password" name="password" required
-                                placeholder={(t as any).password || "PASSWORD"}
+                                placeholder={formText('password')}
                                 value={inputPassword}
                                 autoComplete={mode==='register'?'new-password':'current-password'}
-                                aria-label={t.password||'Password'}
-                                onChange={e => setInputPassword(e.target.value)}
+                                ref={element=>{registrationInputs.current.password=element;}}
+                                aria-invalid={!!fieldIssue('password')||undefined} aria-describedby={fieldDescription('password')}
+                                aria-label={formText('password')}
+                                onChange={e => {setInputPassword(e.target.value);clearFieldIssue('password');}}
                                 className="w-full bg-[#11100E] border border-[#A89C86]/30 p-3 text-[#E8E2D7] focus:outline-none focus:border-[#B39A62] text-sm tracking-widest placeholder:text-[#A89C86]/30"
                                 disabled={loading}
                             />
+                            {fieldError('password')}
+                            </div>
                         </div>
                         <div className="flex items-center gap-2 mt-2">
                             <input 
@@ -212,19 +261,16 @@ export function TitleScreen({ lang, onLogin, initialMode='select', onOAuthStart,
                                 className="w-4 h-4 accent-[#B39A62]"
                             />
                             <label htmlFor="keepLoggedIn" className="text-sm text-[#A89C86] cursor-pointer">
-                                {matchText(lang, 'ログイン状態を保持する', 'Keep me logged in')}
+                                {formText('keep')}
                             </label>
                         </div>
-                        {mode==='register'&&<p className="text-sm text-[#A89C86]">{accountSecurityText(lang,'rules')}</p>}
+                        {mode==='register'&&<p id={`${formId}-rules`} className="text-sm text-[#A89C86] break-words">{accountSecurityText(lang,'rules')}</p>}
                         {error && <p role="alert" className="text-red-400 text-sm text-center bg-red-950/50 p-2 border border-red-900/50">{error}</p>}
                         
-                        <button type="submit" disabled={loading} className="w-full py-3 bg-[#B39A62] hover:bg-[#D0C8B6] text-[#11100E] font-bold tracking-widest transition-colors mt-2">
-                            {loading ? "..." : (mode === "register" ? ((t as any)?.submit || "SUBMIT") : ((t as any)?.login || "SIGN IN"))}
-                        </button>
                         
                         <div className="flex items-center justify-center gap-4 my-2 opacity-50">
                             <div className="h-px w-full bg-[#A89C86]" />
-                            <span className="text-[10px] uppercase tracking-widest text-[#A89C86]">OR</span>
+                            <span className="text-xs text-[#A89C86]">{formText('or')}</span>
                             <div className="h-px w-full bg-[#A89C86]" />
                         </div>
                         
@@ -251,10 +297,15 @@ export function TitleScreen({ lang, onLogin, initialMode='select', onOAuthStart,
                             </button>
                         </div>
                         
-                        <button type="button" onClick={() => changeMode('select')} disabled={loading} className="text-[#A89C86] hover:text-[#E8E2D7] text-xs tracking-widest mt-2">{(t as any)?.cancel || "CANCEL"}</button>
                     </form>
+                    {mode==='login'&&<AccountRecoveryPanel lang={lang}/>}
+                    </div>
+                    <footer>
+                        <button type="button" onClick={cancelAuthentication}>{t.cancel}</button>
+                        <button form={`${formId}-auth`} type="submit" disabled={loading} className="title-auth-submit">{loading?'…':mode==='register'?t.submit:t.login}</button>
+                    </footer>
+                    </dialog>
                 )}
-                {mode==='login'&&<AccountRecoveryPanel lang={lang}/>}
             </div>
             
             {/* SEO & User Content Section for AdSense Quality */}

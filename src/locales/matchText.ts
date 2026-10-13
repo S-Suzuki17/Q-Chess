@@ -123,7 +123,7 @@ export function matchText(lang: string, jp: string, en: string): string {
     const index = languages.indexOf(lang as typeof languages[number]);
     if (index < 0) return en;
     if (en.toLowerCase() === 'checkmate!') return dict[lang as Language].checkmate;
-    if (en === 'THINKING') return rows['Thinking…'][index];
+    if (en === 'THINKING') return rows['Thinking...'][index];
     if (en === 'white player') return rows.White[index];
     if (en === 'black player') return rows.Black[index];
     if (en === 'Q-GAMBIT match') return `Q-GAMBIT · ${(dict[lang as Language]).play}`;

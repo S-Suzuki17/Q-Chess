@@ -1,8 +1,8 @@
 import express from 'express';
-import { recoveryEmail } from './AccountRecovery';
+import { registrationEmail, registrationIssues } from './RegistrationValidation';
 import { type RankedSessionAuthority } from './RankedAuth';
 import { AccountWriteGate } from './AccountDeletion';
-import { validRegistration,type AccountSecurityStore } from './AccountSecurity';
+import { type AccountSecurityStore } from './AccountSecurity';
 import {noAudit,type AuditWriter} from './SecurityAudit';
 
 export function createAccountSecurityRouter(auth:RankedSessionAuthority,store:AccountSecurityStore,gate:AccountWriteGate,disconnect:(id:string)=>void,audit:AuditWriter=noAudit) {
@@ -26,9 +26,11 @@ export function createAccountSecurityRouter(auth:RankedSessionAuthority,store:Ac
         const {username,password,email}=req.body??{};
         const fields=Object.keys(req.body??{}).sort().join(',');
         const withEmail=fields==='email,password,username';
-        if(!req.is('application/json')||!req.body||(!withEmail&&fields!=='password,username')||!validRegistration(username,password)||(withEmail&&!recoveryEmail(email))){
+        if(!req.is('application/json')||!req.body||(!withEmail&&fields!=='password,username')){
             res.status(400).json({code:'INVALID_REGISTRATION'});return;
         }
+        const issue=registrationIssues(username,password,email,withEmail)[0];
+        if(issue){res.status(400).json({code:'INVALID_REGISTRATION',...issue});return;}
         const ip=req.socket.remoteAddress??'unknown';
         // Do not trust spoofable forwarding headers. A shared proxy gets a larger
         // network ceiling; five attempts applies per requested account, not the entire site.
@@ -37,7 +39,7 @@ export function createAccountSecurityRouter(auth:RankedSessionAuthority,store:Ac
         registering++;
         try{
             if(!await store.ready()){res.status(503).json({code:'UNAVAILABLE'});return;}
-            if(!await (withEmail?store.register(username,password,recoveryEmail(email)!):store.register(username,password))){res.status(409).json({code:'REGISTRATION_UNAVAILABLE'});return;}
+            if(!await (withEmail?store.register(username,password,registrationEmail(email)!):store.register(username,password))){res.status(409).json({code:'REGISTRATION_UNAVAILABLE'});return;}
             await audit('registration','success',username);res.status(201).json({registered:true});
         }catch{res.status(503).json({code:'UNAVAILABLE'});}finally{registering--;}
     });
