@@ -11,8 +11,22 @@ describe('home entry points', () => {
             expect(html).toContain('href="/rules"');
             expect(html).not.toContain('tutorial=1');
             expect(html).toContain(dict[lang].rulesButton);
+            expect(html).toContain('title-practice-direct');
             expect(html).toContain('title-play');
             expect(html).toContain('title-auth-actions');
+        }
+    });
+
+    it('offers direct CPU practice button with translated labels across all 12 supported languages', () => {
+        for (const { code: lang } of LANGUAGES) {
+            const html = renderToStaticMarkup(createElement(TitleScreen, {
+                lang,
+                onLogin: () => {},
+                onQuickPractice: () => {}
+            }));
+            expect(html).toContain('title-practice-direct');
+            expect(html).toContain(dict[lang].practiceVsCpu);
+            expect(html).toContain(dict[lang].practiceVsCpuDesc);
         }
     });
 

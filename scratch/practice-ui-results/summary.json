@@ -1,0 +1,90 @@
+{
+  "results": [
+    {
+      "scenario": "pc-ja",
+      "lang": "ja",
+      "viewport": "1280x720",
+      "zoom": 1,
+      "practiceButtonVisible": true,
+      "practiceButtonText": "CPUで練習 | AIボットとすぐに対戦",
+      "playButtonVisible": true,
+      "rulesButtonVisible": true,
+      "validLayout": true,
+      "screenshot": "C:\\Users\\souta\\Documents\\Codex\\2026-10-07\\q-gambit-continuation-20261007\\work\\crown-motion-20261012\\scratch\\practice-ui-results\\pc-ja.png"
+    },
+    {
+      "scenario": "pc-en",
+      "lang": "en",
+      "viewport": "1280x720",
+      "zoom": 1,
+      "practiceButtonVisible": true,
+      "practiceButtonText": "PRACTICE VS CPU | Instant match vs AI bot",
+      "playButtonVisible": true,
+      "rulesButtonVisible": true,
+      "validLayout": true,
+      "screenshot": "C:\\Users\\souta\\Documents\\Codex\\2026-10-07\\q-gambit-continuation-20261007\\work\\crown-motion-20261012\\scratch\\practice-ui-results\\pc-en.png"
+    },
+    {
+      "scenario": "mobile-ja",
+      "lang": "ja",
+      "viewport": "375x667",
+      "zoom": 1,
+      "practiceButtonVisible": true,
+      "practiceButtonText": "CPUで練習 | AIボットとすぐに対戦",
+      "playButtonVisible": true,
+      "rulesButtonVisible": true,
+      "validLayout": true,
+      "screenshot": "C:\\Users\\souta\\Documents\\Codex\\2026-10-07\\q-gambit-continuation-20261007\\work\\crown-motion-20261012\\scratch\\practice-ui-results\\mobile-ja.png"
+    },
+    {
+      "scenario": "mobile-small-ja",
+      "lang": "ja",
+      "viewport": "320x568",
+      "zoom": 1,
+      "practiceButtonVisible": true,
+      "practiceButtonText": "CPUで練習 | AIボットとすぐに対戦",
+      "playButtonVisible": true,
+      "rulesButtonVisible": true,
+      "validLayout": true,
+      "screenshot": "C:\\Users\\souta\\Documents\\Codex\\2026-10-07\\q-gambit-continuation-20261007\\work\\crown-motion-20261012\\scratch\\practice-ui-results\\mobile-small-ja.png"
+    },
+    {
+      "scenario": "mobile-de",
+      "lang": "de",
+      "viewport": "375x667",
+      "zoom": 1,
+      "practiceButtonVisible": true,
+      "practiceButtonText": "Training gegen CPU | Sofortpartie gegen KI-Bot",
+      "playButtonVisible": true,
+      "rulesButtonVisible": true,
+      "validLayout": true,
+      "screenshot": "C:\\Users\\souta\\Documents\\Codex\\2026-10-07\\q-gambit-continuation-20261007\\work\\crown-motion-20261012\\scratch\\practice-ui-results\\mobile-de.png"
+    },
+    {
+      "scenario": "mobile-small-ta",
+      "lang": "ta",
+      "viewport": "320x568",
+      "zoom": 1,
+      "practiceButtonVisible": true,
+      "practiceButtonText": "கணினியுடன் பயிற்சி | ஏஐ பாட்டுடன் உடனடி ஆட்டம்",
+      "playButtonVisible": true,
+      "rulesButtonVisible": true,
+      "validLayout": true,
+      "screenshot": "C:\\Users\\souta\\Documents\\Codex\\2026-10-07\\q-gambit-continuation-20261007\\work\\crown-motion-20261012\\scratch\\practice-ui-results\\mobile-small-ta.png"
+    },
+    {
+      "scenario": "mobile-zoom200-ja",
+      "lang": "ja",
+      "viewport": "375x667",
+      "zoom": 2,
+      "practiceButtonVisible": true,
+      "practiceButtonText": "CPUで練習 | AIボットとすぐに対戦",
+      "playButtonVisible": true,
+      "rulesButtonVisible": true,
+      "validLayout": true,
+      "screenshot": "C:\\Users\\souta\\Documents\\Codex\\2026-10-07\\q-gambit-continuation-20261007\\work\\crown-motion-20261012\\scratch\\practice-ui-results\\mobile-zoom200-ja.png"
+    }
+  ],
+  "clickSuccess": true,
+  "mainScreen": "playing"
+}

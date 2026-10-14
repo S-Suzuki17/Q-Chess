@@ -26,12 +26,13 @@ import { Browser } from '@capacitor/browser';
 interface TitleScreenProps {
     lang: Language;
     onLogin: (u: User, attempt?:number) => void;
+    onQuickPractice?: () => void;
     onOAuthStart?: () => void;
     onOAuthCancel?: () => void;
     initialMode?:'select'|'login';
 }
 
-export function TitleScreen({ lang, onLogin, initialMode='select', onOAuthStart, onOAuthCancel }: TitleScreenProps) {
+export function TitleScreen({ lang, onLogin, initialMode='select', onQuickPractice, onOAuthStart, onOAuthCancel }: TitleScreenProps) {
     const { android, webContent } = useAppPlatform();
     const t = { ...dict['en'], ...(dict[lang] || {}) } as any;
     const [mode, setMode] = useState<'select' | 'register' | 'login' | 'rules'>(initialMode);
@@ -107,6 +108,15 @@ export function TitleScreen({ lang, onLogin, initialMode='select', onOAuthStart,
         clearOAuthLoginIntent();
         const guestId = `GUEST-${crypto.randomUUID()}`;
         onLogin({ id: guestId, name: 'Guest', type: 'guest' });
+    };
+
+    const handleQuickPractice = () => {
+        clearOAuthLoginIntent();
+        if (onQuickPractice) {
+            onQuickPractice();
+        } else {
+            handleGuest();
+        }
     };
 
     const handleRegisterSubmit = async (e: React.FormEvent) => {
@@ -188,7 +198,14 @@ export function TitleScreen({ lang, onLogin, initialMode='select', onOAuthStart,
             <div className="title-screen-actions relative z-10 w-full flex flex-col gap-6">
                 {(
                     <div className="flex flex-col gap-4">
-                        <button onClick={handleGuest} className="title-play">{(t as any)?.guestLogin || "PLAY AS GUEST"}<ArrowUpRight size={24} aria-hidden="true"/></button>
+                        <button type="button" onClick={handleQuickPractice} className="title-practice-direct">
+                            <div className="flex flex-col text-left">
+                                <span className="font-semibold text-base md:text-lg tracking-wide">{t.practiceVsCpu || (lang === 'ja' ? 'CPUで練習' : 'PRACTICE VS CPU')}</span>
+                                <span className="text-xs text-[#aeb2a4] font-normal tracking-normal">{t.practiceVsCpuDesc || (lang === 'ja' ? 'AIボットとすぐに対戦' : 'Instant match vs AI bot')}</span>
+                            </div>
+                            <ArrowUpRight size={24} aria-hidden="true"/>
+                        </button>
+                        <button type="button" onClick={handleGuest} className="title-play">{(t as any)?.guestLogin || "PLAY AS GUEST"}<ArrowUpRight size={24} aria-hidden="true"/></button>
                         {android ? (
                             <a href="https://q-gambit.com/rules/" target="_blank" rel="noopener noreferrer" className="title-tutorial">
                                 {t.rulesButton}<ChevronRight size={24} aria-hidden="true"/>

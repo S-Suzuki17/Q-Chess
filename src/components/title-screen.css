@@ -13,6 +13,9 @@
 .title-screen-actions { grid-column:2; grid-row:1/4; padding:28px; border:1px solid #3a3d33; border-radius:24px; background:#1b1e19; box-shadow:0 2px 3px #0002; }
 .title-screen button { cursor:pointer; overflow-wrap:anywhere; border-radius:12px; letter-spacing:.015em; min-height:48px; }
 .title-screen button:focus-visible,.title-screen a:focus-visible { outline:2px solid #e5d7b6; outline-offset:4px; }
+.title-practice-direct { display:flex; justify-content:space-between; align-items:center; gap:16px; width:100%; min-height:64px; padding:16px 20px; border:1px solid #d4b872; border-radius:12px; background:#242820; color:#f5e6bd; text-align:left; transition:background .16s, border-color .16s; }
+.title-practice-direct svg { flex-shrink:0; color:#d4b872; }
+.title-practice-direct:hover { background:#32382c; border-color:#f5e8c9; }
 .title-play { display:flex; justify-content:space-between; align-items:center; gap:16px; width:100%; padding:20px; border:1px solid #e5d7b6; background:#e5d7b6; color:#1c2119; font-size:18px; font-weight:500; text-align:left; transition:background .16s; }
 .title-play svg { flex-shrink:0; }.title-play:hover { background:#f5e8c9; }
 .title-tutorial { display:flex; justify-content:space-between; align-items:center; gap:16px; width:100%; min-height:64px; padding:16px 20px; border:1px solid #d4b872; border-radius:12px; background:#303222; color:#f5e6bd; font-size:18px; font-weight:600; text-decoration:none; transition:background .16s; }
@@ -44,7 +47,7 @@
  .title-screen { display:flex; flex-direction:column; align-items:stretch; padding:76px max(16px, env(safe-area-inset-right)) 20px max(16px, env(safe-area-inset-left)); gap:16px; }
  .title-screen-heading h1 { font-size:clamp(38px,10vw,68px); }.title-edition { margin-bottom:8px; font-size:11px; }
  .landing-game-preview { align-items:center; text-align:center; }
- .title-screen-actions { padding:16px; border-radius:18px; }.title-play,.title-tutorial { padding:14px; font-size:16px; min-height:52px; }
+ .title-screen-actions { padding:16px; border-radius:18px; }.title-practice-direct,.title-play,.title-tutorial { padding:14px; font-size:16px; min-height:52px; }
  .title-screen-description p { font-size:12px; }.title-badge { padding-top:12px; }
 }
 @media(max-width:767px) and (max-height:640px) {
