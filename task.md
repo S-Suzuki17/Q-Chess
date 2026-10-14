@@ -1,53 +1,52 @@
-# タスク計画: タイトル画面「CPUで練習 (Practice vs CPU)」ダイレクト導線の追加
+# Q-Gambit 「推理の見本 → 類題」チュートリアル導入計画
 
-## 1. 目的と背景
-- **背景**: ユーザーレビューにおいて「CPU練習への入口が見つけにくい」「ゲストログインしてからモード選択に行かないとCPU対戦が見当たらない」という課題が指摘されていた。
-- **目的**: タイトル画面からワンタップで即座にCPU練習対局（10分・先手・難易度5）を開始できる最短導線を追加し、初心者や新規プレイヤーのオンボーディング体験を飛躍的に向上させる。
+## 概要
+オンボーディング体験の向上として、インタラクティブチュートリアル（`InteractiveTutorial.tsx`）に「推理の見本（実演） → 類題（プレイヤーによる実践）」の流れを導入し、駒の動きから正体が絞り込まれる量子チェス特有のロジックを直感的に理解できるようにする。
 
-## 2. 影響範囲と状態遷移
+## 状態遷移と影響範囲 (Mermaid)
 
 ```mermaid
-flowchart TD
-    subgraph 現状
-        A[タイトル画面] -->|Play as Guest| B[ゲスト認証]
-        B -->|gameState = level_select| C[レベル選択 / モード選択画面]
-        C -->|CPU練習タブ & 設定| D[handleSelectLevel]
-        D -->|gameState = playing| E[盤面: CPU対局]
-    end
+stateDiagram-v2
+    [*] --> DemoStep: チュートリアル開始
+    DemoStep --> DemoStep: 見本再確認 (Replay Demo)
+    DemoStep --> PracticeStep1: 類題へ挑戦 (Start Practice)
+    
+    state PracticePhase {
+        PracticeStep1 --> PracticeStep2: 駒選択
+        PracticeStep2 --> PracticeStep1: 誤選択・キャンセル
+        PracticeStep2 --> PracticeDone: 類題移動完了 (Bishop/Queen絞り込み)
+        PracticeDone --> DemoStep: 見本再確認
+        PracticeDone --> Scenario2: 次へ
+    }
 
-    subgraph 改善後
-        A2[タイトル画面] -->|新設: CPUで練習| F[handleQuickPractice]
-        F -->|自動ゲストログイン & 初期設定 10m/Lv5/White| G[handleSelectLevel]
-        G -->|gameState = playing| H[盤面: CPU対局]
-        A2 -->|既存: Play as Guest| C2[レベル選択画面]
-        A2 -->|既存: ログイン / 新規登録| I[認証ダイアログ]
-    end
+    Scenario2 --> Scenario3: 直線捕獲 (Rook/Queen絞り込み)
+    Scenario3 --> Scenario4: L字移動 (Knight確定)
+    Scenario4 --> ScenarioEnd: 2回移動 (Queen確定) & 駒数制約 (未移動b2のQueen除外→Rook確定)
+    
+    ScenarioEnd --> [*]: 完了 / 対局へ
 ```
 
-### 影響ファイル
-1. `src/locales/dict.ts` / `src/locales/additional.ts`: 12言語のボタンラベル（`practiceVsCpu` 等）
-2. `src/components/TitleScreen.tsx`:
-   - `TitleScreenProps` に `onQuickPractice?: () => void` を追加
-   - アクション領域に「CPUで練習 (Practice vs CPU)」ボタンを配置
-   - アクセシビリティ・フォーカス管理・モバイル（320px〜）レスポンシブ対応
-3. `src/components/title-screen.css`:
-   - 新規ボタン `.title-practice-direct`（または既存 `.title-play` と調和するスタイル）
-4. `src/app/page.tsx`:
-   - `TitleScreen` に `onQuickPractice` ハンドラーを渡す
-   - 未ログイン時はゲストユーザーを自動生成し、`handleSelectLevel('10m', 5, 'white')` を実行して `gameState = 'playing'` へ直行
+## 影響範囲
+1. `src/components/InteractiveTutorial.tsx`:
+   - 「見本（実演）」状態と「類題（実践）」状態の追加
+   - 「見本を再確認」「やり直し (Reset)」ボタン
+   - 誤操作時のフィードバックと復帰処理
+   - 未移動駒のQueen枠/駒数制約の強調ハイライト（b1とb2の同時ハイライト/解説）
+   - モーション軽減 (`prefers-reduced-motion`) 対応
+   - Escape / 閉じる / フォーカス復帰
+2. `src/locales/rulesDict.ts`:
+   - 主要言語（ja, en, zh, ru, fr, de, es）のチュートリアル見本・類題文言、駒数制約解説の更新
+3. `src/locales/additionalTutorial.ts`:
+   - 追加言語（tr, pl, pt, hi, ta）の対応
+4. 単体テスト & 自動UI検証:
+   - `InteractiveTutorial` のシナリオ検証テスト
+   - Playwright による見本再生、類題操作、復帰、12言語・小画面（320px〜）・文字200%検証
 
-## 3. 実装手順
-- [ ] Step 1: ブランチ作成 (`feat/direct-cpu-practice-20261014`)
-- [ ] Step 2: 12言語辞書へのラベル追加 (`practiceVsCpu`)
-- [ ] Step 3: `src/components/TitleScreen.tsx` と `title-screen.css` の改修
-- [ ] Step 4: `src/app/page.tsx` でのクイック対局接続
-- [ ] Step 5: `npm run typecheck` による型安全性検証
-- [ ] Step 6: 単体テスト実行 (`npm test -- TitleScreen`)
-- [ ] Step 7: ブラウザ・小画面（320px / 375px / 1280px）および多言語（ja, en, de, ta）表示確認
-- [ ] Step 8: コミット & 報告（確認したこと・未確認のこと・確認用URL）
-
-## 4. 品質保証基準
-- 12言語対応（en, ja, zh, ru, fr, de, es, tr, pl, hi, pt, ta）
-- モバイル最小幅（320px〜）および文字拡大200%でレイアウト崩れなし
-- キーボード（Enter / Space / Tab）操作対応
-- 既存の「Play as Guest」「ログイン」「新規登録」「ルール」「100マス閲覧」導線を破壊しない
+## 作業ステップ
+- [ ] 1. `task.md` の作成（本ファイル）
+- [ ] 2. 辞書データ（`rulesDict.ts`, `additionalTutorial.ts`）に「見本・類題・制約解説・ボタンラベル」を12言語分定義
+- [ ] 3. `InteractiveTutorial.tsx` の機能拡張（見本実演、類題操作、やり直し、再確認、駒枠強調、アクセシビリティ）
+- [ ] 4. 単体テスト作成 & 型チェック（`npm run typecheck`, `npm test`）
+- [ ] 5. Playwright による自動UIテスト作成 & 実行（PC 1280px, モバイル 375px, 極小 320px, 文字200%, 多言語）
+- [ ] 6. コミット & 本番デプロイ（Cloudflare Pages）と公開稼働確認
+- [ ] 7. 監督・受入報告の作成
