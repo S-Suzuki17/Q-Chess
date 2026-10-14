@@ -293,6 +293,20 @@ export default function Home() {
         try { localStorage.setItem('qg_last_user',JSON.stringify(next)); } catch { /* Keep the saved server profile in memory. */ }
     };
 
+    const handleQuickPractice = () => {
+        clearOAuthLoginIntent();
+        oauthIntent.current = null;
+        if (!user) {
+            circuitAccess.revoke();
+            authOwner.current = 'guest';
+            const guestId = `GUEST-${crypto.randomUUID()}`;
+            const guestUser: User = { id: guestId, name: 'Guest', type: 'guest' };
+            setUser(guestUser);
+            try { localStorage.setItem('qg_last_user', JSON.stringify(guestUser)); } catch { /* Keep verified login in memory. */ }
+        }
+        handleSelectLevel('10m', 5, 'white');
+    };
+
     const handleSelectLevel = (tc: TimeControl, level: number, side: 'white' | 'black') => {
         setPracticeSide(side);
         setCpuLevel(level);
@@ -502,7 +516,7 @@ export default function Home() {
 
             <div className={`w-full flex flex-col items-center justify-center relative z-10 ${gameState==='level_select'?'flex-1 min-h-0':'flex-grow shrink-0 mt-8'}`}>
                 {gameState === 'title' && (
-                    <TitleScreen lang={lang} onLogin={handleLogin} initialMode={loginMode} onOAuthStart={()=>{authOwner.current='oauth';oauthIntent.current=circuitAccess.beginAuthentication();}} onOAuthCancel={cancelOAuth}/>
+                    <TitleScreen lang={lang} onLogin={handleLogin} onQuickPractice={handleQuickPractice} initialMode={loginMode} onOAuthStart={()=>{authOwner.current='oauth';oauthIntent.current=circuitAccess.beginAuthentication();}} onOAuthCancel={cancelOAuth}/>
                 )}
 
                 {gameState === 'level_select' && user && (
