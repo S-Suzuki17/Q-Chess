@@ -682,7 +682,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
                         <button onClick={handleVsCpuClick} className="flex-1 py-4 bg-transparent border border-[#A89C86]/20 hover:bg-[#24211D] text-xs tracking-[0.2em] transition-colors text-[#A89C86] hover:text-[#E8E2D7] uppercase">
                             {lang==='ja'?'CPUで練習':`${(t as any).practice} · CPU`}
                         </button>
-                        <button onClick={() => setShowTutorial(true)} className="flex-1 py-4 bg-[#B39A62]/10 border border-[#B39A62]/30 hover:bg-[#B39A62]/30 text-xs tracking-[0.2em] transition-colors text-[#D4B872] hover:text-[#E8E2D7] uppercase font-bold">
+                        <button data-open-tutorial onClick={() => setShowTutorial(true)} className="flex-1 py-4 bg-[#B39A62]/10 border border-[#B39A62]/30 hover:bg-[#B39A62]/30 text-xs tracking-[0.2em] transition-colors text-[#D4B872] hover:text-[#E8E2D7] uppercase font-bold">
                             {(t as any).rulesButton || "HOW TO PLAY"}
                         </button>
                     </div>

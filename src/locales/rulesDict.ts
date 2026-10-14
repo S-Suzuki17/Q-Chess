@@ -211,26 +211,28 @@ export const rulesDict: Record<Language, any> = {
   }
 };
 
-export const tutorialDict: Record<AppLanguage, { play: string, next: string, close: string, title: string, steps: string[] }> = {
+export const tutorialDict: Record<AppLanguage, { play: string, next: string, close: string, title: string, steps: string[], reviewDemo: string, resetStep: string }> = {
   ...additionalTutorial,
   en: {
     play: "START PLAYING!",
     next: "NEXT",
     close: "Close",
     title: "How to Play",
+    reviewDemo: "Review Demo",
+    resetStep: "Reset",
     steps: [
-      "1. Hidden Identities\n\nIn this chess game, you don't know what a piece is until it moves!\nClick the White piece and move it to the highlighted square. Because it moved diagonally, it MUST be a Bishop or a Queen.",
-      "1. Hidden Identities\n\nIn this chess game, you don't know what a piece is until it moves!\nClick the White piece and move it to the highlighted square. Because it moved diagonally, it MUST be a Bishop or a Queen.",
-      "Great! Based on how it moved, the game narrowed down what piece it could be.",
-      "2. Capturing Pieces\n\nNow, click the Black piece and move it to capture the White piece. Because it moved straight forward 2 squares, it MUST be a Rook or a Queen.",
-      "2. Capturing Pieces\n\nNow, click the Black piece and move it to capture the White piece. Because it moved straight forward 2 squares, it MUST be a Rook or a Queen.",
-      "Piece captured! A piece can be captured and removed from the board even before its true identity is fully revealed.",
-      "3. Revealing the True Identity\n\nA new White piece appeared. Move it to the highlighted square. Only a Knight can make an L-shape move!",
-      "3. Revealing the True Identity\n\nA new White piece appeared. Move it to the highlighted square. Only a Knight can make an L-shape move!",
-      "The Knight is revealed! When there's only one possibility left, the piece flips over and shows its true face.",
-      "4. Chain Reactions\n\nAnother Black piece appeared. Move the first Black piece diagonally to capture the White Knight.",
-      "4. Chain Reactions\n\nAnother Black piece appeared. Move the first Black piece diagonally to capture the White Knight.",
-      "Brilliant! The Black piece moved both straight and diagonally. Only a Queen can do both, so it's a Queen!\n\nAlso, since there's only one Queen, the other Black piece is instantly forced to be a Rook without even moving! This deduction puzzle is the heart of the game."
+      "1. Hidden Identities & Deduction\n\n[Demo] Pieces hide their true identity until they move. Diagonal moves narrow possibilities down to Bishop or Queen.\n\n[Practice] Now try it yourself! Tap the White piece (e2) and move it to the highlighted diagonal square (h5).",
+      "1. Hidden Identities & Deduction\n\n[Practice] White piece selected.\nTap the highlighted diagonal square (h5) to move it. (Tap elsewhere to cancel selection and retry).",
+      "Correct! [Practice Complete]\nMoving diagonally eliminated non-diagonal roles (Pawn, Knight, Rook, King), leaving Bishop or Queen!\nTap 'Next' or 'Review Demo' to rewatch the deduction.",
+      "2. Capturing Pieces\n\nNow, tap the Black piece (h7) and move it forward to capture the White piece (h5).\n(Moving straight forward 2 squares narrows it down to Rook or Queen!)",
+      "2. Capturing Pieces\n\nBlack piece selected.\nTap the White piece (h5) to capture it in a straight line.",
+      "Piece captured!\nA piece can be captured and removed from the board even before its true identity is fully revealed.",
+      "3. Revealing the True Identity\n\nA new White piece appeared at e1. Tap it and move it to f3.\n(Only a Knight can make an L-shape move!)",
+      "3. Revealing the True Identity\n\nWhite piece selected.\nTap f3 to make an L-shape move.",
+      "The Knight is revealed!\nWhen only ONE possibility remains, the piece flips over and reveals its true identity.",
+      "4. Chain Reactions & Piece Count Constraints\n\nAnother Black piece appeared at a7 (Rook or Queen). Tap the first Black piece (h5) and move diagonally to capture the White Knight at f3.",
+      "4. Chain Reactions & Piece Count Constraints\n\nFirst Black piece selected.\nTap f3 to capture the Knight diagonally.",
+      "Brilliant!\nThe first Black piece moved both straight and diagonally. Only a Queen can do both, confirming it as the Queen!\n\n[Piece Count Constraint] Each side has only 1 Queen slot. Because this piece is confirmed as Queen, the Queen possibility is eliminated from the unmoved Black piece at a7, instantly locking it as a Rook!\nDeduction through piece limits is the core of Q-GAMBIT."
     ]
   },
   ja: {
@@ -238,19 +240,21 @@ export const tutorialDict: Record<AppLanguage, { play: string, next: string, clo
     next: "次へ",
     close: "閉じる",
     title: "遊び方",
+    reviewDemo: "見本を再確認",
+    resetStep: "やり直す",
     steps: [
-      "1. 正体はわからない！\n\nこのチェスでは、動くまで駒の正体がわかりません！\nまずは白の駒をタップして、光っているマスへ動かしてみましょう。\n（斜めに動いたので、この駒は「ビショップ」か「クイーン」のどちらかだと絞り込まれます！）",
-      "1. 正体はわからない！\n\nこのチェスでは、動くまで駒の正体がわかりません！\nまずは白の駒をタップして、光っているマスへ動かしてみましょう。\n（斜めに動いたので、この駒は「ビショップ」か「クイーン」のどちらかだと絞り込まれます！）",
-      "素晴らしい！動かし方によって、ゲームが自動的に駒の正体を絞り込んでくれます。",
-      "2. 駒を取る\n\n次は黒の駒をタップして、白の駒を取ってみましょう。\n（まっすぐ２マス動いたので、この駒は「ルーク」か「クイーン」だとわかります！）",
-      "2. 駒を取る\n\n次は黒の駒をタップして、白の駒を取ってみましょう。\n（まっすぐ２マス動いたので、この駒は「ルーク」か「クイーン」だとわかります！）",
+      "1. 駒の正体と推理\n\n【見本】駒は動くまで正体が隠されています。斜めに動く駒は「ビショップ」か「クイーン」のどちらかに絞り込まれます。\n\n【類題】では実際にやってみましょう！白の駒（e2）をタップして、光っている斜めのマス（h5）へ動かしてください。",
+      "1. 駒の正体と推理\n\n【類題】白の駒を選択中です。\n光っている斜めのマス（h5）をタップして移動させてください。（別の場所を押すと選択を解除してやり直せます）",
+      "見事正解！【類題クリア】\n斜めに動いたことで、他の可能性（ポーン・ナイト・ルーク・キング）が消去され、「ビショップ」か「クイーン」に絞り込まれました！\n「次へ」を押して進むか、「見本を再確認」で復習できます。",
+      "2. 駒を取る\n\n次は黒の駒（h7）をタップして、白の駒（h5）を取ってみましょう。\n（まっすぐ２マス動いたので、この駒は「ルーク」か「クイーン」だとわかります！）",
+      "2. 駒を取る\n\n黒の駒を選択中です。\n白の駒がいるマス（h5）をタップして直線で取ってみましょう。",
       "駒を取りました！\nこのように、正体が完全に暴かれる前でも駒を取ることができます。",
-      "3. 正体を特定する（フリップ）\n\n新しい白の駒が現れました。光っているマスへ動かしてみましょう。\n（Ｌ字に動けるのは「ナイト」だけです！）",
-      "3. 正体を特定する（フリップ）\n\n新しい白の駒が現れました。光っているマスへ動かしてみましょう。\n（Ｌ字に動けるのは「ナイト」だけです！）",
+      "3. 正体を特定する（フリップ）\n\n新しい白の駒がe1に現れました。タップしてf3マスへ動かしてみましょう。\n（Ｌ字に動けるのは「ナイト」だけです！）",
+      "3. 正体を特定する（フリップ）\n\n白の駒を選択中です。\nf3マスをタップしてＬ字に動かしてください。",
       "ナイトの正体が現れました！\n「これしかあり得ない！」という状況になると、駒がひっくり返って本当の姿を見せます。",
-      "4. 連鎖的に正体が暴かれる！？\n\nもう一つの黒の駒が現れました（ルークかクイーンのどちらかです）。\n最初の黒の駒を斜めに動かして、白のナイトを取ってみましょう。",
-      "4. 連鎖的に正体が暴かれる！？\n\nもう一つの黒の駒が現れました（ルークかクイーンのどちらかです）。\n最初の黒の駒を斜めに動かして、白のナイトを取ってみましょう。",
-      "見事です！\n最初の黒の駒は「まっすぐ」にも「斜め」にも動きました。両方できるのは「クイーン」だけなので、クイーンに確定しました！\n\nさらに！クイーンは１人しかいないため、もう一つの黒の駒は自動的に「ルーク」だと確定しました！\nこのように、パズルのように正体を推理していくのがこのゲームの醍醐味です！"
+      "4. 連鎖確定と駒数制約\n\nもう一つの黒の駒がa7に現れました（ルークかクイーンのどちらかです）。\n最初の黒の駒（h5）を斜めに動かして、白のナイト（f3）を取ってみましょう。",
+      "4. 連鎖確定と駒数制約\n\n最初の黒の駒を選択中です。\nf3の白ナイトをタップして斜めに取ってください。",
+      "見事です！\n最初の黒の駒は「まっすぐ」にも「斜め」にも動きました。両方できるのは「クイーン」だけなので、クイーンに確定しました！\n\n【駒数制約】各陣営のクイーン枠は盤面に1体のみです。この駒がクイーンと確定したため、まだ一度も動いていないa7の黒駒からもクイーンの可能性が消去され、残った「ルーク」に確定しました！\nこのように盤面全体の駒数制約から正体を論理的に導き出すのが Q-GAMBIT の醍醐味です！"
     ]
   },
   zh: {
@@ -258,19 +262,21 @@ export const tutorialDict: Record<AppLanguage, { play: string, next: string, clo
     next: "下一步",
     close: "关闭",
     title: "怎么玩",
+    reviewDemo: "复看示例",
+    resetStep: "重试",
     steps: [
-      "1. 隐藏的身份\n\n在这个棋类游戏中，直到棋子移动你才知道它是什么！\n点击白色的棋子并将其移动到高亮的方块上。\n（因为它斜向移动，所以它一定是主教或女王！）",
-      "1. 隐藏的身份\n\n在这个棋类游戏中，直到棋子移动你才知道它是什么！\n点击白色的棋子并将其移动到高亮的方块上。\n（因为它斜向移动，所以它一定是主教或女王！）",
-      "太棒了！根据它的移动方式，游戏会自动缩小它可能是什么棋子。",
-      "2. 吃子\n\n现在，点击黑色的棋子并移动它来吃掉白色的棋子。\n（因为它向前直走了2格，所以它一定是车或女王！）",
-      "2. 吃子\n\n现在，点击黑色的棋子并移动它来吃掉白色的棋子。\n（因为它向前直走了2格，所以它一定是车或女王！）",
-      "吃子成功！即使在它的真实身份完全揭示之前，棋子也可以被吃掉并从棋盘上移除。",
-      "3. 揭示真实身份\n\n出现了一个新的白色棋子。将其移动到高亮的方块上。\n（只有骑士才能进行L形移动！）",
-      "3. 揭示真实身份\n\n出现了一个新的白色棋子。将其移动到高亮的方块上。\n（只有骑士才能进行L形移动！）",
-      "骑士被揭示了！当只剩下一个可能性时，棋子会翻转并展示其真实面貌。",
-      "4. 连锁反应\n\n又出现了一个黑色棋子。将第一个黑色棋子斜向移动以吃掉白色骑士。",
-      "4. 连锁反应\n\n又出现了一个黑色棋子。将第一个黑色棋子斜向移动以吃掉白色骑士。",
-      "太聪明了！黑色棋子既可以直行又可以斜行。只有女王能做到这两点，所以它是女王！\n\n而且，因为只有一个女王，另一个黑色棋子即使不移动也立即被迫成为车！这个推理谜题是游戏的核心。"
+      "1. 棋子身份与推理\n\n【示例】棋子在移动前身份是隐藏的。斜向移动的棋子会被缩小为“主教”或“女王”。\n\n【类题】现在由你来操作！点击白棋（e2），并将其移动到高亮显示的斜向方格（h5）。",
+      "1. 棋子身份与推理\n\n【类题】已选择白棋。\n点击高亮斜向方格（h5）进行移动。（点击其他方格可取消选择并重试）。",
+      "正确！【类题完成】\n通过斜向移动，不可能的身份被排除，确定为“主教”或“女王”！\n点击“下一步”继续，或点击“复看示例”重新观看演示。",
+      "2. 吃子\n\n现在，点击黑色棋子（h7）并移动它来吃掉白色棋子（h5）。\n（因为它向前直走2格，所以它一定是车或女王！）",
+      "2. 吃子\n\n已选择黑色棋子。\n点击白色棋子所在方格（h5）进行直线吃子。",
+      "吃子成功！\n即使在真实身份完全揭示之前，棋子也可以被吃掉并从棋盘上移除。",
+      "3. 揭示真实身份\n\ne1处出现了一个新的白色棋子。点击并将其移动到f3方格。\n（只有骑士才能进行L形移动！）",
+      "3. 揭示真实身份\n\n已选择白色棋子。\n点击f3方格进行L形移动。",
+      "骑士被揭示了！\n当只剩下一个可能性时，棋子会翻转并展示其真实面貌。",
+      "4. 连锁反应与棋子数量限制\n\na7处又出现了一个黑色棋子（车或女王）。点击第一个黑色棋子（h5），斜向移动以吃掉f3处的白色骑士。",
+      "4. 连锁反应与棋子数量限制\n\n已选择第一个黑色棋子。\n点击f3吃掉白色骑士。",
+      "太聪明了！\n第一个黑色棋子既走直线又走斜线。只有女王能做到这两点，所以它是女王！\n\n【棋子数量限制】每队只有1个女王名额。随着此棋子确认为女王，未移动的a7黑棋的女王可能被消除，自动确定为车！\n通过全盘棋子数量限制进行逻辑推导是 Q-GAMBIT 的精髓！"
     ]
   },
   ru: {
@@ -278,19 +284,21 @@ export const tutorialDict: Record<AppLanguage, { play: string, next: string, clo
     next: "ДАЛЕЕ",
     close: "Закрыть",
     title: "Как играть",
+    reviewDemo: "Повторить пример",
+    resetStep: "Сбросить",
     steps: [
-      "1. Скрытые Личности\n\nВ этой игре в шахматы вы не знаете, что это за фигура, пока она не сдвинется!\nЩелкните белую фигуру и переместите ее на выделенный квадрат.\n(Поскольку она двигалась по диагонали, это ДОЛЖЕН быть Слон или Ферзь!)",
-      "1. Скрытые Личности\n\nВ этой игре в шахматы вы не знаете, что это за фигура, пока она не сдвинется!\nЩелкните белую фигуру и переместите ее на выделенный квадрат.\n(Поскольку она двигалась по диагонали, это ДОЛЖЕН быть Слон или Ферзь!)",
-      "Отлично! На основании ее движения игра сузила круг возможных вариантов фигуры.",
-      "2. Захват Фигур\n\nТеперь щелкните черную фигуру и переместите ее, чтобы захватить белую фигуру.\n(Поскольку она переместилась прямо вперед на 2 клетки, это ДОЛЖНА быть Ладья или Ферзь!)",
-      "2. Захват Фигур\n\nТеперь щелкните черную фигуру и переместите ее, чтобы захватить белую фигуру.\n(Поскольку она переместилась прямо вперед на 2 клетки, это ДОЛЖНА быть Ладья или Ферзь!)",
-      "Фигура захвачена! Фигура может быть захвачена и удалена с доски еще до того, как ее истинная личность будет полностью раскрыта.",
-      "3. Раскрытие Истинной Личности\n\nПоявилась новая белая фигура. Переместите ее на выделенный квадрат.\n(Только Конь может двигаться буквой «Г»!)",
-      "3. Раскрытие Истинной Личности\n\nПоявилась новая белая фигура. Переместите ее на выделенный квадрат.\n(Только Конь может двигаться буквой «Г»!)",
-      "Конь раскрыт! Когда остается только одна возможность, фигура переворачивается и показывает свое истинное лицо.",
-      "4. Цепные Реакции\n\nПоявилась еще одна черная фигура. Переместите первую черную фигуру по диагонали, чтобы захватить белого Коня.",
-      "4. Цепные Реакции\n\nПоявилась еще одна черная фигура. Переместите первую черную фигуру по диагонали, чтобы захватить белого Коня.",
-      "Блестяще! Черная фигура двигалась как прямо, так и по диагонали. Только Ферзь может делать и то, и другое, так что это Ферзь!\n\nКроме того, поскольку Ферзь только один, другая черная фигура мгновенно становится Ладьей, даже не сдвинувшись с места! Эта дедуктивная головоломка — сердце игры."
+      "1. Личности фигур и дедукция\n\n[Пример] Личность фигуры скрыта до хода. Движение по диагонали сужает выбор до Слона или Ферзя.\n\n[Упражнение] Попробуйте сами! Нажмите на белую фигуру (e2) и переместите её на подсвеченное поле по диагонали (h5).",
+      "1. Личности фигур и дедукция\n\n[Упражнение] Белая фигура выбрана.\nНажмите на подсвеченное поле (h5) по диагонали для хода.",
+      "Правильно! [Упражнение пройдено]\nБлагодаря диагональному ходу исключены невозможные роли: остались Слон или Ферзь!\nНажмите «Далее» или «Повторить пример».",
+      "2. Захват Фигур\n\nТеперь нажмите на черную фигуру (h7) и переместите её, чтобы захватить белую фигуру (h5).\n(Ход прямо на 2 клетки означает Ладью или Ферзя!)",
+      "2. Захват Фигур\n\nЧерная фигура выбрана.\nНажмите на поле (h5), чтобы захватить белую фигуру.",
+      "Фигура захвачена!\nФигуру можно захватить и снять с доски ещё до того, как её истинная роль полностью раскрыта.",
+      "3. Раскрытие Истинной Личности\n\nНа e1 появилась новая белая фигура. Переместите её на поле f3.\n(Только Конь ходит буквой «Г»!)",
+      "3. Раскрытие Истинной Личности\n\nБелая фигура выбрана.\nНажмите на поле f3 для хода буквой «Г».",
+      "Конь раскрыт!\nКогда остается только одна возможность, фигура переворачивается и показывает свою истинную роль.",
+      "4. Цепные реакции и лимит фигур\n\nНа a7 появилась ещё одна черная фигура (Ладья или Ферзь). Переместите первую черную фигуру (h5) по диагонали, чтобы захватить белого Коня на f3.",
+      "4. Цепные реакции и лимит фигур\n\nПервая черная фигура выбрана.\nНажмите f3 для диагонального захвата.",
+      "Блестяще!\nПервая черная фигура двигалась прямо и по диагонали: это точно Ферзь!\n\n[Лимит фигур] В команде только 1 Ферзь. Так как этот Ферзь подтверждён, у неходившей фигуры на a7 роль Ферзя исключается, и она становится Ладьей!"
     ]
   },
   fr: {
@@ -298,19 +306,21 @@ export const tutorialDict: Record<AppLanguage, { play: string, next: string, clo
     next: "SUIVANT",
     close: "Fermer",
     title: "Comment Jouer",
+    reviewDemo: "Revoir la démo",
+    resetStep: "Recommencer",
     steps: [
-      "1. Identités Cachées\n\nDans ce jeu d'échecs, vous ne savez pas ce qu'est une pièce avant qu'elle ne bouge !\nCliquez sur la pièce blanche et déplacez-la vers la case en surbrillance.\n(Puisqu'elle s'est déplacée en diagonale, ce DOIT être un Fou ou une Reine !)",
-      "1. Identités Cachées\n\nDans ce jeu d'échecs, vous ne savez pas ce qu'est une pièce avant qu'elle ne bouge !\nCliquez sur la pièce blanche et déplacez-la vers la case en surbrillance.\n(Puisqu'elle s'est déplacée en diagonale, ce DOIT être un Fou ou une Reine !)",
-      "Super ! D'après son déplacement, le jeu a réduit les possibilités de la pièce.",
-      "2. Capturer des Pièces\n\nMaintenant, cliquez sur la pièce noire et déplacez-la pour capturer la pièce blanche.\n(Puisqu'elle s'est déplacée tout droit de 2 cases, ce DOIT être une Tour ou une Reine !)",
-      "2. Capturer des Pièces\n\nMaintenant, cliquez sur la pièce noire et déplacez-la pour capturer la pièce blanche.\n(Puisqu'elle s'est déplacée tout droit de 2 cases, ce DOIT être une Tour ou une Reine !)",
-      "Pièce capturée ! Une pièce peut être capturée et retirée du plateau même avant que sa véritable identité ne soit pleinement révélée.",
-      "3. Révéler la Véritable Identité\n\nUne nouvelle pièce blanche est apparue. Déplacez-la vers la case en surbrillance.\n(Seul un Cavalier peut se déplacer en forme de L !)",
-      "3. Révéler la Véritable Identité\n\nUne nouvelle pièce blanche est apparue. Déplacez-la vers la case en surbrillance.\n(Seul un Cavalier peut se déplacer en forme de L !)",
-      "Le Cavalier est révélé ! Lorsqu'il ne reste qu'une seule possibilité, la pièce se retourne et montre son vrai visage.",
-      "4. Réactions en Chaîne\n\nUne autre pièce noire est apparue. Déplacez la première pièce noire en diagonale pour capturer le Cavalier blanc.",
-      "4. Réactions en Chaîne\n\nUne autre pièce noire est apparue. Déplacez la première pièce noire en diagonale pour capturer le Cavalier blanc.",
-      "Brillant ! La pièce noire s'est déplacée à la fois tout droit et en diagonale. Seule une Reine peut faire les deux, donc c'est une Reine !\n\nDe plus, puisqu'il n'y a qu'une seule Reine, l'autre pièce noire est instantanément forcée d'être une Tour sans même bouger ! Ce casse-tête de déduction est le cœur du jeu."
+      "1. Identités Cachées & Déduction\n\n[Démo] L'identité d'une pièce est cachée avant son déplacement. Un coup en diagonale la limite à un Fou ou une Reine.\n\n[Exercice] À vous de jouer ! Cliquez sur la pièce blanche (e2) et déplacez-la vers la case diagonale en surbrillance (h5).",
+      "1. Identités Cachées & Déduction\n\n[Exercice] Pièce blanche sélectionnée.\nCliquez sur la case diagonale en surbrillance (h5) pour la déplacer.",
+      "Correct ! [Exercice réussi]\nLe déplacement en diagonale a éliminé les autres pièces : il reste un Fou ou une Reine !\nAppuyez sur « Suivant » ou « Revoir la démo ».",
+      "2. Capturer des Pièces\n\nCliquez sur la pièce noire (h7) et déplacez-la tout droit pour capturer la pièce blanche (h5).\n(Avancer de 2 cases tout droit indique une Tour ou une Reine !)",
+      "2. Capturer des Pièces\n\nPièce noire sélectionnée.\nCliquez sur la case (h5) pour capturer la pièce blanche en ligne droite.",
+      "Pièce capturée !\nUne pièce peut être capturée et retirée du plateau avant même que sa véritable identité ne soit entièrement révélée.",
+      "3. Révéler la Véritable Identité\n\nUne nouvelle pièce blanche apparaît en e1. Déplacez-la vers la case f3.\n(Seul un Cavalier peut se déplacer en L !)",
+      "3. Révéler la Véritable Identité\n\nPièce blanche sélectionnée.\nCliquez sur f3 pour réaliser le déplacement en L.",
+      "Le Cavalier est révélé !\nLorsqu'il ne reste qu'une seule possibilité, la pièce se retourne et dévoile son vrai visage.",
+      "4. Réactions en Chaîne & Limite de Pièces\n\nUne autre pièce noire apparaît en a7 (Tour ou Reine). Déplacez la première pièce noire (h5) en diagonale pour capturer le Cavalier blanc en f3.",
+      "4. Réactions en Chaîne & Limite de Pièces\n\nPremière pièce noire sélectionnée.\nCliquez sur f3 pour capturer en diagonale.",
+      "Brillant !\nLa première pièce noire a bougé en ligne droite et en diagonale : c'est donc une Reine !\n\n[Limite de pièces] Chaque camp ne dispose que d'une seule Reine. Cette Reine étant confirmée, l'autre pièce noire non déplacée en a7 devient automatiquement une Tour !"
     ]
   },
   de: {
@@ -318,19 +328,21 @@ export const tutorialDict: Record<AppLanguage, { play: string, next: string, clo
     next: "WEITER",
     close: "Schließen",
     title: "Spielanleitung",
+    reviewDemo: "Demo wiederholen",
+    resetStep: "Zurücksetzen",
     steps: [
-      "1. Verborgene Identitäten\n\nIn diesem Schachspiel wissen Sie nicht, was eine Figur ist, bis sie sich bewegt!\nKlicken Sie auf die weiße Figur und bewegen Sie sie auf das hervorgehobene Feld.\n(Da sie sich diagonal bewegt hat, MUSS es ein Läufer oder eine Dame sein!)",
-      "1. Verborgene Identitäten\n\nIn diesem Schachspiel wissen Sie nicht, was eine Figur ist, bis sie sich bewegt!\nKlicken Sie auf die weiße Figur und bewegen Sie sie auf das hervorgehobene Feld.\n(Da sie sich diagonal bewegt hat, MUSS es ein Läufer oder eine Dame sein!)",
-      "Großartig! Basierend auf ihrer Bewegung hat das Spiel eingegrenzt, welche Figur es sein könnte.",
-      "2. Figuren schlagen\n\nKlicken Sie nun auf die schwarze Figur und bewegen Sie sie, um die weiße Figur zu schlagen.\n(Da sie sich 2 Felder geradeaus bewegt hat, MUSS es ein Turm oder eine Dame sein!)",
-      "2. Figuren schlagen\n\nKlicken Sie nun auf die schwarze Figur und bewegen Sie sie, um die weiße Figur zu schlagen.\n(Da sie sich 2 Felder geradeaus bewegt hat, MUSS es ein Turm oder eine Dame sein!)",
-      "Figur geschlagen! Eine Figur kann geschlagen und vom Brett entfernt werden, noch bevor ihre wahre Identität vollständig enthüllt ist.",
-      "3. Die wahre Identität enthüllen\n\nEine neue weiße Figur ist erschienen. Bewegen Sie sie auf das hervorgehobene Feld.\n(Nur ein Springer kann sich in L-Form bewegen!)",
-      "3. Die wahre Identität enthüllen\n\nEine neue weiße Figur ist erschienen. Bewegen Sie sie auf das hervorgehobene Feld.\n(Nur ein Springer kann sich in L-Form bewegen!)",
-      "Der Springer ist enthüllt! Wenn nur noch eine Möglichkeit übrig ist, dreht sich die Figur um und zeigt ihr wahres Gesicht.",
-      "4. Kettenreaktionen\n\nEine weitere schwarze Figur ist erschienen. Bewegen Sie die erste schwarze Figur diagonal, um den weißen Springer zu schlagen.",
-      "4. Kettenreaktionen\n\nEine weitere schwarze Figur ist erschienen. Bewegen Sie die erste schwarze Figur diagonal, um den weißen Springer zu schlagen.",
-      "Brillant! Die schwarze Figur bewegte sich sowohl gerade als auch diagonal. Das kann nur eine Dame, also ist es eine Dame!\n\nDa es nur eine Dame gibt, wird die andere schwarze Figur sofort zu einem Turm gezwungen, ohne sich überhaupt zu bewegen! Dieses Deduktionsrätsel ist das Herzstück des Spiels."
+      "1. Verborgene Identitäten & Deduktion\n\n[Demo] Figuren sind verdeckt, bis sie ziehen. Ein diagonaler Zug grenzt sie auf Läufer oder Dame ein.\n\n[Übung] Jetzt sind Sie dran! Tippen Sie auf die weiße Figur (e2) und ziehen Sie sie auf das hervorgehobene diagonale Feld (h5).",
+      "1. Verborgene Identitäten & Deduktion\n\n[Übung] Weiße Figur ausgewählt.\nTippen Sie auf das hervorgehobene diagonale Feld (h5), um zu ziehen.",
+      "Richtig! [Übung abgeschlossen]\nDurch den diagonalen Zug wurden nicht-diagonale Rollen ausgeschlossen: Läufer oder Dame verbleiben!\nTippen Sie auf „Weiter“ oder „Demo wiederholen“.",
+      "2. Figuren schlagen\n\nTippen Sie auf die schwarze Figur (h7) und schlagen Sie die weiße Figur (h5).\n(2 Felder geradeaus bedeutet Turm oder Dame!)",
+      "2. Figuren schlagen\n\nSchwarze Figur ausgewählt.\nTippen Sie auf h5, um geradeaus zu schlagen.",
+      "Figur geschlagen!\nEine Figur kann geschlagen werden, noch bevor ihre wahre Identität vollständig feststeht.",
+      "3. Wahre Identität enthüllen\n\nEine neue weiße Figur steht auf e1. Ziehen Sie sie auf das Feld f3.\n(Nur ein Springer zieht in L-Form!)",
+      "3. Wahre Identität enthüllen\n\nWeiße Figur ausgewählt.\nTippen Sie auf f3 für den L-förmigen Zug.",
+      "Der Springer ist enthüllt!\nWenn nur noch eine Möglichkeit übrig ist, dreht sich die Figur um und zeigt ihr wahres Gesicht.",
+      "4. Kettenreaktionen & Figurenlimits\n\nEine weitere schwarze Figur erscheint auf a7 (Turm oder Dame). Ziehen Sie die erste schwarze Figur (h5) diagonal, um den weißen Springer auf f3 zu schlagen.",
+      "4. Kettenreaktionen & Figurenlimits\n\nErste schwarze Figur ausgewählt.\nTippen Sie auf f3, um diagonal zu schlagen.",
+      "Hervorragend!\nDie schwarze Figur zog geradeaus und diagonal: Es muss eine Dame sein!\n\n[Figurenlimit] Jedes Team hat nur 1 Dame. Da diese Dame feststeht, scheidet die Dame bei der unbewegten Figur auf a7 aus – sie wird sofort zum Turm!"
     ]
   },
   es: {
@@ -338,19 +350,22 @@ export const tutorialDict: Record<AppLanguage, { play: string, next: string, clo
     next: "SIGUIENTE",
     close: "Cerrar",
     title: "Cómo Jugar",
+    reviewDemo: "Repetir demostración",
+    resetStep: "Reiniciar",
     steps: [
-      "1. Identidades Ocultas\n\nEn este juego de ajedrez, ¡no sabes qué es una pieza hasta que se mueve!\nHaz clic en la pieza blanca y muévela a la casilla resaltada.\n(Como se movió en diagonal, ¡DEBE ser un Alfil o una Reina!)",
-      "1. Identidades Ocultas\n\nEn este juego de ajedrez, ¡no sabes qué es una pieza hasta que se mueve!\nHaz clic en la pieza blanca y muévela a la casilla resaltada.\n(Como se movió en diagonal, ¡DEBE ser un Alfil o una Reina!)",
-      "¡Genial! Basado en cómo se movió, el juego redujo las opciones de qué pieza podría ser.",
-      "2. Capturando Piezas\n\nAhora, haz clic en la pieza negra y muévela para capturar la pieza blanca.\n(Como se movió recto 2 casillas, ¡DEBE ser una Torre o una Reina!)",
-      "2. Capturando Piezas\n\nAhora, haz clic en la pieza negra y muévela para capturar la pieza blanca.\n(Como se movió recto 2 casillas, ¡DEBE ser una Torre o una Reina!)",
-      "¡Pieza capturada! Una pieza puede ser capturada y eliminada del tablero incluso antes de que su verdadera identidad sea revelada completamente.",
-      "3. Revelando la Verdadera Identidad\n\nApareció una nueva pieza blanca. Muévela a la casilla resaltada.\n(¡Solo un Caballo puede moverse en forma de L!)",
-      "3. Revelando la Verdadera Identidad\n\nApareció una nueva pieza blanca. Muévela a la casilla resaltada.\n(¡Solo un Caballo puede moverse en forma de L!)",
-      "¡El Caballo es revelado! Cuando solo queda una posibilidad, la pieza se da la vuelta y muestra su verdadera cara.",
-      "4. Reacciones en Cadena\n\nApareció otra pieza negra. Mueve la primera pieza negra en diagonal para capturar al Caballo blanco.",
-      "4. Reacciones en Cadena\n\nApareció otra pieza negra. Mueve la primera pieza negra en diagonal para capturar al Caballo blanco.",
-      "¡Brillante! La pieza negra se movió tanto en línea recta como en diagonal. Solo una Reina puede hacer ambas cosas, ¡así que es una Reina!\n\nAdemás, dado que solo hay una Reina, ¡la otra pieza negra se ve forzada instantáneamente a ser una Torre sin siquiera moverse! Este rompecabezas de deducción es el corazón del juego."
+      "1. Identidades Ocultas y Deducción\n\n[Demostración] La identidad está oculta hasta moverse. Moverse en diagonal la limita a Alfil o Reina.\n\n[Práctica] ¡Ahora inténtalo tú! Toca la pieza blanca (e2) y muévela a la casilla diagonal resaltada (h5).",
+      "1. Identidades Ocultas y Deducción\n\n[Práctica] Pieza blanca seleccionada.\nToca la casilla diagonal resaltada (h5) para moverla.",
+      "¡Correcto! [Práctica completada]\nAl moverse en diagonal, se descartaron los otros roles: solo puede ser Alfil o Reina.\nToca «Siguiente» o «Repetir demostración».",
+      "2. Capturando Piezas\n\nToca la pieza negra (h7) y muévela en línea recta para capturar la pieza blanca (h5).\n(¡Moverse 2 casillas recto indica Torre o Reina!)",
+      "2. Capturando Piezas\n\nPieza negra seleccionada.\nToca la casilla (h5) para capturar en línea recta.",
+      "¡Pieza capturada!\nUna pieza puede capturarse y retirarse del tablero incluso antes de conocer su verdadera identidad.",
+      "3. Revelando la Verdadera Identidad\n\nApareció una nueva pieza blanca en e1. Muévela a la casilla f3.\n(¡Solo un Caballo se mueve en forma de L!)",
+      "3. Revelando la Verdadera Identidad\n\nPieza blanca seleccionada.\nToca f3 para moverte en forma de L.",
+      "¡El Caballo es revelado!\nCuando solo queda una posibilidad, la pieza se da la vuelta y muestra su verdadera cara.",
+      "4. Reacciones en Cadena y Límite de Piezas\n\nApareció otra pieza negra en a7 (Torre o Reina). Mueve la primera pieza negra (h5) en diagonal para capturar al Caballo blanco en f3.",
+      "4. Reacciones en Cadena y Límite de Piezas\n\nPrimera pieza negra seleccionada.\nToca f3 para capturar en diagonal.",
+      "¡Brillante!\nLa primera pieza negra se movió en línea recta y en diagonal: ¡solo una Reina puede hacer ambas!\n\n[Límite de piezas] Cada bando solo tiene 1 Reina. Al confirmarse esta Reina, la pieza negra no movida en a7 queda confirmada automáticamente como Torre!"
     ]
   }
 };
+

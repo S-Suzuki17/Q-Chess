@@ -7,8 +7,18 @@ const lessons = {
     hi: ['सफ़ेद मोहरा चुनकर चमकते खाने पर ले जाएँ। तिरछी चाल से वह ऊँट या वज़ीर हो सकता है।','बहुत अच्छा! चाल संभावित पहचानों को घटाती है।','काला मोहरा चुनकर सफ़ेद मोहरा मारें। दो खाने सीधी चाल का अर्थ हाथी या वज़ीर है।','मोहरा मारा गया! पहचान तय होने से पहले भी मोहरा मारा जा सकता है।','नया सफ़ेद मोहरा चमकते खाने पर ले जाएँ। केवल घोड़ा एल आकार में चलता है।','घोड़े की पहचान तय हुई! एक संभावना बचने पर पहचान निश्चित होती है।','पहले काले मोहरे को तिरछा चलाकर सफ़ेद घोड़ा मारें।','सीधा और तिरछा चलने वाला मोहरा वज़ीर है। केवल एक वज़ीर होने से दूसरा काला मोहरा बिना चले ही हाथी सिद्ध होता है!'],
     ta: ['வெள்ளைக் காயைத் தேர்ந்தெடுத்து ஒளிரும் கட்டத்திற்கு நகர்த்துங்கள். குறுக்கு நகர்வு மந்திரி அல்லது ராணியைக் குறிக்கும்.','நன்று! நகர்வு சாத்தியமான அடையாளங்களைக் குறைக்கிறது.','கருப்புக் காயைத் தேர்ந்தெடுத்து வெள்ளைக் காயை வெட்டுங்கள். இரண்டு கட்டங்கள் நேராக நகர்வது கோட்டை அல்லது ராணியைக் குறிக்கும்.','காய் வெட்டப்பட்டது! அடையாளம் உறுதியாகும் முன்பும் காயை வெட்டலாம்.','புதிய வெள்ளைக் காயை ஒளிரும் கட்டத்திற்கு நகர்த்துங்கள். குதிரை மட்டுமே எல் வடிவத்தில் நகரும்.','குதிரை வெளிப்பட்டது! ஒரு சாத்தியம் மட்டுமே இருந்தால் அடையாளம் உறுதியாகும்.','முதல் கருப்புக் காயைக் குறுக்காக நகர்த்தி வெள்ளைக் குதிரையை வெட்டுங்கள்.','நேராகவும் குறுக்காகவும் நகரும் காய் ராணி. ஒரே ராணி இருப்பதால் மற்ற கருப்புக் காய் நகராமலேயே கோட்டை எனத் தெரிகிறது!'],
 };
+const extraButtons: Record<string, { reviewDemo: string; resetStep: string }> = {
+    tr: { reviewDemo: 'Örneği tekrar izle', resetStep: 'Yeniden başlat' },
+    pl: { reviewDemo: 'Powtórz przykład', resetStep: 'Zresetuj' },
+    pt: { reviewDemo: 'Rever demonstração', resetStep: 'Reiniciar' },
+    hi: { reviewDemo: 'उदाहरण दोबारा देखें', resetStep: 'फिर से करें' },
+    ta: { reviewDemo: 'மாதிரியை மீண்டும் பார்', resetStep: 'மீட்டமை' },
+};
+
 export const additionalTutorial = Object.fromEntries(Object.entries(lessons).map(([code, lines]) => {
     const t = additional[code as keyof typeof additional];
-    return [code, { play:t.play, next:t.next, close:t.back, title:t.rulesButton,
+    const btn = extraButtons[code] || { reviewDemo: 'Review Demo', resetStep: 'Reset' };
+    return [code, { play:t.play, next:t.next, close:t.back, title:t.rulesButton, reviewDemo: btn.reviewDemo, resetStep: btn.resetStep,
         steps:[lines[0],lines[0],lines[1],lines[2],lines[2],lines[3],lines[4],lines[4],lines[5],lines[6],lines[6],lines[7]] }];
-})) as Record<keyof typeof additional, {play:string;next:string;close:string;title:string;steps:string[]}>;
+})) as Record<keyof typeof additional, {play:string;next:string;close:string;title:string;steps:string[];reviewDemo:string;resetStep:string}>;
+
