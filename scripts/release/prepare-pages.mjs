@@ -4,6 +4,7 @@ import {cpSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, wri
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {spawnSync} from 'node:child_process';
+import clientConfig from './verify-client-config.cjs';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const source = path.join(root, 'out');
@@ -23,6 +24,10 @@ export function checkFiles(files, read) {
                 let payload;
                 try { payload = JSON.parse(Buffer.from(jwt.split('.')[1], 'base64url').toString()); } catch { continue; }
                 assert.notEqual(payload.role, 'service_role', `Privileged key in ${name}`);
+            }
+            if (name.endsWith('.js')) {
+                const {unresolved} = clientConfig.inspectJavaScript(content, name);
+                assert.equal(unresolved.length, 0, `Unresolved public configuration in ${name}: ${unresolved.join(', ')}`);
             }
         }
     }

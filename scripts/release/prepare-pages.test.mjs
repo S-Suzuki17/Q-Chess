@@ -9,12 +9,16 @@ test('rejects stale QUBE posts in routes, manual drafts and client chunks', () =
     for (const content of ['QUBIT4x', 'devDiaryTweets', '開発AIのぼやき部屋']) {
         assert.throws(() => checkFiles([{name:'_next/static/old.js',size:100}], () => content), /Retired QUBE/);
     }
-    assert.doesNotThrow(() => checkFiles([{name:'_next/static/hint.js',size:100}], () => 'QUBEに聞く QUBEが考え中… /qube_icon.jpg'));
+    assert.doesNotThrow(() => checkFiles([{name:'_next/static/hint.js',size:100}], () => JSON.stringify('QUBEに聞く QUBEが考え中… /qube_icon.jpg')));
 });
 
 test('accepts ordinary static content and public anon credentials', () => {
     const token = `eyJhbGciOiJIUzI1NiJ9.${Buffer.from(JSON.stringify({role:'anon'})).toString('base64url')}.signature`;
-    assert.doesNotThrow(() => checkFiles([{name:'_next/static/app.js',size:100}], () => token));
+    assert.doesNotThrow(() => checkFiles([{name:'_next/static/app.js',size:100}], () => JSON.stringify(token)));
+});
+
+test('rejects stale unconfigured exports even when the configured build wrapper was skipped', () => {
+    assert.throws(() => checkFiles([{name:'_next/static/client.js',size:100}], () => 'const url=e.env.NEXT_PUBLIC_SUPABASE_URL||"https://placeholder.supabase.co";'), /Unresolved public configuration/);
 });
 test('rejects oversized assets and too many dashboard files', () => {
     assert.throws(() => checkFiles([{name:'audio.mp3',size:25*1024*1024+1}], () => ''), /25 MiB/);
