@@ -288,7 +288,7 @@ const admission=(rankedAdmissionRecoveryEnabled()||sharedMatchAdmissionRecoveryE
         const unavailable=operations.newMatchError();
         if(unavailable){if(match.admission)match.admission.reason=unavailable;return false;}
         return true;
-    }) : undefined;
+    },state=>console.warn(`[ranked-owner] ${state}`)) : undefined;
 const knownSocketProofs=new Map<string,{hash:string;socketId:string}>();
 const proofHash=(token:string)=>createHash('sha256').update(token).digest('hex');
 function authenticationUnavailable(userId:string){

@@ -9,11 +9,13 @@ import type { RankedAdmissionStore, AdmissionOutcome } from './RankedAdmissionSt
 export const RANKED_LOCAL_LEASE_MS = 10_000;
 export const RANKED_RENEW_MS = 3_000;
 export class RankedAdmissionCoordinator {
-    public readonly ownerId: string;
+    private currentOwnerId: string;
+    public get ownerId() { return this.currentOwnerId; }
     private monoDeadline = 0;
     private wallDeadline = 0;
     private issued = false;
     private retired = false;
+    private replacingOwner = false;
     private renewing?: Promise<boolean>;
     private renewAt = 0;
     private recovering = false;
@@ -25,8 +27,9 @@ export class RankedAdmissionCoordinator {
         private onStarted: (match: MatchSession) => void,
         private notify: (outcome: AdmissionOutcome) => void,
         private clock = { mono: () => performance.now(), wall: () => Date.now() },
-        ownerId = randomUUID(), private beforeActivate?: (match: MatchSession) => Promise<boolean>) {
-        this.ownerId = ownerId;
+        ownerId = randomUUID(), private beforeActivate?: (match: MatchSession) => Promise<boolean>,
+        private onOwnerChange?: (state: 'retired' | 'recovered') => void) {
+        this.currentOwnerId = ownerId;
         matchmaking.onAdmissionCancel = (match, reason) => { void this.cancel(match, reason); };
     }
     private alive() {
@@ -36,12 +39,30 @@ export class RankedAdmissionCoordinator {
         return !match.admission || (match.admission.state === 'active' && match.admission.ownerId === this.ownerId && this.alive());
     }
     public safeUntil() { return this.wallDeadline; }
+    private reportOwnerChange(state: 'retired' | 'recovered') {
+        try { this.onOwnerChange?.(state); } catch { /* Observation must never change ownership. */ }
+    }
     private retire() {
+        if (this.retired) return;
         this.retired = true;
+        this.reportOwnerChange('retired');
         for (const match of this.matchmaking.getMatches()) {
             if (match.admission?.ownerId === this.ownerId && ['active','pending'].includes(match.admission.state))
                 void this.cancel(match, 'owner_unavailable');
         }
+    }
+    private replaceRetiredOwner() {
+        if (!this.retired || this.renewing || this.requests.size || this.clock.mono() < this.renewAt) return;
+        // The old epoch remains permanently fenced. Finish its durable voids
+        // and in-flight work before a fresh UUID can own any future matches.
+        if (this.matchmaking.getMatches().some(match => match.admission?.ownerId === this.ownerId
+            && ['active','pending','voiding'].includes(match.admission.state))) return;
+        this.currentOwnerId = randomUUID();
+        this.issued = false;
+        this.monoDeadline = 0;
+        this.wallDeadline = 0;
+        this.retired = false;
+        this.replacingOwner = true;
     }
     public async renew(): Promise<boolean> {
         if (this.retired) return false;
@@ -59,6 +80,10 @@ export class RankedAdmissionCoordinator {
                 this.issued = true;
                 this.monoDeadline = mono + RANKED_LOCAL_LEASE_MS;
                 this.wallDeadline = wall + RANKED_LOCAL_LEASE_MS;
+                if (this.replacingOwner) {
+                    this.replacingOwner = false;
+                    this.reportOwnerChange('recovered');
+                }
                 return true;
             } catch { this.retire(); return false; }
         })();
@@ -67,6 +92,12 @@ export class RankedAdmissionCoordinator {
     }
     public begin(match: MatchSession, replayChoice=false): Promise<void> {
         if (match.state !== 'ADMITTING') return Promise.resolve();
+        // New matches wait through replacement backoff/old-owner cleanup;
+        // never bind them to an epoch that has already been retired.
+        if (this.retired) {
+            this.replaceRetiredOwner();
+            if (this.retired) return Promise.resolve();
+        }
         if (match.admissionProtocol==='shared_v1' && match.awaitingChoices?.some(id=>!Object.hasOwn(match.admissionConsents??{},id))) {
             if(replayChoice)this.notify({state:'choice_required',matchId:match.matchId,
                 humanIds:match.awaitingChoices.filter(id=>!Object.hasOwn(match.admissionConsents??{},id))});
@@ -213,6 +244,7 @@ export class RankedAdmissionCoordinator {
     }
     public tick() {
         if (this.issued && !this.alive() && !this.retired) this.retire();
+        this.replaceRetiredOwner();
         if (!this.retired && this.clock.mono() >= this.renewAt) void this.renew();
         if (this.clock.mono() >= this.recoveryAt) void this.recover().catch(() => {});
         for (const match of this.matchmaking.getMatches()) {
