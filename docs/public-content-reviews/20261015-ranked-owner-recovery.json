@@ -6,7 +6,7 @@
   "changes": [
     {
       "path": "server/src/services/RankedAdmissionCoordinator.ts",
-      "gitBlob": "a3128813bf92814c041d824ed48e326a7b7b1a0a"
+      "gitBlob": "51e09166353b2fed328789c96bc2dd6f9016532f"
     }
   ],
   "reviews": [
@@ -23,8 +23,8 @@
       ],
       "evidence": [
         "server/src/services/RankedAdmissionCoordinator.ts: waits for terminal old admissions and in-flight requests/renewal completion before generating a new UUID; bounded three-second reacquisition, old authority remains fenced.",
-        "server/src/services/RankedAdmissionCoordinator.test.ts: 30 coordinator tests pass, including 10 replacement conditions for failed or late renewal, delayed/failed voids, in-flight admission, frozen old engines and bounded outage retries.",
-        "Related admission, store, gateway, runtime and matchmaking validation: 104 cases pass in aggregate; the one loopback Socket.IO case was re-run outside the network sandbox. npm run build --prefix server passes.",
+        "server/src/services/RankedAdmissionCoordinator.test.ts: 32 coordinator tests pass, including 12 replacement conditions for failed or late renewal, delayed/failed voids, in-flight admission, frozen old engines, bounded outage retries and new matches waiting unbound during replacement.",
+        "Related admission, store, gateway, runtime and matchmaking validation: all 107 cases pass in one run with local loopback permitted. SharedMatchAdmission.test.ts verifies that waiting for replacement does not extend the original 15-second prestart deadline. npm run build --prefix server passes.",
         "src/locales/siteContent.ts: Japanese/English FAQ connection, save and privacy sections reviewed; src/components/SiteInformation.tsx and src/locales/privacyReview.ts reviewed for support and operational-data explanations.",
         "server/src/index.ts: diagnostics are only [ranked-owner] retired/recovered; no user IDs, tokens, passwords or game state are logged by the new callback.",
         "node scripts/qa/check-public-content.mjs --report <local-report>: current public guidance HTTP/structure check passed for eight pages; this check is read-only and does not prove a signed-in match."

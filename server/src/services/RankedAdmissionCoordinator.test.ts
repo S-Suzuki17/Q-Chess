@@ -55,6 +55,13 @@ function nextCpuMatch(f:ReturnType<typeof fixture>) {
     f.mm.connectMatch('next-human',match.matchId,'Next human',undefined,undefined,1);
     return match;
 }
+function nextHumanMatch(f:ReturnType<typeof fixture>) {
+    f.mm.registerSocket('next-human','next-socket');f.mm.registerSocket('peer-human','peer-socket');
+    f.mm.joinQueue('next-human',600,'Next human','ranked',1200);
+    const match=f.mm.joinQueue('peer-human',600,'Peer human','ranked',1200).match!;
+    f.mm.connectMatch('next-human',match.matchId);f.mm.connectMatch('peer-human',match.matchId);
+    return match;
+}
 beforeEach(()=>{vi.useFakeTimers();vi.setSystemTime(1_000_000);vi.spyOn(Math,'random').mockReturnValue(.2);});
 afterEach(()=>{vi.clearAllTimers();vi.useRealTimers();vi.restoreAllMocks();});
 describe('durable ranked admission faults',()=>{
@@ -233,6 +240,28 @@ describe('durable ranked admission faults',()=>{
 });
 
 describe('ranked admission owner replacement',()=>{
+    it('keeps a new match unbound during replacement backoff and starts it after fresh confirmation',async()=>{
+        const f=fixture();await activate(f);const oldOwner=f.coordinator.ownerId;
+        vi.mocked(f.store.renew).mockRejectedValueOnce(new Error('temporary renewal failure'));
+        await f.coordinator.renew();await flush();const next=nextHumanMatch(f);
+        await f.coordinator.begin(next);
+        expect(next.state).toBe('ADMITTING');expect(next.admission).toBeUndefined();expect(next.engine).toBeUndefined();
+        expect(f.store.void).toHaveBeenCalledOnce();expect(f.store.admit).toHaveBeenCalledOnce();
+        vi.advanceTimersByTime(2999);f.coordinator.tick();await flush();expect(next.state).toBe('ADMITTING');
+        vi.advanceTimersByTime(1);f.coordinator.tick();await flush();
+        expect(f.coordinator.ownerId).not.toBe(oldOwner);expect(next.state).toBe('IN_GAME');expect(f.started).toHaveBeenCalledTimes(2);
+        expect(next.admission?.ownerId).toBe(f.coordinator.ownerId);expect(f.store.void).toHaveBeenCalledOnce();
+    });
+    it('keeps a newly connected match pending while old-owner void confirmation is unavailable',async()=>{
+        const f=fixture();await activate(f);const reply=deferred<AdmissionOutcome>();
+        vi.mocked(f.store.void).mockReturnValueOnce(reply.promise);
+        vi.mocked(f.store.renew).mockRejectedValueOnce(new Error('renew failed'));
+        await f.coordinator.renew();await flush();const next=nextHumanMatch(f),createdAt=next.createdAt;
+        vi.advanceTimersByTime(3000);await f.coordinator.begin(next);f.coordinator.tick();await flush();
+        expect(next.state).toBe('ADMITTING');expect(next.admission).toBeUndefined();expect(next.createdAt).toBe(createdAt);
+        reply.resolve({state:'voided'});await flush();f.coordinator.tick();await flush();
+        expect(next.state).toBe('IN_GAME');expect(next.createdAt).toBe(createdAt);
+    });
     it.each(['transport','rejected'] as const)('starts the next ranked match with a fresh owner after the prior match is durably voided (%s)',async failure=>{
         const f=fixture();await activate(f);const oldOwner=f.coordinator.ownerId;
         if(failure==='transport')vi.mocked(f.store.renew).mockRejectedValueOnce(new Error('temporary transport failure'));

@@ -98,6 +98,23 @@ describe('shared online/ranked admission',()=>{
         expect(f.notify).toHaveBeenCalledWith({state:'choice_required',matchId:f.match.matchId,humanIds:['Alice']});
         expect(f.store.admit).toHaveBeenCalledOnce();expect(f.store.choice).not.toHaveBeenCalled();
     });
+    it('keeps the original shared prestart deadline while waiting for retired-owner cleanup',async()=>{
+        const f=fixture('ranked');await f.coordinator.begin(f.match);const oldOwner=f.coordinator.ownerId,reply=deferred<AdmissionOutcome>();
+        vi.mocked(f.store.void).mockReturnValueOnce(reply.promise);
+        vi.mocked(f.store.renew).mockRejectedValueOnce(new Error('renew failed'));
+        await f.coordinator.renew();await flush();
+        f.mm.registerSocket('NextAlice','next-a');f.mm.registerSocket('NextBob','next-b');
+        f.mm.joinQueue('NextAlice',600,'NextAlice','ranked',1000);
+        const next=f.mm.joinQueue('NextBob',600,'NextBob','ranked',1000).match!;
+        f.mm.connectMatch('NextAlice',next.matchId);f.mm.connectMatch('NextBob',next.matchId);
+        const createdAt=next.createdAt;await f.coordinator.begin(next);
+        expect(next.admission).toBeUndefined();expect(next.engine).toBeUndefined();
+        vi.advanceTimersByTime(14999);f.coordinator.tick();await flush();expect(next.state).toBe('ADMITTING');
+        vi.advanceTimersByTime(1);f.coordinator.tick();await flush();
+        expect(next.createdAt).toBe(createdAt);expect(next.state).toBe('CANCELLED');expect(next.engine).toBeUndefined();
+        expect(f.store.void).toHaveBeenCalledWith(next.matchId,oldOwner,'connection_timeout');
+        expect(f.started).toHaveBeenCalledOnce();reply.resolve({state:'voided'});await flush();
+    });
     it('cancel during consent issuance cannot resurrect the match',async()=>{
         const f=fixture();vi.mocked(f.store.admit).mockResolvedValue({state:'choice_required',humanIds:['Alice']});await f.coordinator.begin(f.match);
         const consent=deferred<string>();vi.mocked(f.store.choice!).mockReturnValue(consent.promise);

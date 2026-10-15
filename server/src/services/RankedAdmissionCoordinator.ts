@@ -92,6 +92,12 @@ export class RankedAdmissionCoordinator {
     }
     public begin(match: MatchSession, replayChoice=false): Promise<void> {
         if (match.state !== 'ADMITTING') return Promise.resolve();
+        // New matches wait through replacement backoff/old-owner cleanup;
+        // never bind them to an epoch that has already been retired.
+        if (this.retired) {
+            this.replaceRetiredOwner();
+            if (this.retired) return Promise.resolve();
+        }
         if (match.admissionProtocol==='shared_v1' && match.awaitingChoices?.some(id=>!Object.hasOwn(match.admissionConsents??{},id))) {
             if(replayChoice)this.notify({state:'choice_required',matchId:match.matchId,
                 humanIds:match.awaitingChoices.filter(id=>!Object.hasOwn(match.admissionConsents??{},id))});
