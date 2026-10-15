@@ -21,9 +21,13 @@ function run(env = {}, target = 'web', publicSettings = {}) {
         if (name === 'node:child_process') return { spawnSync: (...args) => { call = args; return { status: 0 }; } };
         if (name === 'node:path') return { resolve: value => value };
         if (name === 'node:fs') return { readFileSync: () => 'versionCode 20' };
+        if (name === './verify-client-config.cjs') return { verifyClientBuild: (directory, settings) => {
+            call.clientConfigurationCheck = { directory, settings };
+            return {unresolvedPublicReads:0};
+        } };
         throw new Error(`Unexpected build dependency: ${name}`);
     }, { resolve: () => '/next-cli' });
-    vm.runInNewContext(source, { process: processStub, require: requireStub, Buffer, URL });
+    vm.runInNewContext(source, { process: processStub, require: requireStub, Buffer, URL, console:{log(){}} });
     return call;
 }
 
@@ -43,6 +47,16 @@ test('configured secrets do not enter the release and advertising remains off', 
     for (const key of ['NEXT_PUBLIC_ADMOB_LIVE', 'NEXT_PUBLIC_NATIVE_REWARDS_ENABLED',
         'NEXT_PUBLIC_NATIVE_INTERSTITIAL_ENABLED', 'NEXT_PUBLIC_FOUNDERS_REWARDS_ENABLED']) {
         assert.equal(config[key], 'false');
+    }
+});
+
+test('checks the emitted browser files against the configured public endpoints for both targets', () => {
+    for (const target of ['web', 'android']) {
+        const call = run({}, target);
+        assert.equal(call.clientConfigurationCheck.directory, 'out');
+        for (const name of ['NEXT_PUBLIC_SUPABASE_URL', 'NEXT_PUBLIC_SUPABASE_ANON_KEY', 'NEXT_PUBLIC_SERVER_URL']) {
+            assert.equal(call.clientConfigurationCheck.settings[name], call[2].env[name]);
+        }
     }
 });
 

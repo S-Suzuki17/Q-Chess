@@ -72,4 +72,13 @@ const result = spawnSync(process.execPath, [require.resolve('next/dist/bin/next'
     },
 });
 if (result.error) throw result.error;
+if (result.status === 0) {
+    const {verifyClientBuild} = require('./verify-client-config.cjs');
+    const checked = verifyClientBuild(path.resolve('out'), {
+        NEXT_PUBLIC_SUPABASE_URL: url,
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: key,
+        NEXT_PUBLIC_SERVER_URL: server,
+    });
+    console.log(JSON.stringify({clientConfiguration: checked}));
+}
 process.exit(result.status ?? 1);

@@ -121,3 +121,29 @@ it('retries the current UTC day only for the newly consenting owner', async () =
     window.dispatchEvent(new CustomEvent('qg-current-terms-accepted',{detail:{userId:'Bob'}}));await flush();expect(harness.claim).toHaveBeenCalledTimes(1);
     window.dispatchEvent(new CustomEvent('qg-current-terms-accepted',{detail:{userId:'Alice'}}));await flush();expect(harness.claim).toHaveBeenCalledTimes(2);
 });
+
+it('retries a failed daily claim when connectivity returns, then deduplicates a successful day', async () => {
+    const documentEvents = Object.assign(new EventTarget(), {visibilityState:'visible'});
+    vi.stubGlobal('document', documentEvents);
+    harness.allowed = true;
+    harness.claim.mockRejectedValueOnce(new Error('Offline')).mockResolvedValue({});
+    const changed = vi.fn(); window.addEventListener('qg-daily-login-reward-changed', changed);
+    render(account, true); await flush();
+    expect(harness.claim).toHaveBeenCalledTimes(1); expect(changed).not.toHaveBeenCalled();
+    window.dispatchEvent(new Event('online')); await flush();
+    expect(harness.claim).toHaveBeenCalledTimes(2); expect(changed).toHaveBeenCalledOnce();
+    documentEvents.dispatchEvent(new Event('visibilitychange')); window.dispatchEvent(new Event('online')); await flush();
+    expect(harness.claim).toHaveBeenCalledTimes(2);
+});
+
+it('does not overlap a pending claim when online and visible events arrive together', async () => {
+    const documentEvents = Object.assign(new EventTarget(), {visibilityState:'visible'});
+    vi.stubGlobal('document', documentEvents);
+    harness.allowed = true;
+    let finish!: (value: unknown) => void;
+    harness.claim.mockReturnValue(new Promise(resolve => { finish = resolve; }));
+    render(account, true);
+    window.dispatchEvent(new Event('online')); documentEvents.dispatchEvent(new Event('visibilitychange'));
+    expect(harness.claim).toHaveBeenCalledTimes(1);
+    finish({}); await flush();
+});

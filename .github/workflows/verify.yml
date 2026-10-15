@@ -66,6 +66,55 @@ jobs:
       - name: Verify public guides, navigation and no-JavaScript reading
         run: node scripts/qa/check-public-guides.mjs
 
+  account-data-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      NEXT_PUBLIC_QG_DAILY_LOGIN_REWARDS_ENABLED: 'true'
+      NEXT_PUBLIC_QG_MEMBER_TICKET_USAGE_ENABLED: 'true'
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            server/package-lock.json
+      - run: npm ci
+      - run: npm ci --prefix server
+      - name: Verify exported-client configuration guards
+        run: node --test scripts/release/verify-client-config.test.mjs scripts/release/build-android-web.test.mjs scripts/release/prepare-pages.test.mjs
+      - name: Create synthetic public configuration
+        run: |
+          mkdir -p scratch/account-data-public-settings
+          cat > scratch/account-data-public-settings/.env.local <<'EOF'
+          NEXT_PUBLIC_SUPABASE_URL=https://example.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_fixture_only_1234
+          NEXT_PUBLIC_SERVER_URL=https://fixture.invalid
+          EOF
+      - run: npx playwright install chromium
+      - name: Build configured Web export and verify real password-login data
+        run: |
+          node scripts/release/build-android-web.cjs scratch/account-data-public-settings web
+          node scripts/qa/check-account-data-browser.mjs scratch/account-data-web --target=web
+      - name: Build configured Android export and verify real password-login data
+        run: |
+          node scripts/release/build-android-web.cjs scratch/account-data-public-settings android
+          node scripts/qa/check-account-data-browser.mjs scratch/account-data-android --target=android
+      - name: Retain synthetic Web and Android account-data reports
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: account-data-browser-results
+          path: |
+            scratch/account-data-web
+            scratch/account-data-android
+          if-no-files-found: warn
+          retention-days: 7
+
   commerce-source-ledger-postgres:
     runs-on: ubuntu-latest
     timeout-minutes: 10

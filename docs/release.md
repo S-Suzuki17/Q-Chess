@@ -2,6 +2,10 @@
 対象は依頼から選ぶ。資料を読んだことは公開の許可を意味しない。
 Web / Android / itch の反映状態を混同しない。
 
+配信用のWebとAndroidは `scripts/release/build-android-web.cjs` を使う。成功時に出力済みJavaScriptを検査し、未解決の `NEXT_PUBLIC_*` 参照がないことと、指定した公開DB・公開キー・対局サーバーが含まれることを確認する。Pages用パッケージも未解決参照を拒否する。ビルド成功・HTML表示だけを接続設定の証明にしない。
+
+`scripts/qa/check-account-data-browser.mjs` は配信用の静的出力を対象に、通常ログイン後のレート・券枚数・0枚・保存ログイン・再認証・通信復帰を合成データで検証する。実アカウントや本番取引は作らない。両ターゲットの検査を通しても実機受入は別途必要。
+
 ## 共通
 npm run release:status -- <web|android|itch> で作業場所、HEAD、変更状態、成果物の有無を確認。
 対象差分を検証し、対象コミットと未コミット変更を記録する。

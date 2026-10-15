@@ -34,7 +34,11 @@ export function DailyLoginClaimController({ user, termsReady }: { user: User | n
                     }));
                 }
             })
-            .catch(() => { /* A failed request can be retried at the next verified login. */ });
+            .catch(() => {
+                // A failed attempt is not a successful daily claim. Allow the
+                // next visible/online event to retry; pending requests stay deduplicated.
+                if (!request.signal.aborted) lastAttemptDay = '';
+            });
         };
         const schedule = () => {
             const now = Date.now(); timer = setTimeout(() => { claim(); schedule(); }, 86_400_000 - now % 86_400_000 + 100);
@@ -42,11 +46,13 @@ export function DailyLoginClaimController({ user, termsReady }: { user: User | n
         const resumed = () => { if (document.visibilityState === 'visible') claim(); };
         const accepted = (event: Event) => { if ((event as CustomEvent<{userId: string}>).detail?.userId === user.id) { lastAttemptDay = ''; claim(); } };
         window.addEventListener(CURRENT_TERMS_ACCEPTED_EVENT, accepted);
+        window.addEventListener('online', claim);
         claim(); schedule();
         if (typeof document !== 'undefined') document.addEventListener('visibilitychange', resumed);
         return () => {
             controller?.abort(); clearTimeout(timer);
             window.removeEventListener(CURRENT_TERMS_ACCEPTED_EVENT, accepted);
+            window.removeEventListener('online', claim);
             if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', resumed);
         };
     }, [allowed, revision, termsReady, user?.id, user?.type]);
