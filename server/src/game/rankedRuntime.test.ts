@@ -117,7 +117,7 @@ describe('ranked runtime', () => {
         const settle = vi.fn(() => save.promise);
         const runtime = new RankedRuntime(io as any, mm, settle, () => cpu.promise);
         runtime.tick();
-        vi.advanceTimersByTime(10_001); runtime.tick(); runtime.tick(); runtime.afterAction(match);
+        vi.advanceTimersByTime(30_001); runtime.tick(); runtime.tick(); runtime.afterAction(match);
         expect(match.engine!.getPublicState('human')).toMatchObject({ gameOver: 'BLACK', gameOverReason: 'timeout' });
         expect(match.state).toBe('FINISHED'); expect(settle).toHaveBeenCalledTimes(1);
         cpu.resolve({ version: 0, move: openingMove }); save.resolve(result); await flush(); runtime.tick();

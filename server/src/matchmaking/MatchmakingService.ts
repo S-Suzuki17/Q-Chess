@@ -169,6 +169,8 @@ export class MatchmakingService {
                 }
             } else if(currentMatch?.state==='ADMITTING') {
                 this.onAdmissionCancel?.(currentMatch,'admission_abandoned');
+            } else if(currentMatch && ['CONNECTING','WAITING_FOR_JOINER'].includes(currentMatch.state)) {
+                this.cancelInfrastructureMatch(currentMatch,'admission_abandoned');
             }
             this.disconnectTimers.delete(userId);
             this.disconnectDeadlines.delete(userId);

@@ -602,10 +602,16 @@ io.on('connection', (socket: Socket) => {
     finally { choiceRequest=false; }
   });
   socket.on('cancel_match_admission', (data: {matchId?:unknown}) => {
-    if(!sharedMatchAdmissionEnabled()||!currentOwner())return;
+    if(!currentOwner())return;
     const match=typeof data?.matchId==='string'?matchmaking.getMatch(data.matchId):undefined;
-    if(match?.admissionProtocol==='shared_v1'&&['CONNECTING','ADMITTING'].includes(match.state)
-        &&Object.values(match.players).includes(userId))void admission?.cancel(match,'admission_cancelled');
+    if(!match||!['WAITING_FOR_JOINER','CONNECTING','ADMITTING'].includes(match.state)
+        ||!Object.values(match.players).includes(userId))return;
+    if(admission&&(match.admissionProtocol==='shared_v1'||match.admission||match.mode==='ranked')) {
+        void admission.cancel(match,'admission_cancelled');
+    } else {
+        matchmaking.finishMatch(match,'CANCELLED');
+        io.to(match.matchId).emit('match_cancelled',{matchId:match.matchId,reason:'admission_cancelled'});
+    }
   });
 
   socket.on('cancel_queue', () => {

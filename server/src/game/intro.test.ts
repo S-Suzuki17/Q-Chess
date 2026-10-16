@@ -35,13 +35,13 @@ describe('authoritative intro deadline',()=>{
   const engine=new GameEngine('m','h','j',createInitialBoard(),10,undefined,4000,true);
   vi.setSystemTime(110000);
   expect(engine.checkTimeout()).toBe(false);
-  expect(engine.getPublicState('h')).toMatchObject({introPending:true,clock:{white:10000,black:10000}});
+  expect(engine.getPublicState('h')).toMatchObject({introPending:true,clock:{white:30000,black:30000}});
   expect(engine.acknowledgeIntro('spectator')).toBe(false);
   expect(engine.acknowledgeIntro('h')).toBe(false);
   expect(engine.acknowledgeIntro('j')).toBe(true);
   expect(engine.getPublicState('h')).toMatchObject({introPending:false,startsAt:110250});
   vi.setSystemTime(111000);expect(engine.acknowledgeIntro('h')).toBe(false);
-  expect(engine.getPublicState('h').clock!.white).toBe(9250);
+  expect(engine.getPublicState('h').clock!.white).toBe(29250);
  });
  it('rejects moves during intro, preserves time and exposes a fresh clock snapshot',()=>{
   vi.useFakeTimers();vi.setSystemTime(100000);
@@ -49,12 +49,12 @@ describe('authoritative intro deadline',()=>{
   const pieceId=engine.getPublicState('host').board[8]!;
   const action={actionId:'move-1',version:0,playerId:'host',action:{type:'MOVE' as const,payload:{pieceId,toX:0,toY:2}}};
   expect(engine.processAction(action).success).toBe(false);
-  expect(engine.getPublicState('host')).toMatchObject({startsAt:104000,serverNow:100000,clock:{white:10000}});
+  expect(engine.getPublicState('host')).toMatchObject({startsAt:104000,serverNow:100000,clock:{white:30000}});
   vi.setSystemTime(103999);expect(engine.checkTimeout()).toBe(false);
-  expect(engine.getPublicState('host').clock!.white).toBe(10000);
-  vi.setSystemTime(105500);expect(engine.getPublicState('host').clock!.white).toBe(8500);
+  expect(engine.getPublicState('host').clock!.white).toBe(30000);
+  vi.setSystemTime(105500);expect(engine.getPublicState('host').clock!.white).toBe(28500);
   expect(engine.processAction(action).success).toBe(true);
-  expect(engine.getPublicState('host')).toMatchObject({moveCount:1,turn:1,clock:{black:10000}});
+  expect(engine.getPublicState('host')).toMatchObject({moveCount:1,turn:1,clock:{black:30000}});
  });
  it('only accepts known frames and HTTPS avatar URLs',()=>{
   const engine=new GameEngine('m','h','j',createInitialBoard());

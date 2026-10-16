@@ -146,8 +146,9 @@ export class CrownHintRegistry {
         }
         if (this.runs.size >= this.maxRuns || this.operations.size >= this.maxOperations) this.reclaimFinished();
         if (this.runs.size >= this.maxRuns) throw new CrownHintError('SESSION_LIMIT');
+        const initialMs = (stage.seconds === 10 ? 30 : stage.seconds) * 1000;
         const run: CrownRun = { runId, hintContextId: randomUUID(), userId, ...stage, playerSide, state: createInitialState(), history: [],
-            whiteMs: stage.seconds * 1000, blackMs: stage.seconds * 1000, lastClockAt: this.now(),
+            whiteMs: initialMs, blackMs: initialMs, lastClockAt: this.now(),
             status: 'active', finishReason: null, operationIds: new Set() };
         this.runs.set(runId, run); return this.snapshot(run);
     }
@@ -179,8 +180,8 @@ export class CrownHintRegistry {
         if (run.status !== 'active') throw new CrownHintError('SESSION_FINISHED');
         const side = run.state.sideToMove;
         if (run.seconds === 10) {
-            if (side === 'white') run.whiteMs = 10_000;
-            else run.blackMs = 10_000;
+            if (side === 'white') run.whiteMs = 30_000;
+            else run.blackMs = 30_000;
         }
         run.state = next; run.history.push(structuredClone(next.lastMove!));
         if (next.winner) { run.status = 'finished'; run.finishReason = 'game'; }

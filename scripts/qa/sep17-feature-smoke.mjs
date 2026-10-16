@@ -71,7 +71,7 @@ try{
   assert.equal(await page.locator('[data-stage]').count(),10);
   assert.match(await page.locator('[data-stage="1"]').innerText(),/10分/);
   assert.match(await page.locator('[data-stage="2"]').innerText(),/3分/);
-  assert.match(await page.locator('[data-stage="3"]').innerText(),/一手10秒/);
+  assert.match(await page.locator('[data-stage="3"]').innerText(),/一手30秒/);
   await page.locator('[data-stage="2"]').click();
   assert(await page.locator('.campaign-boss-card .campaign-primary').isDisabled());
   await page.locator('[data-stage="1"]').click();

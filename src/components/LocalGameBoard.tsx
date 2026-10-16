@@ -107,7 +107,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
     const [introDone,setIntroDone]=useState(!!roomId);
     const finishIntro=useCallback(()=>setIntroDone(true),[]);
     const perMoveTime=useRef({turns:0,remaining:0});
-    const turnClock=useRef({start:0,base:timeControl==='10s'?10:timeControl==='3m'?180:600});
+    const turnClock=useRef({start:0,base:timeControl==='10s'?30:timeControl==='3m'?180:600});
     const resultReported=useRef(false);
     const [showHomeConfirm, setShowHomeConfirm] = useState(false);
     const [showReplayLogin, setShowReplayLogin] = useState(false);
@@ -194,7 +194,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
     const disconnectTimerRef = useRef<NodeJS.Timeout | null>(null);
     const hasOpponentJoinedRef = useRef<boolean>(false);
 
-    const initialTime = timeControl === '10s' ? 10 : timeControl === '3m' ? 180 : 600;
+    const initialTime = timeControl === '10s' ? 30 : timeControl === '3m' ? 180 : 600;
     const [timeLeftWhite, setTimeLeftWhite] = useState<number>(initialTime);
     const [timeLeftBlack, setTimeLeftBlack] = useState<number>(initialTime);
 
@@ -711,8 +711,8 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
         setCurrentTurn(nextTurn);
 
         if (timeControl === '10s') {
-            if (nextTurn === 'white') setTimeLeftWhite(10);
-            else setTimeLeftBlack(10);
+            if (nextTurn === 'white') setTimeLeftWhite(30);
+            else setTimeLeftBlack(30);
         }
     };
 
@@ -854,7 +854,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
         resultReported.current=true;
         onComplete({won:winner===`${playerSide}_wins`,draw:winner==='draw',timeControl,checkmate,
             playerMoves:moveHistory.filter(move=>move.player===playerSide).length,hintsUsed:hintsUsed.current,
-            initialSeconds:timeControl==='10s'?perMoveTime.current.turns*10:initialTime,remainingSeconds:timeControl==='10s'?perMoveTime.current.remaining:playerSide==='white'?timeLeftWhite:timeLeftBlack});
+            initialSeconds:timeControl==='10s'?perMoveTime.current.turns*30:initialTime,remainingSeconds:timeControl==='10s'?perMoveTime.current.remaining:playerSide==='white'?timeLeftWhite:timeLeftBlack});
     },[winner,onComplete,playerSide,moveHistory,initialTime,timeLeftWhite,timeLeftBlack,timeControl,checkmate]);
 
     return (

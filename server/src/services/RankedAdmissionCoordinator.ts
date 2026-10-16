@@ -55,7 +55,8 @@ export class RankedAdmissionCoordinator {
         if (!this.retired || this.renewing || this.requests.size || this.clock.mono() < this.renewAt) return;
         // The old epoch remains permanently fenced. Finish its durable voids
         // and in-flight work before a fresh UUID can own any future matches.
-        if (this.matchmaking.getMatches().some(match => match.admission?.ownerId === this.ownerId
+        if (this.matchmaking.getMatches().some(match => !['FINISHED','CANCELLED'].includes(match.state)
+            && match.admission?.ownerId === this.ownerId
             && ['active','pending','voiding'].includes(match.admission.state))) return;
         this.currentOwnerId = randomUUID();
         this.issued = false;

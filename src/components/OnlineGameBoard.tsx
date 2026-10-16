@@ -336,10 +336,11 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
         };
         const onQueueError = (data: unknown) => {
             // Before the first snapshot this board owns the outstanding admission.
-            // A late queue error must never replace a board that already started.
-            if (prevGameStateRef.current || (data && typeof data === 'object'
+            // A late queue error or duplicate join_queue QUEUE_BUSY must never replace a board that already matched.
+            const code = queueFailureCode(data);
+            if (code === 'QUEUE_BUSY' || prevGameStateRef.current || (data && typeof data === 'object'
                 && 'matchId' in data && data.matchId !== roomId)) return;
-            setStartFailure({ roomId, socket, code: queueFailureCode(data) });
+            setStartFailure({ roomId, socket, code });
         };
         const onActionError = (err: any) => {
             setErrorMsg(err.message || 'Action error');

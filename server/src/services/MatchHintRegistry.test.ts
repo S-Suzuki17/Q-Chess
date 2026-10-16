@@ -58,7 +58,7 @@ describe('trusted online and Crown context binding', () => {
         const crown = new CrownHintRegistry(), runId = randomUUID(), opening = crown.open('Alice', runId, 3, 'white');
         const authority = crownHintAuthority(crown), p = authority.position('Alice', runId, 0);
         expect(p.contextId).toBe(opening.hintContextId); expect(p.contextId).not.toBe(runId);
-        expect(p.kind).toBe('crown'); expect(p.mode).toBe('crown'); expect(p.remainingMs).toBe(10000);
+        expect(p.kind).toBe('crown'); expect(p.mode).toBe('crown'); expect(p.remainingMs).toBe(30000);
         let resolveBuy!: (receipt: any) => void, dispatched!: () => void;
         const started = new Promise<void>(r => { dispatched = r; });
         let intent: any;
@@ -69,7 +69,7 @@ describe('trusted online and Crown context binding', () => {
         await started;
         expect(crown.isBusy('Alice')).toBe(true);
         expect(() => crown.close('Alice', runId)).toThrow('HINT_PURCHASE_PENDING');
-        vi.setSystemTime(102000); expect(crown.read('Alice', runId).whiteMs).toBe(8000);
+        vi.setSystemTime(102000); expect(crown.read('Alice', runId).whiteMs).toBe(28000);
         resolveBuy({ receiptId: randomUUID(), contextId: p.contextId, kind: 'crown', mode: 'crown', revision: 0,
             stateHash: p.stateHash, rulesVersion: p.rulesVersion, move: intent.move, hint: intent.hint, deliveryState: 'paid_retrievable' });
         expect((await pending).contextId).toBe(p.contextId);

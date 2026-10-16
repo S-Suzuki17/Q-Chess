@@ -80,10 +80,10 @@ describe('server-owned Crown run authority', () => {
         const longNext = long.registry.advance('Alice', long.runId, 0, randomUUID(), 'human', legal(long.initial.state));
         expect(longNext.whiteMs).toBe(177500); expect(longNext.blackMs).toBe(180000);
         long.elapse(3000); expect(long.registry.read('Alice', long.runId).blackMs).toBe(177000);
-        const short = fixture(3); short.elapse(9500);
+        const short = fixture(3); short.elapse(29500);
         const shortNext = short.registry.advance('Alice', short.runId, 0, randomUUID(), 'human', legal(short.initial.state));
-        expect(shortNext.whiteMs).toBe(10000); expect(shortNext.blackMs).toBe(10000);
-        short.elapse(10000);
+        expect(shortNext.whiteMs).toBe(30000); expect(shortNext.blackMs).toBe(30000);
+        short.elapse(30000);
         const expired = short.registry.read('Alice', short.runId);
         expect(expired).toMatchObject({ status: 'finished', finishReason: 'timeout', blackMs: 0, revision: 1 });
         expect(expired.state.winner).toBe('white');
@@ -92,8 +92,8 @@ describe('server-owned Crown run authority', () => {
         const f = fixture(3), move = legal(f.initial.state); f.block(); f.elapse(4000);
         expect(() => f.registry.advance('Alice', f.runId, 0, randomUUID(), 'human', move)).toThrow('HINT_PURCHASE_PENDING');
         expect(() => f.registry.close('Alice', f.runId)).toThrow('HINT_PURCHASE_PENDING');
-        expect(f.registry.hintSnapshot('Alice', f.runId, 0)).toMatchObject({ remainingMs: 6000, validUntilMs: 1010000 });
-        f.elapse(6000);
+        expect(f.registry.hintSnapshot('Alice', f.runId, 0)).toMatchObject({ remainingMs: 26000, validUntilMs: 1030000 });
+        f.elapse(26000);
         expect(f.registry.read('Alice', f.runId)).toMatchObject({ status: 'finished', finishReason: 'timeout', whiteMs: 0 });
         expect(() => f.registry.hintSnapshot('Alice', f.runId, 0)).toThrow('SESSION_FINISHED');
         expect(f.registry.isBusy('Alice')).toBe(true); // unresolved durable purchase still blocks deletion
@@ -153,7 +153,7 @@ describe('server-owned Crown run authority', () => {
         const pending = registry.open('Alice', randomUUID(), 3, 'white');
         const release = registry.acquireHint('Alice', pending.runId, 0, pending.stateHash);
         const live = registry.open('Bob', randomUUID(), 1, 'white');
-        now += 10000;
+        now += 30000;
         expect(registry.read('Alice', pending.runId).status).toBe('finished');
         expect(() => registry.open('Carol', randomUUID(), 1, 'white')).toThrow('SESSION_LIMIT');
         expect(registry.read('Bob', live.runId).status).toBe('active');

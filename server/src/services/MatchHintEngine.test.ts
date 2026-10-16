@@ -61,8 +61,8 @@ describe('authoritative online hint position', () => {
         const a = engine(10), position = a.hintPosition('Alice', 0), release = position.acquire();
         expect(a.processAction(resign()).message).toBe('HINT_PURCHASE_PENDING');
         vi.advanceTimersByTime(2500);
-        expect(a.getPublicState('Alice').clock!.white).toBe(7500);
-        vi.advanceTimersByTime(7500); expect(a.checkTimeout()).toBe(true);
+        expect(a.getPublicState('Alice').clock!.white).toBe(27500);
+        vi.advanceTimersByTime(27500); expect(a.checkTimeout()).toBe(true);
         expect(a.getPublicState('Alice').gameOverReason).toBe('timeout');
         release(); release();
     });

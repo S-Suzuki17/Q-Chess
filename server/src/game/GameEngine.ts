@@ -165,10 +165,10 @@ export class GameEngine {
             gameOver: null,
             history: [],
             clock: {
-                white: timeControl * 1000,
-                black: timeControl * 1000,
+                white: (timeControl === 10 ? 30 : timeControl) * 1000,
+                black: (timeControl === 10 ? 30 : timeControl) * 1000,
                 lastMoveAt: Date.now()+Math.max(0,Math.min(4000,introMs)),
-                timeControl: timeControl * 1000
+                timeControl: (timeControl === 10 ? 30 : timeControl) * 1000
             }
         };
     }
@@ -296,7 +296,7 @@ export class GameEngine {
             } else {
                 this.state.clock.black -= elapsed;
             }
-            if (this.state.clock.timeControl === 10000) { if (turnBefore === 0) this.state.clock.white = 10000; else this.state.clock.black = 10000; } this.state.clock.lastMoveAt = now;
+            if (this.state.clock.timeControl === 30000) { if (turnBefore === 0) this.state.clock.white = 30000; else this.state.clock.black = 30000; } this.state.clock.lastMoveAt = now;
 
             this.state.version += 1;
             this.state.history.push(action);
