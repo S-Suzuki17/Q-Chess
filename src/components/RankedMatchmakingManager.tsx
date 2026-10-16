@@ -12,6 +12,7 @@ import { useSocket } from '../lib/SocketContext';
 import { useMatchmaking } from '../hooks/useMatchmaking';
 import { RankedLoginDialog } from './RankedLoginDialog';
 import { OnlineMatchTermsGate } from './OnlineMatchTermsGate';
+import { hasLocalTermsConsent, CURRENT_TERMS_ACCEPTED_EVENT } from '../lib/currentAccountTerms';
 import { onlineMatchTermsText } from '../locales/onlineMatchTermsText';
 import { isRankedLimitReason, rankedLimitText } from '../locales/rankedLimitText';
 
@@ -20,11 +21,20 @@ export function RankedMatchmakingManager({lang,user,onMatchFound,cancelSearchGlo
     const {isConnected,isAuthenticated,authPending,connectionError,retryConnection}=useSocket();
     const attempted=useRef(false),delivered=useRef<string|null>(null);
     const [loginOpen,setLoginOpen]=useState(false),[retry,setRetry]=useState(0);
-    const [termsReadyId,setTermsReadyId]=useState<string|null>(null);
-    const termsRequired=user?.type==='registered'&&!user.id.startsWith('GUEST-');
-    const termsReady=!termsRequired||termsReadyId===user?.id;
+    const hasLocalConsent = Boolean(user && user.type === 'registered' && typeof hasLocalTermsConsent === 'function' && hasLocalTermsConsent(user.id));
+    const [termsReadyId,setTermsReadyId]=useState<string|null>(() => hasLocalConsent ? user!.id : null);
+    const termsRequired=user?.type==='registered'&&!user.id.startsWith('GUEST-')&&!hasLocalConsent;
+    const termsReady=!termsRequired||termsReadyId===user?.id||hasLocalConsent;
     const dialog=useRef<HTMLDialogElement>(null);
     useEffect(()=>{const node=dialog.current;node?.showModal();return()=>node?.close();},[]);
+    useEffect(()=>{
+        const handleAccepted=(e:Event)=>{
+            const detail=(e as CustomEvent<{userId:string}>).detail;
+            if(user&&detail?.userId===user.id)setTermsReadyId(user.id);
+        };
+        window.addEventListener(CURRENT_TERMS_ACCEPTED_EVENT,handleAccepted);
+        return()=>window.removeEventListener(CURRENT_TERMS_ACCEPTED_EVENT,handleAccepted);
+    },[user]);
     const requiresLogin=!authPending&&!!user&&!user.id.startsWith('GUEST-')&&
         (connectionError==='AUTH_REQUIRED'||connectionError==='SESSION_REPLACED'||(!isAuthenticated&&isConnected&&!connectionError));
     useEffect(()=>{

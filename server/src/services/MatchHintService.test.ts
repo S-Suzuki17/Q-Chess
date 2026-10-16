@@ -120,8 +120,8 @@ describe('match/Crown hint purchase orchestration', () => {
         const x = setup(undefined, 10);
         vi.mocked(x.ledger.readClock).mockImplementation(async () => { const observed = Date.now() - 50000; vi.setSystemTime(Date.now() + 7500); return observed; });
         await expect(x.service.requestHint('Alice', 'room', 0, randomUUID(), context())).rejects.toThrow('HINT_CONTEXT_EXPIRED');
-        // Remaining host time is 2.5s, added to the earlier DB observation.
-        expect(Date.parse(vi.mocked(x.ledger.buy).mock.calls[0][0].validUntil)).toBe(52500);
+        // Remaining host time is 22.5s, added to the earlier DB observation.
+        expect(Date.parse(vi.mocked(x.ledger.buy).mock.calls[0][0].validUntil)).toBe(55000);
         expect(x.debits()).toBe(0);
     });
     it('does not dispatch when the real clock or owner lease expires after analysis', async () => {
@@ -185,7 +185,7 @@ describe('match/Crown hint purchase orchestration', () => {
         expect(x.engine.processAction({ actionId: 'resign', playerId: 'Alice', version: 0, action: { type: 'RESIGN', payload: {} } }).message).toBe('HINT_PURCHASE_PENDING');
         vi.setSystemTime(104000);
         await expect(x.service.receipt('Alice', x.engine.hintContextId, 0, q, context())).rejects.toThrow('HINT_RECOVERY_PENDING');
-        expect(x.engine.getPublicState('Alice').clock!.white).toBe(6000);
+        expect(x.engine.getPublicState('Alice').clock!.white).toBe(26000);
         vi.setSystemTime(105001);
         expect(await x.service.receipt('Alice', x.engine.hintContextId, 0, q, context())).toBeNull();
         expect(x.service.isBusy('Alice')).toBe(false);
@@ -196,7 +196,7 @@ describe('match/Crown hint purchase orchestration', () => {
         const x = setup(undefined, 10), q = randomUUID();
         vi.mocked(x.ledger.buy).mockRejectedValue(new MatchHintError('HINT_STORE_UNAVAILABLE'));
         await expect(x.service.requestHint('Alice', 'room', 0, q, context())).rejects.toThrow('HINT_RECOVERY_PENDING');
-        x.unavailable(true); vi.setSystemTime(110001);
+        x.unavailable(true); vi.setSystemTime(130001);
         await expect(x.service.receipt('Alice', x.engine.hintContextId, 0, q, context())).rejects.toThrow('HINT_RECOVERY_PENDING');
         expect(x.service.isBusy('Alice')).toBe(true); expect(x.engine.checkTimeout()).toBe(true);
         expect(x.engine.getPublicState('Alice').gameOverReason).toBe('timeout');

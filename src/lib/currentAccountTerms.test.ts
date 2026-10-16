@@ -3,7 +3,7 @@ const policy=vi.hoisted(()=>({effective:true,date:'2026-10-07' as string|null}))
 vi.mock('../config/currentTerms',()=>({CURRENT_TERMS_VERSION:'2026-10-07.1',get CURRENT_TERMS_EFFECTIVE_DATE(){return policy.date;},currentTermsEffective:()=>policy.effective}));
 vi.mock('./accountProfile',()=>({requestAccountProfile:vi.fn()}));
 import {requestAccountProfile} from './accountProfile';
-import {acceptCurrentAccountTerms,currentAccountTermsStatus,requireCurrentAccountTerms,CURRENT_TERMS_ACCEPTED_EVENT} from './currentAccountTerms';
+import {acceptCurrentAccountTerms,currentAccountTermsStatus,requireCurrentAccountTerms,CURRENT_TERMS_ACCEPTED_EVENT,hasLocalTermsConsent,setLocalTermsConsent,clearLocalTermsConsent} from './currentAccountTerms';
 const value={userId:'Alice',currentVersion:'2026-10-07.1',effectiveDate:'2026-10-07',effective:true,consent:null as {version:string;acceptedAt:string}|null};
 beforeEach(()=>{vi.clearAllMocks();policy.date='2026-10-07';policy.effective=true;vi.stubGlobal('window',new EventTarget());vi.mocked(requestAccountProfile).mockResolvedValue({...value});});
 afterEach(()=>vi.unstubAllGlobals());
@@ -34,3 +34,27 @@ it('does not announce acceptance from an absent server record or aborted account
  const controller=new AbortController();controller.abort();vi.mocked(requestAccountProfile).mockResolvedValue({...value,consent:{version:'2026-10-07.1',acceptedAt:'2026-10-07T00:00:00Z'}});
  await expect(acceptCurrentAccountTerms('Alice',controller.signal)).rejects.toThrow();expect(event).not.toHaveBeenCalled();
 });
+it('persists consent locally in localStorage and skips server recheck once consented',async()=>{
+ const storage=new Map<string,string>();
+ const fakeWindow=Object.assign(new EventTarget(),{
+  localStorage:{
+   getItem:(k:string)=>storage.get(k)??null,
+   setItem:(k:string,v:string)=>{storage.set(k,String(v));},
+   removeItem:(k:string)=>{storage.delete(k);},
+  }
+ });
+ vi.stubGlobal('window',fakeWindow);
+ expect(hasLocalTermsConsent('Alice')).toBe(false);
+ setLocalTermsConsent('Alice');
+ expect(hasLocalTermsConsent('Alice')).toBe(true);
+ expect(await currentAccountTermsStatus('Alice')).toEqual({effective:true,accepted:true});
+ expect(requestAccountProfile).not.toHaveBeenCalled();
+
+ clearLocalTermsConsent('Alice');
+ expect(hasLocalTermsConsent('Alice')).toBe(false);
+
+ vi.mocked(requestAccountProfile).mockResolvedValue({...value,consent:{version:'2026-10-07.1',acceptedAt:'2026-10-07T00:00:00Z'}});
+ await acceptCurrentAccountTerms('Alice');
+ expect(hasLocalTermsConsent('Alice')).toBe(true);
+});
+

@@ -3,9 +3,15 @@ import {renderToStaticMarkup} from 'react-dom/server';
 import {describe,it,expect,vi} from 'vitest';
 import {LANGUAGES,dict} from '../locales/dict';
 import {TermsGate} from './TermsGate';
-import {currentAccountTermsStatus,acceptCurrentAccountTerms} from '../lib/currentAccountTerms';
+import {currentAccountTermsStatus,acceptCurrentAccountTerms,hasLocalTermsConsent,setLocalTermsConsent} from '../lib/currentAccountTerms';
 
-vi.mock('../lib/currentAccountTerms',()=>({currentAccountTermsStatus:vi.fn(),acceptCurrentAccountTerms:vi.fn()}));
+vi.mock('../lib/currentAccountTerms',()=>({
+    currentAccountTermsStatus:vi.fn(),
+    acceptCurrentAccountTerms:vi.fn(),
+    hasLocalTermsConsent:vi.fn().mockReturnValue(false),
+    setLocalTermsConsent:vi.fn(),
+    clearLocalTermsConsent:vi.fn(),
+}));
 vi.mock('./AccountDeletionPanel',()=>({AccountDeletionPanel:()=>null}));
 
 describe('terms gate startup',()=>{
@@ -21,6 +27,12 @@ describe('terms gate startup',()=>{
         for(const props of [{user:null,playing:false},{user,playing:true}]){
             expect(renderToStaticMarkup(createElement(TermsGate,{...props,lang:'ja',onExit:()=>{},onReady:()=>{}},'GAME'))).toBe('GAME');
         }
+    });
+    it('lets users with local consent reach the game directly without a loading screen',()=>{
+        vi.mocked(hasLocalTermsConsent).mockReturnValueOnce(true);
+        const html=renderToStaticMarkup(createElement(TermsGate,{user,lang:'ja',playing:false,onExit:()=>{},onReady:()=>{}},'READY GAME'));
+        expect(html).toBe('READY GAME');
+        expect(currentAccountTermsStatus).not.toHaveBeenCalled();
     });
     it.each(LANGUAGES.map(({code})=>code))('lets guests reach practice directly without a consent document (%s)',lang=>{
         const guest={id:'GUEST-reference-fixture',name:'Guest',type:'guest' as const};

@@ -6,7 +6,7 @@ import {dict} from '../locales/dict';
 import {termsText} from '../locales/termsText';
 import {TermsDocument} from './TermsDocument';
 import {AccountDeletionPanel} from './AccountDeletionPanel';
-import {currentAccountTermsStatus,acceptCurrentAccountTerms} from '../lib/currentAccountTerms';
+import {currentAccountTermsStatus,acceptCurrentAccountTerms,hasLocalTermsConsent,setLocalTermsConsent} from '../lib/currentAccountTerms';
 import {PUBLIC_SUPPORT_EMAIL} from '../config/publicContact';
 
 type Status='loading'|'needed'|'accepted'|'error'|'updated';
@@ -15,7 +15,8 @@ interface TermsRequest{identity:string;controller:AbortController;ready:boolean}
 /** Registered consent stays account-scoped; guest practice needs no acceptance. */
 export function TermsGate({user,lang,playing,children,onExit,onReady}:{user:User|null;lang:Language;playing:boolean;children?:ReactNode;onExit:()=>void;onReady:(id:string)=>void}){
     const identity=user?`${user.type}:${user.id}`:'none',id=user?.id,type=user?.type;
-    const [state,setState]=useState<{identity:string;status:Status}>(()=>({identity,status:'loading'}));
+    const isLocalConsented = Boolean(id && typeof hasLocalTermsConsent === 'function' && hasLocalTermsConsent(id));
+    const [state,setState]=useState<{identity:string;status:Status}>(()=>({identity,status:(type==='guest'||isLocalConsented)?'accepted':'loading'}));
     const [checked,setChecked]=useState(false),[busy,setBusy]=useState(false),[retry,setRetry]=useState(0);
     const owner=useRef(identity),request=useRef<TermsRequest|null>(null),pending=useRef<TermsRequest|null>(null),ready=useRef(onReady);
     const text=termsText(lang),status=state.identity===identity?state.status:'loading';
@@ -30,13 +31,20 @@ export function TermsGate({user,lang,playing,children,onExit,onReady}:{user:User
     },[identity,onReady]);
     useEffect(()=>{
         request.current?.controller.abort();request.current=null;pending.current=null;
-        setChecked(false);setBusy(false);setState({identity,status:'loading'});
-        if(!id)return;
+        setChecked(false);setBusy(false);
+        if(!id){setState({identity,status:'loading'});return;}
         const scope:TermsRequest={identity,controller:new AbortController(),ready:false};request.current=scope;
-        if(type==='guest')complete(scope,id);
-        else void currentAccountTermsStatus(id,scope.controller.signal).then(value=>{
+        if(type==='guest'||(typeof hasLocalTermsConsent === 'function' && hasLocalTermsConsent(id))){
+            complete(scope,id);
+            return;
+        }
+        setState({identity,status:'loading'});
+        void currentAccountTermsStatus(id,scope.controller.signal).then(value=>{
             if(!active(scope))return;
-            if(value.accepted)complete(scope,id);
+            if(value.accepted){
+                if(typeof setLocalTermsConsent === 'function') setLocalTermsConsent(id);
+                complete(scope,id);
+            }
             else setState({identity,status:value.effective?'needed':'updated'});
         }).catch(error=>{if(active(scope))setState({identity,status:error?.message==='TERMS_UPDATED'?'updated':'error'});});
         return()=>{scope.controller.abort();if(request.current===scope)request.current=null;if(pending.current===scope)pending.current=null;};
@@ -47,6 +55,7 @@ export function TermsGate({user,lang,playing,children,onExit,onReady}:{user:User
         pending.current=scope;setBusy(true);
         try{
             await acceptCurrentAccountTerms(user.id,scope.controller.signal);
+            if(typeof setLocalTermsConsent === 'function') setLocalTermsConsent(user.id);
             complete(scope,user.id);
         }catch(error){if(active(scope))setState({identity:scope.identity,status:error instanceof Error&&error.message==='TERMS_UPDATED'?'updated':'error'});}
         finally{if(pending.current===scope)pending.current=null;if(active(scope))setBusy(false);}

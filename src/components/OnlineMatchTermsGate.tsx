@@ -3,7 +3,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { User } from '../types/game';
 import type { Language } from '../locales/dict';
 import { dict } from '../locales/dict';
-import { currentAccountTermsStatus, acceptCurrentAccountTerms } from '../lib/currentAccountTerms';
+import { currentAccountTermsStatus, acceptCurrentAccountTerms, hasLocalTermsConsent, setLocalTermsConsent } from '../lib/currentAccountTerms';
 import { onlineMatchTermsText } from '../locales/onlineMatchTermsText';
 import { TermsDocument } from './TermsDocument';
 
@@ -21,8 +21,9 @@ export function OnlineMatchTermsGate({ user, lang, onReady, onCancel }: {
     const request = useRef<TermsRequest | null>(null);
     const pendingAccept = useRef<AbortController | null>(null);
     const cancelledIdentity = useRef<string | null>(null);
+    const hasLocalConsent = Boolean(user.type === 'registered' && typeof hasLocalTermsConsent === 'function' && hasLocalTermsConsent(user.id));
     const [state, setState] = useState<{ identity: string; status: Status }>(() => ({
-        identity, status: user.type === 'registered' ? 'loading' : 'guest',
+        identity, status: user.type !== 'registered' ? 'guest' : hasLocalConsent ? 'accepted' : 'loading',
     }));
     const [boundRequest, setBoundRequest] = useState<TermsRequest | null>(null);
     const [checked, setChecked] = useState(false);
@@ -59,12 +60,20 @@ export function OnlineMatchTermsGate({ user, lang, onReady, onCancel }: {
             setState({ identity, status: 'guest' });
             return;
         }
+        if (typeof hasLocalTermsConsent === 'function' && hasLocalTermsConsent(user.id)) {
+            setState({ identity, status: 'accepted' });
+            ready.current();
+            return;
+        }
         const scope: TermsRequest = { identity, controller: new AbortController(), ready: false };
         request.current = scope; setBoundRequest(scope);
         setState({ identity, status: 'loading' });
         void currentAccountTermsStatus(user.id, scope.controller.signal).then(value => {
             if (!active(scope)) return;
-            if (value.effective === true && value.accepted === true) complete(scope);
+            if (value.effective === true && value.accepted === true) {
+                if (typeof setLocalTermsConsent === 'function') setLocalTermsConsent(user.id);
+                complete(scope);
+            }
             else setState({ identity, status: value.effective === true ? 'needed' : 'error' });
         }).catch(() => {
             if (active(scope)) setState({ identity, status: 'error' });
@@ -99,6 +108,7 @@ export function OnlineMatchTermsGate({ user, lang, onReady, onCancel }: {
         try {
             // The existing API validates current version/date and the saved server consent.
             await acceptCurrentAccountTerms(user.id, scope.controller.signal);
+            if (typeof setLocalTermsConsent === 'function') setLocalTermsConsent(user.id);
             complete(scope);
         } catch {
             if (active(scope)) setState({ identity, status: 'error' });
