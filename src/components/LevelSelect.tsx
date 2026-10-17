@@ -83,7 +83,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
     const [isSearching, setIsSearching] = React.useState(false);
     const [matchFound, setMatchFound] = React.useState(false);
 
-    const { queueStats, isAuthenticated } = useSocket();
+    const { isAuthenticated } = useSocket();
     const [showReplays, setShowReplays] = React.useState(false);
     const [replays, setReplays] = React.useState<GameRecord[]>([]);
     const [loadingReplays, setLoadingReplays] = React.useState(false);
@@ -163,7 +163,6 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
         return () => { window.dispatchEvent(new CustomEvent('hide-settings', { detail: false })); };
     }, [anyModalOpen]);
 
-    const [onlineCount, setOnlineCount] = React.useState(1);
     const [onlineUsers, setOnlineUsers] = React.useState<Set<string>>(new Set());
     const channelRef = React.useRef<ReturnType<typeof supabase.channel> | null>(null);
     const globalChannelRef = React.useRef<ReturnType<typeof supabase.channel> | null>(null);
@@ -177,7 +176,6 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
 
         channel.on('presence', { event: 'sync' }, () => {
             const state = channel.presenceState();
-            setOnlineCount(Object.keys(state).length);
             setOnlineUsers(new Set(Object.keys(state)));
         });
 
@@ -447,9 +445,6 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
                                             {(t as any).ratingLabel}: {Math.floor(tc === '10s' ? userProfile.rating_10s : tc === '3m' ? userProfile.rating_3m : userProfile.rating_10m)}
                                         </span>
                                     )}
-                                    {pendingAction.type !== 'cpu' && <span className="text-[#A89C86] text-[10px] tracking-widest ml-auto group-hover:text-[#D4B872] transition-colors">
-                                        {matchText(lang,'待機中のプレイヤー','Players waiting')}: {queueStats?.[tc === '10s' ? 10 : tc === '3m' ? 180 : 600] || 0}
-                                    </span>}
 
                                     <span className="text-xs text-[#A89C86]">→</span>
                                 </button>
@@ -649,12 +644,6 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
             <div className="lobby-heading flex justify-between items-center w-full max-w-lg mx-auto shrink-0 z-10 pt-4">
                 <div className="lobby-brand"><span className="lobby-brand-mark"><LobbyBrandMark/></span><span>Q-GAMBIT</span></div>
                 <div className="flex items-center gap-4">
-                    {queueStats && queueStats[-1] !== undefined && (
-                        <div className="flex items-center gap-1.5 opacity-80" title={matchText(lang,'オンライン','Online')}>
-                            <span className="w-1.5 h-1.5 rounded-full bg-[#A89C86] animate-pulse"></span>
-                            <span className="text-[10px] tracking-widest text-[#A89C86] font-mono">{queueStats[-1]} {matchText(lang,'オンライン','Online')}</span>
-                        </div>
-                    )}
                     <div className="lobby-player-panel"><div className="lobby-rating" title={t.ratingLabel}><AccountAvatar name={user.name} url={displayAvatarUrl} frame={cosmetics.avatar} size={38} lang={lang}/><span><small>{userProfile?.id===user.id?userProfile.name:user.name}</small><strong><Crown size={18} aria-hidden="true"/>{userProfile?.id===user.id&&userProfile.rating_10m !== undefined ? Math.floor(userProfile.rating_10m) : '—'}</strong></span></div><LobbyTicketSummary user={user} lang={lang} allowed={circuitAllowed}/></div>
                 </div>
             </div>

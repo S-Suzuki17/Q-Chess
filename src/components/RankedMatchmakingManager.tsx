@@ -17,7 +17,7 @@ import { onlineMatchTermsText } from '../locales/onlineMatchTermsText';
 import { isRankedLimitReason, rankedLimitText } from '../locales/rankedLimitText';
 
 export function RankedMatchmakingManager({lang,user,onMatchFound,cancelSearchGlobally,onRequestLogin,timeControlTarget,mode}:{lang:Language;user:User|null;onMatchFound:(room:MatchedRoom)=>void;cancelSearchGlobally:()=>void;onRequestLogin:()=>void;timeControlTarget:number;mode:QueueMode}) {
-    const {isSearching,matchedRoom,error,errorMessage,waitTime,clockNow,cpuFallbackAt,startMatchmaking,cancelMatchmaking}=useMatchmaking(user);
+    const {isSearching,matchedRoom,error,errorMessage,waitTime,startMatchmaking,cancelMatchmaking}=useMatchmaking(user);
     const {isConnected,isAuthenticated,authPending,connectionError,retryConnection}=useSocket();
     const attempted=useRef(false),delivered=useRef<string|null>(null);
     const [loginOpen,setLoginOpen]=useState(false),[retry,setRetry]=useState(0);
@@ -47,7 +47,6 @@ export function RankedMatchmakingManager({lang,user,onMatchFound,cancelSearchGlo
     const cancel=()=>{cancelMatchmaking();cancelSearchGlobally();window.requestAnimationFrame(()=>
         document.querySelector<HTMLButtonElement>('.lobby-mode-grid button:nth-child('+(mode==='ranked'?1:2)+')')?.focus());};
     const retryQueue=()=>{cancelMatchmaking();attempted.current=false;if(!isConnected)retryConnection?.();setRetry(value=>value+1);};
-    const seconds=cpuFallbackAt===null?null:Math.max(0,Math.ceil((cpuFallbackAt-clockNow)/1000));
     const authError=requiresLogin||(mode==='ranked'&&(!user||user.id.startsWith('GUEST-')))||error==='AUTH_REQUIRED'||error==='RANKED_AUTH_REQUIRED'||error==='SESSION_REPLACED';
     const limit = isRankedLimitReason(error) ? rankedLimitText(lang) : null;
     const failure = connectionError==='SESSION_REPLACED'?connectionError:error||connectionError;
@@ -60,8 +59,6 @@ export function RankedMatchmakingManager({lang,user,onMatchFound,cancelSearchGlo
                 onReady={()=>setTermsReadyId(user.id)} onCancel={cancel}/></>:<>
             <h2 id="queue-title" className="text-xl mb-4">{limit?limit.title:matchedRoom?matchText(lang,'対局が見つかりました','Match found'):authError?rankedText(lang,'signIn'):failure?startText.failed:dict[lang].searchingOpponent}</h2>
             {isSearching&&<p className="font-mono text-2xl mb-4">{String(Math.floor(waitTime/60000)).padStart(2,'0')}:{String(Math.floor(waitTime%60000/1000)).padStart(2,'0')}</p>}
-            {mode==='ranked'&&isSearching&&cpuFallbackAt!==null&&!authError&&<p className="text-sm text-[#A89C86] mb-4">{rankedText(lang,'fallback')}</p>}
-            {mode==='ranked'&&isSearching&&seconds!==null&&<p className="text-sm mb-4">{seconds>0?`${seconds}s`:rankedText(lang,'preparing')}</p>}
             {(error||connectionError)&&!authError&&<p role="alert" data-queue-error-code={rankedStartDiagnostic(failure)} className="text-red-300 text-sm mb-4">{limit?limit.detail:error==='MAINTENANCE'?serviceText(lang,'maintenance'):error==='UPDATE_REQUIRED'?serviceText(lang,'update'):errorMessage||rankedText(lang,'unavailable')}</p>}
             {failure&&!authError&&!limit&&recovery&&<p className="mb-4 text-sm leading-relaxed">{recovery}</p>}
             {failure==='SESSION_REPLACED'&&authError&&<p role="alert" data-queue-error-code="SESSION_REPLACED" className="mb-4 text-sm leading-relaxed">{recovery}</p>}
