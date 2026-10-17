@@ -16,11 +16,46 @@ async function run() {
     {
         const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
         const page = await context.newPage();
+        const apiRequests = [];
+        page.on('request', req => {
+            if (req.url().includes('onrender.com') || req.url().includes('supabase.co') || req.url().includes('fixture.invalid')) {
+                apiRequests.push({ method: req.method(), url: req.url() });
+            }
+        });
         page.on('console', msg => console.log('[PAGE CONSOLE]', msg.type(), msg.text()));
         page.on('pageerror', err => console.log('[PAGE ERROR]', err.message));
         
-        await page.goto(TARGET_URL, { waitUntil: 'domcontentloaded' });
-        await page.waitForTimeout(1000);
+        await page.goto(TARGET_URL + '?v=' + Date.now(), { waitUntil: 'domcontentloaded' });
+        await page.waitForTimeout(1500);
+
+        // 1a. Verify Login modal & real backend connection
+        const loginBtn = page.locator('button:has-text("ログイン")').first();
+        if (await loginBtn.isVisible()) {
+            await loginBtn.click();
+            await page.waitForTimeout(800);
+            const nameInput = page.locator('input[placeholder*="アカウント名"], input[type="text"]').first();
+            const passInput = page.locator('input[type="password"]').first();
+            if (await nameInput.isVisible() && await passInput.isVisible()) {
+                await nameInput.fill('nonexistent_test_999');
+                await passInput.fill('ValidPass12345!');
+                const submitBtn = page.locator('button.title-auth-submit').first();
+                await submitBtn.click();
+                await page.waitForTimeout(2500);
+                await page.screenshot({ path: path.join(SCREENSHOT_DIR, '00_desktop_login_verified.png') });
+                const bodyText = await page.locator('body').innerText();
+                console.log('Login response message:', bodyText.includes('アカウント名またはパスワードが違います') ? ' Real auth server responded (Incorrect credentials)' : bodyText);
+            }
+            // Close login modal or go back
+            const backBtn = page.locator('button:has-text("戻る"), button:has-text("キャンセル"), button[aria-label*="閉"]').first();
+            if (await backBtn.isVisible()) {
+                await backBtn.click();
+                await page.waitForTimeout(500);
+            } else {
+                await page.goto(TARGET_URL + '?v=' + Date.now(), { waitUntil: 'domcontentloaded' });
+                await page.waitForTimeout(1000);
+            }
+        }
+        console.log('Recorded backend requests so far:', apiRequests.map(r => `${r.method} ${new URL(r.url).origin}${new URL(r.url).pathname}`));
         
         // Enter as guest
         const guestBtn = page.locator('button:has-text("ゲストとしてプレイ"), button:has-text("Play as Guest")').first();
