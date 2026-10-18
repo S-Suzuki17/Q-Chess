@@ -6,11 +6,11 @@
 
 既定は `PLAY_GAMES_ENABLED=false`。SDK の自動初期化 Provider と PGS 専用 Activity も同じスイッチで無効になります。PGS の認証・統計設定が未完了でも Android の表示修正を単独でリリースできます。
 
-2026-10-18 に、承認済みの Google Cloud プロジェクト `q-gambit` に PGS を作成しました。数値プロジェクト ID は **`644546654984`** で、Android ビルドの既定値にも設定済みです。Google Play 配信署名に限定した Android OAuth クライアントを PGS に登録し、2 イベントと 6 統計を未公開で保存しました。Console ではイベント・統計すべてに「テスターに公開可能」と表示されています。実機の認証・イベント受領は未検証で、PGS の公開も未実施です。内部テスト用ビルドで明示的に `playGamesEnabled=true` を指定して検証し、本番有効化は検証と PGS 設定の公開後に行います。
+2026-10-18 に、承認済みの Google Cloud プロジェクト `q-gambit`（数値 ID `644546654984`）へ配信署名に限定した Android OAuth を登録し、2イベント・6統計を公開しました。別の承認済み作業で PGS を明示的に有効化した Android 25 / 1.20 を審査提出し、公開プライバシーポリシーにも12言語の送信内容・Googleでの管理と削除方法を反映済みです。実機の認証・Google側イベント受領は未検証です。今回のUI修正候補26 / 1.21も、25と同じ `-PplayGamesEnabled=true` を使い、公開済み説明と機能を保持します。ソースの既定値は引き続きOFFです。26のPlay提出・公開は別操作として記録します。
 
 1. Play Console で `com.qgambit.app` に対応する作成済みの PGS プロジェクト `644546654984` を使う。Android OAuth クライアント `Q-Gambit Play App Signing` は登録済みで、**Play App Signing のアプリ署名証明書**の SHA-1 `36:96:7F:00:82:F8:DD:DE:E7:C8:00:17:E0:63:C2:95:36:D9:4F:A3` に限定する。PGS のテスターに検証アカウントが含まれていることを確認する。アップロード鍵と配信署名鍵を取り違えない。
-2. **Grow users > Play Games Services > Setup and management > Game Stats** のイベント定義は `PlayerGameEvent.csv` をインポート済み。`matchCompleted` と `progressUpdate` が未公開で保存されている。
-3. 下記の統計 ZIP もインポート済み。デフォルト言語 en-US の 5 反復統計と 1 進行度が未公開で保存され、Google のインポート検証を通過した。日本語などの翻訳は Console で追加できる。時間あたりの Min/Max は初期案なので、内部テストの正常プレイヤー分布を確認して調整する。
+2. **Grow users > Play Games Services > Setup and management > Game Stats** のイベント定義は `PlayerGameEvent.csv` をインポート済み。`matchCompleted` と `progressUpdate` は公開済み。
+3. 下記の統計 ZIP もインポート済み。デフォルト言語 en-US の 5 反復統計と 1 進行度が公開済みで、Google のインポート検証を通過した。日本語などの翻訳は Console で追加できる。時間あたりの Min/Max は初期案なので、内部テストの正常プレイヤー分布を確認して調整する。
 4. PGS **数値プロジェクト ID** の既定値 `644546654984` を使う。別環境を使う場合のみ Gradle プロパティで上書きする。これは OAuth クライアント ID や Firebase プロジェクト名ではない。資格情報／サービスアカウント鍵を Web バンドルに埋め込む必要はない。
 
 ```powershell

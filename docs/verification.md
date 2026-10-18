@@ -32,3 +32,8 @@ npm test は既存vitest.config.tsの対象のみ。server内の全テストや�
 実際の言語選択からホームの12言語を切り替える。Android export は `--target=android`。
 API・アカウントは合成応答で、実購入や本番の書き込みは行わない。
 長い記事と拡大文字の可読性用スクロールは残す。ブラウザーのサイズ検査を実機受入としない。
+
+
+For the preserved, already-published Play Games disclosure, run `node scripts/qa/check-play-games-privacy-browser.mjs out scratch/play-games-privacy`. This checks initial English HTML and all twelve language choices at 320×568 and 390×844, using the actual export and fonts with all external traffic blocked. A new Android candidate must exceed the submitted version25; the current UI candidate is26/1.21. Its release build retains25's explicit `playGamesEnabled=true`; source defaults remainOFF, and Play submission plus physical Google event receipt remain separate.
+
+Hindi and Tamil use self-hosted Noto script fonts after the existing Latin typefaces. Runtime browsers do not contact Google for these fonts. The shared word-flow rule disables automatic hyphenation for these scripts. Bind all six Next font variables when building the isolated UI fixture; never substitute production typography with ad-hoc test CSS.

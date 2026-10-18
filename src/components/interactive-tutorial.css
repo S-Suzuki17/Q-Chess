@@ -1,5 +1,5 @@
 .interactive-tutorial{position:fixed;inset:0;z-index:200;background:#0a100be8;backdrop-filter:blur(5px)}
-.tutorial-shell{box-sizing:border-box;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto minmax(160px,36dvh) minmax(min-content,1fr) auto;gap:10px;width:min(1040px,calc(100vw - 24px));height:min(820px,calc(100dvh - 24px));max-height:calc(100dvh - 24px);margin:auto;padding:14px;border:1px solid #bda57566;border-radius:20px;background:#161e18;color:#e9e3d2;overflow:auto;box-shadow:0 24px 80px #0008;font-family:var(--font-geist-sans),system-ui,sans-serif}
+.tutorial-shell{box-sizing:border-box;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto minmax(160px,36dvh) minmax(min-content,1fr) auto;gap:10px;width:min(1040px,calc(100vw - 24px));height:min(820px,calc(100dvh - 24px));max-height:calc(100dvh - 24px);margin:auto;padding:14px;border:1px solid #bda57566;border-radius:20px;background:#161e18;color:#e9e3d2;overflow:auto;box-shadow:0 24px 80px #0008;font-family:var(--font-geist-sans),var(--font-noto-devanagari),var(--font-noto-tamil),system-ui,sans-serif}
 .tutorial-shell *{box-sizing:border-box}
 .tutorial-shell::backdrop{background:#0a100be8;backdrop-filter:blur(5px)}
 .tutorial-shell button,.tutorial-shell select{font:inherit}
@@ -65,7 +65,7 @@
  .tutorial-explanation [data-qube-teacher]>div:first-child{display:none}
  .tutorial-copy-space{font-size:12px;line-height:1.6}
  .tutorial-command{padding:5px 8px}.tutorial-command strong{font-size:11px}
- .tutorial-actions{gap:5px;padding-top:5px}.tutorial-actions>div{gap:4px}
+ .tutorial-actions{gap:2px;padding-top:2px}.tutorial-actions>div{gap:4px}
  .tutorial-actions button{padding:7px 8px;font-size:10px}
 }
 @media(max-height:500px) and (min-width:760px){

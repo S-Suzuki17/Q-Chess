@@ -10,6 +10,8 @@ import { privacyTranslations } from '@/locales/privacyTranslations';
 import { engagementPrivacy } from '../../locales/engagementPrivacy';
 import { CommercePrivacyNotice } from '../../components/CommercePrivacyNotice';
 import { SiteLinks } from '../../components/SiteInformation';
+import { playGamesPrivacy } from '../../locales/playGamesPrivacy';
+import { NaturalText } from '../../components/NaturalText';
 
 export default function PrivacyPolicy() {
   const [lang, setLang] = useState<Language>('en');
@@ -99,6 +101,11 @@ export default function PrivacyPolicy() {
 
         <div className="flex flex-col gap-8 text-sm leading-relaxed">
           <CommercePrivacyNotice lang={lang}/>
+          <section data-play-games-privacy>
+            <h2 className="text-xl font-bold text-white border-b border-[#3A3224] pb-1 mb-2">Google Play Games</h2>
+            <p><NaturalText text={playGamesPrivacy[lang]} lang={lang}/></p>
+            <a className="text-[#D4B872] underline" href="https://support.google.com/googleplay/answer/9130646">Google Play Games — {dict[lang].privacyPolicy}</a>
+          </section>
           <section>
             <h2 className="text-xl font-bold text-white border-b border-[#3A3224] pb-1 mb-2">{c.sec1Title}</h2>
             <p>{c.sec1p}</p>

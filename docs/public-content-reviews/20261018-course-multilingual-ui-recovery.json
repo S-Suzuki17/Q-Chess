@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "status": "completed",
   "baseRevision": "72387f185404f038e6c5bc8414d261d13e7781ca",
-  "reviewer": "Codex: integrated curriculum, multilingual flow, recovery and disabled native integration review, 2026-10-18",
+  "reviewer": "Codex: curriculum/multilingual recovery plus preserved published PGS privacy and release26/font review,2026-10-18",
   "changes": [
     {
       "path": "server/src/matchmaking/MatchmakingService.ts",
@@ -13,8 +13,16 @@
       "gitBlob": "7e81051cb260ca04a88b094502a803df43303133"
     },
     {
+      "path": "src/app/layout.tsx",
+      "gitBlob": "0cf9eb65221bbff1abeeea7610fa0872c36f0d99"
+    },
+    {
       "path": "src/app/page.tsx",
       "gitBlob": "3b1fb5e13374439b7f44fceb9d30cbf15b52750b"
+    },
+    {
+      "path": "src/app/privacy/page.tsx",
+      "gitBlob": "b54eae48d8710058f3c71818f697412dfae59732"
     },
     {
       "path": "src/app/rules/page.tsx",
@@ -102,7 +110,7 @@
     },
     {
       "path": "src/components/challenge-map.css",
-      "gitBlob": "ad3b3343b7b04cd5b9525f0609cbca6f2caddc78"
+      "gitBlob": "df95f7627cb0bd3a9379066d4119195339d8bf65"
     },
     {
       "path": "src/components/crown-reference.css",
@@ -114,11 +122,11 @@
     },
     {
       "path": "src/components/game-settings.css",
-      "gitBlob": "fb7c6d3c841b2a00543de32efd52dc4315076396"
+      "gitBlob": "1994a2fc0c23dd138aa5a7108e5c7a73cc1d4d01"
     },
     {
       "path": "src/components/interactive-tutorial.css",
-      "gitBlob": "5ecc879da37dc960647c29e08592306226c0d665"
+      "gitBlob": "78ab83f58d138af7793c11aac23b131aedece54c"
     },
     {
       "path": "src/components/lobby-reference.css",
@@ -126,7 +134,7 @@
     },
     {
       "path": "src/components/online-match-waiting.css",
-      "gitBlob": "c88c50950bb0649086a0df7b2fe7812e73eee59f"
+      "gitBlob": "eeb96a6a747f8673126d728d19b2f7211eab0628"
     },
     {
       "path": "src/hooks/useAndroidBack.ts",
@@ -210,7 +218,7 @@
     },
     {
       "path": "src/styles/text-flow.css",
-      "gitBlob": "4e212bb8bac6459ce197c7833f65f890b7a4d059"
+      "gitBlob": "e6096b0e89f8a8adef8d3bdfbb9848fb8312d8e7"
     }
   ],
   "reviews": [
@@ -270,7 +278,7 @@
     {
       "group": "accounts-connections-and-saves",
       "decision": "updated",
-      "reason": "Privacy copy in all 12 UI languages now distinguishes cloud-synced 100-Tile progress/appearance from device-only tutorial lesson progress. Authentication, deletion and account data retention are unchanged. Android Back follows the active dialog/screen and preserves account identity; pending entries are cancelled using their existing controller rather than reviving from late responses. The separately requested Play Games integration remains disabled by its native build gate, including automatic SDK initialization. No Google event sending is enabled by this release; privacy/Data safety review is an explicit prerequisite before enabling it.",
+      "reason": "Privacy copy in all 12 UI languages now distinguishes cloud-synced 100-Tile progress/appearance from device-only tutorial lesson progress. Authentication, deletion and account data retention are unchanged. Android Back follows the active dialog/screen and preserves account identity; pending entries are cancelled using their existing controller rather than reviving from late responses. The native PGS build gate remains default OFF. The next26/1.21 candidate retains the separately approved and submitted25/1.20 release's explicit enable flag, without changing its event schema, credentials or native implementation. Its already-published privacy disclosure is preserved in all12 languages; physical Google authentication/event receipt remains unverified.",
       "checkedPages": [
         "/faq/#connection",
         "/faq/#save",
@@ -284,13 +292,14 @@
         "src/lib/androidBack.ts and src/hooks/useAndroidBack.ts: nested dialog cancellation and prioritized handlers.",
         "src/components/LevelSelect.lifecycle.test.ts: committed identity and unmount fencing.",
         "docs/play-games/README.md and Android manifest/build gate: PGS default OFF with existing numeric project ID configured; no Console writes or Google acceptance claimed.",
-        "src/app/sessionRestoration.test.ts: current-snapshot test harness supports useSyncExternalStore; all existing identity and active-match assertions are retained."
+        "src/app/sessionRestoration.test.ts: current-snapshot test harness supports useSyncExternalStore; all existing identity and active-match assertions are retained.",
+        "pr28-published-privacy-reconciliation-20261018.json: direct human privacy/publication approvals, current Pages495aecd0, submittedAndroid25, six identical native Java sources and exact locale-copy hash. No Play26 upload or publication."
       ]
     },
     {
       "group": "commerce-and-disclosures",
       "decision": "updated",
-      "reason": "Only the storage-scope clarification changes guidance. Sales terms, prices, membership, billing gates and ticket entitlements are unchanged. Existing-purchase reconciliation on foreground/online never starts a new purchase, serializes billing operations and remains fenced to the current account. A failed balance GET cannot overwrite a confirmed or pending purchase result. No real payment, ad or production database was used for these repairs.",
+      "reason": "The storage-scope clarification and preservation of the separately approved, already-published PGS privacy disclosure are reflected in guidance. Sales terms, prices, membership, billing gates and ticket entitlements are unchanged. Existing-purchase reconciliation on foreground/online never starts a new purchase, serializes billing operations and remains fenced to the current account. A failed balance GET cannot overwrite a confirmed or pending purchase result. No real payment, ad or production database was used for these repairs.",
       "checkedPages": [
         "/faq/#hints",
         "/contact/",
@@ -325,7 +334,10 @@
         "outputs/text-wrapping-final-20261018-1/result.json: all 24 conditions passed settings/waiting/guide/rules/tutorial word/clipping checks; map failures fixed and recorded separately.",
         "Supervisor learning-acceptance.json: seven actual-font full-course conditions include guide/rules keyboard End, section navigation and enlarged Tamil reading.",
         "Configured exported Web and Android: 9 synthetic account/UI cases each; Home 12 languages x 2 sizes each; every settings section and all five collection categories reachable. No live mutations.",
-        "Actual Web export: 8 initial/no-JavaScript HTML checks and 6 browser cases passed in check-public-guides.mjs; client configuration verified with zero unresolved public reads."
+        "Actual Web export: 8 initial/no-JavaScript HTML checks and 6 browser cases passed in check-public-guides.mjs; client configuration verified with zero unresolved public reads.",
+        "src/app/privacy/page.tsx and src/locales/playGamesPrivacy.ts preserve all12 approved PGS explanations; NaturalText only changes presentation. New actual-export privacy checks cover initial HTML, all locale choices and complete unclipped text.",
+        "src/app/layout.tsx, shared text-flow and font stacks: self-host Hindi/Tamil coverage after existing Latin faces; no browser Google font request. Fixes reproduced Linux missing-glyph and Indic hyphenation findings, without weakening text/scroll assertions.",
+        "pr28-font-integration-receipt-20261018.json: all17 old font files/variables unchanged; six Next variables/23font files; actual browser CDP proves bundled Hindi/Tamil faces; privacy24locale/viewports plus4font-provenance cases pass."
       ]
     },
     {
@@ -344,9 +356,10 @@
         "src/locales/tutorialCourseText.ts and src/components/InteractiveTutorial.test.ts: all 24 titles/descriptions and controls in 12 languages.",
         "src/components/TutorialCopy.tsx and src/lib/textPageBreaks.ts: matching measurement/rendering and lossless word-aware pages.",
         "scripts/qa/tutorial-walkthrough.mjs: independent 31-action rendered course walkthrough, special-choice cancellation and demo-progress assertions.",
-        "outputs/tutorial-fit-integration-receipt.json and supervisor learning-acceptance.json: seven complete conditions, each 24 lessons and 31 actual actions, all copy pages preserved, real unresolved-candidate mate and stored progress verified."
+        "outputs/tutorial-fit-integration-receipt.json and supervisor learning-acceptance.json: seven complete conditions, each 24 lessons and 31 actual actions, all copy pages preserved, real unresolved-candidate mate and stored progress verified.",
+        "Compact tutorial footer retains44px buttons and full explanations while reducing only the outer vertical gaps/padding for320×568; Tamil full-course acceptance refreshed:24lessons/31actions, full copy preserved at320x568 and enlarged375x667."
       ]
     }
   ],
-  "reviewedAt": "2026-10-18T20:52:20.580947+09:00"
+  "reviewedAt": "2026-10-18T13:04:46.354416+00:00"
 }

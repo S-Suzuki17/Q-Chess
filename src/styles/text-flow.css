@@ -11,6 +11,9 @@
 }
 
 :where(p, li, dd, figcaption) { text-wrap: pretty; }
-:where(p, li, dd, figcaption):not(:lang(ja), :lang(zh)) { hyphens: auto; }
+:where(p, li, dd, figcaption):not(:lang(ja), :lang(zh), :lang(hi), :lang(ta)) { hyphens: auto; }
 :where(code, pre, kbd, samp) { overflow-wrap: anywhere; hyphens: none; }
 .text-word { white-space: nowrap; }
+
+/* Preserve complete Indic words rather than platform-specific hyphenation. */
+:where(:lang(hi), :lang(ta)) { hyphens: none; }

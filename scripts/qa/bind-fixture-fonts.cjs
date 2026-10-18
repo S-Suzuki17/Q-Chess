@@ -12,7 +12,7 @@ for(const name of fs.readdirSync(path.join(exportRoot,'_next/static/css'))){
  const faces=[...css.matchAll(/@font-face\{[^}]+\}/g)].map(m=>m[0]);
  if(!faces.length)continue;
  inputs.push({path:file,sha256:sha(css)});
- for(const declaration of css.matchAll(/--font-(?:geist-sans|geist-mono|playfair|cinzel):[^;}]+/g)){
+ for(const declaration of css.matchAll(/--font-(?:geist-sans|geist-mono|playfair|cinzel|noto-devanagari|noto-tamil):[^;}]+/g)){
   const [key,...value]=declaration[0].split(':');variables.set(key,value.join(':'));
  }
  for(const face of faces){
@@ -28,14 +28,14 @@ for(const name of fs.readdirSync(path.join(exportRoot,'_next/static/css'))){
   }));
  }
 }
-for(const key of ['--font-geist-sans','--font-geist-mono','--font-playfair','--font-cinzel'])assert(variables.has(key),'Missing '+key);
+for(const key of ['--font-geist-sans','--font-geist-mono','--font-playfair','--font-cinzel','--font-noto-devanagari','--font-noto-tamil'])assert(variables.has(key),'Missing '+key);
 const directory=path.join(fixture,'qa-fonts');fs.mkdirSync(directory,{recursive:false});
 for(const [name,file]of fonts)fs.writeFileSync(path.join(directory,name),file.bytes,{flag:'wx'});
 const css=[...new Set(definitions),':root{'+[...variables].map(([k,v])=>k+':'+v).join(';')+'}'].join('\n');
 fs.writeFileSync(path.join(directory,'fonts.css'),css,{flag:'wx'});
 const after=html.replace('</head>','<link rel="stylesheet" href="/qa-fonts/fonts.css" data-qg-qa-fonts></head>');
 assert.notEqual(after,html,'Fixture head was not found.');fs.writeFileSync(htmlPath,after);
-const result={preparedAt:new Date().toISOString(),fixture,exportRoot,inputCss:inputs,variables:Object.fromEntries(variables),fontFiles:[...fonts].map(([name,file])=>({name,source:file.path,sha256:file.sha256,bytes:file.bytes.length})),fixtureHtmlBeforeSha256:sha(html),fixtureHtmlAfterSha256:sha(after),fontCssSha256:sha(css),boundary:'Local QA artifact only. Existing font-face declarations and four Next font variables copied; no production CSS rules or product behavior changed.'};
+const result={preparedAt:new Date().toISOString(),fixture,exportRoot,inputCss:inputs,variables:Object.fromEntries(variables),fontFiles:[...fonts].map(([name,file])=>({name,source:file.path,sha256:file.sha256,bytes:file.bytes.length})),fixtureHtmlBeforeSha256:sha(html),fixtureHtmlAfterSha256:sha(after),fontCssSha256:sha(css),boundary:'Local QA artifact only. Existing font-face declarations and six Next font variables copied; no production CSS rules or product behavior changed.'};
 fs.writeFileSync(path.join(fixture,'font-binding.json'),JSON.stringify(result,null,2)+'\n');
 return result;
 }

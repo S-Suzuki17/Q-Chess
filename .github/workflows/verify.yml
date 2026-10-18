@@ -73,6 +73,8 @@ jobs:
         run: node scripts/qa/check-ranked-start-browser.mjs
       - name: Verify public guides, navigation and no-JavaScript reading
         run: node scripts/qa/check-public-guides.mjs
+      - name: Verify published Play Games privacy in all UI languages
+        run: node scripts/qa/check-play-games-privacy-browser.mjs
 
   secondary-screens-browser:
     needs: regression

@@ -1,6 +1,6 @@
 # Android の表示対応（次回リリース）
 
-対象は Q-GAMBIT の Android パッケージ。報告された Play Console の警告はリリース 22（1.17）。作業対象の main は既に versionCode 23 / versionName 1.18、compileSdk / targetSdk 36 だった。この統合版の次回候補は versionCode 24 / versionName 1.19。署名済み候補の生成・静的確認と、実機受入・Play公開は分けて記録する。
+対象は Q-GAMBIT の Android パッケージ。報告された Play Console の警告はリリース 22（1.17）。作業対象の main は既に versionCode 23 / versionName 1.18、compileSdk / targetSdk 36 だった。2026-10-18 に別の承認済み作業で versionCode 25 / versionName 1.20 が審査提出済みのため、この統合版の次回候補は versionCode 26 / versionName 1.21。署名済み候補の生成・静的確認と、実機受入・Play公開は分けて記録する。
 
 ## 変更
 
