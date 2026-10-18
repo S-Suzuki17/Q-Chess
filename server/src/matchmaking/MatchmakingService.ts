@@ -145,7 +145,10 @@ export class MatchmakingService {
         }
 
         const cancelUnavailable=()=>{
-            if(this.disconnectDeadlines.get(userId)===deadline)this.cancelInfrastructureMatch(match,'authentication_unavailable');
+            if (this.disconnectDeadlines.get(userId) === deadline
+                && !this.cancelWaitingPrivateMatch(userId, matchId, 'authentication_unavailable')) {
+                this.cancelInfrastructureMatch(match,'authentication_unavailable');
+            }
         };
         // A service outage known during the grace period must not become either
         // abandonment or a clock loss while reauthentication is unavailable.
@@ -207,6 +210,7 @@ export class MatchmakingService {
     public authenticationUnavailable(userId: string) {
         this.leaveQueue(userId);
         const id=this.players.get(userId)?.currentMatchId,match=id?this.matches.get(id):undefined;
+        if (id && this.cancelWaitingPrivateMatch(userId, id, 'authentication_unavailable')) return;
         if(match&&(!match.connected.host||!match.connected.joiner))this.cancelInfrastructureMatch(match,'authentication_unavailable');
     }
 
@@ -359,11 +363,25 @@ export class MatchmakingService {
         return match;
     }
 
-    /** Home/cancellation releases only an unstarted private room owned by this session. */
+    /** The host owns an unstarted private room; a departing joiner releases only their reservation. */
     public cancelWaitingPrivateMatch(userId: string, matchId: string, reason = 'admission_cancelled'): boolean {
         const match = this.matches.get(matchId), session = this.players.get(userId);
         if (!match || match.mode || match.engine || !['WAITING_FOR_JOINER','CONNECTING'].includes(match.state)
             || session?.currentMatchId !== matchId || !Object.values(match.players).includes(userId)) return false;
+        if (match.players.joiner === userId) {
+            this.clearDisconnectTimer(userId);
+            match.players.joiner = '';
+            delete match.playerNames.joiner;
+            if (match.appearances) delete match.appearances.joiner;
+            match.connected.joiner = false;
+            match.state = 'WAITING_FOR_JOINER';
+            session.state = 'IDLE';
+            delete session.currentMatchId;
+            const socket = this.io.sockets.sockets.get(session.socketId);
+            socket?.leave(matchId);
+            socket?.emit('match_cancelled', { matchId, reason });
+            return true;
+        }
         this.finishMatch(match, 'CANCELLED');
         this.io.to(matchId).emit('match_cancelled', { matchId, reason });
         return true;

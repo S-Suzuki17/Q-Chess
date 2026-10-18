@@ -2,12 +2,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DISCONNECT_GRACE_MS, MatchmakingService } from './MatchmakingService';
 
 function fixture() {
-    const emit = vi.fn(), io = { emit, to: () => ({ emit }), sockets: { sockets: new Map() } };
+    const emit = vi.fn(), leave = vi.fn(), io = { emit, to: () => ({ emit }), sockets: { sockets: new Map() } };
     const mm = new MatchmakingService(io as never);
-    const register = (id: string) => { io.sockets.sockets.set(id, { emit }); mm.registerSocket(id, id); };
+    const register = (id: string) => { io.sockets.sockets.set(id, { emit, leave }); mm.registerSocket(id, id); };
     for (const id of ['host', 'joiner', 'other']) register(id);
     const create = (seconds = 180) => mm.reserveMatch('host', 'ROOM01', 'Host', { intent: 'create', timeControl: seconds })!;
-    return { mm, emit, register, create };
+    return { mm, emit, leave, register, create };
 }
 beforeEach(() => { vi.useFakeTimers(); });
 afterEach(() => { vi.clearAllTimers(); vi.useRealTimers(); vi.restoreAllMocks(); });
@@ -64,4 +64,24 @@ describe('private room admission and release', () => {
         expect(mm.connectMatch('host','ROOM01').success).toBe(true);
         await vi.advanceTimersByTimeAsync(DISCONNECT_GRACE_MS);expect(match.state).toBe('WAITING_FOR_JOINER');expect(match.timeControl).toBe(180);
     });
+});
+
+it.each(['cancel', 'authentication'] as const)('releases only a waiting joiner on %s failure and leaves the creator available', reason => {
+    const { mm, create, emit, leave } = fixture(), match = create(180);
+    mm.connectMatch('host', 'ROOM01');
+    mm.reserveMatch('joiner', 'ROOM01', 'Failed joiner', { intent: 'join' });
+    match.appearances = { joiner: { avatar: 'old', intro: true, rating: 1200 } };
+    emit.mockClear();
+    if (reason === 'authentication') mm.authenticationUnavailable('joiner');
+    else expect(mm.cancelWaitingPrivateMatch('joiner', 'ROOM01')).toBe(true);
+    expect(match).toMatchObject({ state: 'WAITING_FOR_JOINER', timeControl: 180, players: { host: 'host', joiner: '' }, connected: { host: true, joiner: false } });
+    expect(match.playerNames.joiner).toBeUndefined(); expect(match.appearances.joiner).toBeUndefined();
+    expect(leave).toHaveBeenCalledWith('ROOM01');
+    expect(mm.getPlayerSession('host')).toMatchObject({ state: 'CONNECTING', currentMatchId: 'ROOM01' });
+    expect(mm.getPlayerSession('joiner')?.state).toBe('IDLE');
+    expect(mm.getPlayerSession('joiner')?.currentMatchId).toBeUndefined();
+    expect(mm.joinQueue('joiner', 600, undefined, 'random').success).toBe(true);
+    expect(mm.reserveMatch('other', 'ROOM01', undefined, { intent: 'join' })).toBe(match);
+    const ready = mm.connectMatch('other', 'ROOM01');
+    expect(ready.engine?.getPublicState('host')).toMatchObject({ players: { joiner: 'other' }, clock: { timeControl: 180000 } });
 });

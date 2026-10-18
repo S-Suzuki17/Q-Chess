@@ -56,3 +56,34 @@ describe('Crown hint contexts preserve canonical stage and actual CPU moves',()=
         expect(()=>displayCrownRun(altered)).toThrow('HINT_RESPONSE_INVALID');
     });
 });
+
+it('keeps an accepted Crown move and its original clock receipt when an older foreground read arrives last', async () => {
+    const config = settings(), initial = snapshot(config), saved = storage();
+    const move = getAllConcreteMoves(initial.state)[0], state = applyPracticeMove(initial.state, move);
+    const moved = { ...initial, state, revision: state.ply, history: [state.lastMove!], stateHash: 'moved', blackMs: 500000, serverNow: initial.serverNow + 1000 };
+    let resolveRead!: (value: CrownRunSnapshot) => void, now = 1000;
+    const clock = vi.spyOn(performance, 'now').mockImplementation(() => now);
+    const send = vi.fn().mockResolvedValueOnce(initial).mockImplementationOnce(() => new Promise(resolve => { resolveRead = resolve; })).mockResolvedValueOnce(moved);
+    try {
+        const client = new CrownHintRunClient('Alice', config, send, saved);
+        await client.open();
+        const recovering = client.read(); now = 2000;
+        const accepted = await client.advance(0, 'human', move);
+        expect(displayCrownRun(accepted).history).toHaveLength(1);
+        now = 5000; resolveRead({ ...initial });
+        const recovered = await recovering;
+        expect(recovered).toBe(accepted);
+        expect(recovered.state).toBe(state);
+        expect(crownRunClocks(recovered, now)).toEqual({ whiteMs: moved.whiteMs, blackMs: moved.blackMs - 3000 });
+    } finally { clock.mockRestore(); }
+});
+it('does not revive a finished Crown clock from an earlier read at the same move revision', async () => {
+    const config = settings(), initial = snapshot(config), terminal = { ...initial, status: 'finished' as const, whiteMs: 0, serverNow: initial.serverNow + 600000 };
+    let resolveRead!: (value: CrownRunSnapshot) => void;
+    const send = vi.fn().mockResolvedValueOnce(initial).mockImplementationOnce(() => new Promise(resolve => { resolveRead = resolve; })).mockResolvedValueOnce(terminal);
+    const client = new CrownHintRunClient('Alice', config, send, storage());
+    await client.open(); const staleRead = client.read(), finished = await client.read();
+    resolveRead({ ...initial });
+    expect(await staleRead).toBe(finished);
+    expect(crownRunClocks(finished)).toEqual({ whiteMs: 0, blackMs: terminal.blackMs });
+});

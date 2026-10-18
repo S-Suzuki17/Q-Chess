@@ -1,7 +1,8 @@
 import { beforeEach, expect, it, vi } from 'vitest';
+import type { MatchStats } from '../lib/playGameStats';
 import type { MatchHintContext } from '../lib/paidHints';
 
-const h = vi.hoisted(() => ({ stateIndex: 0, memoIndex: 0, memos: [] as { deps: unknown[]; value: unknown }[], game: null as any, context: null as MatchHintContext | null }));
+const h = vi.hoisted(() => ({ stateIndex: 0, memoIndex: 0, memos: [] as { deps: unknown[]; value: unknown }[], game: null as any, stats: null as MatchStats | null, context: null as MatchHintContext | null }));
 vi.mock('react', async original => {
     const react = await original<typeof import('react')>();
     const hooks = {
@@ -16,6 +17,7 @@ vi.mock('react', async original => {
     };
     return { ...react, ...hooks, default: { ...react, ...hooks } };
 });
+vi.mock('../hooks/usePlayGameStatsMatch', () => ({ usePlayGameStatsMatch: (stats: MatchStats | null) => { h.stats = stats; } }));
 vi.mock('../hooks/useTicketHint', () => ({ useTicketHint: (input: { context: MatchHintContext | null }) => { h.context = input.context; return { pending: false, hintMove: null }; } }));
 vi.mock('../hooks/useMatchPreparation', () => ({ useMatchPreparation: () => null }));
 vi.mock('../hooks/useSharedMatchChoice', () => ({ useSharedMatchChoice: () => ({ offer: null, pending: false, error: false }) }));
@@ -36,13 +38,13 @@ vi.mock('./MatchLayout', () => ({ MatchLayout: () => null }));
 import OnlineGameBoard from './OnlineGameBoard';
 
 const firstContext = '00000000-0000-4000-8000-000000000001';
-function render(mode: 'ranked' | 'random' | 'private' = 'ranked', room = 'room-a') {
+function render(mode: 'ranked' | 'random' | 'private' = 'ranked', room = 'room-a', side: 'white' | 'black' = 'white') {
     h.stateIndex = 0; h.memoIndex = 0;
-    OnlineGameBoard({ lang: 'en', user: { id: 'Alice', name: 'Alice', type: 'registered' }, roomId: room, onlineRole: 'white', matchMode: mode });
+    OnlineGameBoard({ lang: 'en', user: { id: side === 'white' ? 'Alice' : 'Bob', name: 'Player', type: 'registered' }, roomId: room, onlineRole: side, matchMode: mode });
     return h.context;
 }
 beforeEach(() => {
-    h.memos = []; h.context = null;
+    h.memos = []; h.context = null; h.stats = null;
     h.game = { matchId: 'room-a', pieces: [], board: [], turn: 0, players: { host: 'Alice', joiner: 'Bob' }, clock: { white: 600000, black: 600000 }, version: 0, gameOver: null, hintContextId: firstContext, mode: 'ranked' };
 });
 it('keeps a purchased-hint context stable across clock and position snapshots', () => {
@@ -74,4 +76,13 @@ it('does not expose a paid context without a valid authoritative identifier', ()
         h.game = { ...h.game, hintContextId };
         expect(render()).toBeNull();
     }
+});
+
+it('reports the server clock for a private joiner whose initial screen falls back to ten minutes', () => {
+    h.game = { ...h.game, moveCount: 4, gameOver: 'BLACK', gameOverReason: 'timeout', clock: { timeControl: 180000 } };
+    render('private', 'room-a', 'black');
+    expect(h.stats).toMatchObject({ mode: 'private', result: 'win', timeControl: '3m', checkmate: false, playerMoves: 2 });
+    h.game = { ...h.game, clock: { timeControl: 30000 } };
+    render('private', 'room-a', 'black');
+    expect(h.stats).toMatchObject({ timeControl: '10s' });
 });

@@ -101,7 +101,11 @@ test('real hint policy entrypaths: index/auth/socket/Worker/PostgREST/native SQL
             a.emit('join_queue',{timeControl:600,mode}); await event(a,'queue_joined');
             b.emit('join_queue',{timeControl:600,mode}); matchId=(await event(a,'match_found')).matchId; await event(b,'match_found');
         }
-        for(const socket of [a,b])socket.emit('connect_match',{matchId,introVersion:1});
+        if(mode==='private') {
+            a.emit('connect_match',{matchId,introVersion:1,privateRoom:{intent:'create',timeControl:600}});
+            await event(a,'private_room_ready',state=>state.matchId===matchId);
+            b.emit('connect_match',{matchId,introVersion:1,privateRoom:{intent:'join'}});
+        } else for(const socket of [a,b])socket.emit('connect_match',{matchId,introVersion:1});
         const state=await event(a,'match_start');await event(b,'match_start'); return intro(state,[a,b]);
     };
     const finish = async (socket,state,admitted=true) => {

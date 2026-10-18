@@ -627,10 +627,10 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
         ? {kind:'match',mode:originalMode,matchId:roomId,contextId:hintContextId,rulesVersion:'match-hint-v1'} : null,
         [roomId,originalMode,hintContextId]);
     const verifiedParticipant=!!user?.id&&(hostId===user.id||joinerId===user.id);
-    const gameStats = useMemo(() => onlineMatchStats({
+    const gameStats = onlineMatchStats({
         roomId, userId: user?.id, role: onlineRole, cancelled: cancelledMatch === roomId,
-        mode: originalMode, timeControl, snapshot: gameState,
-    }), [roomId, user?.id, onlineRole, cancelledMatch, originalMode, timeControl, gameState]);
+        mode: originalMode, timeControl: effectiveTimeControl, snapshot: gameState,
+    });
     usePlayGameStatsMatch(gameStats);
     const hintEligible=canRequestHint({ready:!!gameState&&!preparation&&matchReady&&!gameState.introPending&&isConnected
         &&cancelledMatch!==roomId&&verifiedParticipant&&!!paidHintContext&&PAID_HINTS_ENABLED,

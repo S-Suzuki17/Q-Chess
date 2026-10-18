@@ -35,6 +35,7 @@ export function crownRunClocks(run: CrownRunSnapshot, now = performance.now()) {
 export class CrownHintRunClient {
     private readonly storage?: HintStorage;
     private attemptedOpen = false;
+    private latestSnapshot?: CrownRunSnapshot;
     constructor(readonly userId: string, readonly settings: CrownRunSettings,
         private readonly send: HintRequest = requestHintApi, storage?: HintStorage) {
         if (!validSettings(settings)) throw new PaidHintError('INVALID_REQUEST');
@@ -98,7 +99,17 @@ export class CrownHintRunClient {
         signal?.throwIfAborted();
         const start=performance.now(), value=await this.send(this.userId,path,body,signal), receivedAt=performance.now();
         signal?.throwIfAborted();
-        const run=this.snapshot(value);
+        const run=this.snapshot(value), latest=this.latestSnapshot;
+        if (latest && run.hintContextId === latest.hintContextId) {
+            const statusRank = { active: 0, finished: 1, closed: 2 };
+            if (run.revision < latest.revision || (run.revision === latest.revision
+                && (statusRank[run.status] < statusRank[latest.status] || run.serverNow < latest.serverNow))) {
+                // A foreground read can finish after an accepted move. Reuse the
+                // exact snapshot, including its original monotonic clock receipt.
+                return latest;
+            }
+        }
+        this.latestSnapshot = run;
         // Estimate server time at the request midpoint, independently of device clock skew.
         receiptClocks.set(run,{receivedAt,serverNowAtReceipt:run.serverNow+Math.max(0,receivedAt-start)/2});
         return run;

@@ -6,7 +6,7 @@
   "changes": [
     {
       "path": "server/src/matchmaking/MatchmakingService.ts",
-      "gitBlob": "22c14264081556cc93ddf7b8f4b15f2f6bfab6bd"
+      "gitBlob": "b78c42cd797a462c390f11f327712443a0b6e2df"
     },
     {
       "path": "server/src/protocol/PrivateRoom.ts",
@@ -78,7 +78,7 @@
     },
     {
       "path": "src/components/OnlineGameBoard.tsx",
-      "gitBlob": "cfade2b41e859a8a7056e8c4b52b3ee13d13ca7b"
+      "gitBlob": "a708dafbd666cabc906b0f3d173a66acb48e8c3b"
     },
     {
       "path": "src/components/OnlineMatchWaiting.tsx",
@@ -150,7 +150,7 @@
     },
     {
       "path": "src/lib/crownHintRun.ts",
-      "gitBlob": "9b5fb258071160658b5be85f505c2575b5de3cbc"
+      "gitBlob": "6a331e1117d38d5d3f56ed7456d1c549ffa82232"
     },
     {
       "path": "src/lib/localMoveDestinations.ts",
@@ -247,7 +247,8 @@
       "evidence": [
         "src/lib/tutorialCourse.test.ts: real applyPracticeMove/applyLocalMove parity and distinct finish conditions.",
         "src/lib/localMoveDestinations.ts and legal-destinations-integration-receipt.json: canonical legal destination filtering.",
-        "src/app/rules/page.tsx and src/locales/siteContent.ts: wording retained; CJK spans and responsive diagrams change presentation only."
+        "src/app/rules/page.tsx and src/locales/siteContent.ts: wording retained; CJK spans and responsive diagrams change presentation only.",
+        "Direct human requirement recovered from supervisor thread message 01a13f3e-79f1-77d1-8e6a-20871ba695bd: every victory effect must display CHECK MATE as decoration. Preserve the accepted aria-hidden layer and actual localized result/checkmate flag; do not reinterpret that wording as an engine outcome."
       ]
     },
     {
@@ -262,7 +263,8 @@
       "evidence": [
         "server/src/game/GameEngine.ts and CrownHintRegistry.ts: current main 30-second rule preserved; protocol IDs 10/180/600 remain compatible.",
         "src/lib/privateRoom.ts plus server/src/services/privateRoomIntegration.test.ts: actual 30000/180000/600000ms engine clocks verified through real sockets, moves and reconnect.",
-        "outputs/current-regression-repairs-20261018.json: 58 cases passed, including timed-out recovery, background clock elapsed time, auth restoration and ranked admission."
+        "outputs/current-regression-repairs-20261018.json: 58 cases passed, including timed-out recovery, background clock elapsed time, auth restoration and ranked admission.",
+        "PR #28 review fixes: 64 focused tests and 13 real Socket.IO cases preserve the latest Crown revision/clocks and host room after joiner rating/auth failures; private statistics use the authoritative clock while PGS remains OFF."
       ]
     },
     {
@@ -346,5 +348,5 @@
       ]
     }
   ],
-  "reviewedAt": "2026-10-18T05:23:49.107691+00:00"
+  "reviewedAt": "2026-10-18T20:52:20.580947+09:00"
 }

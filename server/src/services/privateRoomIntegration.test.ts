@@ -201,3 +201,26 @@ describe('private rooms through the production gateway and real engine on loopba
         const restored=await connect('GUEST-grace-host'),queued=event(restored.client,'queue_joined');restored.client.emit('join_queue',{mode:'random',timeControl:180});await queued;
     },35_000);
 });
+
+it.each(['rating', 'authentication'] as const)('keeps a connected private host when the joining client fails during %s', async failure => {
+    const host = await connect('GUEST-preserved-host-' + failure), joiner = await connect('preserved-joiner-' + failure);
+    const next = await connect('GUEST-preserved-next-' + failure), matchId = 'PRESERVE-' + failure;
+    const ready = event(host.client, 'private_room_ready');
+    host.client.emit('connect_match', { matchId, privateRoom: { intent: 'create', timeControl: 180 }, introVersion: 1 }); await ready;
+    const hostCancellations: unknown[] = []; host.client.on('match_cancelled', value => hostCancellations.push(value));
+    if (failure === 'rating') h.rating.mockRejectedValueOnce(Error('synthetic rating outage'));
+    else h.verify.mockResolvedValueOnce(h.sessions.get(joiner.token)).mockRejectedValueOnce(Error('synthetic auth outage after reservation'));
+    const failed = event(joiner.client, 'queue_error');
+    joiner.client.emit('connect_match', { matchId, privateRoom: { intent: 'join' }, introVersion: 1 });
+    expect(await failed).toEqual({ matchId, code: failure === 'rating' ? 'RATING_UNAVAILABLE' : 'AUTH_UNAVAILABLE' });
+    const room = h.mm.getMatch(matchId);
+    expect(room).toMatchObject({ state: 'WAITING_FOR_JOINER', players: { host: 'GUEST-preserved-host-' + failure, joiner: '' }, connected: { host: true, joiner: false }, timeControl: 180 });
+    expect(h.mm.getPlayerSession('preserved-joiner-' + failure).currentMatchId).toBeUndefined();
+    const failedServerSocket = h.io.sockets.sockets.get(h.mm.getPlayerSession('preserved-joiner-' + failure).socketId);
+    expect(failedServerSocket.rooms.has(matchId)).toBe(false);
+    const queued = event(joiner.client, 'queue_joined'); joiner.client.emit('join_queue', { mode: 'random', timeControl: 600 }); await queued;
+    const start = event(host.client, 'match_start');
+    next.client.emit('connect_match', { matchId, privateRoom: { intent: 'join' }, introVersion: 1 });
+    expect(await start).toMatchObject({ players: { joiner: 'GUEST-preserved-next-' + failure }, clock: { timeControl: 180000 } });
+    expect(hostCancellations).toEqual([]);
+});
