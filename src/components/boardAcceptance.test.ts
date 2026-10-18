@@ -28,10 +28,10 @@ describe('player-approved board contract', () => {
         expect(camera.zoom * 8.85 / Math.min(width,height)).toBeGreaterThan(.99);
         expect(camera.zoom * 8.85).toBeLessThan(Math.min(width,height));
     });
-    it('retains three themes, twelve languages and resizable portrait packaging', () => {
+    it('retains three themes, twelve languages and unrestricted resizable Android packaging', () => {
         expect(Object.keys(BOARD_THEMES)).toEqual(['classic','marble','neon']);
         expect(LANGUAGES.map(language=>language.code)).toEqual(['en','ja','zh','ru','fr','de','es','tr','pl','hi','pt','ta']);
-        expect(read('android/app/src/main/AndroidManifest.xml')).toContain('android:screenOrientation="portrait"');
+        expect(read('android/app/src/main/AndroidManifest.xml')).not.toMatch(/android:(screenOrientation|maxAspectRatio|minAspectRatio)=/);
         expect(read('android/app/src/main/AndroidManifest.xml')).toContain('android:resizeableActivity="true"');
         expect(read('android/app/src/main/AndroidManifest.xml')).toContain('android:appCategory="game"');
         expect(JSON.parse(read('public/manifest.json')).orientation).toBe('portrait');

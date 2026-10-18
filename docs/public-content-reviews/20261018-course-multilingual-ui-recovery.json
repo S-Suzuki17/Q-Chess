@@ -1,0 +1,350 @@
+{
+  "schemaVersion": 1,
+  "status": "completed",
+  "baseRevision": "72387f185404f038e6c5bc8414d261d13e7781ca",
+  "reviewer": "Codex: integrated curriculum, multilingual flow, recovery and disabled native integration review, 2026-10-18",
+  "changes": [
+    {
+      "path": "server/src/matchmaking/MatchmakingService.ts",
+      "gitBlob": "22c14264081556cc93ddf7b8f4b15f2f6bfab6bd"
+    },
+    {
+      "path": "server/src/protocol/PrivateRoom.ts",
+      "gitBlob": "7e81051cb260ca04a88b094502a803df43303133"
+    },
+    {
+      "path": "src/app/page.tsx",
+      "gitBlob": "3b1fb5e13374439b7f44fceb9d30cbf15b52750b"
+    },
+    {
+      "path": "src/app/rules/page.tsx",
+      "gitBlob": "7445812b33c2eb0ff9e27ce5a0a828e9ec812152"
+    },
+    {
+      "path": "src/components/Board2D.tsx",
+      "gitBlob": "eda6d987f528b09854c21714cb3d63e398f65117"
+    },
+    {
+      "path": "src/components/CampaignMode.tsx",
+      "gitBlob": "20d46a4c2ad9eeb27939cf8cd23fda7a17cf490a"
+    },
+    {
+      "path": "src/components/CampaignResult.tsx",
+      "gitBlob": "16c25e5e3da16272e24c09f4e59b31a40f03e964"
+    },
+    {
+      "path": "src/components/ChallengeMap.tsx",
+      "gitBlob": "e457495d9e5907b4398bedff06354c2bbb60d19c"
+    },
+    {
+      "path": "src/components/CosmeticsSettings.tsx",
+      "gitBlob": "f43b771b7287df6cde7e274310797464fe69bbc1"
+    },
+    {
+      "path": "src/components/GameSettings.tsx",
+      "gitBlob": "7a2093a73f6e804e6dc65459994ed9173b638298"
+    },
+    {
+      "path": "src/components/GuestCircuitPreview.tsx",
+      "gitBlob": "7519a795241283142feb1466bcabb6098fd51458"
+    },
+    {
+      "path": "src/components/InteractiveTutorial.tsx",
+      "gitBlob": "74542f190efe99a5759d38841bed7fc9d21b4c42"
+    },
+    {
+      "path": "src/components/LearningPage.tsx",
+      "gitBlob": "6ec58053b51d433b9aee1121acec145605e50a8b"
+    },
+    {
+      "path": "src/components/LevelSelect.tsx",
+      "gitBlob": "43a040023f6515356a5fb00374ec449fa7cc3d62"
+    },
+    {
+      "path": "src/components/LocalGameBoard.tsx",
+      "gitBlob": "35d002f2766507d0c423fed450748b3c17eb4b3f"
+    },
+    {
+      "path": "src/components/MatchLayout.tsx",
+      "gitBlob": "38769804ff43e751f2b7c77fd2ca1435fa215eed"
+    },
+    {
+      "path": "src/components/NativeCommercePanel.tsx",
+      "gitBlob": "0cf076e42da4637da80bc42b0ce06b51f6409908"
+    },
+    {
+      "path": "src/components/NaturalText.tsx",
+      "gitBlob": "b5c07ad016eb51b4e2ad3f300e507367600e90a1"
+    },
+    {
+      "path": "src/components/OnlineGameBoard.tsx",
+      "gitBlob": "cfade2b41e859a8a7056e8c4b52b3ee13d13ca7b"
+    },
+    {
+      "path": "src/components/OnlineMatchWaiting.tsx",
+      "gitBlob": "f27bd12825f496d6fbeda2a256836f3b78b09135"
+    },
+    {
+      "path": "src/components/SettingsDialog.tsx",
+      "gitBlob": "4481dd5d778b12efb0d6daf9a7c08745c5fef9c1"
+    },
+    {
+      "path": "src/components/SiteInformation.tsx",
+      "gitBlob": "c6118f2036c477328c00ad603fd71d66ed7b307b"
+    },
+    {
+      "path": "src/components/TutorialCopy.tsx",
+      "gitBlob": "3a1d043eb75fb002ca6104cd251241e5b356a652"
+    },
+    {
+      "path": "src/components/castle-quest-journey.css",
+      "gitBlob": "4833df884a0e55254a0665d080c454648f16c00a"
+    },
+    {
+      "path": "src/components/challenge-map.css",
+      "gitBlob": "ad3b3343b7b04cd5b9525f0609cbca6f2caddc78"
+    },
+    {
+      "path": "src/components/crown-reference.css",
+      "gitBlob": "fa580c4f37b9e7448354748b83407919a44efec0"
+    },
+    {
+      "path": "src/components/game-page.css",
+      "gitBlob": "1aa90de8d89dbb1308fd14237c795f1a6343d0f1"
+    },
+    {
+      "path": "src/components/game-settings.css",
+      "gitBlob": "fb7c6d3c841b2a00543de32efd52dc4315076396"
+    },
+    {
+      "path": "src/components/interactive-tutorial.css",
+      "gitBlob": "5ecc879da37dc960647c29e08592306226c0d665"
+    },
+    {
+      "path": "src/components/lobby-reference.css",
+      "gitBlob": "e77a1097336989c479ea7464b5e5879fc762bed0"
+    },
+    {
+      "path": "src/components/online-match-waiting.css",
+      "gitBlob": "c88c50950bb0649086a0df7b2fe7812e73eee59f"
+    },
+    {
+      "path": "src/hooks/useAndroidBack.ts",
+      "gitBlob": "e3af5217abd3c6ef24353d616ba44b42c2f8ed3e"
+    },
+    {
+      "path": "src/hooks/useNativeCommerceRecovery.ts",
+      "gitBlob": "6e7421b4fa1175f737685f2718ffd44c34a5c601"
+    },
+    {
+      "path": "src/hooks/usePlayGameStatsMatch.ts",
+      "gitBlob": "3c00bb5e3d7ea643ac36b26b4bfb8b232ba1db8e"
+    },
+    {
+      "path": "src/hooks/usePlayGameStatsProgress.ts",
+      "gitBlob": "38ab52d5d81960309943918c7f93e4e2fce4b66f"
+    },
+    {
+      "path": "src/lib/androidBack.ts",
+      "gitBlob": "1cc77ff8d7a95f6defc04f375251d6841d7d83e5"
+    },
+    {
+      "path": "src/lib/crownHintRun.ts",
+      "gitBlob": "9b5fb258071160658b5be85f505c2575b5de3cbc"
+    },
+    {
+      "path": "src/lib/localMoveDestinations.ts",
+      "gitBlob": "aaaf0c15d68a431bfb857d0c46ffc4e27c004041"
+    },
+    {
+      "path": "src/lib/nativeCommerce.ts",
+      "gitBlob": "878fb24f805a71873db53219cad7f683e77f0dd4"
+    },
+    {
+      "path": "src/lib/nativeCommerceRecovery.ts",
+      "gitBlob": "b03e75e41fd6cf9c72a8e8d74517b2e0beabd102"
+    },
+    {
+      "path": "src/lib/playGameStats.ts",
+      "gitBlob": "75dedc575f6d94d92e45f601aab4bda467846c0f"
+    },
+    {
+      "path": "src/lib/playGameStatsMatch.ts",
+      "gitBlob": "21a5b560da7e05c8430820339a4acf3d8e15ef42"
+    },
+    {
+      "path": "src/lib/privateRoom.ts",
+      "gitBlob": "a6eeffb55c003878c71ea289bc5d9a6d0662d4e1"
+    },
+    {
+      "path": "src/lib/textPageBreaks.ts",
+      "gitBlob": "d0581115f5d7e2dd70d170929e9eee5459e9f22c"
+    },
+    {
+      "path": "src/lib/tutorialCourse.ts",
+      "gitBlob": "e5a1985d68d576978c1fcef344cb4eddb1354b88"
+    },
+    {
+      "path": "src/locales/matchWaitingText.ts",
+      "gitBlob": "b0330f268798ab6460d5d63f38775a089e623205"
+    },
+    {
+      "path": "src/locales/rankedStartText.ts",
+      "gitBlob": "3b603b7a437dc816bcf130cb6691e7a319e4cd18"
+    },
+    {
+      "path": "src/locales/securityPrivacy.ts",
+      "gitBlob": "7ad7b0fafca2c957355e46c4751dc8e159ed1191"
+    },
+    {
+      "path": "src/locales/settingsScreenText.ts",
+      "gitBlob": "8a4697925a278a449e9af47b62e35ea9454690d0"
+    },
+    {
+      "path": "src/locales/siteContent.ts",
+      "gitBlob": "d22b861b25af00b730b5ab0e6b3dbacd2ecb326f"
+    },
+    {
+      "path": "src/locales/tutorialCourseText.ts",
+      "gitBlob": "f070e600e8e10b5ebc07f83dc1e2543d9509e093"
+    },
+    {
+      "path": "src/styles/text-flow.css",
+      "gitBlob": "4e212bb8bac6459ce197c7833f65f890b7a4d059"
+    }
+  ],
+  "reviews": [
+    {
+      "group": "start-and-controls",
+      "decision": "updated",
+      "reason": "The Japanese/English start guide now describes all 24 local lessons, explicit special-action choices, both-side teaching control and device-local progress. The lobby learning entry remains reachable; compact settings select the same mounted sections as desktop tabs. Map pagination and native Back preserve the existing admission/cancellation ownership.",
+      "checkedPages": [
+        "/guide/#start",
+        "/faq/#guest"
+      ],
+      "evidence": [
+        "src/locales/siteContent.ts: updated start step; guest learning still requires no paid admission.",
+        "docs/tutorial-course.md and src/lib/tutorialCourse.ts: six chapters, 24 real-engine lessons.",
+        "outputs/settings-fit-integration-receipt.json: actual-font settings 12 Web + 12 native fixture + 3 keyboard/focus conditions reused against matching CSS.",
+        "outputs/collection-all-languages-20261018-4/result.json: map plus every collection category fit with complete words in 12 languages at 320, 390 and 1280 widths (36 conditions).",
+        "Configured exported Web and Android: 9 synthetic account/UI cases each; Home 12 languages x 2 sizes each; every settings section and all five collection categories reachable. No live mutations.",
+        "LevelSelect bottom navigation now uses the existing shorter replay translation and complete CJK word spans, retaining the full accessible replay name. Names and click targets are not truncated."
+      ]
+    },
+    {
+      "group": "candidates-and-outcomes",
+      "decision": "no-change-needed",
+      "reason": "The game rules are unchanged. Existing Rules and guide copy correctly distinguish remaining identities, quota propagation including captured pieces, final King-candidate capture, checkmate and stalemate. The final lesson requires actual engine checkmate with two living Rook/Queen candidates; a scripted destination or King capture alone cannot complete it. Hint destinations now filter self-check through the same legal rules.",
+      "checkedPages": [
+        "/rules/",
+        "/guide/#candidates",
+        "/guide/#outcomes",
+        "/guide/#practice",
+        "/guide/#chain",
+        "/faq/#move",
+        "/faq/#win"
+      ],
+      "evidence": [
+        "src/lib/tutorialCourse.test.ts: real applyPracticeMove/applyLocalMove parity and distinct finish conditions.",
+        "src/lib/localMoveDestinations.ts and legal-destinations-integration-receipt.json: canonical legal destination filtering.",
+        "src/app/rules/page.tsx and src/locales/siteContent.ts: wording retained; CJK spans and responsive diagrams change presentation only."
+      ]
+    },
+    {
+      "group": "hints-and-clock",
+      "decision": "no-change-needed",
+      "reason": "The current main already uses a 30-second per-move clock, 3-minute and 10-minute total clocks. This integration preserves those rules and the legacy wire/rating ID 10s. Private rooms now honor the creator choice and restore the authoritative 30000ms short clock; joins never replace it. Hint prices, ticket use and clock authority do not change. Crown recovery retains uncertain purchase fences and only closes the explicitly abandoned run.",
+      "checkedPages": [
+        "/guide/#start",
+        "/faq/#clock",
+        "/faq/#hints"
+      ],
+      "evidence": [
+        "server/src/game/GameEngine.ts and CrownHintRegistry.ts: current main 30-second rule preserved; protocol IDs 10/180/600 remain compatible.",
+        "src/lib/privateRoom.ts plus server/src/services/privateRoomIntegration.test.ts: actual 30000/180000/600000ms engine clocks verified through real sockets, moves and reconnect.",
+        "outputs/current-regression-repairs-20261018.json: 58 cases passed, including timed-out recovery, background clock elapsed time, auth restoration and ranked admission."
+      ]
+    },
+    {
+      "group": "accounts-connections-and-saves",
+      "decision": "updated",
+      "reason": "Privacy copy in all 12 UI languages now distinguishes cloud-synced 100-Tile progress/appearance from device-only tutorial lesson progress. Authentication, deletion and account data retention are unchanged. Android Back follows the active dialog/screen and preserves account identity; pending entries are cancelled using their existing controller rather than reviving from late responses. The separately requested Play Games integration remains disabled by its native build gate, including automatic SDK initialization. No Google event sending is enabled by this release; privacy/Data safety review is an explicit prerequisite before enabling it.",
+      "checkedPages": [
+        "/faq/#connection",
+        "/faq/#save",
+        "/faq/#privacy",
+        "/contact/",
+        "/privacy/"
+      ],
+      "evidence": [
+        "src/locales/securityPrivacy.ts: storage scope clarified; security audit log policy unchanged.",
+        "src/lib/tutorialCourse.ts: versioned local completed-lesson IDs only.",
+        "src/lib/androidBack.ts and src/hooks/useAndroidBack.ts: nested dialog cancellation and prioritized handlers.",
+        "src/components/LevelSelect.lifecycle.test.ts: committed identity and unmount fencing.",
+        "docs/play-games/README.md and Android manifest/build gate: PGS default OFF with existing numeric project ID configured; no Console writes or Google acceptance claimed.",
+        "src/app/sessionRestoration.test.ts: current-snapshot test harness supports useSyncExternalStore; all existing identity and active-match assertions are retained."
+      ]
+    },
+    {
+      "group": "commerce-and-disclosures",
+      "decision": "updated",
+      "reason": "Only the storage-scope clarification changes guidance. Sales terms, prices, membership, billing gates and ticket entitlements are unchanged. Existing-purchase reconciliation on foreground/online never starts a new purchase, serializes billing operations and remains fenced to the current account. A failed balance GET cannot overwrite a confirmed or pending purchase result. No real payment, ad or production database was used for these repairs.",
+      "checkedPages": [
+        "/faq/#hints",
+        "/contact/",
+        "/privacy/",
+        "/terms/"
+      ],
+      "evidence": [
+        "src/locales/securityPrivacy.ts: tutorial storage clarification.",
+        "src/lib/nativeCommerceRecovery.ts and useNativeCommerceRecovery.ts: existing purchase query with consent/access/server-ready boundaries.",
+        "NativeCommercePanel.tsx and nativeCommerce.ts: result preservation and serial queue.",
+        "commerce-feedback-integration-receipt.json and android-lifecycle-integration-receipt.json: accepted targeted source/test evidence; physical fixture is separate from Play purchase acceptance."
+      ]
+    },
+    {
+      "group": "public-guidance-and-navigation",
+      "decision": "updated",
+      "reason": "Public guide text is preserved and can scroll within its own viewport; section selection and keyboard End expose the full article. CJK word spans, locale roots and natural wrapping replace unconditional mid-word breaks. Compact menus wrap complete labels or use a full-width native picker. The public guide remains Japanese/English; other UI locales use its existing English fallback and must not be described as translated guides.",
+      "checkedPages": [
+        "/",
+        "/guide/",
+        "/faq/",
+        "/rules/",
+        "/about/",
+        "/contact/",
+        "/privacy/",
+        "/terms/"
+      ],
+      "evidence": [
+        "src/styles/text-flow.css and src/components/NaturalText.tsx: language-aware flow and hydration-safe dictionary words.",
+        "src/components/LearningPage.tsx and game-page.css: section navigation and readable full content.",
+        "scripts/qa/check-text-wrapping-browser.mjs: twelve requested UI languages, recorded effective language, clipping and compact-fit assertions.",
+        "outputs/text-wrapping-final-20261018-1/result.json: all 24 conditions passed settings/waiting/guide/rules/tutorial word/clipping checks; map failures fixed and recorded separately.",
+        "Supervisor learning-acceptance.json: seven actual-font full-course conditions include guide/rules keyboard End, section navigation and enlarged Tamil reading.",
+        "Configured exported Web and Android: 9 synthetic account/UI cases each; Home 12 languages x 2 sizes each; every settings section and all five collection categories reachable. No live mutations.",
+        "Actual Web export: 8 initial/no-JavaScript HTML checks and 6 browser cases passed in check-public-guides.mjs; client configuration verified with zero unresolved public reads."
+      ]
+    },
+    {
+      "group": "qube-teaching",
+      "decision": "updated",
+      "reason": "QUBE now teaches a progressive 24-lesson course in all 12 game languages, including both-side turns, special moves, illegal self-check, drawn and winning endings, and unresolved-candidate mate. Examples do not award completion; recovery and explicit move choices preserve the actual engine state. Explanation pagination retains all graphemes and prefers word boundaries. Existing optional teaching telemetry retains its existing consent gates.",
+      "checkedPages": [
+        "/",
+        "/about/",
+        "/rules/",
+        "/guide/",
+        "/faq/",
+        "game: tutorial, help dialogs, move hints and feedback, promotion/castling, stage/setup explanations, cosmetic preview/equipment guidance"
+      ],
+      "evidence": [
+        "src/locales/tutorialCourseText.ts and src/components/InteractiveTutorial.test.ts: all 24 titles/descriptions and controls in 12 languages.",
+        "src/components/TutorialCopy.tsx and src/lib/textPageBreaks.ts: matching measurement/rendering and lossless word-aware pages.",
+        "scripts/qa/tutorial-walkthrough.mjs: independent 31-action rendered course walkthrough, special-choice cancellation and demo-progress assertions.",
+        "outputs/tutorial-fit-integration-receipt.json and supervisor learning-acceptance.json: seven complete conditions, each 24 lessons and 31 actual actions, all copy pages preserved, real unresolved-candidate mate and stored progress verified."
+      ]
+    }
+  ],
+  "reviewedAt": "2026-10-18T05:23:49.107691+00:00"
+}

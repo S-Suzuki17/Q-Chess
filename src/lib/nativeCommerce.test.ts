@@ -12,6 +12,32 @@ const intent={userId:'alice',sku:'hints_13',accountId:'a'.repeat(64),intentId:'b
 beforeEach(()=>{vi.resetAllMocks();mock.android.mockReturnValue(true);vi.stubEnv('NEXT_PUBLIC_NATIVE_COMMERCE_ENABLED','true');vi.stubGlobal('window',{dispatchEvent:mock.dispatch});mock.api.mockResolvedValue(intent);});
 afterEach(()=>{vi.unstubAllEnvs();vi.unstubAllGlobals();});
 describe('native commerce bridge trusts only server and Google boundaries',()=>{
+ it('serializes foreground restore and purchase before creating a new intent',async()=>{
+  let release!:(value:{purchases:[]})=>void;
+  mock.restore.mockImplementationOnce(()=>new Promise(resolve=>{release=resolve;}));
+  mock.purchase.mockResolvedValue({status:'cancelled',purchases:[]});
+  const restoration=restoreNativeCommerce('alice',()=>true);await Promise.resolve();
+  const purchase=buyNativeCommerce('alice',price,()=>true);await Promise.resolve();
+  expect(mock.api).not.toHaveBeenCalled();expect(mock.purchase).not.toHaveBeenCalled();
+  release({purchases:[]});await restoration;expect(await purchase).toBe('cancelled');expect(mock.purchase).toHaveBeenCalledTimes(1);
+ });
+ it('discards a queued account after revocation and a receipt result after account change',async()=>{
+  let release!:(value:{purchases:[]})=>void,allowed=true;
+  mock.restore.mockImplementationOnce(()=>new Promise(resolve=>{release=resolve;}));
+  const running=restoreNativeCommerce('alice',()=>true);await Promise.resolve();
+  const queued=restoreNativeCommerce('alice',()=>allowed);allowed=false;
+  const rejection=expect(queued).rejects.toThrow('AUTH_REQUIRED');release({purchases:[]});await running;await rejection;expect(mock.restore).toHaveBeenCalledTimes(1);
+  mock.dispatch.mockClear();allowed=true;mock.restore.mockResolvedValueOnce({purchases:[{sku:'hints_13',state:'purchased',purchaseToken:'private-fixture-token'}]});
+  mock.api.mockImplementationOnce(async()=>{allowed=false;return{userId:'alice',reconciliationPending:false,deliveryPending:false};});
+  await expect(restoreNativeCommerce('alice',()=>allowed)).rejects.toThrow('AUTH_REQUIRED');expect(mock.dispatch).not.toHaveBeenCalled();
+ });
+ it('recovers a formerly pending purchase using only the existing receipt on next query',async()=>{
+  mock.restore.mockResolvedValueOnce({purchases:[{sku:'hints_13',state:'pending'}]});
+  expect(await restoreNativeCommerce('alice',()=>true)).toBe('pending');expect(mock.api).not.toHaveBeenCalled();
+  mock.restore.mockResolvedValueOnce({purchases:[{sku:'hints_13',state:'purchased',purchaseToken:'private-fixture-token'}]});
+  mock.api.mockResolvedValueOnce({userId:'alice',reconciliationPending:false,deliveryPending:false});
+  expect(await restoreNativeCommerce('alice',()=>true)).toBe('done');expect(mock.purchase).not.toHaveBeenCalled();expect(mock.api).toHaveBeenCalledTimes(1);
+ });
  it('uses provider regional price, rejects duplicates and never invents unavailable products',async()=>{
   mock.products.mockResolvedValue({products:[price]});expect(await nativeCommercePrices()).toEqual([price]);
   mock.products.mockResolvedValue({products:[price,price]});await expect(nativeCommercePrices()).rejects.toThrow('UNAVAILABLE');

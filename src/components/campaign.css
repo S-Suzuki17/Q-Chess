@@ -19,7 +19,7 @@
 .campaign-screen .campaign-primary,.campaign-result .campaign-primary { display:flex; justify-content:center; align-items:center; gap:12px; width:100%; background:#e5d7b6; border-color:#e5d7b6; color:#20261b; min-height:52px; }
 .campaign-boss-card .campaign-medal-help { margin:16px 0 0; font-size:10px; }
 .campaign-collection { margin-top:40px; border-top:1px solid #35402f; padding-top:24px; }.campaign-collection h2 { font-size:22px; margin:0 0 20px; font-weight:500; }.campaign-equipment-group h3 { font-size:12px; color:#aab3a3; margin:18px 0 10px; }
-.campaign-equipment { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }.campaign-equipment button { display:flex; align-items:center; gap:12px; text-align:left; min-width:0; }.campaign-equipment button[aria-pressed=true] { border-color:#a18d5c; }.campaign-equipment strong { display:block; font-size:13px; overflow-wrap:anywhere; }.campaign-equipment small { display:block; color:#b1b9a6; font-size:10px; margin-top:4px; }.campaign-equipment button>svg { margin-left:auto; flex-shrink:0; }
+.campaign-equipment { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; }.campaign-equipment button { display:flex; align-items:center; gap:12px; text-align:left; min-width:0; }.campaign-equipment button[aria-pressed=true] { border-color:#a18d5c; }.campaign-equipment strong { display:block; font-size:13px; overflow-wrap:break-word; }.campaign-equipment small { display:block; color:#b1b9a6; font-size:10px; margin-top:4px; }.campaign-equipment button>svg { margin-left:auto; flex-shrink:0; }
 .campaign-board-swatch { width:42px; height:42px; flex-shrink:0; display:grid; grid-template-columns:repeat(3,1fr); border-radius:6px; overflow:hidden; }.campaign-piece-swatch { display:grid; place-items:center; width:42px; height:42px; flex-shrink:0; border-radius:8px; font:34px Georgia,serif; }
 .campaign-save-error { color:#ffc3a4; font-size:13px; padding:12px; border:1px solid #875b44; border-radius:10px; }
 .campaign-circuit { padding:18px 20px; margin-bottom:24px; border:1px solid #3c4436; border-radius:16px; background:#191f19; }.campaign-circuit-nav { display:flex; align-items:center; gap:16px; }.campaign-circuit-nav strong { margin-right:auto; font-size:18px; }.campaign-record { display:flex; flex-wrap:wrap; gap:24px; padding:16px 0 0; color:#abb59f; font-size:12px; }.campaign-record b { color:#e5d7b6; margin-left:6px; }.campaign-circuit p { color:#a8b0a0; font-size:11px; line-height:1.7; margin:12px 0 0; }.campaign-circuit .campaign-primary { margin-top:16px; }
@@ -146,7 +146,7 @@
 .crown-next-art { display:grid; place-items:center; flex:1; width:100%; min-height:0; max-height:220px; }
 .crown-next-art>svg { width:100%; height:100%; max-height:210px; }
 .crown-next-art .reward-effect-art { width:min(100%,160px); }
-.crown-next-reward>strong { font-size:14px; font-weight:500; line-height:1.5; overflow-wrap:anywhere; }
+.crown-next-reward>strong { font-size:14px; font-weight:500; line-height:1.5; overflow-wrap:break-word; }
 .crown-preview-label { display:flex; align-items:center; justify-content:center; gap:5px; color:var(--crown-gold); margin-top:7px; font-size:10px; }
 .crown-launch { grid-column:1/-1; display:grid; grid-template-columns:1fr 1fr; align-items:center; gap:8px 24px; padding-top:12px; border-top:1px solid #e2d1aa20; }
 .crown-launch .campaign-side { gap:6px; margin:0; min-width:0; }
@@ -189,7 +189,7 @@
 .crown-item-art .reward-board-art { width:100%; height:100%; max-height:200px; }
 .crown-item-art .reward-effect-art { height:100%; width:auto; max-width:100%; max-height:160px; }
 .crown-item-art .account-avatar { flex-shrink:0; }
-.crown-item-preview strong { flex-shrink:0; max-width:100%; font-size:13px; line-height:1.4; font-weight:500; overflow-wrap:anywhere; text-align:center; }
+.crown-item-preview strong { flex-shrink:0; max-width:100%; font-size:13px; line-height:1.4; font-weight:500; overflow-wrap:break-word; text-align:center; }
 .crown-item-preview .crown-preview-label { margin-top:5px; }
 .crown-item-status { flex-shrink:0; min-height:23px; display:flex; flex-wrap:wrap; align-items:center; gap:3px 8px; border-top:1px solid #ffffff14; margin-top:8px; padding-top:8px; font-size:10px; line-height:1.4; color:#abb9ad; }
 .crown-item-status small { font-size:9px; color:#bfbaaa; }
@@ -242,7 +242,7 @@
  .crown-journey { gap:5px; }
  .crown-journey-heading { font-size:10px; }
  .crown-screen .crown-category-tabs { gap:4px; }
- .crown-screen .crown-category-tabs button { flex-direction:column; gap:4px; padding:7px 2px; font-size:10px; overflow-wrap:anywhere; }
+ .crown-screen .crown-category-tabs button { flex-direction:column; gap:4px; padding:7px 2px; font-size:10px; overflow-wrap:break-word; }
  .crown-collection .crown-collection-meta h2 { font-size:15px; }
  .championship-collection.crown-collection { gap:9px; }
  .crown-collection-grid { gap:8px; }
@@ -348,17 +348,17 @@
 .campaign-screen.crown-screen { height:auto; container-type:inline-size; }
 .crown-progress { flex-wrap:wrap; }
 .crown-progress progress { min-width:0; }
-.crown-encounter-copy,.crown-next-reward { overflow-wrap:anywhere; }
+.crown-encounter-copy,.crown-next-reward { overflow-wrap:break-word; }
 @container (max-width:280px) {
  .crown-encounter { grid-template-columns:minmax(0,1fr); }
  .crown-launch { grid-template-columns:minmax(0,1fr); }
  .crown-screen .crown-route { grid-template-columns:repeat(2,minmax(0,1fr)); }
  .crown-screen .crown-pager { flex-wrap:wrap; justify-content:center; }
  .crown-screen .crown-pager>span { min-width:0; }
- .crown-screen .crown-tabs button { overflow-wrap:anywhere; }
+ .crown-screen .crown-tabs button { overflow-wrap:break-word; }
  .crown-screen .crown-category-tabs { flex-wrap:wrap; }
  .crown-screen .crown-category-tabs button { flex-basis:28%; }
- .crown-header h1 { overflow-wrap:anywhere; }
+ .crown-header h1 { overflow-wrap:break-word; }
  .crown-collection-meta,.crown-collection-footer { flex-wrap:wrap; }
  .crown-collection-grid { grid-template-columns:minmax(0,1fr); }
 }
@@ -372,7 +372,7 @@
  .crown-screen .account-avatar { max-width:100%; }
  .crown-screen .crown-tabs { flex-wrap:wrap; }
  .crown-screen .crown-tabs button { flex-basis:100%; }
- .crown-screen .crown-progress { overflow-wrap:anywhere; }
+ .crown-screen .crown-progress { overflow-wrap:break-word; }
  .crown-screen .crown-route { grid-template-columns:minmax(0,1fr); }
 }
 .campaign-screen.crown-screen { overflow:auto; }
@@ -382,8 +382,8 @@
 @container (max-width:140px) {
  .crown-screen .crown-next-art { max-width:100%; overflow:hidden; }
  .crown-screen .crown-next-art .account-avatar { transform:scale(.55); }
- .crown-screen .crown-progress span { max-width:100%; overflow-wrap:anywhere; }
- .crown-screen .crown-launch button { min-width:0; overflow-wrap:anywhere; }
+ .crown-screen .crown-progress span { max-width:100%; overflow-wrap:break-word; }
+ .crown-screen .crown-launch button { min-width:0; overflow-wrap:break-word; }
 }
 @media (max-height:320px) {
  .crown-tab-panel { flex:none; min-height:260px; }
@@ -392,15 +392,15 @@
 .crown-screen .crown-tabs button,
 .crown-screen .crown-launch button,
 .crown-route-node strong,
-.crown-preview-label { min-width:0; max-width:100%; overflow-wrap:anywhere; }
+.crown-preview-label { min-width:0; max-width:100%; overflow-wrap:break-word; }
 .crown-progress>span { max-width:100%; white-space:normal; flex-wrap:wrap; }
-.crown-progress b { overflow-wrap:anywhere; }
+.crown-progress b { overflow-wrap:break-word; }
 .crown-collection-meta { flex-wrap:wrap; height:auto; }
-.crown-collection-meta>span { min-width:0; overflow-wrap:anywhere; }
+.crown-collection-meta>span { min-width:0; overflow-wrap:break-word; }
 .crown-encounter { grid-template-rows:minmax(min-content,1fr) auto; min-height:min-content; }
 .crown-collection-grid { grid-template-rows:repeat(var(--crown-rows),minmax(min-content,1fr)); }
 .crown-collection-card,
 .crown-screen .crown-item-preview { min-height:min-content; }
 .crown-screen .crown-item-preview { flex-shrink:0; }
-.crown-item-meta { flex-wrap:wrap; overflow-wrap:anywhere; }
+.crown-item-meta { flex-wrap:wrap; overflow-wrap:break-word; }
 .crown-panels { min-height:min(400px,70dvh); }

@@ -40,7 +40,9 @@ describe('maintenance final engine admission',()=>{
     });
     it('cancels an uncharged private match instead of constructing an engine',async()=>{
         const f=await fixture('free');f.mm.registerSocket('Carol','c');f.mm.registerSocket('Dave','d');
+        f.mm.reserveMatch('Carol','private-room',undefined,{intent:'create',timeControl:600});
         f.mm.connectMatch('Carol','private-room');
+        f.mm.reserveMatch('Dave','private-room',undefined,{intent:'join'});
         vi.setSystemTime(stopped);const result=f.mm.connectMatch('Dave','private-room');
         expect(result.match?.state).toBe('CANCELLED');expect(result.engine).toBeUndefined();
         expect(f.emitted).toHaveBeenCalledWith('match_cancelled',{matchId:'private-room',reason:'MAINTENANCE'});

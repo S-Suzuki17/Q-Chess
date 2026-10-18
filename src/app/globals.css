@@ -1,4 +1,5 @@
-@import "tailwindcss";
+@import "tailwindcss" source("../");
+@import "../styles/text-flow.css";
 @import "../components/game-page.css";
 
 :root {

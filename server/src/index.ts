@@ -538,6 +538,7 @@ io.on('connection', (socket: Socket) => {
       }
   };
   let queueAttempt=0;
+  let pendingConnection: { matchId: string } | null = null;
   socket.on('join_queue', async (data: { timeControl: number, userName?: string, mode?:QueueMode }) => {
     if(accountGate.blocked(userId))return;
     const attempt=++queueAttempt;
@@ -602,8 +603,10 @@ io.on('connection', (socket: Socket) => {
     finally { choiceRequest=false; }
   });
   socket.on('cancel_match_admission', (data: {matchId?:unknown}) => {
-    if(!currentOwner())return;
-    const match=typeof data?.matchId==='string'?matchmaking.getMatch(data.matchId):undefined;
+    if(!currentOwner() || typeof data?.matchId !== 'string')return;
+    if(pendingConnection?.matchId===data.matchId)pendingConnection=null;
+    if(matchmaking.cancelWaitingPrivateMatch(userId,data.matchId))return;
+    const match=matchmaking.getMatch(data.matchId);
     if(!match||!['WAITING_FOR_JOINER','CONNECTING','ADMITTING'].includes(match.state)
         ||!Object.values(match.players).includes(userId))return;
     if(admission&&(match.admissionProtocol==='shared_v1'||match.admission||match.mode==='ranked')) {
@@ -620,12 +623,22 @@ io.on('connection', (socket: Socket) => {
     matchmaking.leaveQueue(userId);
   });
 
-  socket.on('connect_match', async (data: { matchId: string, userName?: string, avatarUrl?: string, avatarFrame?:string,introVersion?:number }) => {
+  socket.on('connect_match', async (data: { matchId: string, userName?: string, avatarUrl?: string, avatarFrame?:string,introVersion?:number, privateRoom?: import('./protocol/PrivateRoom').PrivateRoomRequest }) => {
     if(accountGate.blocked(userId))return;
     if(cpuPractice?.isBusy(userId)){socket.emit('queue_error',{code:'CPU_PRACTICE_PENDING'});return;}
     if(matchmaking.getPlayerSession(userId)?.socketId!==socket.id)return;
-    if(typeof data?.matchId!=='string'||!data.matchId||data.matchId.length>128)return;
+    if(typeof data?.matchId!=='string'||!data.matchId||data.matchId.length>128){socket.emit('queue_error',{code:'INVALID_ROOM',matchId:data?.matchId});return;}
     if(data.userName!==undefined&&typeof data.userName!=='string')return;
+    const bound=matchmaking.getPlayerSession(userId)?.currentMatchId;
+    if(bound&&bound!==data.matchId){socket.emit('queue_error',{code:'ACCOUNT_BUSY',matchId:data.matchId});return;}
+    const attempt={matchId:data.matchId};pendingConnection=attempt;
+    const currentConnection=()=>currentOwner()&&pendingConnection===attempt;
+    let reserved: MatchSession | undefined = undefined;
+    const fail=(code:string)=>{
+      if(!currentConnection())return;
+      if(reserved&&!reserved.mode)matchmaking.cancelWaitingPrivateMatch(userId,data.matchId);
+      socket.emit('queue_error',{code,matchId:data.matchId});
+    };
     const remembered=matchmaking.getMatch(data.matchId);
     const durableMatchId=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(data.matchId);
     if(!admission&&durableMatchId&&!remembered){socket.emit('match_cancelled',{matchId:data.matchId,reason:'match_not_found'});return;}
@@ -645,44 +658,50 @@ io.on('connection', (socket: Socket) => {
     // Reconnection to a started game remains possible during maintenance.
     if(matchmaking.getMatch(data.matchId)?.state!=='IN_GAME'){
         const unavailable=await operations.admission(socket.handshake.auth.client);
-        if(unavailable){socket.emit('queue_error',{code:unavailable,message:unavailable});return;}
-        if(!socket.connected||matchmaking.getPlayerSession(userId)?.socketId!==socket.id)return;
+        if(unavailable)return fail(unavailable);
+        if(!currentConnection())return;
     }
     if(data.userName)data.userName=data.userName.slice(0,80);
-    if(cpuPractice?.isBusy(userId)){socket.emit('queue_error',{code:'CPU_PRACTICE_PENDING'});return;}
+    if(cpuPractice?.isBusy(userId))return fail('CPU_PRACTICE_PENDING');
     const existingGame=matchmaking.getMatch(data.matchId)?.state==='IN_GAME';
-    if(!existingGame&&hintBusy(userId)){socket.emit('queue_error',{code:'HINT_PURCHASE_PENDING'});return;}
+    if(!existingGame&&hintBusy(userId))return fail('HINT_PURCHASE_PENDING');
     const restoringDisconnectedGame = existingGame && matchmaking.awaitingReconnect(userId, data.matchId);
     if(!existingGame || restoringDisconnectedGame){
-        try{if(!await verifyAdmission()){socket.emit('queue_error',{code:'AUTH_REQUIRED'});return;}}
-        catch{if(currentOwner())socket.emit('queue_error',{code:'AUTH_UNAVAILABLE'});return;}
+        try{if(!await verifyAdmission())return fail('AUTH_REQUIRED');}
+        catch{return fail('AUTH_UNAVAILABLE');}
     }
-    const reserved=matchmaking.reserveMatch(userId,data.matchId,data.userName);
-    if(!reserved)return;
+    if(!currentConnection())return;
+    const connectionError=matchmaking.matchConnectionError(userId,data.matchId,data.privateRoom);
+    if(connectionError)return fail(connectionError);
+    reserved=matchmaking.reserveMatch(userId,data.matchId,data.userName,data.privateRoom);
+    if(!reserved)return fail('CONNECTION_FAILED');
     const role=reserved.players.host===userId?'host':'joiner';
     const openingRating=reserved.engine?.getPublicState(userId).playerRatings?.[role];
-    const rating=openingRating!==undefined?openingRating:await supabaseService.getMatchRating(userId,reserved.timeControl);
+    let rating=openingRating;
+    try{if(rating===undefined)rating=await supabaseService.getMatchRating(userId,reserved.timeControl);}
+    catch{return fail('RATING_UNAVAILABLE');}
     if(data.avatarFrame==='avatar-frame-founders'){
       try{if(!await supabaseService.foundersStore().owned(userId))data.avatarFrame='standard';}
       catch{data.avatarFrame='standard';}
     }
-    if(!socket.connected||matchmaking.getPlayerSession(userId)?.socketId!==socket.id)return;
+    if(!currentConnection())return;
     if(!existingGame || restoringDisconnectedGame){
-        try{if(!await verifyAdmission()){socket.emit('queue_error',{code:'AUTH_REQUIRED'});return;}}
-        catch{if(currentOwner())socket.emit('queue_error',{code:'AUTH_UNAVAILABLE'});return;}
+        try{if(!await verifyAdmission())return fail('AUTH_REQUIRED');}
+        catch{return fail('AUTH_UNAVAILABLE');}
     }
     if(matchmaking.getMatch(data.matchId)?.state!=='IN_GAME'){
         const finalUnavailable=await operations.admission(socket.handshake.auth.client);
-        if(!currentOwner())return;
+        if(!currentConnection())return;
         if(finalUnavailable){
             if(reserved.admissionProtocol==='shared_v1'||reserved.admission)void admission?.cancel(reserved,finalUnavailable);
-            socket.emit('queue_error',{code:finalUnavailable,message:finalUnavailable});return;
+            return fail(finalUnavailable);
         }
     }
-    if(!currentOwner())return;
+    if(!currentConnection())return;
     const result = matchmaking.connectMatch(userId, data.matchId, data.userName, data.avatarUrl, data.avatarFrame,data.introVersion,rating);
 
-    if(!result.success)return;
+    if(!result.success)return fail(matchmaking.matchConnectionError(userId,data.matchId)??'CONNECTION_FAILED');
+    if(result.match&&!result.match.mode)socket.emit('private_room_ready',{matchId:data.matchId,timeControl:result.match.timeControl});
     socket.join(data.matchId);
     const absence = matchmaking.opponentDisconnect(userId, data.matchId);
     if (absence) socket.emit('opponent_disconnected', absence);
@@ -749,8 +768,8 @@ io.on('connection', (socket: Socket) => {
           return socket.emit('action_error', { message: 'Unauthorized: playerId spoofing detected' });
       }
 
-      let session = matchmaking.getPlayerSession(userId);
-      let match = session?.currentMatchId ? matchmaking.getMatch(session.currentMatchId) : null;
+      const session = matchmaking.getPlayerSession(userId);
+      const match = session?.currentMatchId ? matchmaking.getMatch(session.currentMatchId) : null;
 
       if (!match || !match.engine || match.state!=='IN_GAME') return socket.emit('action_error', { message: 'No active match found' });
       if(matchmaking.authorityCheckPending(match))return socket.emit('action_error',{code:'AUTH_UNAVAILABLE',message:'Authentication temporarily unavailable'});
@@ -797,7 +816,7 @@ io.on('connection', (socket: Socket) => {
         return socket.emit('error', { message: 'Unauthorized match sync request' });
     }
 
-    let session = matchmaking.getPlayerSession(userId);
+    const session = matchmaking.getPlayerSession(userId);
     if (session && match.state==='IN_GAME') {
         if(session.currentMatchId&&session.currentMatchId!==data.matchId)return;
         session.currentMatchId = data.matchId;

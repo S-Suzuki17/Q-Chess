@@ -33,7 +33,7 @@ export function renderVictoryFrame(ctx: CanvasRenderingContext2D, plan: VictoryP
         ctx.shadowColor=plan.style.depth;ctx.shadowOffsetY=3;ctx.shadowBlur=2;
         const metal=ctx.createLinearGradient(0,height*.61,0,height*.8);
         metal.addColorStop(0,plan.style.highlight);metal.addColorStop(.45,plan.style.mid);metal.addColorStop(.5,plan.style.highlight);metal.addColorStop(1,plan.style.shade);
-        ctx.fillStyle=metal;ctx.fillText('CHECKMATE',width/2,height*.73,width*.9);ctx.strokeText('CHECKMATE',width/2,height*.73,width*.9);
+        ctx.fillStyle=metal;ctx.fillText('CHECK MATE',width/2,height*.73,width*.9);ctx.strokeText('CHECK MATE',width/2,height*.73,width*.9);
         ctx.restore();
     }
 }

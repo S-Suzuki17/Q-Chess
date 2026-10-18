@@ -1,15 +1,29 @@
 apply plugin: 'com.android.application'
 
+def playGamesEnabled = project.findProperty('playGamesEnabled') ?: 'false'
+def playGamesProjectId = project.findProperty('playGamesProjectId') ?: '644546654984'
+if (!(playGamesEnabled in ['true', 'false'])) {
+    throw new GradleException('playGamesEnabled must be true or false')
+}
+if (!(playGamesProjectId ==~ /[0-9]+/) || (playGamesEnabled == 'true' && !(playGamesProjectId ==~ /[1-9][0-9]*/))) {
+    throw new GradleException('Set playGamesProjectId to the numeric Play Games Services project ID')
+}
+
 android {
     namespace = "com.qgambit.app"
     compileSdk = rootProject.ext.compileSdkVersion
+    buildFeatures { buildConfig = true }
+    testOptions { unitTests.includeAndroidResources = true }
     defaultConfig {
         applicationId "com.qgambit.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 23
-        versionName "1.18"
+        versionCode 24
+        versionName "1.19"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        buildConfigField 'boolean', 'PLAY_GAMES_ENABLED', playGamesEnabled
+        manifestPlaceholders.playGamesEnabled = playGamesEnabled
+        resValue 'string', 'game_services_project_id', playGamesProjectId
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
              // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
@@ -50,6 +64,8 @@ repositories {
 }
 
 dependencies {
+    implementation "androidx.core:core:$androidxCoreVersion"
+    implementation 'com.google.android.gms:play-services-games-v2:22.1.0'
     implementation "com.android.billingclient:billing:9.1.0"
     implementation fileTree(include: ['*.jar'], dir: 'libs')
     implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
@@ -57,6 +73,7 @@ dependencies {
     implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
     implementation project(':capacitor-android')
     testImplementation "junit:junit:$junitVersion"
+    testImplementation 'org.robolectric:robolectric:4.16.1'
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
     implementation project(':capacitor-cordova-android-plugins')

@@ -24,9 +24,9 @@ try{
         await page.locator('[data-time-control="10m"]').click();
         await page.locator('.match-intro').waitFor({state:'detached'});
         await page.getByRole('button',{name:'2D',exact:true}).click();
-        await page.getByRole('button',{name:'e2',exact:true}).click();
+        await page.locator('[data-square="e2"]').click();
         await page.locator('[data-testid="selected-square"]').waitFor();
-        await page.getByRole('button',{name:'e7',exact:true}).click();
+        await page.locator('[data-square="e7"]').click();
         await page.waitForFunction(()=>document.querySelectorAll('.match-history li').length>=2);
         await page.locator('.match-hint-action').click();
         await page.locator('[data-testid="hint-destination"]').waitFor();

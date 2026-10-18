@@ -1,373 +1,230 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Language } from '../locales/dict';
-import { Board3D } from './Board3D';
-import { tutorialDict } from '@/locales/rulesDict';
-import { Token } from '../lib/GameEngine';
-import { recordTutorialCompleted, recordTutorialStarted } from '../lib/engagementMetrics';
-import { QubeTeacher } from './QubeTeacher';
-import { useReducedMotion } from '../hooks/useReducedMotion';
+import React, {useEffect, useMemo, useRef, useState} from 'react';
+import type {Language} from '../locales/dict';
+import {tutorialDict} from '../locales/rulesDict';
+import {tutorialCourseText} from '../locales/tutorialCourseText';
+import {rulesVisualDict} from '../locales/rulesVisualDict';
+import {Board3D} from './Board3D';
+import {Board2D} from './Board2D';
+import {QubeTeacher} from './QubeTeacher';
+import {TutorialCopy} from './TutorialCopy';
+import {NaturalText} from './NaturalText';
+import {useReducedMotion} from '../hooks/useReducedMotion';
+import {recordTutorialCompleted, recordTutorialStarted} from '../lib/engagementMetrics';
+import {positionForDisplay} from '../lib/localGame';
+import {tutorialCourse, tutorialPosition, tutorialSquare, tutorialMoves, tutorialReferenceMove,
+    attemptTutorialMove, TUTORIAL_PROGRESS_KEY, TUTORIAL_COURSE_VERSION} from '../lib/tutorialCourse';
+import type {TutorialAttempt} from '../lib/tutorialCourse';
+import type {GameState, Move} from '../quantum-engine/types';
+import {generateLegalMoves} from '../quantum-engine/moveGenerator';
+import {PIECE_KING as K, PIECE_QUEEN as Q, PIECE_ROOK as R,
+    PIECE_BISHOP as B, PIECE_KNIGHT as N, PIECE_PAWN as P} from '../quantum-engine/constants';
+import './interactive-tutorial.css';
 
-interface Props {
-    lang: Language;
-    onClose: () => void;
+function savedProgress(): {index:number; completed:string[]} {
+    try {
+        const saved=JSON.parse(localStorage.getItem(TUTORIAL_PROGRESS_KEY)??'null');
+        if(saved?.version!==TUTORIAL_COURSE_VERSION) return {index:0,completed:[]};
+        const completed=Array.isArray(saved.completed)?saved.completed.filter((id:unknown)=>
+            typeof id==='string'&&tutorialCourse.some(lesson=>lesson.id===id)):[];
+        const index=Number.isInteger(saved.index)&&saved.index>=0&&saved.index<tutorialCourse.length?saved.index:0;
+        return {index,completed:Array.from(new Set<string>(completed))};
+    } catch {return {index:0,completed:[]};}
+}
+function saveProgress(index:number,completed:string[]) {
+    try {localStorage.setItem(TUTORIAL_PROGRESS_KEY,JSON.stringify({version:TUTORIAL_COURSE_VERSION,index,completed}));}
+    catch { /* Lessons remain playable when local storage is blocked. */ }
+}
+function pieceNames(mask:number,lang:Language) {
+    return [K,Q,R,B,N,P].flatMap((bit,index)=>mask&bit?[rulesVisualDict[lang].names[index]]:[]).join(' / ');
 }
 
-const START_PROBS = { King: 1/16, Queen: 1/16, Rook: 2/16, Bishop: 2/16, Knight: 2/16, Pawn: 8/16 };
-const DIAG_PROBS = { King: 0, Queen: 0.5, Rook: 0, Bishop: 0.5, Knight: 0, Pawn: 0 };
-const ROOK_QUEEN_PROBS = { King: 0, Queen: 0.5, Rook: 0.5, Bishop: 0, Knight: 0, Pawn: 0 };
-const KNIGHT_PROBS = { King: 0, Queen: 0, Rook: 0, Bishop: 0, Knight: 1, Pawn: 0 };
-const QUEEN_PROBS = { King: 0, Queen: 1, Rook: 0, Bishop: 0, Knight: 0, Pawn: 0 };
-const ROOK_PROBS = { King: 0, Queen: 0, Rook: 1, Bishop: 0, Knight: 0, Pawn: 0 };
+function MoveChoice({moves,state,lang,onChoose,onCancel}:{moves:Move[];state:GameState;lang:Language;onChoose:(move:Move)=>void;onCancel:()=>void}) {
+    const ref=useRef<HTMLDialogElement>(null),copy=tutorialCourseText[lang];
+    useEffect(()=>{
+        const previous=document.activeElement as HTMLElement|null,modal=ref.current;
+        modal?.showModal();
+        return()=>{modal?.close();previous?.focus({preventScroll:true});};
+    },[]);
+    return <dialog ref={ref} lang={lang} className="tutorial-choice" aria-label={copy.choose}
+        onCancel={event=>{event.stopPropagation();event.preventDefault();onCancel();}}>
+        <h3>{copy.choose}</h3>
+        <div className="tutorial-choice-grid">{moves.map((move,index)=>{
+            const piece=state.pieces.find(piece=>piece.id===move.pieceId)!;
+            const castling=move.chosenType===K&&Math.abs(piece.position.col-move.target.col)===2;
+            const hasPromotion=moves.some(candidate=>candidate.promotionTarget!==undefined);
+            const label=castling?copy.castle:move.promotionTarget?
+                copy.promote+' · '+pieceNames(move.promotionTarget,lang):hasPromotion?copy.decline:copy.normal;
+            return <button type="button" key={index} data-tutorial-choice={castling?'castle':move.promotionTarget??'normal'}
+                onClick={()=>onChoose(move)}>{label}</button>;
+        })}</div>
+        <button type="button" className="tutorial-choice-cancel" onClick={onCancel}>{tutorialDict[lang].close}</button>
+    </dialog>;
+}
 
-export function InteractiveTutorial({ lang, onClose }: Props) {
-    const content = tutorialDict[lang] || tutorialDict.en;
-    const reducedMotion = useReducedMotion();
-    const returnFocusRef = useRef<HTMLElement | null>(null);
+export function InteractiveTutorial({lang,onClose}:{lang:Language;onClose:()=>void}) {
+    const [saved]=useState(savedProgress);
+    const [lessonIndex,setLessonIndex]=useState(saved.index);
+    const [completed,setCompleted]=useState(saved.completed);
+    const [state,setState]=useState(()=>tutorialCourse[saved.index].create());
+    const [taskIndex,setTaskIndex]=useState(0);
+    const [selected,setSelected]=useState<string|null>(null);
+    const [feedback,setFeedback]=useState<TutorialAttempt['feedback']|'demoDone'|null>(null);
+    const [changes,setChanges]=useState('');
+    const [choices,setChoices]=useState<Move[]>([]);
+    const [flatBoard,setFlatBoard]=useState(true);
+    const [showHint,setShowHint]=useState(false);
+    const [demo,setDemo]=useState(false);
+    const dialog=useRef<HTMLDialogElement>(null),nextButton=useRef<HTMLButtonElement>(null);
+    const demoTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
+    const demoActive=useRef(false);
+    const reducedMotion=useReducedMotion();
+    const lesson=tutorialCourse[lessonIndex],task=lesson.tasks[Math.min(taskIndex,lesson.tasks.length-1)];
+    const done=taskIndex>=lesson.tasks.length;
+    const copy=tutorialCourseText[lang],labels=tutorialDict[lang];
+    const view=useMemo(()=>positionForDisplay(state),[state]);
+    const valid=useMemo(()=>selected?tutorialMoves(state,selected):[],[state,selected]);
+    const TutorialBoard=flatBoard?Board2D:Board3D;
+    const guided=task.kind!=='mate'||showHint;
 
-    // Save previous active element for focus restoration on close
-    useEffect(() => {
-        returnFocusRef.current = document.activeElement as HTMLElement | null;
-        recordTutorialStarted();
-        return () => {
-            if (returnFocusRef.current && typeof returnFocusRef.current.focus === 'function') {
-                returnFocusRef.current.focus();
+    useEffect(()=>{
+        const previous=document.activeElement as HTMLElement|null,modal=dialog.current;
+        modal?.showModal();recordTutorialStarted();
+        return()=>{
+            if(demoTimer.current)clearTimeout(demoTimer.current);
+            demoActive.current=false;modal?.close();previous?.focus({preventScroll:true});
+        };
+    },[]);
+    useEffect(()=>{if(done&&!demo)nextButton.current?.focus({preventScroll:true});},[done,demo]);
+    useEffect(()=>{
+        const hide=()=>{
+            if(document.hidden&&demoActive.current){
+                if(demoTimer.current)clearTimeout(demoTimer.current);
+                demoActive.current=false;setDemo(false);setState(lesson.create());setTaskIndex(0);setSelected(null);setFeedback(null);
             }
         };
-    }, []);
+        document.addEventListener('visibilitychange',hide);
+        return()=>document.removeEventListener('visibilitychange',hide);
+    },[lesson]);
 
-    const [step, setStep] = useState(0);
-    const [selectedPieceId, setSelectedPieceId] = useState<string | null>(null);
-    const [isDemoPlaying, setIsDemoPlaying] = useState(false);
-    const [statusHint, setStatusHint] = useState<string | null>(null);
-
-    // Board State
-    const [pieces, setPieces] = useState<any[]>([
-        { id: 'w1', player: 'white', row: 6, col: 4, probabilities: START_PROBS },
-        { id: 'b1', player: 'black', row: 1, col: 7, probabilities: START_PROBS },
-    ]);
-
-    // Handle Clicks
-    const handlePieceClick = (id: string) => {
-        setStatusHint(null);
-        if (isDemoPlaying) return;
-
-        if (step === 0 && id === 'w1') {
-            setSelectedPieceId('w1');
-            setStep(1);
-        } else if (step === 3 && id === 'b1') {
-            setSelectedPieceId('b1');
-            setStep(4);
-        } else if (step === 6 && id === 'w2') {
-            setSelectedPieceId('w2');
-            setStep(7);
-        } else if (step === 9 && id === 'b1') {
-            setSelectedPieceId('b1');
-            setStep(10);
-        } else if (selectedPieceId) {
-            // Clicked another piece while having one selected. Is it a capture?
-            const targetPiece = pieces.find(p => p.id === id);
-            if (targetPiece) {
-                handleSquareClick(targetPiece.row, targetPiece.col);
-            }
+    function reset(index=lessonIndex) {
+        if(demoTimer.current)clearTimeout(demoTimer.current);
+        demoActive.current=false;setDemo(false);setLessonIndex(index);setTaskIndex(0);
+        setState(tutorialCourse[index].create());setSelected(null);setFeedback(null);
+        setChoices([]);setChanges('');setShowHint(false);saveProgress(index,completed);
+    }
+    function submit(move:Move) {
+        const result=attemptTutorialMove(state,task,move);
+        setChoices([]);setSelected(null);setFeedback(result.feedback);
+        if(!result.accepted)return;
+        const changed=result.state.pieces.filter(piece=>
+            piece.state!==state.pieces.find(previous=>previous.id===piece.id)?.state ||
+            piece.promotedType!==state.pieces.find(previous=>previous.id===piece.id)?.promotedType);
+        setChanges(changed.map(piece=>tutorialSquare(piece.alive?piece.position:piece.origin)+': '+
+            pieceNames(piece.promotedType??piece.state,lang)).join(' · '));
+        setState(result.state);setTaskIndex(current=>current+1);setShowHint(false);
+        if(taskIndex===lesson.tasks.length-1) {
+            const next=Array.from(new Set([...completed,lesson.id]));
+            setCompleted(next);saveProgress(lessonIndex,next);
         }
-    };
-
-    const handleSquareClick = (row: number, col: number) => {
-        if (isDemoPlaying) return;
-
-        if (step === 1 && selectedPieceId === 'w1' && row === 3 && col === 7) {
-            // Valid move diagonally (Practice completed)
-            movePiece('w1', 3, 7, DIAG_PROBS);
-            setSelectedPieceId(null);
-            setStatusHint(null);
-            setStep(2);
-        } else if (step === 4 && selectedPieceId === 'b1' && row === 3 && col === 7) {
-            // Valid capture (vertical 2 squares: Rook or Queen)
-            capturePiece('w1');
-            movePiece('b1', 3, 7, ROOK_QUEEN_PROBS);
-            setSelectedPieceId(null);
-            setStatusHint(null);
-            setStep(5);
-        } else if (step === 7 && selectedPieceId === 'w2' && row === 5 && col === 5) {
-            // Valid collapse move (L-shape move for Knight)
-            movePiece('w2', 5, 5, KNIGHT_PROBS);
-            setSelectedPieceId(null);
-            setStatusHint(null);
-            setStep(8);
-        } else if (step === 10 && selectedPieceId === 'b1' && row === 5 && col === 5) {
-            // Valid multi-step collapse move (Diagonal move for piece that is Rook or Queen -> Queen)
-            capturePiece('w2');
-            
-            setPieces(prev => prev.map(p => {
-                if (p.id === 'b1') {
-                    return { ...p, row: 5, col: 5, probabilities: QUEEN_PROBS };
-                }
-                if (p.id === 'b2') {
-                    // Constraint collapse: b1 is Queen, so b2 must be Rook (Piece count constraint)
-                    return { ...p, probabilities: ROOK_PROBS };
-                }
-                return p;
-            }));
-            
-            setSelectedPieceId(null);
-            setStatusHint(null);
-            setStep(11);
-        } else {
-            // Invalid click, deselect and offer safe recovery without advancing
-            setSelectedPieceId(null);
-            if (step === 1) {
-                setStep(0);
-                setStatusHint(lang === 'ja' ? '光っているマス（h5）を選択してください。やり直せます。' : 'Please tap the highlighted target square (h5). You can retry safely.');
-            } else if (step === 4) {
-                setStep(3);
-                setStatusHint(lang === 'ja' ? '白の駒がいる光っているマス（h5）を選択してください。' : 'Please tap the highlighted square with White piece (h5).');
-            } else if (step === 7) {
-                setStep(6);
-                setStatusHint(lang === 'ja' ? '光っているマス（f3）を選択してください。' : 'Please tap the highlighted target square (f3).');
-            } else if (step === 10) {
-                setStep(9);
-                setStatusHint(lang === 'ja' ? '光っている白ナイトのマス（f3）を選択してください。' : 'Please tap the highlighted White Knight square (f3).');
-            }
+    }
+    function clickSquare(row:number,col:number) {
+        if(done||demo||choices.length)return;
+        const occupant=state.pieces.find(piece=>piece.alive&&piece.position.row===row&&piece.position.col===col);
+        if(occupant?.owner===state.sideToMove) {
+            setSelected(occupant.id);setFeedback(null);return;
         }
-    };
-
-    const movePiece = (id: string, toRow: number, toCol: number, newProbs: any) => {
-        setPieces(prev => prev.map(p => 
-            p.id === id ? { ...p, row: toRow, col: toCol, probabilities: newProbs } : p
-        ));
-    };
-
-    const capturePiece = (id: string) => {
-        setPieces(prev => prev.map(p => 
-            p.id === id ? { ...p, isCaptured: true } : p
-        ));
-    };
-
-    // Review Demo action: visually demonstrate diagonal deduction
-    const handlePlayDemo = () => {
-        if (isDemoPlaying) return;
-        setIsDemoPlaying(true);
-        setSelectedPieceId('w1');
-        setStatusHint(lang === 'ja' ? '【見本実演中】斜めに動くことで、ビショップまたはクイーンに候補が絞り込まれます！' : '[Demo Playing] Moving diagonally narrows down candidates to Bishop or Queen!');
-
-        const duration = reducedMotion ? 200 : 900;
-        setTimeout(() => {
-            movePiece('w1', 3, 7, DIAG_PROBS);
-            setSelectedPieceId(null);
-            setTimeout(() => {
-                // Revert to initial practice state so user can practice
-                setPieces([
-                    { id: 'w1', player: 'white', row: 6, col: 4, probabilities: START_PROBS },
-                    { id: 'b1', player: 'black', row: 1, col: 7, probabilities: START_PROBS },
-                ]);
-                setIsDemoPlaying(false);
-                setStatusHint(lang === 'ja' ? '【類題に挑戦】場所を変えた白の駒（e2）を、斜め（h5）へ動かしてみましょう！' : '[Try Practice] Now tap the White piece (e2) and move it diagonally to h5!');
-                setStep(0);
-            }, reducedMotion ? 400 : 1500);
-        }, duration);
-    };
-
-    // Reset current scenario to retry safely
-    const handleResetScenario = () => {
-        setSelectedPieceId(null);
-        setStatusHint(null);
-        if (step <= 2) {
-            setPieces([
-                { id: 'w1', player: 'white', row: 6, col: 4, probabilities: START_PROBS },
-                { id: 'b1', player: 'black', row: 1, col: 7, probabilities: START_PROBS },
-            ]);
-            setStep(0);
-        } else if (step <= 5) {
-            setPieces([
-                { id: 'w1', player: 'white', row: 3, col: 7, probabilities: DIAG_PROBS },
-                { id: 'b1', player: 'black', row: 1, col: 7, probabilities: START_PROBS },
-            ]);
-            setStep(3);
-        } else if (step <= 8) {
-            setPieces([
-                { id: 'w1', player: 'white', row: 3, col: 7, probabilities: DIAG_PROBS, isCaptured: true },
-                { id: 'b1', player: 'black', row: 3, col: 7, probabilities: ROOK_QUEEN_PROBS },
-                { id: 'w2', player: 'white', row: 7, col: 4, probabilities: START_PROBS },
-            ]);
-            setStep(6);
-        } else {
-            setPieces([
-                { id: 'w1', player: 'white', row: 3, col: 7, probabilities: DIAG_PROBS, isCaptured: true },
-                { id: 'b1', player: 'black', row: 3, col: 7, probabilities: ROOK_QUEEN_PROBS },
-                { id: 'w2', player: 'white', row: 5, col: 5, probabilities: KNIGHT_PROBS },
-                { id: 'b2', player: 'black', row: 1, col: 0, probabilities: ROOK_QUEEN_PROBS },
-            ]);
-            setStep(9);
-        }
-    };
-
-    // Derived state for UI
-    const instructions = content.steps[step];
-    const targets: Record<number, {row: number, col: number}[]> = {
-        0: [{row: 6, col: 4}], 1: [{row: 3, col: 7}],
-        3: [{row: 1, col: 7}], 4: [{row: 3, col: 7}],
-        6: [{row: 7, col: 4}], 7: [{row: 5, col: 5}],
-        9: [{row: 3, col: 7}], 10: [{row: 5, col: 5}],
-    };
-    const validMoves = targets[step] || [];
-
-    useEffect(() => {
-        const onKeyDown = (event: KeyboardEvent) => { 
-            if (event.key === 'Escape') onClose(); 
+        if(!selected) {setFeedback('illegal');return;}
+        const options=valid.filter(move=>move.target.row===row&&move.target.col===col);
+        if(options.length>1){setChoices(options);return;}
+        if(options.length===1){submit(options[0]);return;}
+        const candidate=generateLegalMoves(state,selected).find(move=>move.target.row===row&&move.target.col===col);
+        submit({pieceId:selected,target:{row,col},chosenType:candidate?.requiredTypes??0});
+    }
+    function showExample() {
+        reset();setDemo(true);demoActive.current=true;
+        let demoState=lesson.create(),index=0;
+        const play=()=>{
+            if(!demoActive.current)return;
+            const exercise=lesson.tasks[index];
+            const result=attemptTutorialMove(demoState,exercise,tutorialReferenceMove(demoState,exercise));
+            demoState=result.state;setState(demoState);setTaskIndex(index+1);setSelected(null);
+            index++;
+            demoTimer.current=setTimeout(()=>{
+                if(index<lesson.tasks.length)play();
+                else {demoActive.current=false;setDemo(false);setState(lesson.create());setTaskIndex(0);setFeedback('demoDone');}
+            },reducedMotion?250:1000);
         };
-        window.addEventListener('keydown', onKeyDown);
-        return () => window.removeEventListener('keydown', onKeyDown);
-    }, [onClose]);
-
-    const nextScenario = () => {
-        setStatusHint(null);
-        if (step === 2) {
-            setStep(3);
-        } else if (step === 5) {
-            // Add a new white piece for the knight scenario
-            setPieces(prev => [
-                ...prev,
-                { id: 'w2', player: 'white', row: 7, col: 4, probabilities: START_PROBS }
-            ]);
-            setStep(6);
-        } else if (step === 8) {
-            // Spawn b2 at [1, 0] with ROOK_QUEEN_PROBS for piece-count constraint demo
-            setPieces(prev => [
-                ...prev,
-                { id: 'b2', player: 'black', row: 1, col: 0, probabilities: ROOK_QUEEN_PROBS }
-            ]);
-            setStep(9);
-        } else if (step === 11) {
-            recordTutorialCompleted();
-            onClose();
-        }
-    };
-
-    // In step 11, highlight both b1 (confirmed Queen) and b2 (unmoved piece constrained to Rook)
-    const constraintHighlightOpponent = step === 11 ? 'b2' : undefined;
-
-    return (
-        <div className="interactive-tutorial fixed inset-0 bg-[#11100E]/95 z-[200] flex flex-col items-center justify-center p-3 sm:p-4 backdrop-blur-md">
-            <div role="dialog" aria-modal="true" aria-label={content.title} className="w-full max-w-4xl max-h-[96dvh] overflow-y-auto bg-[#191714] border-2 border-[#B39A62]/30 rounded-xl flex flex-col md:flex-row shadow-2xl relative">
-                <button onClick={onClose} aria-label={content.close} className="fixed top-4 right-4 w-11 h-11 rounded-full bg-[#191714] border border-[#B39A62] text-white text-2xl font-bold z-50 flex items-center justify-center hover:bg-[#B39A62]/20 transition-colors">×</button>
-                
-                {/* Left: Board Demo */}
-                <div className="w-full flex-shrink-0 md:w-1/2 p-0 bg-[#0b0c10] flex flex-col items-center justify-center relative aspect-square md:aspect-auto md:min-h-full">
-                    <div className="w-full h-full md:min-h-full">
-                        <Board3D lang={lang}
-                            tokens={pieces.filter(p => !p.isCaptured).map(p => ({
-                                id: p.id,
-                                player: p.player,
-                                row: p.row,
-                                col: p.col,
-                                probabilities: p.probabilities,
-                                promotedTo: p.promotedTo,
-                                selected: p.id === selectedPieceId || (step === 11 && (p.id === 'b1' || p.id === 'b2'))
-                            })) as Token[]}
-                            selectedTokenId={selectedPieceId || (step === 11 ? 'b1' : null)}
-                            opponentSelectedTokenId={constraintHighlightOpponent}
-                            validMoves={validMoves.map(m => ({ r: m.row, c: m.col }))}
-                            moveHistory={[]}
-                            onSquareClick={(r, c) => {
-                                const clickedPiece = pieces.find(p => p.row === r && p.col === c && !p.isCaptured);
-                                if (!selectedPieceId && clickedPiece) {
-                                    handlePieceClick(clickedPiece.id);
-                                } else if (selectedPieceId && clickedPiece && clickedPiece.player === pieces.find(p => p.id === selectedPieceId)?.player) {
-                                    handleSquareClick(r, c);
-                                } else {
-                                    handleSquareClick(r, c);
-                                }
-                            }}
-                            showMoveHints={true}
-                            currentTurn={((step >= 3 && step <= 5) || step >= 9) ? 'black' : 'white'}
-                        />
-                    </div>
+        demoTimer.current=setTimeout(play,reducedMotion?200:700);
+    }
+    const targetPiece=state.pieces.find(piece=>piece.alive&&tutorialSquare(piece.position)===task.from);
+    const selectedPiece=state.pieces.find(piece=>piece.id===selected);
+    const focusPiece=selectedPiece??(!done?targetPiece:state.pieces.find(piece=>piece.id===state.lastMove?.pieceId));
+    const candidateDescription=focusPiece?
+        copy.candidates+' · '+tutorialSquare(focusPiece.position)+': '+pieceNames(focusPiece.promotedType??focusPiece.state,lang):'';
+    const detail=[
+        feedback?copy[feedback]:'',
+        changes,
+        done&&!demo?copy.completed:'',
+        copy.lessons[lessonIndex],
+        !done?candidateDescription:'',
+        lessonIndex===0?copy.practice:'',
+    ].filter(Boolean).join('\n\n');
+    const command=demo?copy.demo:done?copy.completed:task.kind==='mate'&&!showHint?copy.challenge:
+        (task.kind==='reject'?copy.test:selected?copy.move:copy.select)+' · '+task.from+' → '+task.to;
+    const target=tutorialPosition(task.to),from=tutorialPosition(task.from);
+    const hintMove=!done&&guided?{fromRow:from.row,fromCol:from.col,toRow:target.row,toCol:target.col}:null;
+    return <div className="interactive-tutorial">
+        <dialog ref={dialog} lang={lang} className="tutorial-shell" aria-label={copy.title}
+            data-tutorial-lesson={lesson.id} data-tutorial-task={taskIndex} data-tutorial-complete={done&&!demo} aria-busy={demo}
+            onCancel={event=>{if(event.target!==event.currentTarget)return;event.preventDefault();onClose();}}>
+            <header className="tutorial-heading">
+                <div><h2><NaturalText text={copy.title} lang={lang}/></h2><span>{copy.chapters[lesson.chapter]}</span></div>
+                <div className="tutorial-view-switch" role="group" aria-label={lang==='ja'?'盤面の表示':'Board view'}>
+                    <button type="button" aria-pressed={flatBoard} onClick={()=>setFlatBoard(true)}>2D</button>
+                    <button type="button" aria-pressed={!flatBoard} onClick={()=>setFlatBoard(false)}>3D</button>
                 </div>
-
-                {/* Right: Explanations & Controls */}
-                <div className="w-full md:w-1/2 p-5 sm:p-8 md:p-10 flex flex-col justify-between">
-                    <div>
-                        <div className="flex items-center justify-between mb-4">
-                            <h2 className="text-2xl sm:text-3xl font-serif text-[#D4B872] tracking-widest">
-                                {content.title}
-                            </h2>
-                            <div className="text-xs font-mono text-[#B39A62]/80 uppercase px-2 py-1 rounded bg-[#B39A62]/10 border border-[#B39A62]/20">
-                                {step <= 2 ? (lang === 'ja' ? '第1章: 斜め移動' : 'Part 1: Diagonals') :
-                                 step <= 5 ? (lang === 'ja' ? '第2章: 直線捕獲' : 'Part 2: Capture') :
-                                 step <= 8 ? (lang === 'ja' ? '第3章: ナイト確定' : 'Part 3: Knight') :
-                                 (lang === 'ja' ? '第4章: 駒数制約' : 'Part 4: Constraints')}
-                            </div>
-                        </div>
-
-                        <QubeTeacher lang={lang} className="flex-1 mb-4">
-                            <div data-tutorial-step={step} aria-live="polite" aria-atomic="true" className="text-gray-300 leading-relaxed text-sm sm:text-base min-h-[140px] whitespace-pre-wrap">
-                                {instructions}
-                            </div>
-                        </QubeTeacher>
-
-                        {/* Status / feedback message */}
-                        {statusHint && (
-                            <div data-tutorial-status className="mb-4 p-3 rounded-lg bg-[#B39A62]/15 border border-[#B39A62]/40 text-[#E8E2D7] text-xs sm:text-sm animate-fadeIn" role="status">
-                                {statusHint}
-                            </div>
-                        )}
-
-                        {/* Step 11 Piece Count Constraint Highlight */}
-                        {step === 11 && (
-                            <div data-tutorial-constraint-banner className="mb-4 p-3 rounded-lg bg-[#2A241A] border-2 border-[#D4B872] text-[#F5EAD4] text-xs sm:text-sm">
-                                <div className="font-bold text-[#D4B872] mb-1">
-                                    {lang === 'ja' ? '★ クイーン枠の制約（1体のみ）' : '★ Queen Slot Constraint (Max 1)'}
-                                </div>
-                                <div>
-                                    {lang === 'ja'
-                                        ? '盤面上のクイーンは1体のみです。b1がクイーンと確定したため、未移動駒（b2 / a7）のクイーン可能性が消滅し、残ったルークに確定しました。'
-                                        : 'Only 1 Queen is allowed per side. Because b1 is verified as Queen, the unmoved piece (b2 / a7) loses its Queen candidate and is confirmed as a Rook.'}
-                                </div>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Bottom Action Buttons */}
-                    <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-gray-800 mt-2">
-                        <div className="flex items-center gap-2">
-                            {/* Review Demo button (available in step 0, 1, 2) */}
-                            {step <= 2 && (
-                                <button
-                                    data-tutorial-review-demo
-                                    onClick={handlePlayDemo}
-                                    disabled={isDemoPlaying}
-                                    className="px-3 sm:px-4 py-2 bg-[#B39A62]/15 border border-[#B39A62]/40 text-[#D4B872] hover:bg-[#B39A62]/30 text-xs sm:text-sm font-semibold rounded transition-colors disabled:opacity-50"
-                                    aria-label={content.reviewDemo}
-                                >
-                                    ▶ {content.reviewDemo}
-                                </button>
-                            )}
-
-                            {/* Reset button to retry current scenario */}
-                            <button
-                                data-tutorial-reset
-                                onClick={handleResetScenario}
-                                disabled={isDemoPlaying}
-                                className="px-3 sm:px-4 py-2 bg-gray-800/60 border border-gray-700 text-gray-300 hover:text-white hover:bg-gray-700/60 text-xs sm:text-sm font-medium rounded transition-colors disabled:opacity-50"
-                                aria-label={content.resetStep}
-                            >
-                                ↺ {content.resetStep}
-                            </button>
-                        </div>
-
-                        {/* Next or Finish button */}
-                        {(step === 2 || step === 5 || step === 8 || step === 11) && (
-                            <button
-                                data-tutorial-next
-                                onClick={nextScenario}
-                                className="px-6 sm:px-8 py-2.5 sm:py-3 bg-[#B39A62]/20 border border-[#B39A62] text-[#D4B872] hover:bg-[#B39A62] hover:text-[#11100E] transition-colors font-bold tracking-widest text-sm sm:text-base rounded shadow-lg"
-                            >
-                                {step === 11 ? content.play : content.next}
-                            </button>
-                        )}
-                    </div>
+                <button type="button" onClick={onClose} aria-label={labels.close}>×</button>
+            </header>
+            <div className="tutorial-course-picker">
+                <label className="sr-only" htmlFor="tutorial-lesson-picker">{copy.chooseLesson}</label>
+                <select id="tutorial-lesson-picker" value={lessonIndex} disabled={demo}
+                    onChange={event=>reset(Number(event.target.value))}>
+                    {tutorialCourse.map((item,index)=><option key={item.id} value={index}>
+                        {completed.includes(item.id)?'✓ ':''}{index+1}. {copy.titles[index]}
+                    </option>)}
+                </select>
+                <output aria-label={copy.progress}>{completed.length} / {tutorialCourse.length}</output>
+            </div>
+            <div className="tutorial-board">
+                <div className={flatBoard?'tutorial-board-surface tutorial-flat-board board-render-fallback':'tutorial-board-surface tutorial-spatial-board'}>
+                    <TutorialBoard lang={lang} tokens={view.tokens} candidatesMap={view.pool.piecePossibilities}
+                        selectedTokenId={selected} validMoves={valid.map(move=>({r:move.target.row,c:move.target.col}))}
+                        moveHistory={[]} onSquareClick={clickSquare} showMoveHints currentTurn={state.sideToMove}
+                        hintMove={hintMove}/>
                 </div>
             </div>
-        </div>
-    );
+            <div className="tutorial-explanation">
+                <div className="tutorial-command" data-tutorial-status role="status">
+                    <small>{!done?(state.sideToMove==='white'?copy.white:copy.black)+' · ':''}{Math.min(taskIndex+1,lesson.tasks.length)} / {lesson.tasks.length}</small>
+                    <strong>{command}</strong>
+                </div>
+                <QubeTeacher lang={lang} variant="compact">
+                    <TutorialCopy key={lessonIndex+':'+taskIndex+':'+feedback+':'+lang} text={detail} lang={lang} step={lessonIndex*10+taskIndex}/>
+                </QubeTeacher>
+            </div>
+            <footer className="tutorial-actions">
+                <div>
+                    <button type="button" data-tutorial-review-demo onClick={showExample} disabled={demo||done}>▶ {copy.demo}</button>
+                    <button type="button" data-tutorial-reset onClick={()=>reset()}>↺ {labels.resetStep}</button>
+                    {!done&&task.kind==='mate'&&<button type="button" data-tutorial-hint onClick={()=>setShowHint(value=>!value)}>{showHint?copy.hideHint:copy.hint}</button>}
+                </div>
+                {done&&!demo&&<button type="button" data-tutorial-next ref={nextButton} onClick={()=>{
+                    if(lessonIndex===tutorialCourse.length-1){recordTutorialCompleted();onClose();}
+                    else reset(lessonIndex+1);
+                }}>{lessonIndex===tutorialCourse.length-1?copy.finish:labels.next}</button>}
+            </footer>
+            {choices.length>0&&<MoveChoice moves={choices} state={state} lang={lang}
+                onChoose={submit} onCancel={()=>setChoices([])}/>}
+        </dialog>
+    </div>;
 }

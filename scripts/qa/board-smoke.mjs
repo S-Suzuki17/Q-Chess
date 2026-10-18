@@ -74,9 +74,9 @@ try {
         if (lang === 'ja') {
             // Exercise 2D, legal capture, CPU response, and safe 3D return via actual controls.
             await page.getByRole('button',{name:'2D',exact:true}).click();
-            await page.getByRole('button',{name:'e2',exact:true}).click();
+            await page.locator('[data-square="e2"]').click();
             assert.equal(await page.locator('[data-testid="selected-square"]').innerText(),'e2');
-            await page.getByRole('button',{name:'e7',exact:true}).click();
+            await page.locator('[data-square="e7"]').click();
             await page.locator('[data-captured-by="white"] [data-captured-token]').waitFor();
             assert(await page.locator('[data-captured-by="white"] [data-captured-candidate]').count() > 0);
             await page.getByRole('button',{name:'3D',exact:true}).click();

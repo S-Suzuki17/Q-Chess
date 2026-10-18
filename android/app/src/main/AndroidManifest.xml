@@ -10,6 +10,7 @@
     <uses-permission android:name="android.permission.ACCESS_ADSERVICES_TOPICS" tools:node="remove" />
 
     <application
+        android:name=".QGambitApplication"
         android:allowBackup="true"
         android:appCategory="game"
         android:icon="@mipmap/ic_launcher"
@@ -18,6 +19,14 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
         <meta-data android:name="com.google.android.gms.ads.APPLICATION_ID" android:value="@string/admob_app_id" />
+        <meta-data android:name="com.google.android.gms.games.APP_ID" android:value="@string/game_services_project_id" />
+        <!-- The SDK also has an automatic initializer; gate it with the same release switch. -->
+        <provider android:name="com.google.android.gms.games.provider.PlayGamesInitProvider"
+            android:enabled="${playGamesEnabled}" />
+        <activity android:name="com.google.android.gms.games.internal.v2.resolution.GamesResolutionActivity"
+            android:enabled="${playGamesEnabled}" />
+        <activity android:name="com.google.android.gms.games.internal.v2.appshortcuts.PlayGamesAppShortcutsActivity"
+            android:enabled="${playGamesEnabled}" />
 
         <activity
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode|navigation|density"
@@ -25,7 +34,7 @@
             android:label="@string/title_activity_main"
             android:theme="@style/AppTheme.NoActionBarLaunch"
             android:launchMode="singleTask"
-            android:screenOrientation="portrait"
+            android:windowSoftInputMode="adjustResize"
             android:resizeableActivity="true"
             android:exported="true">
 

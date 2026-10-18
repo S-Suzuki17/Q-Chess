@@ -1,5 +1,11 @@
 {
   "appId": "com.qgambit.app",
   "appName": "Q-GAMBIT",
-  "webDir": "out"
+  "webDir": "out",
+  "plugins": {
+    "SystemBars": {
+      "style": "DARK",
+      "insetsHandling": "disable"
+    }
+  }
 }

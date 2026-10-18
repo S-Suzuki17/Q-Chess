@@ -1,6 +1,8 @@
 'use client';
+import {useAndroidBackHandler} from '../hooks/useAndroidBack';
+
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ArrowLeft, ArrowUpRight, ChevronLeft, ChevronRight, Info, Trophy } from 'lucide-react';
+import { ArrowLeft, ArrowUpRight, Clock3, Gift, Info, Trophy } from 'lucide-react';
 import { rewardUnlocked, totalCircuitStars, type CampaignOutcome } from '../config/campaign';
 import { CHAMPIONSHIP_REWARDS } from '../config/championshipRewards';
 import { championshipText } from '../locales/championshipText';
@@ -33,7 +35,7 @@ import {cosmeticsSettingsText} from '../locales/cosmeticsSettingsText';
 import {CrownHintRecovery} from './CrownHintRecovery';
 import { crownNavigationText } from '../locales/crownNavigationText';
 import { CrownInfoDialog, CrownRewardArtwork, CrownTabs } from './CrownNavigation';
-import {ChallengeMap,type MapJourney} from './ChallengeMap';
+import {ChallengeMap,ChallengeMapPager,type MapJourney} from './ChallengeMap';
 import {challengeMapFrontier} from '../lib/challengeMapProgress';
 import {hundredMapText} from '../locales/hundredMapText';
 import {castleQuestNextStage} from '../lib/castleQuestJourney';
@@ -93,6 +95,12 @@ function MemberCircuit({lang,user,onBack,onPlayingChange}:CampaignProps) {
         return()=>window.removeEventListener('popstate',cancel);
     },[entry]);
     const cancelEntry=()=>{entry.cancel();setStarting(false);setEntryError(false);setJourney(null);};
+    useAndroidBackHandler(()=>{
+        if(activeId!==null)return false;
+        cancelEntry();
+        if(!starting)onBack();
+        return true;
+    },10);
     useEffect(()=>{
         if(activeId) soundManager.playBGM(battleMusicUrl(runDesign.music));
         else soundManager.stopBGM();
@@ -168,7 +176,7 @@ function MemberCircuit({lang,user,onBack,onPlayingChange}:CampaignProps) {
                 onRetry={()=>void afterResult(()=>start(activeId))} onBack={()=>void afterResult(leaveStage)}
                 onNext={nextStage?goNext:undefined}/>}/>;
     }
-    return <section ref={screen} className="campaign-screen crown-screen map-screen" data-circuit-stage={selected} aria-label={t('title')}>
+    return <section ref={screen} lang={lang} className="campaign-screen crown-screen map-screen" data-circuit-stage={selected} aria-label={t('title')}>
         <header className="campaign-header crown-header">
             <button onClick={()=>{cancelEntry();onBack();}} aria-label={t('back')}><ArrowLeft size={18}/><span>{t('back')}</span></button>
             <div><span className="crown-brand">Q-GAMBIT</span><h1>{t('title')}</h1></div>
@@ -187,20 +195,19 @@ function MemberCircuit({lang,user,onBack,onPlayingChange}:CampaignProps) {
                 <progress max={100} value={cleared} aria-label={t('cleared')}/>
                 <span className="crown-stars" aria-label={`${musicMilestoneText(lang,'total')} ${stars}/300`}>★ {stars}/300</span>
             </section>
-                <div className="map-launch map-top-launch"><p className="map-selected">{hundredMapText(lang,'selected')} · {hundredMapText(lang,'tile')} {selected} / 100</p>
+                <div className="map-launch map-top-launch"><div className="map-launch-heading"><span className="map-stage-number" aria-hidden="true">{selected}</span><div><p className="map-selected">{selectedStars?nav('improveStars'):unlocked?nav('nextStage'):t('locked')}</p><h2>{hundredMapText(lang,'tile')} {selected}<small> / 100</small></h2><div className="map-challenge-meta"><span title={`${loop('strength')} ${stage.strength}/34`}>CPU · {stage.strength}/34</span><span aria-label={stage.timeControl==='10m'?dict[lang].tc10m:stage.timeControl==='3m'?dict[lang].tc3m:dict[lang].tc10s} title={stage.timeControl==='10m'?dict[lang].tc10m:stage.timeControl==='3m'?dict[lang].tc3m:dict[lang].tc10s}><Clock3 size={12} aria-hidden="true"/>{stage.timeControl==='10m'?'10:00':stage.timeControl==='3m'?'3:00':'0:30'}</span></div></div></div>
                     <fieldset className="campaign-side"><legend>{nav('chooseSide')}</legend>{(['white','black'] as const).map(value=><button key={value} type="button" aria-pressed={side===value} onClick={()=>{cancelEntry();setSide(value);}}>{t(value)}</button>)}</fieldset>
                     <button className="campaign-primary" disabled={starting||!loaded||!unlocked} onClick={()=>void start(selected)}>{starting||!loaded?dict[lang].loading:unlocked?selectedStars?t('retry'):t('challenge'):t('locked')}<ArrowUpRight size={20}/></button>
                     <p className="map-objective">{!unlocked?nav('lockedGoal'):cleared===100?hundredMapText(lang,'complete'):`★ ${t('win')} · ★ ${t('noHints')} · ★ ${stage.timeControl==='10s'?stageText(lang,'quickMoves'):t('quick')}`}</p>
                 </div>
             <div className="map-layout">
             <div><ChallengeMap lang={lang} progress={mapProgress} selected={selected} page={page} journey={journey?.to===selected?journey:null} onSelect={selectStage} onArrival={arrived}/>
-                <div className="map-pager"><button disabled={page===0} onClick={()=>{cancelEntry();setPage(page-1);}} aria-label={loop('previous')}><ChevronLeft size={18}/></button><div><span>{hundredMapText(lang,'tile')} {page*10+1}–{page*10+10} / 100</span><button onClick={()=>selectStage(currentStage)} disabled={selected===currentStage&&page===Math.floor((currentStage-1)/10)}>{hundredMapText(lang,'current')} {currentStage}<ArrowUpRight size={14}/></button></div><button disabled={page===9} onClick={()=>{cancelEntry();setPage(page+1);}} aria-label={loop('next')}><ChevronRight size={18}/></button></div>
+                <ChallengeMapPager lang={lang} page={page} current={currentStage} selected={selected} onPage={value=>{cancelEntry();setPage(value);}} onCurrent={()=>selectStage(currentStage)}/>
             </div>
             <article className="map-challenge-card">
                 <div className="map-challenge-copy">
-                    <p className="crown-eyebrow">{selectedStars?nav('improveStars'):unlocked?nav('nextStage'):t('locked')}</p>
-                    <h2>{hundredMapText(lang,'tile')} <span>{selected}</span></h2>
-                    <div className="map-challenge-meta"><span>CPU · {loop('strength')} {stage.strength}/34</span><span>{stage.timeControl==='10m'?dict[lang].tc10m:stage.timeControl==='3m'?dict[lang].tc3m:dict[lang].tc10s}</span></div>
+                    <p className="crown-eyebrow">{hundredMapText(lang,'selected')} · {hundredMapText(lang,'tile')} {selected}</p>
+                    <h2><Gift size={19} aria-hidden="true"/>{rewardUnlocked(mapProgress,reward.id)?stageText(lang,'clearedReward'):nav('firstClear')}</h2>
                 </div>
                 <button className="map-reward" data-preview-reward={reward.id} onClick={()=>{cancelEntry();rememberFocus();setPreview({kind:reward.kind,id:reward.id});}} aria-label={`${circuitText(lang,'preview')} · ${rewardName(lang,reward.id)}`}><span className="map-reward-art"><CrownRewardArtwork kind={reward.kind} id={reward.id}/></span><small>{rewardUnlocked(mapProgress,reward.id)?stageText(lang,'clearedReward'):nav('firstClear')}</small><strong>{rewardName(lang,reward.id)}</strong><span>{circuitText(lang,'preview')}<ArrowUpRight size={15}/></span></button>
             </article></div>

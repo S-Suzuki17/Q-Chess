@@ -50,7 +50,7 @@ describe('Crown hint contexts preserve canonical stage and actual CPU moves',()=
         await expect(new CrownHintRunClient('Alice',config,send,storage()).open()).rejects.toThrow('HINT_RESPONSE_INVALID');
     });
     it('reads and closes without a hint purchase and rejects a changed display position',async()=>{
-        const config=settings(),value=snapshot(config),send=vi.fn().mockResolvedValue(value),client=new CrownHintRunClient('Alice',config,send,storage());
+        const config=settings(),value=snapshot(config),send=vi.fn().mockResolvedValueOnce(value).mockResolvedValue({...value,status:'finished'}),client=new CrownHintRunClient('Alice',config,send,storage());
         await client.read();await client.close();expect(send.mock.calls.map(call=>call[1])).toEqual([`/crown-hints/runs/${config.runId}`,`/crown-hints/runs/${config.runId}/close`]);expect(send.mock.calls[0][2]).toBeUndefined();expect(send.mock.calls[1][2]).toEqual({});
         const altered={...value,state:{...value.state,pieces:value.state.pieces.map((piece,i)=>i?piece:{...piece,position:{row:4,col:4}})}};
         expect(()=>displayCrownRun(altered)).toThrow('HINT_RESPONSE_INVALID');

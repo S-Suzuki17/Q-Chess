@@ -41,6 +41,14 @@ jobs:
 
       - name: Frontend static build (not a deployment artifact)
         run: npm run build
+      - name: Retain actual exported font definitions for UI browser checks
+        uses: actions/upload-artifact@v7
+        with:
+          name: ui-fixture-fonts
+          path: |
+            out/_next/static/css/
+            out/_next/static/media/
+          if-no-files-found: error
       - name: Install browser for static-page verification
         run: npx playwright install chromium
       - name: Verify email registration and legacy account-name sign-in
@@ -65,6 +73,104 @@ jobs:
         run: node scripts/qa/check-ranked-start-browser.mjs
       - name: Verify public guides, navigation and no-JavaScript reading
         run: node scripts/qa/check-public-guides.mjs
+
+  secondary-screens-browser:
+    needs: regression
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      QG_TEST_FONT_EXPORT: scratch/qa-font-export
+      QG_TEST_SECONDARY_STATIC: scratch/secondary-screens-static
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@v7
+        with:
+          name: ui-fixture-fonts
+          path: scratch/qa-font-export/_next/static
+      - run: npx playwright install chromium
+      - name: Compile actual UI once for deterministic browser checks
+        run: node scripts/qa/secondary-screens-server.mjs --build "$QG_TEST_SECONDARY_STATIC"
+      - name: Verify settings, map, and match waiting fit and remain operable
+        run: node scripts/qa/check-secondary-screens-browser.mjs scratch/secondary-screens-browser
+      - name: Verify all tutorial copy and reading-page navigation
+        run: node scripts/qa/check-learning-layout-browser.mjs scratch/learning-layout-browser
+      - name: Verify actual enlarged tutorial copy and controls
+        run: node scripts/qa/check-learning-layout-browser.mjs scratch/learning-text200-browser --zoom-only
+      - name: Verify standard victory result timing and spectator transition
+        run: node scripts/qa/check-standard-victory-browser.mjs scratch/standard-victory-browser
+      - name: Verify saved challenge progression and interrupted navigation
+        run: node scripts/qa/hundred-map-browser.mjs scratch/hundred-map-browser
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: secondary-screens-browser
+          path: |
+            scratch/secondary-screens-browser/
+            scratch/learning-layout-browser/
+            scratch/learning-text200-browser/
+            scratch/hundred-map-browser/
+            scratch/standard-victory-browser/
+
+  multilingual-ui-browser:
+    needs: regression
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      QG_TEST_FONT_EXPORT: scratch/qa-font-export
+      QG_TEST_SECONDARY_STATIC: scratch/multilingual-ui-static
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - uses: actions/download-artifact@v7
+        with:
+          name: ui-fixture-fonts
+          path: scratch/qa-font-export/_next/static
+      - run: npx playwright install chromium
+      - run: node scripts/qa/secondary-screens-server.mjs --build "$QG_TEST_SECONDARY_STATIC"
+      - name: Verify words and clipping in all twelve UI languages
+        run: node scripts/qa/check-text-wrapping-browser.mjs scratch/text-wrapping-browser
+      - name: Verify Android-specific settings in all twelve UI languages
+        run: node scripts/qa/check-text-wrapping-browser.mjs scratch/text-wrapping-native --native-only
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: multilingual-ui-browser
+          path: |
+            scratch/text-wrapping-browser/
+            scratch/text-wrapping-native/
+
+  private-room-loopback:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            server/package-lock.json
+      - run: npm ci
+      - run: npm ci --prefix server
+      - name: Verify private room intents, clocks, leaving and compatibility over real sockets
+        run: npx vitest run --config vitest.private-room.config.ts --reporter=dot --reporter=json --outputFile.json=private-room-results.json
+      - run: node scripts/ci/assert-complete-tests.mjs private-room-results.json
 
   account-data-browser:
     runs-on: ubuntu-latest
@@ -99,11 +205,11 @@ jobs:
       - name: Build configured Web export and verify real password-login data
         run: |
           node scripts/release/build-android-web.cjs scratch/account-data-public-settings web
-          node scripts/qa/check-account-data-browser.mjs scratch/account-data-web --target=web
+          node scripts/qa/check-account-data-browser.mjs scratch/account-data-web --target=web --secondary-screens --home-languages=ja,en,zh,de,fr,es,pt,ru,tr,pl,hi,ta
       - name: Build configured Android export and verify real password-login data
         run: |
           node scripts/release/build-android-web.cjs scratch/account-data-public-settings android
-          node scripts/qa/check-account-data-browser.mjs scratch/account-data-android --target=android
+          node scripts/qa/check-account-data-browser.mjs scratch/account-data-android --target=android --secondary-screens --home-languages=ja,en,zh,de,fr,es,pt,ru,tr,pl,hi,ta
       - name: Retain synthetic Web and Android account-data reports
         if: always()
         uses: actions/upload-artifact@v7

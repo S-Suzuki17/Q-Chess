@@ -1,4 +1,6 @@
 'use client';
+import {useAndroidBackHandler} from '../hooks/useAndroidBack';
+
 
 import React, { useState, useMemo } from 'react';
 import { QuantumPieceUI } from './QuantumPieceUI';
@@ -14,6 +16,7 @@ export default function ReplayBoard(props: ReplayBoardProps) {
 }
 
 function ReplayViewer({ lang, record, onHome }: ReplayBoardProps) {
+    useAndroidBackHandler(()=>{onHome();return true;},10);
     const t = { ...dict.en, ...(dict[lang] || {}) };
     const copy = replayText(lang);
     const timeline = useMemo(() => buildReplayTimeline(record), [record]);

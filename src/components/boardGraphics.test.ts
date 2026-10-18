@@ -30,7 +30,7 @@ describe('mobile graphics recovery', () => {
     });
     it('preserves the original resolution on mobile and desktop', () => {
         expect(graphicsQuality(true)).toEqual({dpr:[1,1.75], shadows:false});
-        expect(graphicsQuality(false)).toEqual({dpr:[1,1.75], shadows:true});
+        expect(graphicsQuality(false)).toEqual({dpr:[1,1.75], shadows:'percentage'});
     });
     it('allows the browser to restore a lost context and cleans up listeners', () => {
         const canvas = new EventTarget();

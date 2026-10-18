@@ -1,3 +1,5 @@
+import {settingsSections,chooseSettingsSection} from './settings-navigation.mjs';
+import {textWrapping} from './text-wrapping.mjs';
 /** Real exported app and real password/profile/reward clients. Every account/API
  * response is synthetic and all unknown external traffic is blocked. */
 import assert from 'node:assert/strict';
@@ -8,13 +10,16 @@ import {chromium} from 'playwright';
 const args=process.argv.slice(2),artifacts=resolve(args.find(x=>!x.startsWith('--'))||'scratch/account-data-browser');
 const publicUrl=args.find(x=>x.startsWith('--public-url='))?.slice(13);
 const broken=args.includes('--expect-broken-config'),target=args.find(x=>x.startsWith('--target='))?.slice(9)||'web';
+const secondaryScreens=args.includes('--secondary-screens');
+const only=args.find(x=>x.startsWith('--only='))?.slice(7);
+const homeLanguages=args.find(x=>x.startsWith('--home-languages='))?.slice(17).split(',')??[];
 assert(['web','android'].includes(target));
 const root=resolve('out'),mime={'.html':'text/html','.js':'application/javascript','.css':'text/css','.svg':'image/svg+xml','.woff2':'font/woff2','.png':'image/png','.jpg':'image/jpeg','.mp3':'audio/mpeg'};
-let server,browser;
+let server,browser,activePage,activeScenario,activeCalls,activeErrors;
 const version=await readFile('src/config/currentTerms.ts','utf8');
 const termsVersion=version.match(/CURRENT_TERMS_VERSION\s*=\s*'([^']+)'/)[1],termsDate=version.match(/CURRENT_TERMS_EFFECTIVE_DATE[^=]*=\s*'([^']+)'/)[1];
 const progress={version:2,stars:{},ascensions:[],stageStars:[],board:'standard',piece:'standard',effect:'standard',music:'standard',avatar:'standard'};
-const results=[];
+const results=[],homeTextChecks=[];
 await mkdir(artifacts,{recursive:true});
 try{
  let origin=publicUrl;
@@ -28,21 +33,28 @@ try{
   await new Promise(done=>server.listen(0,'127.0.0.1',done));origin='http://127.0.0.1:'+server.address().port;
  }
  browser=await chromium.launch({headless:true,...(process.env.QG_TEST_CHROMIUM?{executablePath:process.env.QG_TEST_CHROMIUM}:{})});
- const scenarios=broken?[{name:'published-password-missing-config',width:390}]:[
+ const allScenarios=broken?[{name:'published-password-missing-config',width:390}]:[
   {name:'password-session-balances',width:390},
   {name:'password-persistent-reload',width:1280,persistent:true,reload:true},
   {name:'password-zero-balances',width:390,zero:true},
   {name:'password-reauthenticated-balance-refresh',width:390,reauthenticate:true},
   {name:'password-data-outage-online-retry',width:390,outage:true},
+  ...(secondaryScreens?[
+   {name:'secondary-390',width:390,height:844,secondary:true},{name:'secondary-375',width:375,height:667,secondary:true},
+   {name:'secondary-320',width:320,height:568,secondary:true},{name:'secondary-desktop',width:1280,height:800,secondary:true},
+  ]:[]),
  ];
+ const scenarios=only?allScenarios.filter(scenario=>scenario.name===only):allScenarios;
+ assert(scenarios.length,'Unknown scenario: '+only);
  for(const scenario of scenarios){
+  activeScenario=scenario.name;
   const userId='AccountDataFixture',password='synthetic-password-17';
   const profile={id:userId,name:'Fixture player',rating:1234,rating_10s:1122,rating_3m:1233,rating_10m:1344,avatar_url:null};
   const proof={userId,token:'ranked_'+'z'.repeat(43),expiresAt:Date.now()+3600000};
   const tickets=scenario.zero?{ranked:0,hint:0}:{ranked:7,hint:3};
   let outage=!!scenario.outage;
-  const context=await browser.newContext({viewport:{width:scenario.width,height:844},serviceWorkers:'block'});
-  const calls=[],errors=[];
+  const context=await browser.newContext({viewport:{width:scenario.width,height:scenario.height??844},serviceWorkers:'block'});
+  const calls=activeCalls=[],errors=activeErrors=[];
   const originUrl=new URL(origin);
   await context.routeWebSocket('**/*',socket=>socket.close());
   await context.route('**/*',async route=>{
@@ -79,7 +91,7 @@ try{
    return respond(503,{code:'UNAVAILABLE'});
   });
   await context.addInitScript(()=>localStorage.setItem('qg_language','ja'));
-  const page=await context.newPage();page.on('pageerror',error=>errors.push(error.message));
+  const page=activePage=await context.newPage();page.on('pageerror',error=>errors.push(error.message));
   await page.goto(origin,{waitUntil:'domcontentloaded'});
   assert.equal(await page.locator('.title-tutorial').getAttribute('href'),target==='android'?'https://q-gambit.com/rules/':'/rules/','Export must render the selected distribution target');
   await page.getByRole('button',{name:'ログイン',exact:true}).click();
@@ -114,11 +126,49 @@ try{
    if(scenario.outage)assert(calls.filter(x=>x.path==='/rewards/daily-login/claim').length>=2,'Failed daily claim must retry when online');
    assert.deepEqual(errors,[]);
   }
+  if(homeLanguages.length&&scenario.name==='password-session-balances'){
+   for(const [width,height]of [[320,568],[390,844]])for(const lang of homeLanguages){
+    await page.setViewportSize({width,height});
+    await page.evaluate(()=>window.dispatchEvent(new Event('qg-open-settings')));
+    await page.locator('.settings-language select').selectOption(lang);
+    await page.keyboard.press('Escape');
+    await page.waitForFunction(language=>document.documentElement.lang===language,lang);
+    await page.evaluate(()=>document.fonts.ready);
+    const check={lang,width,height,...await textWrapping(page,'.lobby-studio',lang)};
+    check.pass=!check.broken.length&&!check.clippedWords.length&&!check.horizontalOverflow;homeTextChecks.push(check);
+    if(!check.pass)await page.screenshot({path:resolve(artifacts,`home-${lang}-${width}-failure.png`),fullPage:true});
+    assert(check.pass,'Home text: '+JSON.stringify(check));
+   }
+  }
   await page.screenshot({path:resolve(artifacts,scenario.name+'.png'),fullPage:true});
-  results.push({name:scenario.name,target,passed:true,reproduced:broken,syntheticAccount:true,liveMutations:0,calls});
-  await writeFile(resolve(artifacts,'result.json'),JSON.stringify({target,source:publicUrl||'local exported app',results},null,2)+'\n');
+  if(scenario.secondary){
+   const fits=async selector=>{
+    const measured=await page.locator(selector).evaluate(element=>({height:element.clientHeight,scroll:element.scrollHeight,width:element.clientWidth,scrollWidth:element.scrollWidth}));
+    if(measured.scroll>measured.height+2||measured.scrollWidth>measured.width+1)await page.screenshot({path:resolve(artifacts,scenario.name+'-failure.png')});
+    assert(measured.scroll<=measured.height+2&&measured.scrollWidth<=measured.width+1,`${selector}: ${JSON.stringify(measured)}`);
+   };
+   await page.evaluate(()=>window.dispatchEvent(new Event('qg-open-settings')));await page.locator('[data-game-settings]').waitFor();
+   for(const [index,section] of (await settingsSections(page)).entries()){
+    await chooseSettingsSection(page,section);await fits('.settings-content');await page.screenshot({path:resolve(artifacts,`${scenario.name}-settings-${index}.png`)});
+   }
+   await page.keyboard.press('Escape');await page.locator('.lobby-campaign-action').click();await page.locator('.map-screen').waitFor();
+   await fits('#crown-main-panel-challenge');await page.screenshot({path:resolve(artifacts,scenario.name+'-map.png')});
+   await page.locator('#crown-main-tab-collection').click();
+   for(const category of ['board','piece','avatar','effect','music']){
+    await page.locator('#crown-category-tab-'+category).click();await fits('#crown-main-panel-collection');
+    await page.screenshot({path:resolve(artifacts,scenario.name+'-collection-'+category+'.png')});
+   }
+   assert.deepEqual(errors,[]);
+  }
+  results.push({name:scenario.name,target,passed:true,reproduced:broken,secondaryScreens:!!scenario.secondary,syntheticAccount:true,liveMutations:0,calls});
+  await writeFile(resolve(artifacts,'result.json'),JSON.stringify({target,source:publicUrl||'local exported app',only:only??null,expectedCases:scenarios.length,complete:results.length===scenarios.length,pass:results.length===scenarios.length,homeTextChecks,results},null,2)+'\n');
   await context.close();
  }
- await writeFile(resolve(artifacts,'result.json'),JSON.stringify({target,source:publicUrl||'local exported app',results},null,2)+'\n');
+ await writeFile(resolve(artifacts,'result.json'),JSON.stringify({target,source:publicUrl||'local exported app',only:only??null,expectedCases:scenarios.length,complete:results.length===scenarios.length,pass:results.length===scenarios.length,homeTextChecks,results},null,2)+'\n');
  console.log(JSON.stringify({target,passed:results.length,reproduced:broken,liveMutations:0}));
+}catch(error){
+ await activePage?.screenshot({path:resolve(artifacts,'failure-'+activeScenario+'.png'),fullPage:true}).catch(()=>{});
+ const observed=await activePage?.evaluate(()=>({rating:document.querySelector('.lobby-rating strong')?.textContent,ranked:document.querySelector('[data-free-match-tickets]')?.textContent,hint:document.querySelector('[data-free-hint-tickets]')?.textContent})).catch(()=>null);
+ await writeFile(resolve(artifacts,'result.json'),JSON.stringify({target,source:publicUrl||'local exported app',only:only??null,complete:false,pass:false,failedScenario:activeScenario,error:String(error),observed,calls:activeCalls,errors:activeErrors,liveMutations:0,homeTextChecks,results},null,2)+'\n');
+ throw error;
 }finally{await browser?.close();await new Promise(done=>server?server.close(done):done());}

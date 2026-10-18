@@ -1,5 +1,6 @@
 // Real exported pages; external traffic is blocked. No sign-in or live writes.
 import assert from 'node:assert/strict';
+import {walkTutorial} from './tutorial-walkthrough.mjs';
 import { createServer } from 'node:http';
 import { readFile, mkdir, writeFile } from 'node:fs/promises';
 import { resolve, sep, extname } from 'node:path';
@@ -98,22 +99,13 @@ try {
                     await page.locator('.lobby-studio').waitFor();
                     assert.equal(await page.locator('[data-terms-gate]').count(), 0);
                     assert.equal(await page.evaluate(() => localStorage.getItem('qg_guest_terms')), null);
-                    // Exercise the real tutorial through its supported 2D fallback.
-                    // Model failure is deliberate here; no backend or 3D assertion is made.
+                    // Exercise the real engine-backed course in its default 2D view.
                     await page.getByRole('button', { name: '遊び方', exact: true }).click();
-                    const tutorial = page.locator('.interactive-tutorial [role="dialog"]');
+                    const tutorial = page.locator('dialog.tutorial-shell');
                     await tutorial.waitFor();
                     assert.equal(await tutorial.locator('[data-qube-teacher]').count(), 1);
                     assert.equal(await tutorial.locator('[data-qube-speaker]').innerText(), 'QUBE');
-                    const squares = {0: 'e2', 1: 'h5', 3: 'h7', 4: 'h5', 6: 'e1', 7: 'f3', 9: 'h5', 10: 'f3'};
-                    for (let step = 0; step < 12; step++) {
-                        await tutorial.locator(`[data-tutorial-step="${step}"]`).waitFor();
-                        assert.ok(await tutorial.locator('[data-qube-explanation]').innerText(), `tutorial instruction ${step}`);
-                        if (squares[step]) {
-                            const square = tutorial.locator('.board-render-fallback').getByRole('button', {name: squares[step], exact: true});
-                            await square.focus(); await page.keyboard.press('Enter');
-                        } else await tutorial.locator('[data-tutorial-next]').click();
-                    }
+                    await walkTutorial(page);
                     await tutorial.waitFor({state: 'detached'});
                     await page.getByRole('button', { name: '遊び方', exact: true }).click();
                     await tutorial.waitFor();
@@ -124,10 +116,10 @@ try {
                     await page.locator('[data-time-control="10m"]').click();
                     await page.locator('.match-layout').waitFor();
                     await page.getByRole('button', { name: '2D', exact: true }).click();
-                    const from = page.getByRole('button', { name: 'a2', exact: true });
+                    const from = page.locator('[data-square="a2"]');
                     await from.focus(); await page.keyboard.press('Enter');
                     await page.locator('[data-testid="selected-square"]').filter({ hasText: 'a2' }).waitFor();
-                    const to = page.getByRole('button', { name: 'a3', exact: true });
+                    const to = page.locator('[data-square="a3"]');
                     assert.equal(await to.getAttribute('data-move-target'), 'true');
                     await to.focus(); await page.keyboard.press('Enter');
                     const detailsButton = page.getByRole('button', { name: '棋譜・正体', exact: true });
@@ -140,7 +132,7 @@ try {
                 }
                 const expectedModelFailures = errors.filter(error => modelRequestsBlocked > 0 && /^Could not load \/models\/(?:king|queen|rook|bishop|knight|pawn)\.glb: Failed to fetch$/.test(error));
                 assert.deepEqual(errors.filter(error => !expectedModelFailures.includes(error)), [], `unexpected runtime errors ${lang} ${width}`);
-                results.push({ width, height, lang, entry: true, keyboardAnswer: true, candidateChain: true, faqLink: true, languageSwitch: true, informationNavigation: true, tutorialSteps: lang === 'ja' ? 12 : 0, tutorialRenderer: lang === 'ja' ? 'real 2D fallback' : null, modelRequestsBlocked, expectedModelFailures, firstGame: lang === 'ja', liveWrites: false });
+                results.push({ width, height, lang, entry: true, keyboardAnswer: true, candidateChain: true, faqLink: true, languageSwitch: true, informationNavigation: true, tutorialLessons: lang === 'ja' ? 24 : 0, tutorialRenderer: lang === 'ja' ? 'real 2D default' : null, modelRequestsBlocked, expectedModelFailures, firstGame: lang === 'ja', liveWrites: false });
             } catch (error) { await page.screenshot({ path: resolve(artifacts, `failure-${lang}-${width}.png`) }); throw error; }
             finally { await context.close(); }
         }

@@ -24,8 +24,8 @@
 .crown-reference .crown-encounter>.crown-next-reward>strong { font-size:10px;line-height:1.45;text-align:center; }.crown-reference .crown-preview-label { margin-top:2px;font-size:10px; }
 .crown-reference .crown-launch { grid-row:4;grid-column:1/-1;position:relative!important;z-index:5;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:8px 10px;padding-top:0;border:0; }
 .crown-reference .crown-launch .campaign-side { display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px; }.crown-reference .campaign-side legend { position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%); }
-.crown-reference .crown-launch .campaign-side button { min-height:46px;font-size:10px;line-height:1.4;padding:8px 4px;border-radius:12px;white-space:normal;overflow-wrap:anywhere; }
-.crown-reference .crown-launch .campaign-primary { min-height:49px;font-size:13px;line-height:1.4;border-radius:13px;padding:12px;white-space:normal;overflow-wrap:anywhere; }
+.crown-reference .crown-launch .campaign-side button { min-height:46px;font-size:10px;line-height:1.4;padding:8px 4px;border-radius:12px;white-space:normal;overflow-wrap:break-word; }
+.crown-reference .crown-launch .campaign-primary { min-height:49px;font-size:13px;line-height:1.4;border-radius:13px;padding:12px;white-space:normal;overflow-wrap:break-word; }
 .crown-reference .crown-objective { font-size:9px;line-height:1.5;color:#bbc2b8;margin:3px 0 0; }
 .crown-reference .crown-route { grid-template-columns:repeat(5,minmax(0,1fr));gap:6px; }.crown-reference .crown-route::before { display:none; }.crown-reference .crown-route-node { min-height:46px;padding:6px 4px;border-radius:12px;gap:4px; }.crown-reference .crown-route-node strong { font-size:11px; }
 .crown-reference .crown-route-piece { width:18px;height:20px; }.crown-reference .crown-pager { gap:10px; }.crown-reference .crown-pager>button { min-width:44px;min-height:44px;border-radius:12px; }.crown-reference .crown-route-caption { font-size:10px; }

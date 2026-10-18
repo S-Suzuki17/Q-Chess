@@ -5,6 +5,8 @@ const h=vi.hoisted(()=>({slots:[] as any[],cursor:0,effects:[] as (()=>void)[],c
 vi.mock('react',async original=>{const actual=await original<typeof import('react')>();const mocked={...actual,
 useState(initial:any){const i=h.cursor++;if(!(i in h.slots))h.slots[i]=typeof initial==='function'?initial():initial;return [h.slots[i],(v:any)=>{h.slots[i]=typeof v==='function'?v(h.slots[i]):v;}];},
 useRef(initial:any){const i=h.cursor++;if(!(i in h.slots))h.slots[i]={current:initial};return h.slots[i];},
+// Each deterministic render reads the current access snapshot; settle() drives subscriptions.
+useSyncExternalStore(_subscribe:unknown,getSnapshot:()=>unknown){h.cursor++;return getSnapshot();},
 useEffect(effect:()=>void|(()=>void),deps:any[]){const i=h.cursor++,prev=h.slots[i];if(!prev||deps.some((v,j)=>v!==prev[j])){h.slots[i]=deps;h.effects.push(()=>{h.cleanups.get(i)?.();const cleanup=effect();if(cleanup)h.cleanups.set(i,cleanup);else h.cleanups.delete(i);});}}
 };return {...mocked,default:mocked};});
 vi.mock('../lib/supabaseClient',()=>({oauthCallbackAtStartup:h.callback,supabase:{auth:{initialize:h.initialize,getSession:h.session,getUser:h.user,onAuthStateChange:(fn:any)=>{h.auth.add(fn);return {data:{subscription:{unsubscribe:()=>h.auth.delete(fn)}}};},signOut:async()=>({error:null})},from:()=>({select:()=>({eq:()=>({single:async()=>({data:{name:'OAuth'},error:null})})})})}}));

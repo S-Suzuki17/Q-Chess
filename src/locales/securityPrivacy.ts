@@ -1,18 +1,19 @@
 import type {Language} from './dict';
 export const cloudStoragePrivacy:Record<Language,string>={
-    ja:'ログインしたアカウントの進行と外観の選択はサーバーにも同期されます。アカウント削除時は、このクラウド保存データも削除します。',
-    en:'Signed-in progress and appearance choices also sync to the server. Account deletion erases this cloud save as well.',
-    zh:'登录账户的进度和外观选择也会同步到服务器。删除账户时也会删除此云存档。',
-    ru:'Прогресс и оформление вошедшего пользователя синхронизируются с сервером. При удалении аккаунта это облачное сохранение также удаляется.',
-    fr:'La progression et l’apparence du compte connecté sont aussi synchronisées sur le serveur. Supprimer le compte efface également cette sauvegarde cloud.',
-    de:'Fortschritt und Gestaltung angemeldeter Konten werden auch mit dem Server synchronisiert. Bei Kontolöschung wird dieser Cloud-Spielstand ebenfalls gelöscht.',
-    es:'El progreso y la apariencia de la cuenta iniciada también se sincronizan con el servidor. Borrar la cuenta elimina esa copia en la nube.',
-    tr:'Giriş yapılan hesabın ilerlemesi ve görünüm tercihleri sunucuya da eşitlenir. Hesap silinince bu bulut kaydı da silinir.',
-    pl:'Postęp i wygląd zalogowanego konta są też synchronizowane z serwerem. Usunięcie konta usuwa również zapis w chmurze.',
-    hi:'लॉगिन किए खाते की प्रगति और रूप के चुनाव सर्वर से भी सिंक होते हैं। खाता हटाने पर यह क्लाउड सेव भी हटता है।',
-    pt:'O progresso e a aparência da conta conectada também são sincronizados com o servidor. Excluir a conta também apaga esse arquivo na nuvem.',
-    ta:'உள்நுழைந்த கணக்கின் முன்னேற்றமும் தோற்றத் தேர்வுகளும் சேவையகத்திலும் ஒத்திசைக்கப்படும். கணக்கை நீக்கும்போது இந்த மேகச் சேமிப்பும் நீக்கப்படும்.',
+    "ja": "ログイン中の100マスチャレンジの進行と外観の選択はサーバーにも同期されます。チュートリアルの進行はこの端末内だけに保存されます。アカウント削除時は、クラウド保存データも削除します。",
+    "en": "Signed-in 100-Tile Challenge progress and appearance choices also sync to the server. Tutorial progress stays only on this device. Account deletion erases the cloud save as well.",
+    "zh": "登录后的100格挑战进度和外观选择也会同步到服务器。教程进度仅保存在本设备上。删除账户时也会删除云存档。",
+    "ru": "Прогресс испытания «100 клеток» и оформление вошедшего пользователя синхронизируются с сервером. Прогресс обучения хранится только на этом устройстве. При удалении аккаунта облачное сохранение также удаляется.",
+    "fr": "La progression du défi 100 cases et les choix d’apparence du compte connecté sont aussi synchronisés sur le serveur. La progression du tutoriel reste uniquement sur cet appareil. Supprimer le compte efface également la sauvegarde cloud.",
+    "de": "Fortschritt in der 100-Felder-Challenge und Gestaltung angemeldeter Konten werden auch mit dem Server synchronisiert. Der Tutorial-Fortschritt bleibt nur auf diesem Gerät. Bei Kontolöschung wird der Cloud-Spielstand ebenfalls gelöscht.",
+    "es": "El progreso del desafío de 100 casillas y la apariencia de la cuenta iniciada también se sincronizan con el servidor. El progreso del tutorial se guarda solo en este dispositivo. Borrar la cuenta elimina la copia en la nube.",
+    "tr": "Giriş yapılan hesabın 100 Kare Mücadelesi ilerlemesi ve görünüm tercihleri sunucuya da eşitlenir. Öğretici ilerlemesi yalnızca bu cihazda saklanır. Hesap silinince bulut kaydı da silinir.",
+    "pl": "Postęp wyzwania 100 pól i wygląd zalogowanego konta są też synchronizowane z serwerem. Postęp samouczka pozostaje tylko na tym urządzeniu. Usunięcie konta usuwa również zapis w chmurze.",
+    "hi": "लॉगिन किए खाते की 100 खानों की चुनौती की प्रगति और रूप के चुनाव सर्वर से भी सिंक होते हैं। ट्यूटोरियल की प्रगति केवल इस उपकरण पर रहती है। खाता हटाने पर क्लाउड सेव भी हटता है।",
+    "pt": "O progresso do desafio de 100 casas e a aparência da conta conectada também são sincronizados com o servidor. O progresso do tutorial fica apenas neste dispositivo. Excluir a conta também apaga o arquivo na nuvem.",
+    "ta": "உள்நுழைந்த கணக்கின் 100 கட்டச் சவால் முன்னேற்றமும் தோற்றத் தேர்வுகளும் சேவையகத்திலும் ஒத்திசைக்கப்படும். பயிற்சியின் முன்னேற்றம் இந்தச் சாதனத்தில் மட்டுமே சேமிக்கப்படும். கணக்கை நீக்கும்போது மேகச் சேமிப்பும் நீக்கப்படும்."
 };
+
 export const securityPrivacy:Record<Language,string>={
     ja:'不正対策用の監査ログには操作種別・成否・サーバー日時・対象アカウントのみを記録します。保存期間は30日で、期限後は毎時の処理で削除します。パスワード・トークン・メール本文・生のIPアドレスはこのログに保存しません。本人がアカウントを削除した場合、紐づくログも削除します。休眠アカウントの自動削除は行いません。',
     en:'Security audit logs contain only action type, outcome, server time and the affected account. They are retained for 30 days and expired entries are removed hourly. These logs do not store passwords, tokens, email content or raw IP addresses. Linked logs are erased with account deletion. Inactive accounts are not automatically deleted.',

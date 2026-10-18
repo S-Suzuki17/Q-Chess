@@ -13,7 +13,7 @@ const h = vi.hoisted(() => {
     const mm = { registerSocket: vi.fn((userId, socketId) => sessions.set(userId, { userId, socketId, state: 'IDLE' })),
         getPlayerSession: vi.fn(id => sessions.get(id)), clearDisconnectTimer: vi.fn(), getQueueStats: vi.fn(() => ({})),
         takeCpuFallbacks: vi.fn(() => []), joinQueue: vi.fn(), leaveQueue: vi.fn(), removeSocket: vi.fn(), getMatch: vi.fn(),
-        reserveMatch: vi.fn(), connectMatch: vi.fn(),
+        reserveMatch: vi.fn(), connectMatch: vi.fn(), matchConnectionError: vi.fn(() => null), cancelWaitingPrivateMatch: vi.fn(() => false),
         opponentDisconnect: vi.fn(() => null), awaitingReconnect: vi.fn(() => false), authenticationUnavailable:vi.fn(),authorityCheckPending:vi.fn(()=>false) };
     const app = { use: vi.fn(), get: vi.fn((path, handler) => routes.set(path, handler)), post: vi.fn((path, handler) => routes.set(path, handler)) };
     const io = { emit: vi.fn(), use: vi.fn(), on: vi.fn((event, handler) => listeners.set(event, handler)),
@@ -129,7 +129,7 @@ async function realMatchmaking() {
     h.engineClass = (await vi.importActual<typeof import('../game/GameEngine')>('../game/GameEngine')).GameEngine;
     const actual = new MatchmakingService(h.io as any);
     for (const key of ['registerSocket', 'getPlayerSession', 'clearDisconnectTimer', 'getQueueStats',
-        'takeCpuFallbacks', 'joinQueue', 'leaveQueue', 'removeSocket', 'getMatch', 'reserveMatch', 'connectMatch']) {
+        'takeCpuFallbacks', 'joinQueue', 'leaveQueue', 'removeSocket', 'getMatch', 'reserveMatch', 'connectMatch', 'matchConnectionError', 'cancelWaitingPrivateMatch']) {
         vi.spyOn(h.mm as any, key).mockImplementation((...args: any[]) => (actual as any)[key](...args));
     }
     vi.stubEnv('RANKED_TICKET_ADMISSION_ENABLED', 'false');

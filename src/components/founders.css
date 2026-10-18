@@ -2,10 +2,10 @@
 .founders-collection>header {display:flex;align-items:center;gap:14px;color:#d5b671;}
 .founders-collection small {font-size:9px;letter-spacing:.22em;color:#9c8d6e;}
 .founders-collection h3 {font-size:16px;font-weight:600;line-height:1.5;color:#f0e4cd;}
-.founders-collection p {font-size:12px;line-height:1.8;margin-top:12px;overflow-wrap:anywhere;}
+.founders-collection p {font-size:12px;line-height:1.8;margin-top:12px;overflow-wrap:break-word;}
 .founders-items {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:18px;}
 .founders-items button {display:flex;flex-direction:column;align-items:flex-start;gap:12px;padding:14px 10px;border:1px solid #b9935059;border-radius:8px;background:linear-gradient(145deg,#283140,#111820);text-align:left;color:#d1ae66;min-width:0;}
-.founders-items strong {color:#eadcc3;font-size:11px;line-height:1.6;font-weight:500;overflow-wrap:anywhere;}
+.founders-items strong {color:#eadcc3;font-size:11px;line-height:1.6;font-weight:500;overflow-wrap:break-word;}
 .founders-items span {font-size:10px;color:#aa9875;margin-top:auto;}
 .founders-collection button {cursor:pointer;min-height:44px;}
 .founders-collection button:focus-visible {outline:2px solid #ebce8e;outline-offset:3px;}

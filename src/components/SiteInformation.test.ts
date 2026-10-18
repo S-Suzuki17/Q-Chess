@@ -31,7 +31,7 @@ describe('publisher site quality and navigation', () => {
     });
     it('makes settings links available without leaving the live game or affecting Android support', () => {
         const source=readFileSync('src/app/page.tsx','utf8');
-        expect(source).toContain('{webContent && <SiteLinks lang={lang} newTab/>}');
+        expect(source).toContain('{webContent && <SiteLinks compact lang={lang} newTab/>}');
         expect(source).toContain('{android && <AppSupportLinks lang={lang}/>}');
     });
     it('preserves recording source outside the public route tree', () => {

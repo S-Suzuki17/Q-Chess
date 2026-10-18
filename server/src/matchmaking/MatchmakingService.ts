@@ -1,4 +1,5 @@
 import { Server } from 'socket.io';
+import { privateRoomRequestError, type PrivateRoomRequest } from '../protocol/PrivateRoom';
 import { crownEnemyForMatch, crownEnemyName } from '../presentation/crownEnemies';
 import { v4 as uuidv4 } from 'uuid';
 import { GameEngine } from '../game/GameEngine';
@@ -167,6 +168,8 @@ export class MatchmakingService {
                     this.io.to(matchId).emit('match_forfeited', { matchId, winner: isHost ? 'joiner' : 'host', reason: 'abandonment' });
                     this.onForfeit?.(currentMatch);
                 }
+            } else if(currentMatch && !currentMatch.mode && ['WAITING_FOR_JOINER','CONNECTING'].includes(currentMatch.state)) {
+                this.cancelWaitingPrivateMatch(userId, matchId, 'connection_timeout');
             } else if(currentMatch?.state==='ADMITTING') {
                 this.onAdmissionCancel?.(currentMatch,'admission_abandoned');
             } else if(currentMatch && ['CONNECTING','WAITING_FOR_JOINER'].includes(currentMatch.state)) {
@@ -310,33 +313,60 @@ export class MatchmakingService {
         return { success: false };
     }
 
-    /** Reserve private-room roles synchronously, before an async profile lookup. */
-    public reserveMatch(userId: string, matchId: string, userName?: string): MatchSession | undefined {
-        const session=this.players.get(userId);
-        if(session?.state==='WAITING'||(session?.currentMatchId&&session.currentMatchId!==matchId))return undefined;
-        let match = this.matches.get(matchId);
+    /** Validate without mutating: an unknown join/reconnect must never create a room. */
+    public matchConnectionError(userId: string, matchId: string, request?: PrivateRoomRequest): string | null {
+        const session = this.players.get(userId), match = this.matches.get(matchId);
+        if (!session) return 'AUTH_REQUIRED';
+        if (session.state === 'WAITING' || (session.currentMatchId && session.currentMatchId !== matchId)) return 'ACCOUNT_BUSY';
+        if (request !== undefined) {
+            const invalid = privateRoomRequestError(matchId, request);
+            if (invalid) return invalid;
+        }
+        if (!match) return request?.intent === 'create' ? null : request === undefined ? 'UPDATE_REQUIRED' : 'ROOM_NOT_FOUND';
+        if (['CANCELLED','FINISHED','VOIDING'].includes(match.state)) return 'ROOM_CLOSED';
+        const participant = Object.values(match.players).includes(userId);
+        if (match.mode) return !request && participant ? null : 'ROOM_NOT_FOUND';
+        if (request?.intent === 'create' && match.players.host !== userId) return 'ROOM_EXISTS';
+        if (participant) {
+            const absence = this.disconnectDeadlines.get(userId);
+            return absence?.matchId === matchId && (Date.now() >= absence.expiresAt || performance.now() >= absence.monotonicExpiresAt)
+                ? 'ROOM_CLOSED' : null;
+        }
+        // Legacy clients may still join an existing private room. Their unknown
+        // codes are never creation authority: they need the updated client.
+        if (request !== undefined && request.intent !== 'join') return 'ROOM_NOT_FOUND';
+        return match.state === 'WAITING_FOR_JOINER' && !match.players.joiner ? null : 'ROOM_FULL';
+    }
 
+    /** Reserve both the role and player session before any profile/authority await. */
+    public reserveMatch(userId: string, matchId: string, userName?: string, request?: PrivateRoomRequest): MatchSession | undefined {
+        if (this.matchConnectionError(userId, matchId, request)) return;
+        const session = this.players.get(userId)!;
+        let match = this.matches.get(matchId);
         if (!match) {
-            // Create ad-hoc private match
-            match = {
-                matchId,
-                state: 'WAITING_FOR_JOINER',
-                timeControl: 600, // 10m default for private rooms if not specified
-                players: { host: userId, joiner: '' },
-                playerNames: { host: userName },
-                connected: { host: false, joiner: false },
-                createdAt: Date.now()
-            };
+            if (request?.intent !== 'create') return;
+            match = { matchId, state: 'WAITING_FOR_JOINER', timeControl: request.timeControl,
+                players: { host: userId, joiner: '' }, playerNames: { host: userName },
+                connected: { host: false, joiner: false }, createdAt: Date.now() };
             this.matches.set(matchId, match);
-        } else if (match.state === 'WAITING_FOR_JOINER' && match.players.host !== userId) {
-            // Join existing private match
+        } else if (!Object.values(match.players).includes(userId)) {
             match.players.joiner = userId;
             match.playerNames.joiner = userName;
             match.state = 'CONNECTING';
         }
+        session.currentMatchId = matchId;
+        session.state = match.state === 'IN_GAME' ? 'IN_GAME' : match.state === 'ADMITTING' ? 'ADMITTING' : 'CONNECTING';
+        return match;
+    }
 
-        if(match.state==='CANCELLED'||match.state==='FINISHED'||match.state==='VOIDING')return undefined;
-        return match.players.host===userId||match.players.joiner===userId?match:undefined;
+    /** Home/cancellation releases only an unstarted private room owned by this session. */
+    public cancelWaitingPrivateMatch(userId: string, matchId: string, reason = 'admission_cancelled'): boolean {
+        const match = this.matches.get(matchId), session = this.players.get(userId);
+        if (!match || match.mode || match.engine || !['WAITING_FOR_JOINER','CONNECTING'].includes(match.state)
+            || session?.currentMatchId !== matchId || !Object.values(match.players).includes(userId)) return false;
+        this.finishMatch(match, 'CANCELLED');
+        this.io.to(matchId).emit('match_cancelled', { matchId, reason });
+        return true;
     }
 
     public connectMatch(userId: string, matchId: string, userName?: string, avatarUrl?: string, avatarFrame?:string,introVersion?:number,rating?:number|null): { success: boolean, match?: MatchSession, engine?: GameEngine, justStarted?: boolean } {

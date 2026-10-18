@@ -14,7 +14,7 @@ const h = vi.hoisted(() => {
     const mm = { registerSocket: vi.fn((userId, socketId) => sessions.set(userId, { userId, socketId, state: 'IDLE' })),
         getPlayerSession: vi.fn(id => sessions.get(id)), clearDisconnectTimer: vi.fn(), getQueueStats: vi.fn(() => ({})),
         takeCpuFallbacks: vi.fn(() => []), joinQueue: vi.fn(), leaveQueue: vi.fn(), removeSocket: vi.fn(), getMatch: vi.fn(),
-        reserveMatch: vi.fn(), connectMatch: vi.fn(),activateMatch:vi.fn(),getMatches:vi.fn(()=>[]),finishMatch:vi.fn(),accountBusy:vi.fn(),
+        matchConnectionError: vi.fn(), cancelWaitingPrivateMatch: vi.fn(), reserveMatch: vi.fn(), connectMatch: vi.fn(),activateMatch:vi.fn(),getMatches:vi.fn(()=>[]),finishMatch:vi.fn(),accountBusy:vi.fn(),
         opponentDisconnect: vi.fn(() => null), awaitingReconnect: vi.fn(() => false), authenticationUnavailable:vi.fn(),authorityCheckPending:vi.fn(()=>false) };
     const app = { use: vi.fn(), get: vi.fn((path, handler) => routes.set(path, handler)), post: vi.fn((path, handler) => routes.set(path, handler)) };
     const io = { emit: vi.fn(), use: vi.fn(), on: vi.fn((event, handler) => listeners.set(event, handler)),
@@ -135,7 +135,7 @@ async function realMatchmaking() {
     h.engineClass = (await vi.importActual<typeof import('../game/GameEngine')>('../game/GameEngine')).GameEngine;
     const actual = new MatchmakingService(h.io as any,true);
     for (const key of ['registerSocket', 'getPlayerSession', 'clearDisconnectTimer', 'getQueueStats',
-        'activateMatch','getMatches','finishMatch','accountBusy','takeCpuFallbacks', 'joinQueue', 'leaveQueue', 'removeSocket', 'getMatch', 'reserveMatch', 'connectMatch']) {
+        'activateMatch','getMatches','finishMatch','accountBusy','takeCpuFallbacks', 'joinQueue', 'leaveQueue', 'removeSocket', 'getMatch', 'reserveMatch', 'matchConnectionError', 'cancelWaitingPrivateMatch', 'connectMatch']) {
         vi.spyOn(h.mm as any, key).mockImplementation((...args: any[]) => (actual as any)[key](...args));
     }
     vi.stubEnv('RANKED_TICKET_ADMISSION_ENABLED', 'true');
@@ -214,11 +214,11 @@ describe('admitted ranked socket gateway',()=>{
         expect(alice.s.emit).toHaveBeenCalledWith('match_cancelled',{matchId:id,reason:'match_not_found'});
         expect(mm.getMatch(id)).toBeUndefined();
         h.admissionStore.read.mockClear();
-        await alice.dispatch('connect_match',{matchId:'ABC123'});
+        await alice.dispatch('connect_match',{matchId:'ABC123',privateRoom:{intent:'create',timeControl:600}});
         expect(mm.getMatch('ABC123')!.state).toBe('WAITING_FOR_JOINER');
         expect(h.admissionStore.read).not.toHaveBeenCalled();expect(h.admissionStore.admit).not.toHaveBeenCalled();
         const guest=await socket('GUEST-friend','friend');
-        await guest.dispatch('connect_match',{matchId:'ABC123'});
+        await guest.dispatch('connect_match',{matchId:'ABC123',privateRoom:{intent:'join'}});
         expect(mm.getMatch('ABC123')!.state).toBe('IN_GAME');
         expect(mm.getMatch('ABC123')!.admission).toBeUndefined();
         expect(h.admissionStore.admit).not.toHaveBeenCalled();

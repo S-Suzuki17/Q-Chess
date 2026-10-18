@@ -69,6 +69,7 @@ function platform() {
     } }));
     const host = {
         clientWidth: 480, clientHeight: 320, dataset: {} as Record<string, string>,
+        style: {setProperty:vi.fn()},
         querySelectorAll: (selector: string) => selector === '[data-letter]' ? letters : [],
     };
     const observers: ResizeObserverDouble[] = [];
@@ -142,11 +143,12 @@ describe('VictoryCelebration effect ownership (no browser DOM)', () => {
         await vi.dynamicImportSettled();
         vi.restoreAllMocks();
         vi.unstubAllGlobals();
+        vi.useRealTimers();
     });
 
-    function mount() {
+    function mount(preview = true) {
         const html = renderToStaticMarkup(React.createElement(VictoryCelebration, {
-            effect: 'champion-effect-003', preview: true,
+            effect: 'champion-effect-003', preview,
         }));
         expect(html).toContain('data-victory-layer="cinematic"');
         expect(ownership.refs).toHaveLength(3);
@@ -273,7 +275,7 @@ describe('VictoryCelebration effect ownership (no browser DOM)', () => {
         expect(ownership.renderFrame.mock.lastCall?.[4]).toBe(3);
         expect(ownership.renderFrame.mock.lastCall?.[8]).toBe(true);
         expect(ownership.renderFrame.mock.lastCall?.[9]).toBe(false);
-        expect(rig.letters.every(letter => letter.style.opacity === '1')).toBe(true);
+        expect(rig.host.style.setProperty).toHaveBeenCalledWith('--victory-glint','0');
         expect(rig.document.listenerCount('visibilitychange')).toBe(0);
         const renders = ownership.renderFrame.mock.calls.length;
         staleFrame(1200);
@@ -346,5 +348,71 @@ describe('VictoryCelebration effect ownership (no browser DOM)', () => {
         cleanup!();
         expect(rig.audio[0].pause).toHaveBeenCalledOnce();
         expectDetached();
+    });
+    it('holds a reduced-motion live title for three seconds without a rendering loop, then dismisses', async () => {
+        vi.useFakeTimers();
+        rig.motion.matches = true;
+        mount(false);
+        rig.frame(16);
+        expect(rig.host.dataset).toMatchObject({finished:'true',time:'3',reducedMotion:'true',dismissed:'false'});
+        expect(rig.clock.frames.size).toBe(0);
+        expect(ownership.createCinematic).not.toHaveBeenCalled();
+        vi.advanceTimersByTime(2999);
+        expect(rig.host.dataset.dismissed).toBe('false');
+        vi.advanceTimersByTime(1);
+        expect(rig.host.dataset.dismissed).toBe('true');
+        expect(rig.audio[0].pause).toHaveBeenCalledOnce();
+        cleanup!();expectDetached();
+    });
+    it('stops pending audio at the live deadline even when the media has not emitted ended', async () => {
+        mount(false);
+        await ready();
+        rig.frame(3000);
+        expect(rig.host.dataset).toMatchObject({finished:'true',dismissed:'true',time:'3'});
+        expect(rig.clock.frames.size).toBe(0);
+        expect(rig.audio[0].pause).toHaveBeenCalledOnce();
+        expect(rig.document.listenerCount('visibilitychange')).toBe(0);
+        cleanup!();expectDetached();
+    });
+    it('does not revive a finished fallback when a slow cinematic import finally resolves', async () => {
+        mount(false);
+        rig.frame(3000);
+        expect(rig.host.dataset.dismissed).toBe('true');
+        const renders=ownership.renderFrame.mock.calls.length;
+        await vi.dynamicImportSettled();
+        expect(ownership.createCinematic).not.toHaveBeenCalled();
+        expect(ownership.renderFrame).toHaveBeenCalledTimes(renders);
+        expect(rig.clock.frames.size).toBe(0);
+        cleanup!();expectDetached();
+    });
+    it('cancels the static hold on unmount instead of mutating a detached overlay', () => {
+        vi.useFakeTimers();
+        rig.motion.matches = true;
+        mount(false);rig.frame(16);cleanup!();
+        vi.advanceTimersByTime(4000);
+        expect(rig.host.dataset.dismissed).toBe('false');
+        expectDetached();
+    });
+    it('uses only the remaining hold time when reduced motion is enabled during a live shot', () => {
+        vi.useFakeTimers();
+        mount(false);rig.frame(1000);rig.reduced(true);
+        expect(rig.clock.frames.size).toBe(0);
+        vi.advanceTimersByTime(1999);
+        expect(rig.host.dataset.dismissed).toBe('false');
+        vi.advanceTimersByTime(1);
+        expect(rig.host.dataset.dismissed).toBe('true');
+        cleanup!();expectDetached();
+    });
+    it('stops delayed audio in a reduced-motion preview while retaining the completed artwork', () => {
+        vi.useFakeTimers();
+        rig.motion.matches=true;
+        mount(true);rig.frame(16);
+        expect(rig.clock.frames.size).toBe(0);
+        vi.advanceTimersByTime(2999);
+        expect(rig.audio[0].pause).not.toHaveBeenCalled();
+        vi.advanceTimersByTime(1);
+        expect(rig.audio[0].pause).toHaveBeenCalledOnce();
+        expect(rig.host.dataset).toMatchObject({finished:'true',dismissed:'false',reducedMotion:'true'});
+        cleanup!();expectDetached();
     });
 });

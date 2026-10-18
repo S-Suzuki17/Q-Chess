@@ -6,12 +6,17 @@
       "sources": [
         "^src/app/page\\.tsx$",
         "^src/locales/(dict|additionalTutorial)\\.ts$",
-        "^src/components/(TitleScreen|LobbyShowcase|LevelSelect|InteractiveTutorial|CampaignMode|CrownEntryMotion)\\.tsx$",
+        "^src/components/(TitleScreen|LobbyShowcase|LevelSelect|InteractiveTutorial|TutorialCopy|GameSettings|ChallengeMap|GuestCircuitPreview|CampaignMode|CrownEntryMotion)\\.tsx$",
         "^src/components/(lobby-reference|crown-reference)\\.css$",
         "^src/hooks/useBoardPreferences\\.ts$",
         "^src/components/castle-quest-journey\\.css$",
         "^src/locales/castleQuestText\\.ts$",
-        "^src/lib/castleQuestJourney\\.ts$"
+        "^src/lib/castleQuestJourney\\.ts$",
+        "^src/lib/tutorialCourse\\.ts$",
+        "^src/locales/tutorialCourseText\\.ts$",
+        "^src/components/(game-settings|challenge-map|online-match-waiting|interactive-tutorial)\\.css$",
+        "^src/lib/textPageBreaks\\.ts$",
+        "^src/(hooks|lib)/(useAndroidBack|androidBack)\\.ts$"
       ],
       "pages": [
         "/guide/#start",
@@ -27,7 +32,10 @@
       "sources": [
         "^(server/)?src/quantum-engine/",
         "^src/(lib/)?gameLogic\\.ts$",
-        "^src/components/(Board2D|Board3D|MatchLayout)\\.tsx$"
+        "^src/components/(Board2D|Board3D|MatchLayout)\\.tsx$",
+        "^src/lib/tutorialCourse\\.ts$",
+        "^src/locales/tutorialCourseText\\.ts$",
+        "^src/lib/localMoveDestinations\\.ts$"
       ],
       "pages": [
         "/rules/",
@@ -72,14 +80,19 @@
       "id": "accounts-connections-and-saves",
       "sources": [
         "^src/(hooks|lib)/.*(Auth|auth|OnlineGame|reconnect|Circuit|Storage|storage)",
-        "^src/components/(SettingsDialog|AccountDataGuide|CircuitLoginGate|OnlineMatchTermsGate|RankedMatchmakingManager|RankedCancellationNotice)\\.tsx$",
+        "^src/components/(SettingsDialog|GameSettings|OnlineMatchWaiting|AccountDataGuide|CircuitLoginGate|OnlineMatchTermsGate|RankedMatchmakingManager|RankedCancellationNotice)\\.tsx$",
+        "^src/locales/(settingsScreenText|matchWaitingText)\\.ts$",
         "^src/locales/(onlineMatchTermsText|rankedStartText)\\.ts$",
         "^src/lib/(activeOnlineMatchCache\\.ts|SocketContext\\.tsx)$",
         "^server/src/services/(LegacySocketAuthority|SupabaseService|PrivateGameRecords|Account|Ranked)",
         "^server/src/matchmaking/MatchmakingService\\.ts$",
         "^server/src/protocol/.*Admission",
         "^supabase/migrations/",
-        "^src/lib/castleQuestJourney\\.ts$"
+        "^src/lib/castleQuestJourney\\.ts$",
+        "^src/locales/securityPrivacy\\.ts$",
+        "^server/src/protocol/PrivateRoom\\.ts$",
+        "^src/lib/privateRoom\\.ts$",
+        "^src/(hooks|lib)/(usePlayGameStats.*|playGameStats.*)\\.ts$"
       ],
       "pages": [
         "/faq/#connection",
@@ -92,7 +105,8 @@
         "src/locales/siteContent.ts",
         "src/locales/privacyReview.ts",
         "src/components/AccountDataGuide.tsx",
-        "src/app/privacy/page.tsx"
+        "src/app/privacy/page.tsx",
+        "src/locales/securityPrivacy.ts"
       ]
     },
     {
@@ -105,7 +119,9 @@
         "^server/src/services/(Stripe|Commerce|AccountCurrentTerms)",
         "^supabase/migrations/",
         "^src/(components|lib|locales)/(NativeCommerce|NativeAdPrivacy|nativeCommerce|nativeAds|playCommerce)",
-        "^server/src/services/PlayCommerce"
+        "^server/src/services/PlayCommerce",
+        "^src/hooks/useNativeCommerceRecovery\\.ts$",
+        "^src/locales/securityPrivacy\\.ts$"
       ],
       "pages": [
         "/faq/#hints",
@@ -120,7 +136,8 @@
         "src/components/TermsDocument.tsx",
         "src/config/salesTermsDraft.ts",
         "src/app/privacy/page.tsx",
-        "src/app/terms/page.tsx"
+        "src/app/terms/page.tsx",
+        "src/locales/securityPrivacy.ts"
       ]
     },
     {
@@ -129,7 +146,7 @@
         "^src/app/(guide|faq|rules|about|contact|privacy|terms)/",
         "^src/app/(layout|page)\\.tsx$",
         "^src/hooks/useAppPlatform\\.ts$",
-        "^src/components/(LearningPage|SiteInformation|QubeTeacher|game-page)",
+        "^src/components/(LearningPage|SiteInformation|QubeTeacher|game-page|game-settings|online-match-waiting|interactive-tutorial|challenge-map)",
         "^src/components/(CampaignMode|CampaignResult|CrownEnemyPortrait|CrownCharacterBody|CrownEntryMotion|PixelCastleCorridor)\\.tsx$",
         "^src/components/(lobby-reference|crown-reference)\\.css$",
         "^src/config/(campaign|circuitStages|crownEnemies)\\.ts$",
@@ -139,7 +156,9 @@
         "^public/(sitemap\\.xml|robots\\.txt)$",
         "^scripts/release/(search-metadata|check-web-review|verify-pages)\\.mjs$",
         "^src/components/castle-quest-journey\\.css$",
-        "^src/locales/castleQuestText\\.ts$"
+        "^src/locales/castleQuestText\\.ts$",
+        "^src/styles/text-flow\\.css$",
+        "^src/components/NaturalText\\.tsx$"
       ],
       "pages": [
         "/",
@@ -165,11 +184,14 @@
     {
       "id": "qube-teaching",
       "sources": [
-        "^src/components/(QubeTeacher|InteractiveTutorial|LearningPage|SiteInformation|LevelSelect|MatchLayout|LocalGameBoard|OnlineGameBoard|CampaignMode|RewardPreview|ChampionshipCollection|CosmeticsSettings|MemberTicketsPanel|DailyLoginRewardsPanel|SharedMatchAdmissionChoice)\\.tsx$",
+        "^src/components/(QubeTeacher|InteractiveTutorial|TutorialCopy|LearningPage|SiteInformation|LevelSelect|MatchLayout|LocalGameBoard|OnlineGameBoard|CampaignMode|RewardPreview|ChampionshipCollection|CosmeticsSettings|GameSettings|MemberTicketsPanel|DailyLoginRewardsPanel|SharedMatchAdmissionChoice)\\.tsx$",
         "^src/app/rules/page\\.tsx$",
         "^src/locales/(qubeTeaching|additionalTutorial|matchText|rulesDict|rulesVisualDict|siteContent|stageText|cosmeticsSettingsText)\\.ts$",
         "^src/components/castle-quest-journey\\.css$",
-        "^src/locales/castleQuestText\\.ts$"
+        "^src/locales/castleQuestText\\.ts$",
+        "^src/lib/tutorialCourse\\.ts$",
+        "^src/locales/tutorialCourseText\\.ts$",
+        "^src/components/NaturalText\\.tsx$"
       ],
       "pages": [
         "/",
@@ -191,7 +213,8 @@
         "src/locales/qubeTeaching.ts",
         "src/locales/siteContent.ts",
         "src/locales/rulesDict.ts",
-        "src/locales/rulesVisualDict.ts"
+        "src/locales/rulesVisualDict.ts",
+        "src/locales/tutorialCourseText.ts"
       ]
     }
   ]
