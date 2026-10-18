@@ -122,7 +122,7 @@
     },
     {
       "path": "src/components/game-settings.css",
-      "gitBlob": "1994a2fc0c23dd138aa5a7108e5c7a73cc1d4d01"
+      "gitBlob": "c570b4a9c3949c8dc9ecdc24699dcadea0f49b56"
     },
     {
       "path": "src/components/interactive-tutorial.css",
@@ -337,7 +337,8 @@
         "Actual Web export: 8 initial/no-JavaScript HTML checks and 6 browser cases passed in check-public-guides.mjs; client configuration verified with zero unresolved public reads.",
         "src/app/privacy/page.tsx and src/locales/playGamesPrivacy.ts preserve all12 approved PGS explanations; NaturalText only changes presentation. New actual-export privacy checks cover initial HTML, all locale choices and complete unclipped text.",
         "src/app/layout.tsx, shared text-flow and font stacks: self-host Hindi/Tamil coverage after existing Latin faces; no browser Google font request. Fixes reproduced Linux missing-glyph and Indic hyphenation findings, without weakening text/scroll assertions.",
-        "pr28-font-integration-receipt-20261018.json: all17 old font files/variables unchanged; six Next variables/23font files; actual browser CDP proves bundled Hindi/Tamil faces; privacy24locale/viewports plus4font-provenance cases pass."
+        "pr28-font-integration-receipt-20261018.json: all17 old font files/variables unchanged; six Next variables/23font files; actual browser CDP proves bundled Hindi/Tamil faces; privacy24locale/viewports plus4font-provenance cases pass.",
+        "outputs/pr28-founders-native-20261018-2/result.json: all12 native settings cases at320x568 passed with complete founder names, no clipping or scrolling; narrow cards use rows, retain44px controls and all translated labels. The unchanged390px cases retain CI8 acceptance."
       ]
     },
     {

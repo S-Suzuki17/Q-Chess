@@ -27,7 +27,7 @@
 .settings-content [data-cosmetic-option=compact]>div{grid-template-columns:minmax(0,1fr) minmax(100px,1.1fr)}
 .settings-content .game-page-links{display:flex;flex-wrap:wrap}
 .settings-content .game-page-links a{min-width:0;flex:1 1 auto;max-width:100%}
-@media(max-width:359px){.settings-content .founders-items{grid-template-columns:repeat(3,minmax(0,1fr))}.settings-content .founders-items button{display:flex;align-items:flex-start}.settings-content .founders-items button svg{width:21px;height:21px}}
+@media(max-width:359px){.settings-content .founders-items button{grid-template-columns:21px minmax(0,1fr);padding:4px 6px;gap:2px 6px}.settings-content .founders-items button svg{grid-row:1 / span 2;width:21px;height:21px}}
 
 .settings-account-actions{display:flex;flex-wrap:wrap}.settings-account-actions button{flex:1 0 max-content;max-width:100%}
 .settings-section-picker{display:none}
