@@ -58,7 +58,7 @@ function Fixture() {
 createRoot(document.getElementById('root')).render(<Fixture/>);
 `);
     const built = await build({root, configFile:false, logLevel:'error',
-        define:{'process.env.NODE_ENV':JSON.stringify('production')},
+        define:{'process.env.NODE_ENV':JSON.stringify('production'),'process.env':{}},
         build:{write:false, minify:false, lib:{entry, name:'QubeLoadingFixture', formats:['iife']}}});
     const files = (Array.isArray(built) ? built : [built]).flatMap(value => value.output);
     const script = files.filter(file => file.type === 'chunk').map(file => file.code).join('\n');
@@ -84,7 +84,7 @@ createRoot(document.getElementById('root')).render(<Fixture/>);
             });
             await context.routeWebSocket('**/*', socket => socket.close());
             const page = await context.newPage();
-            page.on('pageerror', error => errors.push(error.message));
+            page.on('pageerror', error => { errors.push(error.message); console.error('QUBE fixture page error:', error.message); });
             await page.setContent('<!doctype html><html><head><base href="https://qube-fixture.invalid/"></head><body style="margin:0"><div id="root"></div></body></html>');
             await page.addStyleTag({content:css});
             await page.addScriptTag({content:script});
