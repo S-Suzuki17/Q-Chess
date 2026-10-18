@@ -189,6 +189,15 @@ export function renderCoronation(ctx: CanvasRenderingContext2D, geometry: Corona
     const radius = Math.min(width * .21, height * .205);
     ctx.save(); ctx.translate(width / 2, height * .335); ctx.scale(radius, radius);
     ctx.globalAlpha = frame.opacity;
+    // The same stepped metal surround remains legible when the GPU is unavailable.
+    const bevel = ctx.createLinearGradient(-1, -1, 1, 1);
+    bevel.addColorStop(0, IVORY); bevel.addColorStop(.42, GOLD); bevel.addColorStop(.5, '#65502f'); bevel.addColorStop(.58, IVORY); bevel.addColorStop(1, GOLD);
+    ctx.strokeStyle = '#071913'; ctx.lineWidth = .09;
+    ctx.beginPath(); ctx.ellipse(0, .065, .92, .92, 0, 0, TAU); ctx.stroke();
+    ctx.strokeStyle = bevel; ctx.lineWidth = .036;
+    ctx.beginPath(); ctx.ellipse(0, .04, .92, .92, 0, 0, TAU); ctx.stroke();
+    ctx.lineWidth = .011;
+    ctx.beginPath(); ctx.ellipse(0, .04, .86, .86, 0, 0, TAU); ctx.stroke();
     if (geometry.motif === 'rings') rings(ctx, geometry, frame);
     else if (geometry.motif === 'shards') shards(ctx, geometry, frame);
     else if (geometry.motif === 'starfall') starfall(ctx, geometry, frame, reduced);

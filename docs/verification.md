@@ -16,3 +16,24 @@ npm test は既存vitest.config.tsの対象のみ。server内の全テストや�
 3D変更時は2Dへの切替と3D表示失敗時のフォールバックも確認する。
 スクリーンショットやHTTP成功だけを操作確認・実機確認の代わりにしない。
 接続端末がない場合は実機未実施と記録する。
+
+## 翻訳・コンパクト画面
+
+`scripts/qa/secondary-screens-server.mjs --build <空の出力先>` は、
+`QG_TEST_FONT_EXPORT` に指定した保存済みNext exportの実フォントを必要とする。
+`QG_TEST_SECONDARY_STATIC` にその出力先を指定し、
+`check-text-wrapping-browser.mjs` で12言語の語境界・操作枠内・横はみ出し・主要画面の高さを確認する。
+`--screens=map --viewports=320x568,390x844,1280x800` はマップとコレクション全5カテゴリの限定確認。
+フォントの入力hashは fixture の `font-binding.json` に残る。
+
+実配布物は `check-account-data-browser.mjs <記録先> --target=web --secondary-screens
+--home-languages=ja,en,zh,de,fr,es,pt,ru,tr,pl,hi,ta` で確認する。
+通常の5認証・残高条件に4サイズの設定・マップ・全コレクションを追加し、
+実際の言語選択からホームの12言語を切り替える。Android export は `--target=android`。
+API・アカウントは合成応答で、実購入や本番の書き込みは行わない。
+長い記事と拡大文字の可読性用スクロールは残す。ブラウザーのサイズ検査を実機受入としない。
+
+
+For the preserved, already-published Play Games disclosure, run `node scripts/qa/check-play-games-privacy-browser.mjs out scratch/play-games-privacy`. This checks initial English HTML and all twelve language choices at 320×568 and 390×844, using the actual export and fonts with all external traffic blocked. A new Android candidate must exceed the submitted version25; the current UI candidate is26/1.21. Its release build retains25's explicit `playGamesEnabled=true`; source defaults remainOFF, and Play submission plus physical Google event receipt remain separate.
+
+Hindi and Tamil use self-hosted Noto script fonts after the existing Latin typefaces. Runtime browsers do not contact Google for these fonts. The shared word-flow rule disables automatic hyphenation for these scripts. Bind all six Next font variables when building the isolated UI fixture; never substitute production typography with ad-hoc test CSS.

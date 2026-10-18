@@ -14,11 +14,12 @@ const absentCastles=async page=>assert.equal(await page.locator('[data-castle-ac
 try{
  browser=await chromium.launch({headless:true,executablePath:process.env.QG_TEST_CHROMIUM});
  for(const [width,height,lang,scale] of [[375,812,'ja',1],[320,568,'ja',1],[1280,800,'en',1],[844,390,'en',1],[375,812,'de',2]]){
-  const context=await browser.newContext({viewport:{width,height},recordVideo:width===375&&scale===1?{dir:resolve(output,'recording'),size:{width,height}}:undefined}),page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
+  const recordVideo=width===375&&scale===1&&process.env.QG_TEST_SKIP_VIDEO!=='1';
+  const context=await browser.newContext({viewport:{width,height},recordVideo:recordVideo?{dir:resolve(output,'recording'),size:{width,height}}:undefined}),page=await context.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
   await context.route('**/*',r=>new URL(r.request().url()).origin===base?r.continue():r.abort());
   await page.goto(base+'/?cleared=0&lang='+lang);await ready(page);await absentCastles(page);
   if(scale===2)await page.evaluate(()=>{for(const n of [...document.querySelectorAll('.map-screen *')].filter(n=>[...n.childNodes].some(c=>c.nodeType===3&&c.textContent.trim())))n.style.fontSize=parseFloat(getComputedStyle(n).fontSize)*2+'px';});
-  assert.equal(await page.locator('[data-map-overview-tile]').count(),100);assert.equal(await page.locator('.map-tile').count(),10);
+  await page.locator('.map-overview-trigger').click();assert.equal(await page.locator('[data-map-overview-tile]').count(),100);await page.keyboard.press('Escape');assert.equal(await page.locator('.map-tile').count(),10);
   const boxes=await page.locator('.map-tile').evaluateAll(nodes=>nodes.map(n=>({w:n.getBoundingClientRect().width,h:n.getBoundingClientRect().height})));assert(boxes.every(b=>b.w>=44&&b.h>=44));
   assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
   await page.screenshot({path:resolve(output,`map-${width}-${lang}.png`)});
@@ -31,7 +32,7 @@ try{
   await page.locator('.map-tile[data-stage="3"]').click();assert(!(await page.locator('.map-launch .campaign-primary').isEnabled()));assert.equal((await stats(page)).updates,1);
   await page.locator('.map-tile[data-stage="2"]').click();await launch(page);assert.equal(await page.locator('[data-qa-result-source]').getAttribute('data-qa-result-source'),'2');assert.deepEqual(errors,[]);
   results.push({case:'map-layout-saved-clear-selection',width,height,lang,textScale:scale,pass:true});
-  if(width===375&&scale===1){await context.close();await page.video().saveAs(resolve(output,'saved-clear-next-tile.webm'));}else await context.close();console.log('Map layout passed '+width+' '+lang);
+  if(recordVideo){await context.close();await page.video().saveAs(resolve(output,'saved-clear-next-tile.webm'));}else await context.close();console.log('Map layout passed '+width+' '+lang);
  }
  for(const scenario of ['9-10','10-11','19-20','99-100','100-final','skip','reduced','hidden','back','save-error','loss','draw','replay','revoked','reload']){
   const before={'9-10':8,'10-11':9,'19-20':18,'99-100':98,'100-final':99,replay:9}[scenario]??0;

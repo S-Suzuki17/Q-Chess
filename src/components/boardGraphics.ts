@@ -1,5 +1,5 @@
 export function graphicsQuality(compact: boolean) {
-    return { dpr: [1, 1.75] as [number, number], shadows: !compact };
+    return { dpr: [1, 1.75] as [number, number], shadows: compact ? false as const : 'percentage' as const };
 }
 
 /** Keep visual quality intact; a still board only needs frames when its scene changes. */

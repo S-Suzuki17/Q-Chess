@@ -12,13 +12,17 @@ import {useFoundersRewards} from '../hooks/useFoundersRewards';
 import {foundersText} from '../locales/foundersText';
 import { SiteIntroduction, SiteLinks } from '../components/SiteInformation';
 import { AppSupportLinks } from '../components/AppSupportLinks';
+import {nativeRewardsEnabled} from '../lib/nativeRewards';
 import { useAppPlatform } from '../hooks/useAppPlatform';
 import { useNativeAuthLinks } from '../hooks/useNativeAuthLinks';
+import {useNativeCommerceRecovery} from '../hooks/useNativeCommerceRecovery';
+import {useAndroidBackNavigation} from '../hooks/useAndroidBack';
 import { SystemStatusBanner } from '../components/SystemStatusBanner';
 import { supabase, oauthCallbackAtStartup } from '../lib/supabaseClient';
 import { TitleScreen } from '../components/TitleScreen';
 import { LevelSelect } from '../components/LevelSelect';
 import { SettingsDialog } from '../components/SettingsDialog';
+import { GameSettings } from '../components/GameSettings';
 import { CampaignMode } from '../components/CampaignMode';
 import { OptionalMetricsSettings } from '../components/OptionalMetricsSettings';
 import { recordVisit } from '../lib/engagementMetrics';
@@ -39,6 +43,7 @@ import {requireOAuthAdmission} from '../lib/oauthAdmission';
 
 
 import { useCampaignProgress } from '../hooks/useCampaignProgress';
+import { usePlayGameStatsProgress } from '../hooks/usePlayGameStatsProgress';
 import {TermsGate} from '../components/TermsGate';
 import {DailyLoginClaimController} from '../components/DailyLoginClaimController';
 import {DAILY_LOGIN_REWARDS_ENABLED} from '../lib/dailyLoginRewards';
@@ -57,7 +62,9 @@ export default function Home() {
     const { android, webContent } = useAppPlatform();
     useEffect(() => { if (webContent) recordVisit(); }, [webContent]);
     const nativeAuth = useNativeAuthLinks();
+    useAndroidBackNavigation();
     const {progress:campaignProgress, update:updateCampaign, loaded:cosmeticsLoaded}=useCampaignProgress();
+    usePlayGameStatsProgress();
     const playingMusic=React.useRef<string|null>(null);
     useEffect(()=>{
         const resume=()=>soundManager.resumeBGM();
@@ -75,6 +82,7 @@ export default function Home() {
     const [circuitPlaying, setCircuitPlaying] = useState(false);
     const matchDesignLocked = cosmeticsLocked(gameState, circuitPlaying);
     const [user, setUser] = useState<User | null>(null);
+    useNativeCommerceRecovery(user);
     const foundersRewards=useFoundersRewards(user,matchDesignLocked);
     // A fresh login must recheck consent even when it is the same account.
     // While signing in, keep the form mounted so its cleanup does not abort it.
@@ -93,7 +101,7 @@ export default function Home() {
         return () => window.removeEventListener('hide-settings', handleHide);
     }, []);
 
-    const [onlineInfo, setOnlineInfo] = useState<{ roomId: string, role: 'white' | 'black' | 'spectator', matchMode: 'random' | 'private' | 'ranked', opponentId?: string } | null>(null);
+    const [onlineInfo, setOnlineInfo] = useState<{ roomId: string, role: 'white' | 'black' | 'spectator', matchMode: 'random' | 'private' | 'ranked', opponentId?: string, privateRoomIntent?: 'create' | 'join' | 'reconnect' } | null>(null);
     const [replayRecord, setReplayRecord] = useState<GameRecord | null>(null);
     const [soundConfig, setSoundConfig] = useState(() => soundManager.getConfig());
     const [showSettings, setShowSettings] = useState(false);
@@ -123,7 +131,7 @@ export default function Home() {
         setUser(u);
         try { localStorage.setItem('qg_last_user',JSON.stringify(u)); } catch { /* Verified identity remains in memory. */ }
         if(match&&!circuitLoginRequested.current){
-            setOnlineInfo(match);setTimeControl(match.tc);
+            setOnlineInfo({...match,privateRoomIntent:'reconnect'});setTimeControl(match.tc);
             setGameState(current=>current==='title'||current==='level_select'?'playing':current);
         } else setGameState(current=>current==='title'?(circuitLoginRequested.current?'campaign':'level_select'):current);
         circuitLoginRequested.current=false;
@@ -320,7 +328,7 @@ export default function Home() {
 
     const handleOnlineMatch = (roomId: string, role: 'white' | 'black' | 'spectator', matchMode: 'random' | 'private' | 'ranked', tc: TimeControl, opponentId?: string) => {
         setIsSearchingGlobally(false);
-        setOnlineInfo({ roomId, role, matchMode, opponentId });
+        setOnlineInfo({ roomId, role, matchMode, opponentId, privateRoomIntent: matchMode==='private'&&role!=='spectator' ? (role==='white'?'create':'join') : undefined });
         setTimeControl(tc);
         if (typeof window !== 'undefined' && role !== 'spectator') {
             rememberActiveOnlineMatch({
@@ -396,107 +404,30 @@ export default function Home() {
             </div>
 
             {showSettings && (
-                <SettingsDialog label={dict[lang].settings} onClose={()=>setShowSettings(false)}>
-                    <div className="bg-[#2A2621] border border-[#4A4238] rounded-xl p-4 sm:p-8 w-full max-w-md shadow-2xl font-sans max-h-[90vh] overflow-y-auto">
-                        <div className="flex justify-between items-center mb-8">
-                            <h2 className="text-2xl font-serif text-[#D4B872]">⚙️ {dict[lang]?.settings || 'SETTINGS'}</h2>
-                            <button aria-label={matchText(lang,'閉じる','Close')} onClick={() => setShowSettings(false)} className="text-gray-400 hover:text-white text-xl min-w-11 min-h-11">✕</button>
-                        </div>
-
-                        <div className="flex flex-col gap-6">
-                            <div className="flex flex-col gap-2">
-                                <label className="flex justify-between text-[#E8E5DF] font-bold">
-                                    <span>{dict[lang]?.bgmVolume || 'BGM Volume'}</span>
-                                    <span>{Math.round(soundConfig.bgmVolume * 100)}%</span>
-                                </label>
-                                <input
-                                    type="range"
-                                    min="0" max="1" step="0.05"
-                                    value={soundConfig.bgmVolume}
-                                    onChange={(e) => soundManager.updateConfig({ bgmVolume: parseFloat(e.target.value) })}
-                                    className="w-full accent-[#D4B872]"
-                                />
-                            </div>
-
-                            <div className="flex flex-col gap-2">
-                                <label className="flex justify-between text-[#E8E5DF] font-bold">
-                                    <span>{dict[lang]?.seVolume || 'SE Volume'}</span>
-                                    <span>{Math.round(soundConfig.seVolume * 100)}%</span>
-                                </label>
-                                <input
-                                    type="range"
-                                    min="0" max="1" step="0.05"
-                                    value={soundConfig.seVolume}
-                                    onChange={(e) => {
-                                        soundManager.updateConfig({ seVolume: parseFloat(e.target.value) });
-                                        if (!soundConfig.masterMute) {
-                                            const se = new Audio('/audio/move.mp3');
-                                            se.volume = parseFloat(e.target.value);
-                                            se.play().catch(()=>{});
-                                        }
-                                    }}
-                                    className="w-full accent-[#D4B872]"
-                                />
-                            </div>
-
-                            <div className="flex items-center gap-4 mt-2">
-                                <span className="text-[#E8E5DF] font-bold flex-1">{dict[lang]?.masterMute || 'Sound ON/OFF'}</span>
-                                <button
-                                    onClick={() => soundManager.updateConfig({ masterMute: !soundConfig.masterMute })}
-                                    className={`px-6 py-2 rounded font-bold tracking-widest transition-all ${soundConfig.masterMute ? 'bg-red-900/50 text-red-400 border border-red-500' : 'bg-[#3B342C] text-[#D4B872] border border-[#D4B872]'}`}
-                                >
-                                    {soundConfig.masterMute ? `🔇 ${dict[lang]?.muted || 'MUTED'}` : `🔊 ${dict[lang]?.on || 'ON'}`}
-                                </button>
-                            </div>
-
-                            <div className="flex items-center gap-4 mt-4 pt-6 border-t border-[#4A4238]">
-                                <span className="text-[#E8E5DF] font-bold flex-1">{dict[lang]?.language || 'Language'}</span>
-                                <div className="relative font-sans w-1/2">
-                                    <select
-                                        aria-label={dict[lang].language}
-                                        value={lang}
-                                        onChange={(e) => handleLanguageChange(e.target.value as Language)}
-                                        className="w-full px-3 py-2 bg-[#1E1C19] border border-[#4A4238] text-[#D4B872] rounded hover:bg-[#3B342C] transition-colors font-bold tracking-wider cursor-pointer text-xs focus:outline-none appearance-none pr-7 pl-2"
-                                    >
-                                        {LANGUAGES.map(l => (
-                                            <option key={l.code} value={l.code} className="bg-[#2A2621] text-[#D4B872]">
-                                                {l.flag} {l.label}
-                                            </option>
-                                        ))}
-                                    </select>
-                                    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-[#D4B872] text-xs">
-                                        ▼
-                                    </div>
-                                </div>
-                            </div>
-
-                            {user?.type==='registered' && gameState==='level_select' && rewardsHubEnabled() && <button type="button"
-                                data-settings-panel="rewards" onClick={()=>openRewards(true)} className="reward-entry">
+                <SettingsDialog wide label={dict[lang].settings} onClose={()=>setShowSettings(false)}>
+                    <GameSettings lang={lang} soundConfig={soundConfig} onLanguageChange={handleLanguageChange} onClose={()=>setShowSettings(false)}
+                        appearance={<CosmeticsSettings compact lang={lang} progress={campaignProgress} update={updateCampaign} loaded={cosmeticsLoaded} locked={matchDesignLocked}/>}
+                        appearanceExtra={android&&!matchDesignLocked?<FoundersSettings lang={lang} accountName={user?.name} progress={campaignProgress} rewards={foundersRewards} locked={matchDesignLocked}/>:undefined}
+                        account={user?<>
+                            {user.type==='registered' && gameState==='level_select' && rewardsHubEnabled() && <button type="button" data-settings-panel="rewards" onClick={()=>openRewards(true)} className="reward-entry">
                                 <span>{rewardsHubText(lang).title}<small>{rewardsHubText(lang).description}</small></span><span aria-hidden="true">→</span>
                             </button>}
-                            {webContent && <OptionalMetricsSettings lang={lang}/>}
-
-                            <CosmeticsSettings lang={lang} progress={campaignProgress} update={updateCampaign} loaded={cosmeticsLoaded} locked={matchDesignLocked}/>
+                            {gameState==='level_select' && <div className="settings-account-actions">
+                                <button type="button" data-settings-panel="account" onClick={()=>{setShowSettings(false);setSettingsPanel('account');}}>{dict[lang].account}</button>
+                                <button type="button" data-settings-panel="friends" onClick={()=>{setShowSettings(false);setSettingsPanel('friends');}}>{dict[lang].friends}</button>
+                            </div>}
                             <CampaignCloudPanel key={cloud.userId??'guest'} lang={lang} cloud={cloud} locked={matchDesignLocked}/>
-                            {android && <FoundersSettings lang={lang} accountName={user?.name} progress={campaignProgress} rewards={foundersRewards} locked={matchDesignLocked}/>}
-                            {android && user && <NativeRewardSettings key={user.id} userId={user.id} lang={lang} locked={matchDesignLocked}/>}
+                        </>:null}
+                        accountExtra={android&&user&&nativeRewardsEnabled()&&!matchDesignLocked?<NativeRewardSettings key={user.id} userId={user.id} lang={lang} locked={matchDesignLocked}/>:undefined}
+                        privacy={<>
+                            {webContent && <OptionalMetricsSettings lang={lang}/>}
                             {android && <NativeAdPrivacySettings lang={lang} locked={matchDesignLocked}/>}
+                            <a className="settings-policy-link" href={android?'https://q-gambit.com/privacy/':'/privacy/'} target="_blank" rel="noopener noreferrer">{dict[lang].privacyPolicy} ↗</a>
+                        </>}
+                        support={<>
                             {android && <AppSupportLinks lang={lang}/>}
-                            {webContent && <SiteLinks lang={lang} newTab/>}
-
-                            {user && gameState==='level_select' && (
-                                <div className="flex flex-col gap-3 mt-4 pt-6 border-t border-[#4A4238]">
-                                    <button data-settings-panel="account" onClick={() => { setShowSettings(false);setSettingsPanel('account'); }} className="w-full py-3 bg-[#1E1C19] border border-[#4A4238] text-[#D4B872] rounded hover:bg-[#3B342C] transition-colors font-bold tracking-widest text-xs uppercase text-center">
-                                        {dict[lang]?.account || 'ACCOUNT'}
-                                    </button>
-                                    <button data-settings-panel="friends" onClick={() => { setShowSettings(false);setSettingsPanel('friends'); }} className="w-full py-3 bg-[#1E1C19] border border-[#4A4238] text-[#D4B872] rounded hover:bg-[#3B342C] transition-colors font-bold tracking-widest text-xs uppercase text-center">
-                                        {dict[lang]?.friends || 'FRIENDS'}
-                                    </button>
-                                </div>
-                            )}
-
-                        </div>
-                    </div>
+                            {webContent && <SiteLinks compact lang={lang} newTab/>}
+                        </>}/>
                 </SettingsDialog>
             )}
 
@@ -552,6 +483,7 @@ export default function Home() {
                         roomId={onlineInfo?.roomId}
                         onlineRole={onlineInfo?.role ?? practiceSide}
                         matchMode={onlineInfo?.matchMode}
+                        privateRoomIntent={onlineInfo?.privateRoomIntent}
                         opponentId={onlineInfo?.opponentId}
                         timeControl={timeControl}
                         onHome={() => {

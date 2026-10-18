@@ -30,6 +30,8 @@ vi.mock('./MatchLayout', () => ({ MatchLayout: ({ children }: { children: ReactN
 import OnlineGameBoard from './OnlineGameBoard';
 import { MatchLayout } from './MatchLayout';
 import { rankedRecoveryText } from '../locales/rankedRecoveryText';
+import { serviceText } from '../locales/serviceText';
+import { dict } from '../locales/dict';
 const render = () => { h.cursor = 0; return OnlineGameBoard({ lang: 'ja', user: { id: 'Alice', name: 'Alice', type: 'registered' }, roomId: 'match-a', matchMode: 'ranked', onlineRole: 'white' }); };
 const game = { matchId: 'match-a', pieces: [], board: [], turn: 0, players: { host: 'Alice', joiner: 'Bob' }, clock: { white: 600000, black: 600000 }, gameOver: null };
 beforeEach(() => { h.cursor = 0; h.game = null; h.receipt = null; h.cancelled = null; h.reason = null; h.startFailure = null; h.socket = null; });
@@ -87,6 +89,19 @@ it('ignores an old room or socket error and does not expose arbitrary failure pa
     const html = renderToStaticMarkup(render());
     expect(html).toContain('data-match-start-error="QUEUE_FAILED"');
     expect(html).not.toContain('private_account_id_or_token');
+});
+it('shows the update requirement with an exit instead of retrying an incompatible room request', () => {
+    const socket = { id: 'fixture-socket' }; h.socket = socket;
+    h.startFailure = { roomId: 'match-a', socket, code: 'UPDATE_REQUIRED' };
+    for (const lang of ['ja', 'en'] as const) {
+        h.cursor = 0;
+        const html = renderToStaticMarkup(OnlineGameBoard({ lang, user: { id: 'Alice', name: 'Alice', type: 'registered' }, roomId: 'match-a', matchMode: 'private', onlineRole: 'white' }));
+        expect(html).toContain('data-match-start-error="UPDATE_REQUIRED"');
+        expect(html).toContain(serviceText(lang, 'update'));
+        expect(html).not.toContain('data-match-start-retry');
+        expect(html).toContain(dict[lang].home);
+        expect(html).toContain('<button');
+    }
 });
 it('prioritizes a definitive cancellation over an earlier admission error', () => {
     const socket = { id: 'fixture-socket' }; h.socket = socket;

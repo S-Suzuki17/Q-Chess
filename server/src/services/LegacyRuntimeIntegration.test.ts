@@ -41,8 +41,8 @@ async function game(label:string,mode='private'){
         const joined=event(left.client,'queue_joined');left.client.emit('join_queue',{mode,timeControl:600});await joined;
         const found=event(left.client,'match_found');right.client.emit('join_queue',{mode,timeControl:600});matchId=(await found).matchId;
     }
-    left.client.emit('connect_match',{matchId});await until(()=>h.mm.getMatch(matchId)?.connected.host===true);
-    const start=event(left.client,'match_start');right.client.emit('connect_match',{matchId});const state=await start;
+    left.client.emit('connect_match',{matchId,...(mode==='private'?{privateRoom:{intent:'create',timeControl:600}}:{})});await until(()=>h.mm.getMatch(matchId)?.connected.host===true);
+    const start=event(left.client,'match_start');right.client.emit('connect_match',{matchId,...(mode==='private'?{privateRoom:{intent:'join'}}:{})});const state=await start;
     return{left,right,matchId,state,match:h.mm.getMatch(matchId)};
 }
 beforeAll(async()=>{
@@ -208,18 +208,18 @@ describe('actual server admission entrypoints on loopback sockets',()=>{
 
     it.each(['random','ranked','private'])('rejects expired registered proof for new %s admission',async mode=>{
         const {client,token}=await connect('Expired-'+mode);h.sessions.get(token).expiresAt=Date.now()-1;
-        const denied=event(client,'queue_error');client.emit(mode==='private'?'connect_match':'join_queue',mode==='private'?{matchId:'room-'+mode}:{mode,timeControl:600});
+        const denied=event(client,'queue_error');client.emit(mode==='private'?'connect_match':'join_queue',mode==='private'?{matchId:'room-'+mode,privateRoom:{intent:'create',timeControl:600}}:{mode,timeControl:600});
         expect((await denied).code).toBe('AUTH_REQUIRED');expect(h.mm.getPlayerSession('Expired-'+mode).state).toBe('IDLE');client.disconnect();
     });
     it('preserves guest random/private access while rejecting ranked',async()=>{
         const {client}=await connect('GUEST-admission');let result=event(client,'queue_error');client.emit('join_queue',{mode:'ranked',timeControl:600});expect((await result).code).toBe('AUTH_REQUIRED');
         result=event(client,'queue_joined');client.emit('join_queue',{mode:'random',timeControl:600});await result;expect(h.mm.getPlayerSession('GUEST-admission').state).toBe('WAITING');
-        client.emit('cancel_queue');client.emit('connect_match',{matchId:'guest-private-room'});await until(()=>h.mm.getMatch('guest-private-room')?.connected.host===true);expect(h.mm.getMatch('guest-private-room').players.host).toBe('GUEST-admission');client.disconnect();
+        client.emit('cancel_queue');client.emit('connect_match',{matchId:'guest-private-room',privateRoom:{intent:'create',timeControl:600}});await until(()=>h.mm.getMatch('guest-private-room')?.connected.host===true);expect(h.mm.getMatch('guest-private-room').players.host).toBe('GUEST-admission');client.disconnect();
     });
     it('fails new admission closed on outage while an existing game remains playable after expiry',async()=>{
         const left=await connect('Playing-left'),right=await connect('Playing-right');const matchId='active-preserved-room';
-        left.client.emit('connect_match',{matchId});await until(()=>h.mm.getMatch(matchId)?.connected.host===true);
-        const start=event(left.client,'match_start');right.client.emit('connect_match',{matchId});const state=await start;
+        left.client.emit('connect_match',{matchId,privateRoom:{intent:'create',timeControl:600}});await until(()=>h.mm.getMatch(matchId)?.connected.host===true);
+        const start=event(left.client,'match_start');right.client.emit('connect_match',{matchId,privateRoom:{intent:'join'}});const state=await start;
         h.sessions.get(left.token).expiresAt=Date.now()-1;h.outage=true;
         expect(h.mm.getMatch(matchId).state).toBe('IN_GAME');expect(left.client.connected).toBe(true);
         const end=event(right.client,'sync_state',state=>!!state.gameOver);left.client.emit('player_action',{actionId:'preserved-resignation',version:state.version,action:{type:'RESIGN',payload:{}}});
@@ -233,8 +233,8 @@ describe('actual server admission entrypoints on loopback sockets',()=>{
     });
     it('requires renewed authentication and actual rejoin, never a handshake or snapshot, to clear an absence', async()=>{
         const left=await connect('Resume-left'),right=await connect('Resume-right'),matchId='resume-auth-room';
-        left.client.emit('connect_match',{matchId});await until(()=>h.mm.getMatch(matchId)?.connected.host===true);
-        const start=event(left.client,'match_start');right.client.emit('connect_match',{matchId});const state=await start;
+        left.client.emit('connect_match',{matchId,privateRoom:{intent:'create',timeControl:600}});await until(()=>h.mm.getMatch(matchId)?.connected.host===true);
+        const start=event(left.client,'match_start');right.client.emit('connect_match',{matchId,privateRoom:{intent:'join'}});const state=await start;
         const noticed=event(right.client,'opponent_disconnected');left.client.disconnect();const absence=await noticed;
         expect(absence.gracePeriodSeconds).toBe(30);
         const restored=await connect('Resume-left',left.token);

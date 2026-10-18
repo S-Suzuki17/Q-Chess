@@ -18,8 +18,8 @@ describe('authoritative intro deadline',()=>{
   const io={emit,to:()=>({emit}),sockets:{sockets:new Map([['sa',{emit}],['sb',{emit}]])}};
   const service=new MatchmakingService(io as never);
   service.registerSocket('a','sa');service.registerSocket('b','sb');
-  expect(service.reserveMatch('a','room')?.players.host).toBe('a');
-  expect(service.reserveMatch('b','room')?.players.joiner).toBe('b');
+  expect(service.reserveMatch('a','room',undefined,{intent:'create',timeControl:600})?.players.host).toBe('a');
+  expect(service.reserveMatch('b','room',undefined,{intent:'join'})?.players.joiner).toBe('b');
   expect(service.reserveMatch('intruder','room')).toBeUndefined();
   service.connectMatch('b','room','Black',undefined,'avatar-frame-15',1,2400);
   expect(emit).not.toHaveBeenCalledWith('sync_state',expect.anything());

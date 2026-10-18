@@ -70,7 +70,7 @@ describe('real Three cinematic scene with an injected GPU boundary',()=>{
    expect(()=>createVictoryCinematic(h.canvas,createVictoryPlan(effects[0]),false,undefined,h.platform)).toThrow(error);
    expect(h.renderer.dispose).toHaveBeenCalledOnce();expect(h.renderer.forceContextLoss).toHaveBeenCalledOnce();
    expect(h.environment.dispose).toHaveBeenCalledOnce();expect(h.textureDisposed).toHaveBeenCalledTimes(failure==='glow'?0:1);
-   expect(geometryDispose.mock.contexts).toHaveLength(failure==='glow'?25:26);
+   expect(geometryDispose.mock.contexts).toHaveLength(failure==='glow'?28:29);
    expect(materialDispose.mock.contexts).toHaveLength(failure==='glow'?6:7);
    expect(new Set(geometryDispose.mock.contexts).size).toBe(geometryDispose.mock.contexts.length);
    expect(new Set(materialDispose.mock.contexts).size).toBe(materialDispose.mock.contexts.length);

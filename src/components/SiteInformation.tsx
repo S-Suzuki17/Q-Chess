@@ -12,10 +12,11 @@ import {aboutContent} from '../locales/aboutContent';
 import {QubeTeacher} from './QubeTeacher';
 import {qubeTeaching} from '../locales/qubeTeaching';
 import {ScheduledMaintenanceNotice} from './ScheduledMaintenanceNotice';
+import {maintenanceInfo} from '../locales/maintenanceInfo';
 
-export function SiteLinks({lang,newTab=false}:{lang:Language;newTab?:boolean}) {
+export function SiteLinks({lang,newTab=false,compact=false}:{lang:Language;newTab?:boolean;compact?:boolean}) {
  const {labels:t}=siteCopy(lang);
- return <><ScheduledMaintenanceNotice lang={lang}/><nav aria-label={t[4]} className="game-page-links flex flex-wrap justify-center gap-3 py-5 text-sm">
+ return <>{compact?<Link className="settings-policy-link" href="/faq/#maintenance" target={newTab?'_blank':undefined} rel={newTab?'noopener noreferrer':undefined}>{maintenanceInfo(lang).title} ↗</Link>:<ScheduledMaintenanceNotice lang={lang}/>}<nav aria-label={t[4]} className="game-page-links flex flex-wrap justify-center gap-3 py-5 text-sm">
   {([['/guide/',learningLabels[lang][0]],['/rules',t[2]],['/faq/',learningLabels[lang][1]],['/about',t[0]],['/contact',t[1]],['/privacy',dict[lang].privacyPolicy],['/terms',termsText(lang)[0]]] as const).map(([href,title])=><Link className="inline-flex min-h-11 items-center rounded px-2 text-[#D4B872] underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-4" href={href} key={href} target={newTab?'_blank':undefined} rel={newTab?'noopener noreferrer':undefined}>{title}{newTab&&<span aria-hidden="true" className="ml-1">↗</span>}</Link>)}
  </nav></>;
 }

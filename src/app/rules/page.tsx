@@ -9,6 +9,7 @@ import { rulesVisualDict } from '@/locales/rulesVisualDict';
 import { MAX_PIECES } from '@/quantum-engine/constants';
 import type { PieceType } from '@/config/gameConfig';
 import { LearningEntry, SiteLinks } from '../../components/SiteInformation';
+import {NaturalText} from '../../components/NaturalText';
 import { QubeTeacher } from '../../components/QubeTeacher';
 import { qubeTeaching } from '../../locales/qubeTeaching';
 
@@ -69,9 +70,9 @@ function ExampleBoard({kind, label}: {kind: 'deduction' | 'capture' | 'mate'; la
   </div>;
 }
 
-function RuleLine({text}: {text: string}) {
+function RuleLine({text,lang}: {text: string;lang: Language}) {
   const separator = text.indexOf(': ');
-  return separator === -1 ? <>{text}</> : <><strong>{text.slice(0, separator)}: </strong>{text.slice(separator + 2)}</>;
+  return separator === -1 ? <NaturalText text={text} lang={lang}/> : <><strong><NaturalText text={text.slice(0, separator)} lang={lang}/>: </strong><NaturalText text={text.slice(separator + 2)} lang={lang}/></>;
 }
 
 export default function RulesPage() {
@@ -79,7 +80,7 @@ export default function RulesPage() {
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const savedLang = localStorage.getItem('qg_language');
+      let savedLang:string|null=null;try{savedLang=localStorage.getItem('qg_language');}catch{/* Reading works without storage. */}
       const preferred = savedLang || navigator.language.split('-')[0];
       if (preferred in rulesDict) setLang(preferred as Language);
     }
@@ -89,17 +90,17 @@ export default function RulesPage() {
     const v = rulesVisualDict[lang];
 
   return (
-    <main className="game-page" lang={lang}>
+    <main className="game-page" lang={lang} tabIndex={0} aria-label={c.title}>
       <div className="game-page-content">
         <header className="game-page-header">
             <Link href="/" className="text-[#D4B872] hover:text-white transition-colors text-sm inline-block tracking-widest font-bold">
-            {c.back}
+            <NaturalText lang={lang} text={c.back}/>
             </Link>
             <div className="flex flex-wrap gap-4 items-center">
                 <select
                     aria-label={dict[lang].language}
                     value={lang}
-                    onChange={e => { const value = e.target.value as Language; setLang(value); localStorage.setItem('qg_language', value); }}
+                    onChange={e => { const value = e.target.value as Language; setLang(value);try{localStorage.setItem('qg_language', value);}catch{/* Session language still changes. */} }}
                     className="bg-[#191714] text-[#D4B872] border border-[#B39A62] rounded px-2 py-2"
                 >
                     {LANGUAGES.map(({code,label}) => <option key={code} value={code}>{label}</option>)}
@@ -108,113 +109,113 @@ export default function RulesPage() {
         </header>
 
         <h1 className="text-4xl md:text-5xl font-extrabold text-[#D4B872] mb-6 tracking-wider">
-          {c.title}
+          <NaturalText lang={lang} text={c.title}/>
         </h1>
         
-        <QubeTeacher lang={lang} className="mb-8"><p className="mb-3">{qubeTeaching[lang].welcome}</p><p className="text-gray-400 text-lg leading-relaxed">
-          {c.intro}
+        <QubeTeacher lang={lang} variant="compact" className="mb-8"><p className="mb-3"><NaturalText lang={lang} text={qubeTeaching[lang].welcome}/></p><p className="text-gray-400 leading-relaxed">
+          <NaturalText lang={lang} text={c.intro}/>
         </p></QubeTeacher>
         <LearningEntry lang={lang}/>
 
         <QubeTeacher lang={lang} variant="compact"><section className="mb-16">
-          <h2 className="text-2xl font-bold text-white mb-4 border-b border-gray-800 pb-2">{c.sec1Title}</h2>
+          <h2 className="text-2xl font-bold text-white mb-4 border-b border-gray-800 pb-2"><NaturalText lang={lang} text={c.sec1Title}/></h2>
           <div className="text-gray-300 leading-relaxed space-y-4">
-            <p>{c.sec1p1}</p>
-            <p>{c.sec1p2}</p>
+            <p><NaturalText lang={lang} text={c.sec1p1}/></p>
+            <p><NaturalText lang={lang} text={c.sec1p2}/></p>
           </div>
         </section></QubeTeacher>
 
         <QubeTeacher lang={lang} variant="compact"><section className="mb-16" aria-labelledby="movement-guide">
-          <h2 id="movement-guide" className="text-2xl font-bold text-white mb-4 border-b border-gray-800 pb-2">{v.movementTitle}</h2>
-          <p className="mb-6 leading-relaxed">{v.movementHelp}</p>
+          <h2 id="movement-guide" className="text-2xl font-bold text-white mb-4 border-b border-gray-800 pb-2"><NaturalText lang={lang} text={v.movementTitle}/></h2>
+          <p className="mb-6 leading-relaxed"><NaturalText lang={lang} text={v.movementHelp}/></p>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {pieceTypes.map((type, index) => <MovementDiagram key={type} type={type} name={v.names[index]}/>)}
           </div>
-          <p className="mt-5 rounded-lg border border-[#3A3224] bg-[#1A1814] p-4 text-sm leading-relaxed">{v.pawnHelp}</p>
-          <p className="mt-3 text-sm text-gray-400 leading-relaxed">{v.specialMoves}</p>
+          <p className="mt-5 rounded-lg border border-[#3A3224] bg-[#1A1814] p-4 text-sm leading-relaxed"><NaturalText lang={lang} text={v.pawnHelp}/></p>
+          <p className="mt-3 text-sm text-gray-400 leading-relaxed"><NaturalText lang={lang} text={v.specialMoves}/></p>
         </section></QubeTeacher>
 
         <QubeTeacher lang={lang} variant="compact"><section className="mb-16">
-          <h2 className="text-2xl font-bold text-white mb-4 border-b border-gray-800 pb-2">{c.sec2Title}</h2>
+          <h2 className="text-2xl font-bold text-white mb-4 border-b border-gray-800 pb-2"><NaturalText lang={lang} text={c.sec2Title}/></h2>
           <div className="text-gray-300 leading-relaxed space-y-4">
-            <p>{c.sec2p1}</p>
+            <p><NaturalText lang={lang} text={c.sec2p1}/></p>
             <ul className="list-disc list-inside space-y-2 ml-4 text-gray-400">
-              <li><RuleLine text={c.sec2li1}/></li>
-              <li><RuleLine text={c.sec2li2}/></li>
-              <li><RuleLine text={c.sec2li3}/></li>
+              <li><RuleLine lang={lang} text={c.sec2li1}/></li>
+              <li><RuleLine lang={lang} text={c.sec2li2}/></li>
+              <li><RuleLine lang={lang} text={c.sec2li3}/></li>
             </ul>
-            <p className="mt-4"><RuleLine text={c.sec2rule}/></p>
+            <p className="mt-4"><RuleLine lang={lang} text={c.sec2rule}/></p>
           </div>
         </section></QubeTeacher>
 
         <QubeTeacher lang={lang} variant="compact"><section className="mb-16 grid gap-6 md:grid-cols-2" aria-labelledby="deduction-guide">
           <div className="rounded-xl border border-[#3A3224] bg-[#141410] p-5">
-            <h2 id="deduction-guide" className="text-xl font-bold text-[#D4B872] mb-4">{v.deductionTitle}</h2>
+            <h2 id="deduction-guide" className="text-xl font-bold text-[#D4B872] mb-4"><NaturalText lang={lang} text={v.deductionTitle}/></h2>
             <ExampleBoard kind="deduction" label={v.deductionHelp}/>
-            <p className="mt-5 leading-relaxed">{v.deductionHelp}</p>
+            <p className="mt-5 leading-relaxed"><NaturalText lang={lang} text={v.deductionHelp}/></p>
           </div>
           <div className="rounded-xl border border-[#3A3224] bg-[#141410] p-5">
-            <h2 className="text-xl font-bold text-[#D4B872] mb-4">{v.limitsTitle}</h2>
-            <div className="grid grid-cols-3 gap-2">
+            <h2 className="text-xl font-bold text-[#D4B872] mb-4"><NaturalText lang={lang} text={v.limitsTitle}/></h2>
+            <div className="rules-piece-limits grid grid-cols-2 gap-2 sm:grid-cols-3">
               {pieceTypes.map((type, index) => <div key={type} className="rounded-lg border border-[#3A3224] bg-[#211e18] p-3 text-center">
                 <span className="block text-2xl text-[#D4B872]" aria-hidden="true">{pieceSymbols[type]}</span>
                 <span className="block text-xs text-gray-300">{v.names[index]}</span>
                 <strong className="block text-lg text-white">× {pieceLimits[index]}</strong>
               </div>)}
             </div>
-            <p className="mt-4 text-sm leading-relaxed">{v.limitsHelp}</p>
+            <p className="mt-4 text-sm leading-relaxed"><NaturalText lang={lang} text={v.limitsHelp}/></p>
             <div className="mt-5 rounded-lg border border-[#685a3b] bg-[#29241b] p-3 text-sm leading-relaxed">
               <div className="mb-2 text-[#D4B872]">{v.names[1]}: 1 → 0</div>
               <div>{v.names[2]} / {v.names[1]} → {v.names[2]}</div>
-              <p className="mt-2">{v.chainHelp}</p>
+              <p className="mt-2"><NaturalText lang={lang} text={v.chainHelp}/></p>
             </div>
           </div>
         </section></QubeTeacher>
 
         <QubeTeacher lang={lang} variant="compact"><section className="mb-16">
-          <h2 className="text-2xl font-bold text-white mb-4 border-b border-gray-800 pb-2">{c.sec3Title}</h2>
+          <h2 className="text-2xl font-bold text-white mb-4 border-b border-gray-800 pb-2"><NaturalText lang={lang} text={c.sec3Title}/></h2>
           <div className="text-gray-300 leading-relaxed space-y-4">
-            <p>{c.sec3p1}</p>
+            <p><NaturalText lang={lang} text={c.sec3p1}/></p>
             <div className="bg-[#1A1814] p-6 rounded-lg border border-[#3A3224] mt-6">
-              <h3 className="text-xl font-bold text-[#D4B872] mb-3">{c.sec3BoxTitle}</h3>
-              <p className="mb-4">{c.sec3Boxp1}</p>
+              <h3 className="text-xl font-bold text-[#D4B872] mb-3"><NaturalText lang={lang} text={c.sec3BoxTitle}/></h3>
+              <p className="mb-4"><NaturalText lang={lang} text={c.sec3Boxp1}/></p>
               <ul className="list-disc list-inside space-y-2 text-gray-400">
-                <li><RuleLine text={c.sec3Boxli2}/></li>
-                <li><RuleLine text={c.sec3Boxli3}/></li>
+                <li><RuleLine lang={lang} text={c.sec3Boxli2}/></li>
+                <li><RuleLine lang={lang} text={c.sec3Boxli3}/></li>
               </ul>
             </div>
           </div>
         </section></QubeTeacher>
 
         <QubeTeacher lang={lang} variant="compact"><section className="mb-16" aria-labelledby="outcome-guide">
-          <h2 id="outcome-guide" className="text-2xl font-bold text-white mb-5 border-b border-gray-800 pb-2">{v.outcomeTitle}</h2>
+          <h2 id="outcome-guide" className="text-2xl font-bold text-white mb-5 border-b border-gray-800 pb-2"><NaturalText lang={lang} text={v.outcomeTitle}/></h2>
           <div className="grid gap-5 md:grid-cols-2">
             <figure className="rounded-xl border border-[#3A3224] bg-[#141410] p-5">
-              <figcaption className="mb-4 font-bold text-[#D4B872]">{v.captureLabel}</figcaption>
+              <figcaption className="mb-4 font-bold text-[#D4B872]"><NaturalText lang={lang} text={v.captureLabel}/></figcaption>
               <ExampleBoard kind="capture" label={v.captureHelp}/>
-              <p className="mt-5 leading-relaxed">{v.captureHelp}</p>
+              <p className="mt-5 leading-relaxed"><NaturalText lang={lang} text={v.captureHelp}/></p>
             </figure>
             <figure className="rounded-xl border border-[#3A3224] bg-[#141410] p-5">
-              <figcaption className="mb-4 font-bold text-[#D4B872]">{v.mateLabel}</figcaption>
+              <figcaption className="mb-4 font-bold text-[#D4B872]"><NaturalText lang={lang} text={v.mateLabel}/></figcaption>
               <ExampleBoard kind="mate" label={v.mateHelp}/>
-              <p className="mt-5 leading-relaxed">{v.mateHelp}</p>
+              <p className="mt-5 leading-relaxed"><NaturalText lang={lang} text={v.mateHelp}/></p>
             </figure>
           </div>
         </section></QubeTeacher>
 
         <QubeTeacher lang={lang} variant="compact"><section className="mb-16">
-          <h2 className="text-2xl font-bold text-white mb-4 border-b border-gray-800 pb-2">{c.sec4Title}</h2>
+          <h2 className="text-2xl font-bold text-white mb-4 border-b border-gray-800 pb-2"><NaturalText lang={lang} text={c.sec4Title}/></h2>
           <div className="text-gray-300 leading-relaxed space-y-4">
-            <p><RuleLine text={c.sec4p1}/></p>
-            <p><RuleLine text={c.sec4p2}/></p>
+            <p><RuleLine lang={lang} text={c.sec4p1}/></p>
+            <p><RuleLine lang={lang} text={c.sec4p2}/></p>
           </div>
         </section></QubeTeacher>
 
         <QubeTeacher lang={lang} variant="compact"><section className="mb-16">
-          <h2 className="text-2xl font-bold text-white mb-4 border-b border-gray-800 pb-2">{c.sec5Title}</h2>
+          <h2 className="text-2xl font-bold text-white mb-4 border-b border-gray-800 pb-2"><NaturalText lang={lang} text={c.sec5Title}/></h2>
           <div className="text-gray-300 leading-relaxed space-y-4">
-            <p>{c.sec5p1}</p>
-            <p>{c.sec5p2}</p>
+            <p><NaturalText lang={lang} text={c.sec5p1}/></p>
+            <p><NaturalText lang={lang} text={c.sec5p2}/></p>
           </div>
         </section></QubeTeacher>
 

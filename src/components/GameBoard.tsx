@@ -13,6 +13,7 @@ interface GameBoardProps {
     onlineRole?: 'white' | 'black' | 'spectator';
     matchMode?: 'random' | 'private' | 'ranked';
     opponentId?: string;
+    privateRoomIntent?: 'create' | 'join' | 'reconnect';
     timeControl?: TimeControl;
     onHome?: () => void;
 }

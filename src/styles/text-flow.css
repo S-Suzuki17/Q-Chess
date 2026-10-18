@@ -1,0 +1,19 @@
+/* Keep language-aware line breaking inherited by menus, dialogs and articles. */
+:where(html, [lang]) {
+  word-break: normal;
+  line-break: strict;
+  overflow-wrap: break-word;
+}
+
+/* Browsers without Japanese phrase breaking retain their native CJK rules. */
+@supports (word-break: auto-phrase) {
+  :where(:lang(ja)) { word-break: auto-phrase; }
+}
+
+:where(p, li, dd, figcaption) { text-wrap: pretty; }
+:where(p, li, dd, figcaption):not(:lang(ja), :lang(zh), :lang(hi), :lang(ta)) { hyphens: auto; }
+:where(code, pre, kbd, samp) { overflow-wrap: anywhere; hyphens: none; }
+.text-word { white-space: nowrap; }
+
+/* Preserve complete Indic words rather than platform-specific hyphenation. */
+:where(:lang(hi), :lang(ta)) { hyphens: none; }

@@ -3,6 +3,7 @@ import { createServer } from 'node:http';
 import { resolve, sep, extname } from 'node:path';
 import { readFile, mkdir, writeFile } from 'node:fs/promises';
 import assert from 'node:assert/strict';
+import {walkTutorial} from './tutorial-walkthrough.mjs';
 
 const root = resolve('out');
 const artifacts = resolve('scratch/deduction-practice-qa-results');
@@ -95,68 +96,15 @@ try {
             await tutBtn.waitFor();
             await tutBtn.click();
 
-            const tutorial = page.locator('.interactive-tutorial [role="dialog"]');
-            await tutorial.waitFor();
-
-            // Check Qube teacher
-            assert.equal(await tutorial.locator('[data-qube-teacher]').count(), 1, 'Qube teacher must be present');
-            assert.equal(await tutorial.locator('[data-qube-speaker]').innerText(), 'QUBE', 'Qube speaker label');
-
-            // 1. Verify Demo Review Button exists in Step 0
-            const reviewBtn = tutorial.locator('[data-tutorial-review-demo]');
-            assert.ok(await reviewBtn.isVisible(), 'Review demo button visible');
-            await reviewBtn.click();
-
-            // Wait for demo feedback message with custom selector
-            const statusBox = tutorial.locator('[data-tutorial-status]');
-            await statusBox.waitFor();
-            assert.ok((await statusBox.innerText()).length > 0, 'Demo status message exists');
-            await page.screenshot({ path: resolve(artifacts, `${conf.name}-demo.png`), fullPage: false });
-
-            // Wait for demo to reset back to practice
-            await page.waitForTimeout(700);
-
-            // 2. Test Invalid click (Error recovery test)
-            const a1 = tutorial.locator('.board-render-fallback').getByRole('button', { name: 'a1', exact: true });
-            if (await a1.isVisible()) {
-                await a1.click();
-                // Should stay in step 0 after invalid click
-                assert.ok(await tutorial.locator('[data-tutorial-step="0"]').isVisible(), 'Stays in step 0 after invalid click');
-            }
-
-            // 3. Test Reset Button
-            const resetBtn = tutorial.locator('[data-tutorial-reset]');
-            assert.ok(await resetBtn.isVisible(), 'Reset button visible');
-            await resetBtn.click();
-
-            // 4. Perform complete 12 steps with Practice & Constraint validation
-            const squares = { 0: 'e2', 1: 'h5', 3: 'h7', 4: 'h5', 6: 'e1', 7: 'f3', 9: 'h5', 10: 'f3' };
-            for (let step = 0; step < 12; step++) {
-                await tutorial.locator(`[data-tutorial-step="${step}"]`).waitFor();
-                const explanation = await tutorial.locator('[data-qube-explanation]').innerText();
-                assert.ok(explanation.length > 5, `Step ${step} has non-empty instruction`);
-
-                if (step === 1 && conf.name === 'pc-ja-1280') {
-                    await page.screenshot({ path: resolve(artifacts, `${conf.name}-practice-step1.png`), fullPage: false });
-                }
-
-                if (squares[step]) {
-                    const square = tutorial.locator('.board-render-fallback').getByRole('button', { name: squares[step], exact: true });
-                    await square.focus();
-                    await page.keyboard.press('Enter');
-                } else {
-                    if (step === 11) {
-                        // Check Step 11 Piece Count Constraint Highlight
-                        const constraintBanner = tutorial.locator('[data-tutorial-constraint-banner]');
-                        assert.ok(await constraintBanner.isVisible(), 'Piece count constraint banner displayed at step 11');
-                        await page.screenshot({ path: resolve(artifacts, `${conf.name}-step11-constraint.png`), fullPage: false });
-                    }
-                    await tutorial.locator('[data-tutorial-next]').click();
-                }
-            }
-
-            // Tutorial dialog should be closed after step 11 Next click
-            await tutorial.waitFor({ state: 'detached' });
+            const tutorial = page.locator('dialog.tutorial-shell');
+            if(conf.textScale200)await page.addStyleTag({content:'.tutorial-copy-space{font-size:24px!important;line-height:1.6!important}.tutorial-heading h2{font-size:34px!important}.tutorial-actions button,.tutorial-course-picker select,.tutorial-command strong{font-size:20px!important}'});
+            const evidence=await walkTutorial(page,{readAllCopy:true,strictFit:!conf.textScale200,checkRecovery:true,
+                onLesson:async({id})=>{
+                    if(['candidates','deduction-chain','castle','promotion','quantum-mate'].includes(id))
+                        await page.screenshot({path:resolve(artifacts,conf.name+'-'+id+'.png')});
+                }});
+            assert.equal(evidence.lessons,24);
+            assert.equal(evidence.unresolvedMate,true);
 
             // 5. Test Escape key close & focus restoration
             await tutBtn.focus();

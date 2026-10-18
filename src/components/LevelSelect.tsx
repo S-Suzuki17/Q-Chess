@@ -1,4 +1,6 @@
 'use client';
+import {useAndroidBackHandler} from '../hooks/useAndroidBack';
+
 import { useMatchmaking } from '../hooks/useMatchmaking';
 import { matchText } from '../locales/matchText';
 import { useSocket } from '../lib/SocketContext';
@@ -39,6 +41,7 @@ import type { VisualReward } from './RewardPreview';
 import './lobby-studio.css';
 import './lobby-reference.css';
 import {LobbyTicketSummary} from './LobbyTicketSummary';
+import {NaturalText} from './NaturalText';
 import { campaignText } from '../locales/campaignText';
 import { useCircuitAccess } from '../hooks/useCircuitAccess';
 import { circuitAccessText } from '../locales/circuitAccessText';
@@ -89,8 +92,11 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
     const [loadingReplays, setLoadingReplays] = React.useState(false);
     const [historyError, setHistoryError] = React.useState<'AUTH_REQUIRED' | 'UNAVAILABLE' | null>(null);
     const [verifyHistory, setVerifyHistory] = React.useState(false);
-    const historyIdentity = React.useRef(user.id);
-    historyIdentity.current = user.id;
+    const historyIdentity = React.useRef<string | null>(user.id);
+    React.useLayoutEffect(() => {
+        historyIdentity.current = user.id;
+        return () => { historyIdentity.current = null; };
+    }, [user.id]);
     const historyRequest = React.useRef(0);
     const [showLeaderboard, setShowLeaderboard] = React.useState(false);
     const [leaderboard, setLeaderboard] = React.useState<Profile[]>([]);
@@ -155,6 +161,21 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
         setRecentGames([]); setReplays([]); setUserStats(null); setHistoryError(null);
         return () => { historyRequest.current++; };
     }, [user.id]);
+    useAndroidBackHandler(()=>{
+        if(showIconEditor)setShowIconEditor(false);
+        else if(verifyHistory)setVerifyHistory(false);
+        else if(lobbyPreview)setLobbyPreview(null);
+        else if(showTutorial)setShowTutorial(false);
+        else if(pendingAction)setPendingAction(null);
+        else if(showPlayMenu)setShowPlayMenu(false);
+        else if(showLiveMatches)setShowLiveMatches(false);
+        else if(showReplays)setShowReplays(false);
+        else if(showLeaderboard)setShowLeaderboard(false);
+        else if(showFriends||showAccount||showRewards)onCloseSettingsPanel?.();
+        else if(showOnlineMenu)setShowOnlineMenu(false);
+        else return showAdModal; // The provider owns dismissal of an active ad.
+        return true;
+    },10);
     const anyModalOpen = showPlayMenu || showReplays || showLeaderboard || showFriends || showAccount || showRewards || showTutorial || showAdModal || !!pendingAction || showLiveMatches || !!lobbyPreview;
 
 
@@ -400,7 +421,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
                 }}>
                     <header><h3>{t.joinRoom}</h3><button type="button" className="lobby-dialog-close" aria-label={t.cancel} onClick={()=>setPendingAction(null)}>✕</button></header>
                     <label htmlFor="lobby-room-code">{t.enterRoomId}</label>
-                    <input id="lobby-room-code" value={joinRoomId} onChange={event=>setJoinRoomId(event.target.value)} required maxLength={256} autoComplete="off" autoCapitalize="characters" spellCheck={false}/>
+                    <input id="lobby-room-code" value={joinRoomId} onChange={event=>setJoinRoomId(event.target.value)} required maxLength={128} autoComplete="off" autoCapitalize="characters" spellCheck={false}/>
                     <button className="lobby-room-submit" type="submit" disabled={!joinRoomId.trim()}>{t.joinRoom}<ArrowUpRight size={18} aria-hidden="true"/></button>
                     <button type="button" onClick={()=>setPendingAction(null)}>{t.cancel}</button>
                 </form>
@@ -719,10 +740,10 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
                 onSettings={() => window.dispatchEvent(new Event('qg-open-settings'))}/></details>
 
             <nav className="lobby-navigation lobby-bottom-navigation" aria-label={lang==='ja'?'ホームのメニュー':'Home navigation'}>
-                <button type="button" aria-current="page" onClick={()=>{if(library.current)library.current.open=false;document.querySelector('.lobby-studio')?.scrollTo({top:0});}}><House aria-hidden="true"/><span>{t.home}</span></button>
-                <button type="button" onClick={()=>setShowReplays(true)}><History aria-hidden="true"/><span>{t.gameReplays}</span></button>
-                <button type="button" onClick={()=>{setShowLeaderboard(true);loadLeaderboard();}}><Trophy aria-hidden="true"/><span>{t.globalRankings}</span></button>
-                <button type="button" onClick={()=>{if(rewardsAvailable&&onOpenRewards)onOpenRewards();else if(library.current){library.current.open=true;library.current.scrollIntoView({block:'start'});}}}><Gift aria-hidden="true"/><span>{campaignText(lang,'rewards')}</span></button>
+                <button type="button" aria-current="page" onClick={()=>{if(library.current)library.current.open=false;document.querySelector('.lobby-studio')?.scrollTo({top:0});}}><House aria-hidden="true"/><span><NaturalText text={t.home} lang={lang}/></span></button>
+                <button type="button" aria-label={t.gameReplays} onClick={()=>setShowReplays(true)}><History aria-hidden="true"/><span><NaturalText text={t.replay} lang={lang}/></span></button>
+                <button type="button" onClick={()=>{setShowLeaderboard(true);loadLeaderboard();}}><Trophy aria-hidden="true"/><span><NaturalText text={t.globalRankings} lang={lang}/></span></button>
+                <button type="button" onClick={()=>{if(rewardsAvailable&&onOpenRewards)onOpenRewards();else if(library.current){library.current.open=true;library.current.scrollIntoView({block:'start'});}}}><Gift aria-hidden="true"/><span><NaturalText text={campaignText(lang,'rewards')} lang={lang}/></span></button>
             </nav>
         </div>
     );

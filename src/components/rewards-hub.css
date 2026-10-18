@@ -9,7 +9,7 @@
 .reward-caption { font-size:12px; line-height:1.7; color:#b9b9a9; }
 .reward-balances { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; margin:14px 0; }
 .reward-balance { padding:14px 12px; border:1px solid #4b5140; background:#282d23; border-radius:8px; min-width:0; }
-.reward-balance dt { font-size:12px; color:#d6d8c9; line-height:1.6; min-height:2em; overflow-wrap:anywhere; }
+.reward-balance dt { font-size:12px; color:#d6d8c9; line-height:1.6; min-height:2em; overflow-wrap:break-word; }
 .reward-balance dd { font-size:30px; font-weight:600; font-variant-numeric:tabular-nums; line-height:1.5; color:#f0eedf; }
 .reward-balance small { display:block; font-size:11px; color:#b9b9a9; font-weight:400; }
 .reward-next { border-top:1px solid #454a3c; padding-top:14px; }

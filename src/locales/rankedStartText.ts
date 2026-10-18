@@ -19,6 +19,7 @@ const codes = new Set([
     'CPU_PRACTICE_PENDING','HINT_PURCHASE_PENDING','INVALID_QUEUE','SERVICE_UNAVAILABLE',
     'SHARED_MATCH_UNAVAILABLE','ACCOUNT_BUSY','RANKED_UNAVAILABLE','RATING_UNAVAILABLE',
     'AUTH_UNAVAILABLE','QUEUE_BUSY','CONNECTION_FAILED','AUTH_REQUIRED','RANKED_AUTH_REQUIRED','SESSION_REPLACED',
+    'INVALID_ROOM','ROOM_NOT_FOUND','ROOM_CLOSED','ROOM_EXISTS','ROOM_FULL',
     'MAINTENANCE','UPDATE_REQUIRED','INSUFFICIENT_FUNDS','RANKED_LIMIT_REACHED','QUEUE_FAILED',
 ]);
 /** Report only known machine codes; never raw server text, account IDs or credentials. */
@@ -48,7 +49,9 @@ export function rankedStartRecoveryText(lang: Language, code: unknown): string |
     if(code==='CPU_PRACTICE_PENDING')return t.practice;
     if(code==='HINT_PURCHASE_PENDING')return t.hint;
     if(code==='SESSION_REPLACED')return t.session;
-    if(code==='INVALID_QUEUE')return t.invalid;
+    if(code==='INVALID_QUEUE'||code==='INVALID_ROOM'||code==='ROOM_EXISTS')return t.invalid;
+    if(code==='ROOM_NOT_FOUND'||code==='ROOM_CLOSED')return t.missing;
+    if(code==='ROOM_FULL')return t.busy;
     if(['MAINTENANCE','UPDATE_REQUIRED','AUTH_REQUIRED','RANKED_AUTH_REQUIRED','INSUFFICIENT_FUNDS','RANKED_LIMIT_REACHED'].includes(String(code)))return null;
     return t.temporary;
 }

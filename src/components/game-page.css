@@ -1,5 +1,7 @@
 /* Shared brass-and-slate interface for information and billing screens. */
 .game-page {
+  position: fixed;
+  inset: 0;
   --page-ink: #f0eee7;
   --page-muted: #b7bcae;
   --page-gold: #d3bc87;
@@ -23,6 +25,7 @@
   background-position: 0 0, 0 0, 48px 48px;
 }
 .game-page-content {
+  min-inline-size: 0;
   width: 100%;
   max-width: 960px;
   margin-inline: auto;
@@ -31,7 +34,7 @@
   border-radius: 24px;
   background: #171d17f5;
   box-shadow: 0 24px 72px #0005, inset 0 1px #ead8ab0a;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 .game-page-header {
   position: sticky;
@@ -59,6 +62,7 @@
   text-decoration: none;
   font-size: 14px;
 }
+.game-page-header>*{min-width:0;max-width:100%}.game-page-language{display:flex;align-items:center;gap:8px;min-width:0}.game-page:focus-visible{outline:2px solid var(--page-gold);outline-offset:-4px}.game-page h1,.game-page h2,.game-page h3{max-inline-size:100%;white-space:normal;overflow-wrap:break-word;text-wrap:pretty}.game-page [data-learning-article]>section{scroll-margin-top:170px}.reading-section-picker{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 0 16px;color:var(--page-gold);font-size:12px}.reading-section-picker select{flex:1;min-width:min(100%,200px)}
 .game-page select {
   min-height: 44px;
   max-width: 100%;
@@ -127,7 +131,7 @@
   cursor: pointer;
 }
 .store-product input { margin-top: 4px; accent-color: #d3bc87; width: 18px; height: 18px; }
-.store-product-title { color: #f0eee7; line-height: 1.5; font-weight: 600; overflow-wrap: anywhere; }
+.store-product-title { color: #f0eee7; line-height: 1.5; font-weight: 600; overflow-wrap: break-word; }
 .store-product-benefits { grid-column: 2; color: #b7bcae; font-size: 12px; line-height: 1.65; }
 .store-product.selected { border-color: #d3bc87; background: linear-gradient(145deg, #3b3a26, #242d22); box-shadow: inset 0 0 0 1px #d3bc8740; }
 .store-product:has(input:disabled) { cursor: default; }
@@ -135,7 +139,12 @@
 @media (max-width: 480px) {
   .game-page { padding: max(8px, env(safe-area-inset-top)) 8px max(16px, env(safe-area-inset-bottom)); }
   .game-page-content { padding: 16px; border-radius: 16px; }
-  .game-page-header { gap: 8px; }
+  .game-page-header { position:static;gap:8px;margin-bottom:16px;padding-top:0;padding-bottom:12px; }
   .game-page-header > a { padding-inline: 10px; }
   .store-product-grid { grid-template-columns: minmax(0, 1fr); }
 }
+@media(max-width:600px){.game-page-content{padding:14px}.game-page h1{font-size:clamp(23px,6vw,28px);margin-block:18px}.game-page select{font-size:16px}.game-page [data-learning-article]>section{scroll-margin-top:16px}.game-page [data-learning-entry]{padding:14px;margin-block:16px}.reading-section-picker>span{display:none}}
+@media(max-height:500px){.game-page-header{position:static}.game-page [data-learning-article]>section{scroll-margin-top:16px}}
+
+/* Let the Japanese phrase breaker choose its soft wraps without emergency cuts. */
+.game-page:lang(ja) p,.game-page:lang(ja) li,.game-page:lang(ja) dd{overflow-wrap:normal}

@@ -2,7 +2,7 @@
  * Real exported Home/queue/OnlineGameBoard, with a compiled GameEngine fixture.
  * All remote HTTP and WebSockets terminate here. No live queue, wallet, or account
  * is mutated. Usage: node scripts/qa/check-ranked-start-browser.mjs
- *   [static-directory=out] [evidence-directory=scratch/ranked-start] [case-name]
+ *   [static-directory=out] [evidence-directory=scratch/ranked-start] [case-name[,case-name...]]
  */
 import assert from 'node:assert/strict';
 import {createRequire} from 'node:module';
@@ -59,7 +59,9 @@ const scenarios=[
  {name:'cancel-admission-unavailable',opponent:'cpu',side:'host',tc:'10s',seconds:10,width:1280,cancel:true,cancelReason:'admission_unavailable'},
  {name:'cancel-connection-timeout',opponent:'human',side:'host',tc:'10m',seconds:600,width:1440,cancel:true,cancelReason:'connection_timeout'},
 ];
-const selected=scenarios.filter(s=>!onlyCase||s.name===onlyCase);
+const caseNames=onlyCase?.split(',');
+assert(!caseNames||caseNames.every(name=>scenarios.some(s=>s.name===name)),'Unknown case');
+const selected=scenarios.filter(s=>!caseNames||caseNames.includes(s.name));
 assert(selected.length,'Unknown case');
 const results=[];
 let browser;
@@ -214,6 +216,13 @@ try{
    assert(homeTermsReads>0,'Home verified saved current consent');
    assert.equal(termsAccepts,0,'Restoring accepted Home never resubmits consent');
    assert.equal(await page.locator('[data-terms-gate]').count(),0);
+   // Home has just cached this account's current consent. A scenario that
+   // exercises a missing receipt or its read outage must explicitly remove it.
+   if(scenario.termsNeeded||scenario.termsCheckError)await page.evaluate(({userId,version})=>{
+    const key=`qg_terms_consent_v1_${version}_${userId}`;
+    if(localStorage.getItem(key)!=='true')throw Error('Expected current consent cached by Home');
+    localStorage.removeItem(key);
+   },{userId:user.id,version:currentTermsVersion});
    matchConsentCheck=true;
    if(scenario.termsNeeded)termsAccepted=false;
    step='queue via actual lobby';
@@ -335,7 +344,7 @@ try{
      assert(movingPiece,'The initial e2 piece exists');
      await page.locator('[data-square="e2"]').click();
      await page.locator('[data-square="h5"]').click();
-     await page.getByText('相手の手番です。駒を選んで候補を確認できます。',{exact:true}).waitFor();
+     await page.getByText('相手の手番です。駒を選んで候補を確認できます。',{exact:true}).filter({visible:true}).waitFor();
      const movedState=state(),movedPiece=movedState.pieces.find(piece=>piece.id===movingPiece.id);
      assert.equal(moves,1);assert.equal(movedState.moveCount,initialState.moveCount+1);
      assert(movedState.version>initialState.version);assert.equal(movedState.turn,1);
@@ -371,6 +380,7 @@ try{
    const screen=await page.locator('main[data-screen]').getAttribute('data-screen').catch(()=>null);
    const status=await page.locator('[role="status"]').allTextContents().catch(()=>[]);
    await page.screenshot({path:resolve(evidence,scenario.name+'-failure.png'),fullPage:true}).catch(()=>{});
+   console.error('Ranked fixture case failed: '+scenario.name+' at '+step+': '+error.message);
    results.push({case:scenario.name,pass:false,step,error:error.message,screen,status,queues,connections,connectRequests,cancels,introAcks,snapshots,moves,homeTermsReads,homeClaims,termsReads,termsAccepts,syntheticClaims,pageErrors,protocolErrors,externalWrites});
   }finally{await context.close();}
  }

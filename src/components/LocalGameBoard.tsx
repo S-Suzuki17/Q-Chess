@@ -1,4 +1,6 @@
 'use client';
+import {useAndroidBackHandler} from '../hooks/useAndroidBack';
+
 import {castleQuestText} from '../locales/castleQuestText';
 
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
@@ -36,11 +38,15 @@ import { cpuPersonalityText } from '../locales/cpuPersonalityText';
 import { legacyToQuantumState, quantumToLegacyMove, TYPE_TO_BIT } from '../quantum-engine/adapter';
 import { RANKED_SESSION_EVENT } from '../lib/rankedSession';
 import { getWinner } from '../quantum-engine/terminal';
-import { isCheckmateFinish } from '../lib/checkmatePresentation';
+import { isCheckmateFinish, gameOverDialogDelay, showPlayerVictory } from '../lib/checkmatePresentation';
 import { createLocalPosition, applyLocalMove } from '../lib/localGame';
+import { localMoveDestinations } from '../lib/localMoveDestinations';
 import { recordReplayMove } from '../lib/replayHistory';
 import { replayText } from '../locales/replayText';
 import { ReplaySaveSession } from '../lib/replaySave';
+import { localMatchStats } from '../lib/playGameStatsMatch';
+import { usePlayGameStatsMatch } from '../hooks/usePlayGameStatsMatch';
+import { v4 as uuidv4 } from 'uuid';
 import { RankedLoginDialog } from './RankedLoginDialog';
 import { soundManager } from '../lib/SoundService';
 import { recordMatchCompleted, recordMatchStarted } from '../lib/engagementMetrics';
@@ -87,10 +93,11 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
     const freePractice=!roomId&&!matchMode&&!crownMode;
     const registeredUser=user?.type==='registered'&&!!user.id&&!/^(GUEST-|anon_)/i.test(user.id);
     const paidCrown=PAID_HINTS_ENABLED&&crownMode&&registeredUser&&!!crownStageId&&!!crownRunId;
+    const crownUserId=user?.id;
     const crownClient=useMemo(()=>{
-        if(!paidCrown||!user?.id||!crownStageId||!crownRunId)return null;
-        try{return new CrownHintRunClient(user.id,{runId:crownRunId,stageId:crownStageId,playerSide});}catch{return null;}
-    },[paidCrown,user?.id,crownStageId,crownRunId,playerSide]);
+        if(!paidCrown||!crownUserId||!crownStageId||!crownRunId)return null;
+        try{return new CrownHintRunClient(crownUserId,{runId:crownRunId,stageId:crownStageId,playerSide});}catch{return null;}
+    },[paidCrown,crownUserId,crownStageId,crownRunId,playerSide]);
     const openedCrownRuns=useRef(new Set<string>());
     const hintLanguage=useRef(lang);
     useEffect(()=>{hintLanguage.current=lang;},[lang]);
@@ -109,6 +116,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
     const perMoveTime=useRef({turns:0,remaining:0});
     const turnClock=useRef({start:0,base:timeControl==='10s'?30:timeControl==='3m'?180:600});
     const resultReported=useRef(false);
+    const [statsSessionId] = useState(() => uuidv4());
     const [showHomeConfirm, setShowHomeConfirm] = useState(false);
     const [showReplayLogin, setShowReplayLogin] = useState(false);
     const [viewResetKey, setViewResetKey] = useState(0);
@@ -184,12 +192,12 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
     useEffect(() => {
         let timer: NodeJS.Timeout | null = null;
         if (winner) {
-            timer = setTimeout(() => setShowGameOver(true), winner===`${playerSide}_wins` && victoryEffect.startsWith('champion-effect-') ? 3200 : 1500);
+            timer = setTimeout(() => setShowGameOver(true), gameOverDialogDelay(victoryEffect,winner===`${playerSide}_wins`,!crownMode&&onlineRole!=='spectator'));
         } else {
             timer = setTimeout(() => setShowGameOver(false), 0);
         }
         return () => { if (timer) clearTimeout(timer); };
-    }, [winner,playerSide,victoryEffect]);
+    }, [winner,playerSide,victoryEffect,crownMode,onlineRole]);
     const [disconnectTimeLeft, setDisconnectTimeLeft] = useState<number | null>(null);
     const disconnectTimerRef = useRef<NodeJS.Timeout | null>(null);
     const hasOpponentJoinedRef = useRef<boolean>(false);
@@ -218,7 +226,6 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
         const timer=setInterval(tick,100);
         return()=>clearInterval(timer);
         // A turn has one fixed deadline; rerendering must not reset it.
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     },[currentTurn,winner,introDone,paidCrown,crownSession]);
 
     // Initial timeout if opponent never connects from the start
@@ -295,15 +302,46 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
         }).finally(()=>{if(!controller.signal.aborted)setCrownPending(false);});
         return()=>controller.abort();
     },[crownClient,introDone,crownAttempt,acceptCrown]);
-    useEffect(()=>()=>{
-        // Leave/identity changes close only a run that actually opened. A denied
-        // close during an ambiguous hint purchase never cancels the saved receipt.
-        if(crownClient&&openedCrownRuns.current.has(crownClient.settings.runId))void crownClient.close().catch(()=>{});
+    useEffect(()=>{
+        if(!crownClient)return;
+        const lease=crownClient.retain();
+        const leaving=(event:PageTransitionEvent)=>{if(!event.persisted)void lease.close().catch(()=>{});};
+        window.addEventListener('pagehide',leaving);
+        return()=>{
+            window.removeEventListener('pagehide',leaving);
+            // Record cleanup even when the open response was lost. Failed close
+            // stays recoverable without clearing an uncertain purchase receipt.
+            void lease.release().catch(()=>{});
+        };
     },[crownClient]);
+    useEffect(()=>{
+        if(!crownClient||!introDone)return;
+        const resume=()=>{if(document.visibilityState==='visible')setCrownAttempt(value=>value+1);};
+        window.addEventListener('online',resume);
+        window.addEventListener('pageshow',resume);
+        document.addEventListener('visibilitychange',resume);
+        return()=>{
+            window.removeEventListener('online',resume);
+            window.removeEventListener('pageshow',resume);
+            document.removeEventListener('visibilitychange',resume);
+        };
+    },[crownClient,introDone]);
     useEffect(()=>{
         if(!paidCrown||!winner||!crownClient)return;
         void crownClient.close().catch(()=>{});
     },[paidCrown,winner,crownClient]);
+    useAndroidBackHandler(()=>{
+        if(showHomeConfirm)setShowHomeConfirm(false);
+        else if(showResignConfirm)setShowResignConfirm(false);
+        else if(showReplayLogin)setShowReplayLogin(false);
+        else if(showRules)setShowRules(false);
+        else if(promotionPending)setPromotionPending(null);
+        else if(castlingPending)setCastlingPending(null);
+        else if(showGameOver)onHome?.();
+        else return false;
+        return true;
+    },40);
+    useAndroidBackHandler(()=>{setShowHomeConfirm(true);return true;},20);
     const anyModalOpen = !introDone || showGameOver || showRules || showReplayLogin || promotionPending !== null || castlingPending !== null;
     useEffect(() => {
         window.dispatchEvent(new CustomEvent('hide-settings', { detail: anyModalOpen }));
@@ -358,7 +396,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
         }
         triggerEmote(onlineRole, emote);
         setShowEmoteMenu(false);
-    }, [roomId, onlineRole, triggerEmote]);
+    }, [roomId, onlineRole, triggerEmote, setShowEmoteMenu]);
 
     // 駒音（spo_ge_syogi04.mp3 を使用）
     const pickupSoundRef = useRef<HTMLAudioElement | null>(null);
@@ -586,45 +624,10 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
         return () => { active = false; };
     }, [winner, moveHistory, user?.id, user?.name, roomId, cpuLevel, savedRecordId, playerSide, timeControl, saveAttempt, onlineRole, matchMode, fetchedOpponentName, replaySave, freePractice, npcName]);
 
-    // 選択中のトークンが移動可能なマス（候補）を算出
-    const validMoves = useMemo(() => {
-        if (!selectedTokenId || winner) return [];
-        const token = tokens.find(t => t.id === selectedTokenId);
-        if (!token) return [];
-        
-        const moves: {r: number, c: number}[] = [];
-        const currentPossibilities = pool.piecePossibilities.get(token.id) || new Set();
-
-        const lastMoveObj = moveHistory.length > 0 ? {
-            tokenId: moveHistory[moveHistory.length - 1].tokenId,
-            fromRow: moveHistory[moveHistory.length - 1].from[0],
-            fromCol: moveHistory[moveHistory.length - 1].from[1],
-            toRow: moveHistory[moveHistory.length - 1].to[0],
-            toCol: moveHistory[moveHistory.length - 1].to[1],
-        } : undefined;
-
-        for (let r = 0; r < 8; r++) {
-            for (let c = 0; c < 8; c++) {
-                if (r === token.row && c === token.col) continue;
-                
-                const targetToken = tokens.find(t => t.row === r && t.col === c);
-                // 味方の駒は取れないので除外
-                if (targetToken && targetToken.player === token.player) continue;
-
-                // そのマスへの移動が、残された可能性（アイデンティティ）と合致するか
-                const possibleTypes = deduceMoveTypes(token, r, c, tokens, lastMoveObj);
-                if (token.promotedTo) {
-                    // プロモーション済み駒は promotedTo の動きだけ許可（プールのPawn制約を無視）
-                    if (possibleTypes.includes(token.promotedTo)) {
-                        moves.push({r, c});
-                    }
-                } else if (possibleTypes.some(type => currentPossibilities.has(type))) {
-                    moves.push({r, c});
-                }
-            }
-        }
-        return moves;
-    }, [selectedTokenId, tokens, pool, winner, moveHistory]); // tokensが変わる（ターンが進む）か選択が切り替わったら再計算
+    // Validate the existing UI choices with the same engine used to execute them.
+    const validMoves = useMemo(() => selectedTokenId && !winner
+        ? localMoveDestinations(tokens, pool, selectedTokenId, moveHistory) : [],
+    [selectedTokenId, tokens, pool, winner, moveHistory]);
 
     const executeMove = (token: Token, targetRow: number, targetCol: number, possibleTypesForMove: PieceType[], targetToken?: Token, isLocalMove: boolean = true, promotedTo?: PieceType) => {
         if(paidCrown){
@@ -832,13 +835,20 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
         const state = legacyToQuantumState(tokens, pool, currentTurn, moveHistory.length, moveHistory.at(-1) ?? null);
         return isCheckmateFinish(winner, state);
     }, [winner, tokens, pool, currentTurn, moveHistory]);
+
+    const gameStats = useMemo(() => localMatchStats({
+        matchKey: `${roomId ? 'online' : 'local'}:${roomId ?? crownRunId ?? statsSessionId}:${playerSide}`,
+        mode: matchMode ?? (crownMode ? 'campaign' : 'practice'), timeControl,
+        side: onlineRole === 'spectator' ? 'spectator' : playerSide, winner, moves: moveHistory, checkmate,
+    }), [roomId, crownRunId, statsSessionId, playerSide, matchMode, crownMode, timeControl, onlineRole, winner, moveHistory, checkmate]);
+    usePlayGameStatsMatch(gameStats);
     const requestHint = () => {
         if (!hintEligible || hint.pending || !tokens.length) return;
         if(!freePractice){void ticketHint.request();return;}
         const state = legacyToQuantumState(tokens, pool, myRole, moveHistory.length, moveHistory.at(-1) ?? null);
-        const availableMs = hintTimeAvailable(turnClock.current.base * 1000,
-            performance.now() - turnClock.current.start);
         void freeHint.request(async signal => {
+            const availableMs = hintTimeAvailable(turnClock.current.base * 1000,
+                performance.now() - turnClock.current.start);
             const stats = await requestQubeSearch(state, signal, availableMs);
             if (!stats.move || signal.aborted) return null;
             return adviceForMove(state, stats.move);
@@ -859,7 +869,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
 
     return (
         <MatchLayout
-            victory={!campaignLabel && winner===`${playerSide}_wins`} victoryEffect={victoryEffect}
+            victory={showPlayerVictory(winner===`${playerSide}_wins`,!!campaignLabel,onlineRole==='spectator')} victoryEffect={victoryEffect}
             lang={lang} mode={campaignLabel || (roomId ? (matchText(lang, 'オンライン対局', 'ONLINE MATCH')) : (matchText(lang, 'CPU 対局', 'CPU MATCH')))}
             white={{name:whiteName,clock:formatTime(timeLeftWhite),rating:whiteRatingToDisplay,avatar:myRole === 'white' ? user?.avatar_url : undefined,frame:myRole==='white'?avatarFrame:undefined,emote:activeEmotes.white ? EMOTES[activeEmotes.white].emoji : undefined}}
             black={{name:blackName,clock:formatTime(timeLeftBlack),rating:blackRatingToDisplay,avatar:myRole === 'black' ? user?.avatar_url : undefined,frame:myRole==='black'?avatarFrame:undefined,emote:activeEmotes.black ? EMOTES[activeEmotes.black].emoji : undefined}}
@@ -880,7 +890,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
             notice={disconnectTimeLeft !== null ? (matchText(lang, '再接続を待っています… ', 'Waiting for reconnection… ')) + disconnectTimeLeft + 's' : errorMsg || undefined}
             
             board={is2DView ? (
-                    <Board2D quietLayout boardDesign={boardDesign} boardFinish={boardFinish} hintMove={hintMove} autoRotate={false}
+                    <Board2D lang={lang} quietLayout boardDesign={boardDesign} boardFinish={boardFinish} hintMove={hintMove} autoRotate={false}
                     tokens={tokens}
                     onlineRole={onlineRole}
                     selectedTokenId={selectedTokenId}

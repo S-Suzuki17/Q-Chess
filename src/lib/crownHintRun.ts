@@ -17,6 +17,12 @@ export type CrownRunSnapshot = CrownRunSettings & {
 };
 
 const receiptClocks = new WeakMap<CrownRunSnapshot, { receivedAt: number; serverNowAtReceipt: number }>();
+const runOwners = new Map<string, symbol>();
+const validSettings = (value: unknown): value is CrownRunSettings => {
+    const run = value as CrownRunSettings;
+    return !!run && isUuid(run.runId) && Number.isInteger(run.stageId) && run.stageId >= 1 && run.stageId <= 100
+        && ['white', 'black'].includes(run.playerSide);
+};
 export function crownRunClocks(run: CrownRunSnapshot, now = performance.now()) {
     const received = receiptClocks.get(run);
     const serverNow = received ? received.serverNowAtReceipt + Math.max(0, now - received.receivedAt) : run.serverNow;
@@ -28,11 +34,39 @@ export function crownRunClocks(run: CrownRunSnapshot, now = performance.now()) {
 /** The registry validates actual moves from the existing Crown CPU worker. */
 export class CrownHintRunClient {
     private readonly storage?: HintStorage;
+    private attemptedOpen = false;
+    private latestSnapshot?: CrownRunSnapshot;
     constructor(readonly userId: string, readonly settings: CrownRunSettings,
         private readonly send: HintRequest = requestHintApi, storage?: HintStorage) {
-        if (!isUuid(settings.runId) || !Number.isInteger(settings.stageId) || settings.stageId < 1 || settings.stageId > 100
-            || !['white', 'black'].includes(settings.playerSide)) throw new PaidHintError('INVALID_REQUEST');
+        if (!validSettings(settings)) throw new PaidHintError('INVALID_REQUEST');
         try { this.storage = storage ?? (typeof window === 'undefined' ? undefined : window.localStorage); } catch {}
+    }
+    private get closeKey() { return `qg_crown_close_v1:${encodeURIComponent(this.userId)}`; }
+    private pendingCloses(): CrownRunSettings[] {
+        try {
+            const saved = this.storage?.getItem(this.closeKey);
+            if (saved === null || saved === undefined) return [];
+            const pending: unknown = JSON.parse(saved);
+            if (!Array.isArray(pending) || !pending.every(validSettings)
+                || new Set(pending.map(run => run.runId)).size !== pending.length) throw new Error('invalid queue');
+            return pending;
+        } catch { throw new PaidHintError('REQUEST_STORAGE_UNAVAILABLE'); }
+    }
+    /** A lease fences React effect replay and a replacement owner of this same
+     * run. A different run/user is never closed by an old component cleanup. */
+    retain() {
+        const key = `${this.userId}:${this.settings.runId}`, owner = Symbol();
+        runOwners.set(key, owner);
+        const close = async () => {
+            if (runOwners.get(key) !== owner) return;
+            runOwners.delete(key);
+            if (this.attemptedOpen) await this.close();
+        };
+        return { close, release: async () => {
+            // StrictMode remount acquires its lease before this microtask runs.
+            await Promise.resolve();
+            await close();
+        } };
     }
     private save(key: string, value: string) {
         try {
@@ -62,14 +96,34 @@ export class CrownHintRunClient {
         return run;
     }
     private async load(path: string, body: unknown | undefined, signal?: AbortSignal) {
+        signal?.throwIfAborted();
         const start=performance.now(), value=await this.send(this.userId,path,body,signal), receivedAt=performance.now();
-        const run=this.snapshot(value);
+        signal?.throwIfAborted();
+        const run=this.snapshot(value), latest=this.latestSnapshot;
+        if (latest && run.hintContextId === latest.hintContextId) {
+            const statusRank = { active: 0, finished: 1, closed: 2 };
+            if (run.revision < latest.revision || (run.revision === latest.revision
+                && (statusRank[run.status] < statusRank[latest.status] || run.serverNow < latest.serverNow))) {
+                // A foreground read can finish after an accepted move. Reuse the
+                // exact snapshot, including its original monotonic clock receipt.
+                return latest;
+            }
+        }
+        this.latestSnapshot = run;
         // Estimate server time at the request midpoint, independently of device clock skew.
         receiptClocks.set(run,{receivedAt,serverNowAtReceipt:run.serverNow+Math.max(0,receivedAt-start)/2});
         return run;
     }
     async open(signal?: AbortSignal) {
+        signal?.throwIfAborted();
+        // Reconcile only explicitly abandoned intents. Never close an unrelated
+        // active run merely because the server returned ACCOUNT_BUSY.
+        for (const settings of this.pendingCloses()) {
+            await new CrownHintRunClient(this.userId, settings, this.send, this.storage).finishClose(signal);
+        }
+        signal?.throwIfAborted();
         this.save(`qg_crown_run_v1:${this.userId}:${this.settings.runId}`, JSON.stringify(this.settings));
+        this.attemptedOpen = true;
         return this.load('/crown-hints/runs', this.settings, signal);
     }
     async read(signal?: AbortSignal) {
@@ -80,7 +134,37 @@ export class CrownHintRunClient {
         return this.load(`/crown-hints/runs/${this.settings.runId}/moves`, body, signal);
     }
     async close() {
-        return this.load(`/crown-hints/runs/${this.settings.runId}/close`, {});
+        const pending = this.pendingCloses(), prior = pending.find(run => run.runId === this.settings.runId);
+        if (prior && (prior.stageId !== this.settings.stageId || prior.playerSide !== this.settings.playerSide)) {
+            throw new PaidHintError('REQUEST_STORAGE_UNAVAILABLE');
+        }
+        if (!prior) this.save(this.closeKey, JSON.stringify([...pending, this.settings]));
+        return this.finishClose();
+    }
+    private async finishClose(signal?: AbortSignal) {
+        const path = `/crown-hints/runs/${this.settings.runId}/close`;
+        let closed: CrownRunSnapshot;
+        try { closed = await this.load(path, {}, signal); }
+        catch (error) {
+            if (!(error instanceof PaidHintError) || error.code !== 'SESSION_NOT_FOUND') throw error;
+            // Close may overtake an unacknowledged open. Materialize that exact
+            // idempotent intent before closing it, so a late open sees finished.
+            // These endpoints create no purchase or stage-admission grant.
+            try { await this.load('/crown-hints/runs', this.settings, signal); }
+            catch (denial) {
+                // Absence for this owner followed by an explicit intent mismatch
+                // means this intent cannot own the run. Do not close a different
+                // owner's run or permanently block this user's next entry.
+                // Ambiguous transport/auth failures must keep the saved intent.
+                if (!(denial instanceof PaidHintError) || denial.code !== 'REQUEST_MISMATCH') throw denial;
+                this.save(this.closeKey, JSON.stringify(this.pendingCloses().filter(run => run.runId !== this.settings.runId)));
+                return null;
+            }
+            closed = await this.load(path, {}, signal);
+        }
+        if (closed.status === 'active') throw new PaidHintError('HINT_RESPONSE_INVALID');
+        this.save(this.closeKey, JSON.stringify(this.pendingCloses().filter(run => run.runId !== this.settings.runId)));
+        return closed;
     }
 }
 

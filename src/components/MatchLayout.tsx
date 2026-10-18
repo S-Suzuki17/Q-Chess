@@ -1,9 +1,12 @@
 'use client';
+import {useAndroidBackHandler} from '../hooks/useAndroidBack';
+
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { AccountAvatar } from './AccountAvatar';
 import { Settings2, HelpCircle, Flag, X } from 'lucide-react';
 import type { Token } from '../lib/GameEngine';
+import {hasVictoryPresentation} from '../lib/checkmatePresentation';
 import type { PieceType } from '../config/gameConfig';
 import type { MoveRecord } from '../lib/gameRecordService';
 import type { HintMove } from './boardPresentation';
@@ -48,10 +51,43 @@ interface Props {
 export function MatchLayout(props: Props) {
     const [expanded, setExpanded] = useState(false);
     const layout = useRef<HTMLElement>(null), footer = useRef<HTMLElement>(null);
+    const details = useRef<HTMLDivElement>(null), detailsToggle = useRef<HTMLButtonElement>(null);
+    const detailsReturnScroll = useRef(0);
     useEffect(() => {
-        if (!footer.current || typeof ResizeObserver === 'undefined') return;
-        const update = () => layout.current?.style.setProperty('--match-footer-height', `${footer.current?.getBoundingClientRect().height ?? 128}px`);
-        const observer = new ResizeObserver(update);observer.observe(footer.current);update();
+        if (!expanded || !window.matchMedia('(max-width:999px)').matches) return;
+        details.current?.focus({preventScroll:true});
+        details.current?.scrollIntoView({block:'start', behavior:'instant'});
+    }, [expanded]);
+    function closeDetails() {
+        setExpanded(false);
+        detailsToggle.current?.focus({preventScroll:true});
+        layout.current?.scrollTo({top:detailsReturnScroll.current, behavior:'instant'});
+    }
+    useAndroidBackHandler(()=>{if(!expanded)return false;closeDetails();return true;},30);
+    function toggleDetails() {
+        if (expanded) return closeDetails();
+        detailsReturnScroll.current = layout.current?.scrollTop ?? 0;
+        setExpanded(true);
+    }
+    useEffect(() => {
+        const root = layout.current;
+        if (!root || !footer.current || typeof ResizeObserver === 'undefined') return;
+        const header = root.querySelector<HTMLElement>('.match-header');
+        const main = root.querySelector<HTMLElement>('.match-main');
+        const advice = root.querySelector<HTMLElement>('.match-advice');
+        const players = Array.from(root.querySelectorAll<HTMLElement>('.match-player'));
+        const update = () => {
+            root.style.setProperty('--match-footer-height', `${footer.current?.getBoundingClientRect().height ?? 128}px`);
+            const adviceHeight = advice?.childElementCount ? advice.getBoundingClientRect().height : 0;
+            const gaps = 2 * (parseFloat(getComputedStyle(root).rowGap) || 0)
+                + (adviceHeight ? 3 : 2) * (main ? parseFloat(getComputedStyle(main).rowGap) || 0 : 0);
+            const chrome = (header?.getBoundingClientRect().height ?? 0)
+                + players.reduce((height, player) => height + player.getBoundingClientRect().height, 0) + adviceHeight + gaps;
+            root.style.setProperty('--match-mobile-chrome', `${chrome}px`);
+        };
+        const observer = new ResizeObserver(update);
+        for (const element of [footer.current, header, advice, ...players]) if (element) observer.observe(element);
+        update();
         return () => observer.disconnect();
     }, []);
     const label = (jp: string, en: string) => matchText(props.lang, jp, en);
@@ -91,7 +127,7 @@ export function MatchLayout(props: Props) {
                 </span>
             </div>
             {player.emote && <span className="match-emote">{player.emote}</span>}
-            <div className="match-captured-list" data-captured-by={side} aria-label={label('獲得した駒', 'Captured pieces')}>
+            <div className="match-captured-list" data-captured-by={side} data-empty={captured.length === 0} aria-label={label('獲得した駒', 'Captured pieces')}>
                 <span className="captured-heading">{label('獲得した駒', 'Captured pieces')} <b>{captured.length}</b></span>
                 <div className="captured-inline">
                     {captured.length ? <ul>{captured.map(token => {
@@ -107,7 +143,7 @@ export function MatchLayout(props: Props) {
         </section>;
     }
 
-    return <section ref={layout} className="match-layout" data-layout="strategy-studio-v2" aria-label={label('Q-GAMBIT 対局画面', 'Q-GAMBIT match')}>
+    return <section ref={layout} lang={props.lang} className="match-layout" data-layout="strategy-studio-v2" aria-label={label('Q-GAMBIT 対局画面', 'Q-GAMBIT match')}>
         {props.victory && props.victoryEffect && <VictoryCelebration effect={props.victoryEffect} checkmate={!!props.checkmate}/>}
         <header className="match-header">
             <button className="match-brand" onClick={props.onHome} aria-label={label('ホームに戻る', 'Return home')}><span>Q</span><strong>GAMBIT</strong></button>
@@ -121,12 +157,15 @@ export function MatchLayout(props: Props) {
             </nav>
             <button className="match-button header-help" onClick={props.onRules}><HelpCircle size={16}/>{label('ルール', 'Rules')}</button>
             <button className="match-button" onClick={() => window.dispatchEvent(new CustomEvent('qg-open-settings'))} aria-label={label('設定', 'Settings')}><Settings2 size={17}/><span className="desktop-label">{label('設定', 'Settings')}</span></button>
+            <p className="match-mobile-instruction" role="status" aria-live="polite" aria-atomic="true">
+                {selected && <strong>{square(selected.row, selected.col)} · </strong>}{instruction}
+            </p>
         </header>
 
         <main className={`match-main ${hasAdvice ? 'has-advice' : ''}`}>
             {playerBar(topSide)}
             <div className={`match-board-area ${props.checkmate ? 'is-checkmate' : ''}`} data-testid="match-board">{props.board}{props.boardArrival}
-                {props.checkmate && !props.resultVisible && !(props.victory && props.victoryEffect?.startsWith('champion-effect-')) && <div className="checkmate-celebration" role="status" data-testid="checkmate-celebration">
+                {props.checkmate && !props.resultVisible && !(props.victory && hasVictoryPresentation(props.victoryEffect)) && <div className="checkmate-celebration" role="status" data-testid="checkmate-celebration">
                     <span aria-hidden="true">♔</span><strong>{label('チェックメイト！','Checkmate!')}</strong>
                 </div>}
                 {props.checkNotice && !props.finished && <div className="match-check-warning" key={props.checkEvent} role="status" data-testid="check-warning">{props.checkNotice}</div>}
@@ -175,7 +214,9 @@ export function MatchLayout(props: Props) {
                 </div>
             </QubeTeacher>}
             {props.hintError&&!hasAdvice&&<QubeTeacher lang={teacherLang} variant="compact" className="match-panel"><p role="alert">{props.hintError}</p></QubeTeacher>}
-            <div className={`match-secondary ${expanded ? 'expanded' : ''}`} id="match-detail-panels">
+            <div ref={details} className={`match-secondary ${expanded ? 'expanded' : ''}`} id="match-detail-panels"
+                role="region" aria-label={label('棋譜・正体', 'Details')} tabIndex={-1}
+                onKeyDown={event => { if (expanded && event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); closeDetails(); } }}>
                 <section className="match-panel match-pool">
                     <h2>{label('まだ確定していない正体', 'Unresolved identities')}</h2>
                     <div className="pool-grid"><span/>{SYMBOLS.map((symbol,i)=><span key={i} aria-label={label(NAMES[i], TYPES[i])}>{symbol}</span>)}
@@ -205,7 +246,9 @@ export function MatchLayout(props: Props) {
                 {hintPending ? hintText.thinking : props.hintAccess==='ticket' ? hintText.ticket : hintText.free}
             </button>}
             {props.onRecoverHint&&<button className="match-button match-hint-recovery" disabled={!!props.hintPending} onClick={props.onRecoverHint}>{hintText.recover}</button>}
-            <button className="match-button mobile-details" onClick={()=>setExpanded(!expanded)} aria-expanded={expanded} aria-controls="match-detail-panels">{label(expanded ? '閉じる' : '棋譜・正体', expanded ? 'Close' : 'Details')}</button>
+            <button ref={detailsToggle} className="match-button mobile-details" onClick={toggleDetails}
+                onKeyDown={event => { if (expanded && event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); closeDetails(); } }}
+                aria-expanded={expanded} aria-controls="match-detail-panels">{label(expanded ? '閉じる' : '棋譜・正体', expanded ? 'Close' : 'Details')}</button>
             <button className="match-button mobile-rules" onClick={props.onRules}>{label('ルール', 'Rules')}</button>
             {!props.finished && !props.spectator && <button className="match-button match-resign" onClick={props.onResign}><Flag size={14}/>{label('リザイン', 'Resign')}</button>}
         </footer>

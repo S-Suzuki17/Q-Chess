@@ -252,7 +252,7 @@ describe('absolute expiry between queue admission and game start',()=>{
     });
     it('cancels a private room before start when its waiting host expires, without creating a game or forfeit',()=>{
         const {mm,register}=fixture();register('host');register('joiner');let expired=false;mm.canAdmitPlayer=id=>id!=='host'||!expired;
-        mm.connectMatch('host','private-room');expired=true;mm.connectMatch('joiner','private-room');
+        mm.reserveMatch('host','private-room',undefined,{intent:'create',timeControl:600});mm.connectMatch('host','private-room');expired=true;mm.reserveMatch('joiner','private-room',undefined,{intent:'join'});mm.connectMatch('joiner','private-room');
         expect(mm.getMatch('private-room')?.state).toBe('CANCELLED');expect(mm.getMatch('private-room')?.engine).toBeUndefined();
     });
     it('requests the existing ranked void path if proof expires during durable admission',()=>{

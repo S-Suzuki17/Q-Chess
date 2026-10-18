@@ -1,9 +1,13 @@
 'use client';
+import {useAndroidBackHandler} from '../hooks/useAndroidBack';
+
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { matchText } from '../locales/matchText';
 import { forgetActiveOnlineMatch } from '../lib/activeOnlineMatchCache';
 import { queueFailureCode } from '../lib/rankedProtocol';
+import { privateRoomConnection, privateRoomReady, matchTimeControl } from '../lib/privateRoom';
+import { gameOverDialogDelay } from '../lib/checkmatePresentation';
 import { rankedStartText, rankedStartDiagnostic, rankedStartRecoveryText } from '../locales/rankedStartText';
 import { serviceText } from '../locales/serviceText';
 import { useBoardPreferences } from '../hooks/useBoardPreferences';
@@ -25,6 +29,7 @@ import { Board3D } from './Board3D';
 import { MatchResultDialog } from './MatchResultDialog';
 import { MatchIntro } from './MatchIntro';
 import { MatchLayout } from './MatchLayout';
+import { OnlineMatchWaiting } from './OnlineMatchWaiting';
 import { Board2D } from './Board2D';
 import { PieceType } from '../config/gameConfig';
 import { v4 as uuidv4 } from 'uuid';
@@ -43,6 +48,8 @@ import { soundManager } from '../lib/SoundService';
 import { acceptsOnlineSnapshot, isNewOnlineMove } from '../lib/onlineSnapshot';
 import { reconnectDeadline, reconnectSecondsLeft } from '../lib/reconnectCountdown';
 import { recordMatchCompleted, recordMatchStarted } from '../lib/engagementMetrics';
+import { onlineMatchStats } from '../lib/playGameStatsMatch';
+import { usePlayGameStatsMatch } from '../hooks/usePlayGameStatsMatch';
 
 export type EmoteType = 'hello' | 'well_played' | 'wow' | 'thinking' | 'resign';
 export const EMOTES: Record<EmoteType, { emoji: string; labelJa: string; labelEn: string }> = {
@@ -60,6 +67,7 @@ interface OnlineGameBoardProps {
     onlineRole?: 'white' | 'black' | 'spectator';
     matchMode?: 'random' | 'private' | 'ranked';
     opponentId?: string;
+    privateRoomIntent?: 'create' | 'join' | 'reconnect';
     timeControl?: TimeControl;
     onHome?: () => void;
 }
@@ -76,7 +84,7 @@ const mapPossibility = (p: string): PieceType => {
     }
 };
 
-export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initialOnlineRole, matchMode, opponentId, timeControl = '10m', onHome }: OnlineGameBoardProps) {
+export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initialOnlineRole, matchMode, opponentId, privateRoomIntent, timeControl = '10m', onHome }: OnlineGameBoardProps) {
     const t = { ...dict['en'], ...(dict[lang] || {}) } as any;
     const { socket, isConnected, connectionError } = useSocket();
     const prevGameStateRef = useRef<any>(null);
@@ -85,6 +93,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
     const recoveryText = rankedRecoveryText(lang);
 
     const [gameState, setGameState] = useState<any>(null);
+    const acceptedPrivateRoom = useRef<string|null>(null);
     const [startFailure, setStartFailure] = useState<{ roomId: string; socket: NonNullable<typeof socket>; code: string } | null>(null);
     const [connectAttempt, setConnectAttempt] = useState(0);
     const startError = startFailure && startFailure.roomId === roomId && startFailure.socket === socket ? startFailure.code : null;
@@ -93,6 +102,9 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
     const [showRankedLogin,setShowRankedLogin]=useState(false);
     const [cancelledMatch,setCancelledMatch]=useState<string|null>(null);
     const [cancelledReason,setCancelledReason]=useState<string|null>(null);
+    const [privateRoom, setPrivateRoom] = useState<{matchId:string;timeControl:number}|null>(null);
+    const effectiveTimeControl = matchTimeControl(gameState?.clock?.timeControl,
+        matchTimeControl(privateRoom&&privateRoom.matchId===roomId ? privateRoom.timeControl*1000 : undefined,timeControl));
     const cpu=cpuOpponent(gameState?.cpu);
     useEffect(()=>{
         if(!socket)return;
@@ -123,7 +135,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
     const [ratings,setRatings]=useState<Record<string,number>>({});
     const [ratingLookupKey,setRatingLookupKey]=useState('');
     const hostId=gameState?.players?.host as string|undefined,joinerId=gameState?.players?.joiner as string|undefined;
-    const ratingKey=JSON.stringify([roomId,timeControl,hostId,joinerId]);
+    const ratingKey=JSON.stringify([roomId,effectiveTimeControl,hostId,joinerId]);
     const ratingsReady=gameState?.playerRatings!==undefined||ratingLookupKey===ratingKey||![hostId,joinerId].some(isRatedPlayer);
     const whiteRating=cpu?.side==='host'?null:openingRating(hostId,gameState?.playerRatings?.host,ratingLookupKey===ratingKey?ratings[hostId??'']:undefined);
     const blackRating=cpu?.side==='joiner'?null:openingRating(joinerId,gameState?.playerRatings?.joiner,ratingLookupKey===ratingKey?ratings[joinerId??'']:undefined);
@@ -222,7 +234,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
         if (gameState?.gameOver) {
             const result=typeof gameState.gameOver==='object'?gameState.gameOver.winner:gameState.gameOver;
             const won=(onlineRole==='white'&&result==='WHITE')||(onlineRole==='black'&&result==='BLACK');
-            const timer = setTimeout(() => setShowGameOver(true), won && victoryEffect.startsWith('champion-effect-') ? 3200 : 1500);
+            const timer = setTimeout(() => setShowGameOver(true), gameOverDialogDelay(victoryEffect,won));
             return () => clearTimeout(timer);
         } else {
             setShowGameOver(false);
@@ -282,7 +294,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
         let cancelled=false;
         const ids=[hostId,joinerId].filter(isRatedPlayer);
         if(!ids.length)return;
-        const column=timeControl==='10s'?'rating_10s':timeControl==='3m'?'rating_3m':'rating_10m';
+        const column=effectiveTimeControl==='10s'?'rating_10s':effectiveTimeControl==='3m'?'rating_3m':'rating_10m';
         const controller=new AbortController();
         const timeout=setTimeout(()=>controller.abort(),2500);
         void (async()=>{
@@ -303,7 +315,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
             }
         })();
         return()=>{cancelled=true;clearTimeout(timeout);controller.abort();};
-    },[hostId,joinerId,user?.id,timeControl,ratingKey]);
+    },[hostId,joinerId,user?.id,effectiveTimeControl,ratingKey]);
 
     // Connect & Sync on mount or reconnection
     useEffect(() => {
@@ -311,11 +323,18 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
 
         const syncMatch = () => {
             setStartFailure(null);
-            console.log('[OnlineGameBoard] Connecting/Syncing match:', roomId, 'User:', user?.name);
-            socket.emit('connect_match', { matchId: roomId, userName: user?.name, avatarUrl: user?.avatar_url,avatarFrame,introVersion:1 });
+            if(initialOnlineRole!=='spectator')socket.emit('connect_match', { matchId: roomId, userName: user?.name, avatarUrl: user?.avatar_url,avatarFrame,introVersion:1,
+                ...(matchMode==='private'?{privateRoom:privateRoomConnection(privateRoomIntent,timeControl,acceptedPrivateRoom.current===roomId)}:{}) });
             socket.emit('request_sync', { matchId: roomId });
         };
 
+        const onPrivateRoomReady = (data: unknown) => {
+            const ready=privateRoomReady(data,roomId);
+            if(!ready)return;
+            acceptedPrivateRoom.current=roomId;
+            setPrivateRoom(ready);
+            setStartFailure(null);
+        };
         const onSyncState = (state: any) => {
             if (!acceptsOnlineSnapshot(roomId, prevGameStateRef.current, state)) return;
             if (isNewOnlineMove(prevGameStateRef.current, state)) playMoveSound();
@@ -386,6 +405,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
             }
         };
 
+        socket.on('private_room_ready', onPrivateRoomReady);
         socket.on('queue_error', onQueueError);
         socket.on('match_start', onSyncState);
         socket.on('sync_state', onSyncState);
@@ -398,6 +418,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
         if (isConnected) syncMatch();
 
         return () => {
+            socket.off('private_room_ready', onPrivateRoomReady);
             socket.off('queue_error', onQueueError);
             socket.off('match_start', onSyncState);
             socket.off('sync_state', onSyncState);
@@ -411,7 +432,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
                 disconnectTimerRef.current = null;
             }
         };
-    }, [socket, roomId, isConnected, user?.name, user?.avatar_url, avatarFrame, playMoveSound, triggerEmote, connectAttempt]);
+    }, [socket, roomId, isConnected, user?.name, user?.avatar_url, avatarFrame, playMoveSound, triggerEmote, connectAttempt, privateRoomIntent, timeControl, matchMode, initialOnlineRole]);
 
     // Timer sync
     useEffect(() => {
@@ -601,10 +622,16 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
     // Private engines retain legacy random display metadata; purchases use the original mode.
     const originalMode=matchMode??(gameState?.mode==='ranked'||gameState?.mode==='random'||gameState?.mode==='private'
         ? gameState.mode as MatchHintContext['mode'] : undefined);
-    const paidHintContext=useMemo<MatchHintContext|null>(()=>roomId&&originalMode&&isUuid(gameState?.hintContextId)
-        ? {kind:'match',mode:originalMode,matchId:roomId,contextId:gameState.hintContextId,rulesVersion:'match-hint-v1'} : null,
-        [roomId,originalMode,gameState?.hintContextId]);
+    const hintContextId=gameState?.hintContextId;
+    const paidHintContext=useMemo<MatchHintContext|null>(()=>roomId&&originalMode&&isUuid(hintContextId)
+        ? {kind:'match',mode:originalMode,matchId:roomId,contextId:hintContextId,rulesVersion:'match-hint-v1'} : null,
+        [roomId,originalMode,hintContextId]);
     const verifiedParticipant=!!user?.id&&(hostId===user.id||joinerId===user.id);
+    const gameStats = onlineMatchStats({
+        roomId, userId: user?.id, role: onlineRole, cancelled: cancelledMatch === roomId,
+        mode: originalMode, timeControl: effectiveTimeControl, snapshot: gameState,
+    });
+    usePlayGameStatsMatch(gameStats);
     const hintEligible=canRequestHint({ready:!!gameState&&!preparation&&matchReady&&!gameState.introPending&&isConnected
         &&cancelledMatch!==roomId&&verifiedParticipant&&!!paidHintContext&&PAID_HINTS_ENABLED,
         finished:!!winner,spectator:onlineRole==='spectator',playerSide:bottomPlayer,currentTurn});
@@ -677,6 +704,20 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
         {showRankedLogin&&<RankedLoginDialog lang={lang} userId={user.id} onCancel={()=>setShowRankedLogin(false)} onVerified={()=>setShowRankedLogin(false)}/>}
     </div>:null;
 
+    useAndroidBackHandler(()=>{
+        if(showHomeConfirm)setShowHomeConfirm(false);
+        else if(showResignConfirm)setShowResignConfirm(false);
+        else if(showRankedLogin)setShowRankedLogin(false);
+        else if(showRules)setShowRules(false);
+        else if(promotionPending)setPromotionPending(null);
+        else return false;
+        return true;
+    },40);
+    useAndroidBackHandler(()=>{
+        if(!gameState||preparation||cancelledMatch===roomId){admissionChoice.cancel();onHome?.();}
+        else setShowHomeConfirm(true);
+        return true;
+    },20);
     const savedRecovery=user?.type==='registered'&&roomId&&matchMode
         ?<SavedMatchHintRecovery userId={user.id} lang={lang} matchId={roomId} mode={matchMode}/>:null;
     if (cancelledMatch===roomId && settledRating?.matchId!==roomId) return <div><RankedCancellationNotice
@@ -704,20 +745,11 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
     </div>;
     if (!gameState || preparation) {
         return (
-            <div className="flex flex-col items-center justify-center p-12 bg-black/60 border border-cyan-900/50 rounded-xl max-w-lg w-full">
-                <div className="w-12 h-12 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin mb-4" />
-                <p role="status" className="text-cyan-400 font-mono tracking-widest text-sm animate-pulse">
-                    {preparation ? recoveryText[preparation] : matchText(lang, 'サーバーと対局データを同期中...', 'CONNECTING TO GAME SERVER...')}
-                </p>
+            <OnlineMatchWaiting key={roomId??'pending'} lang={lang} mode={matchMode} connected={isConnected} preparation={preparation}
+                onHome={()=>{admissionChoice.cancel();(onHome || (() => window.location.reload()))();}}>
                 {loginPrompt}
                 {savedRecovery}
-                <button 
-                    onClick={()=>{admissionChoice.cancel();(onHome || (() => window.location.reload()))();}}
-                    className="mt-6 px-4 py-2 bg-gray-900 border border-[#A89C86]/30 rounded text-xs text-gray-400 hover:text-[#E8E2D7] transition-colors"
-                >
-                    {t.home}
-                </button>
-            </div>
+            </OnlineMatchWaiting>
         );
     }
 
@@ -741,7 +773,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
             showMoveHints={showMoveHints} onHintsChange={setShowMoveHints}
             notice={!matchReady ? t.adCloudTitle : disconnectTimeLeft !== null ? (matchText(lang, '再接続を待っています… ', 'Waiting for reconnection… ')) + disconnectTimeLeft + 's' : errorMsg || undefined}
             board={is2DView ? (
-                    <Board2D quietLayout boardDesign={boardDesign} boardFinish={boardFinish} hintMove={hintMove}
+                    <Board2D lang={lang} quietLayout boardDesign={boardDesign} boardFinish={boardFinish} hintMove={hintMove}
                     tokens={tokens}
                     isFlipped={isFlipped}
                     onlineRole={onlineRole}
@@ -771,7 +803,7 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
                 )}
         >
             {loginPrompt}
-            {introDuration>0&&<MatchIntro lang={lang} label={timeControl==='10s'?t.tc10s:timeControl==='3m'?t.tc3m:t.tc10m} duration={introDuration} onDone={finishIntro}
+            {introDuration>0&&<MatchIntro lang={lang} label={effectiveTimeControl==='10s'?t.tc10s:effectiveTimeControl==='3m'?t.tc3m:t.tc10m} duration={introDuration} onDone={finishIntro}
                 white={{name:whiteName,avatar:isHost?user?.avatar_url||hostAvatarUrl:hostAvatarUrl,frame:isHost?avatarFrame:gameState.playerFrames?.host,rating:whiteRating,detail:cpu?.side==='host'?`${rankedText(lang,'cpu')} · ${Math.floor(cpu.rating)}`:undefined,artwork:cpu?.side==='host'&&npcEnemy?<CrownEnemyPortrait enemy={npcEnemy} player="white"/>:undefined}}
                 black={{name:blackName,avatar:onlineRole==='black'?user?.avatar_url||joinerAvatarUrl:joinerAvatarUrl,frame:onlineRole==='black'?avatarFrame:gameState.playerFrames?.joiner,rating:blackRating,detail:cpu?.side==='joiner'?`${rankedText(lang,'cpu')} · ${Math.floor(cpu.rating)}`:undefined,artwork:cpu?.side==='joiner'&&npcEnemy?<CrownEnemyPortrait enemy={npcEnemy} player="black"/>:undefined}}/>}
             {winner && showGameOver && (

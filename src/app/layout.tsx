@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono, Playfair_Display, Cinzel } from "next/font/google";
+import { Geist, Geist_Mono, Playfair_Display, Cinzel, Noto_Sans_Devanagari, Noto_Sans_Tamil } from "next/font/google";
 import { ANDROID_BUILD } from '../config/appPlatform';
 import "./globals.css";
 
@@ -22,6 +22,14 @@ const cinzel = Cinzel({
   variable: "--font-cinzel",
   subsets: ["latin"],
   weight: ["400", "600", "700", "800", "900"],
+});
+
+// Self-host script coverage so Hindi/Tamil do not depend on OS-installed fonts.
+const notoDevanagari = Noto_Sans_Devanagari({
+  variable: "--font-noto-devanagari", subsets: ["devanagari"], display: "swap",
+});
+const notoTamil = Noto_Sans_Tamil({
+  variable: "--font-noto-tamil", subsets: ["tamil"], display: "swap",
 });
 
 export const viewport: Viewport = {
@@ -91,7 +99,7 @@ export default function RootLayout({
   return (
     <html
       lang="ja"
-      className={`${geistSans.variable} ${geistMono.variable} ${playfair.variable} ${cinzel.variable} h-full antialiased overflow-x-hidden`}
+      className={`${geistSans.variable} ${geistMono.variable} ${playfair.variable} ${cinzel.variable} ${notoDevanagari.variable} ${notoTamil.variable} h-full antialiased overflow-x-hidden`}
     >
       <body className="h-full bg-[#11100E] text-[#E8E2D7] selection:bg-[#B39A62]/30 font-sans overflow-x-hidden">
         <main className="h-full">{children}</main>

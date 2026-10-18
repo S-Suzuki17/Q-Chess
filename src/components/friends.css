@@ -15,15 +15,15 @@
 .friend-card,.friend-request{padding:16px;border:1px solid #40382c;border-radius:9px;background:linear-gradient(120deg,#201e19,#191815);margin-top:10px;min-width:0}
 .friend-identity{display:flex;align-items:center;gap:12px;margin-bottom:16px}
 .friend-identity>div{min-width:0;flex:1}
-.friend-identity strong,.friend-request strong{display:block;font-size:15px;overflow-wrap:anywhere}
-.friend-identity small{display:block;font-size:10px;color:#b4aa96;overflow-wrap:anywhere;margin-top:4px}
+.friend-identity strong,.friend-request strong{display:block;font-size:15px;overflow-wrap:break-word}
+.friend-identity small{display:block;font-size:10px;color:#b4aa96;overflow-wrap:break-word;margin-top:4px}
 .friend-avatar{display:grid;place-items:center;flex:none;width:40px;height:40px;border:1px solid #8b7751;border-radius:50%;background:#302b21;color:#e4c889;font:20px Georgia,serif}
 .friend-online,.friend-offline{display:inline-block;width:6px;height:6px;border-radius:50%;background:#73b190}
 .friend-offline{background:#77756c}
 .friend-ratings{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border-top:1px solid #40382c;border-bottom:1px solid #40382c;padding:12px 0;gap:6px}
 .friend-ratings>div+div{border-left:1px solid #40382c}
 .friend-ratings>div{text-align:center;min-width:0}
-.friend-ratings dt{font-size:11px;overflow-wrap:anywhere}
+.friend-ratings dt{font-size:11px;overflow-wrap:break-word}
 .friend-ratings dd{font:500 21px/1.4 ui-monospace,monospace;font-variant-numeric:tabular-nums;color:#e1c88e;margin-top:4px}
 .friends-panel .friend-remove{display:block;margin:8px 0 -8px auto;background:transparent;border-color:transparent;color:#b6ac99}
 .friend-request{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px}

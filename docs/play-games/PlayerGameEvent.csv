@@ -1,0 +1,9 @@
+Event Name,Property Name,Property Type
+matchCompleted,gameMode,STRING
+matchCompleted,timeControl,STRING
+matchCompleted,isWinner,BOOL
+matchCompleted,isDraw,BOOL
+matchCompleted,playerMoves,INT64
+matchCompleted,piecesCaptured,INT64
+matchCompleted,isCheckmateWin,BOOL
+progressUpdate,currentProgress,INT64

@@ -1,12 +1,17 @@
-import React from 'react';
+import React, { useRef, useState } from 'react';
 import { QuantumPieceUI } from './QuantumPieceUI';
 import { Token } from '../lib/GameEngine';
 import { PieceType } from '../config/gameConfig';
 import type { MoveRecord } from '../lib/gameRecordService';
 import { HintArrow2D } from './HintArrow2D';
 import { rewardBoard, type BoardFinish } from '../config/campaign';
+import { nextBoardFocus } from './boardKeyboard';
+import { matchText } from '../locales/matchText';
+
+const PIECE_NAMES: Record<PieceType, string> = {King:'キング', Queen:'クイーン', Rook:'ルーク', Bishop:'ビショップ', Knight:'ナイト', Pawn:'ポーン'};
 
 export interface Board2DProps {
+    lang?: string;
     boardFinish?:BoardFinish;
     quietLayout?: boolean;
     autoRotate?: boolean;
@@ -27,6 +32,7 @@ export interface Board2DProps {
 }
 
 export function Board2D({ 
+    lang = 'en',
     quietLayout = false,
     isFlipped: flipped,
     onlineRole,
@@ -44,6 +50,8 @@ export function Board2D({
     hintMove
 }: Board2DProps) {
     const isFlipped = flipped ?? (onlineRole === 'black');
+    const [focusedSquare, setFocusedSquare] = useState(() => isFlipped ? 7 : 56);
+    const squares = useRef<Array<HTMLDivElement | null>>([]);
     const selectedToken = tokens.find(t => !t.isCaptured && t.id === selectedTokenId);
     const isEnemySelected = selectedToken ? selectedToken.player !== (onlineRole && onlineRole !== 'spectator' ? onlineRole : currentTurn) : false;
     const renderMoves = showMoveHints ? validMoves : [];
@@ -74,6 +82,14 @@ export function Board2D({
                     const isLastMove = lastMove && ((lastMove.from[0] === row && lastMove.from[1] === col) || (lastMove.to[0] === row && lastMove.to[1] === col));
                     const isSelectedSquare = selectedToken?.row === row && selectedToken?.col === col;
                     const occupant = tokens.find(token => !token.isCaptured && token.row === row && token.col === col);
+                    const possibleTypes = occupant?.promotedTo ? [occupant.promotedTo] : occupant
+                        ? (Object.keys(occupant.probabilities) as PieceType[]).filter(type => candidatesMap?.get(occupant.id)?.has(type) ?? occupant.probabilities[type] > 0) : [];
+                    const squareLabel = [
+                        `${String.fromCharCode(97 + col)}${8 - row}`,
+                        occupant && matchText(lang, occupant.player === 'white' ? '白' : '黒', occupant.player === 'white' ? 'White' : 'Black'),
+                        possibleTypes.map(type => matchText(lang, PIECE_NAMES[type], type)).join(' / '),
+                        isMoveCandidate && matchText(lang, '移動先', 'Move to'),
+                    ].filter(Boolean).join(' · ');
 
                     let bgClass = quietLayout
                         ? (isDark ? 'bg-[#343c30]' : 'bg-[#737c65]')
@@ -86,16 +102,29 @@ export function Board2D({
                     return (
                         <div 
                             key={i} 
+                            ref={element => { squares.current[i] = element; }}
                             style={finish ? {backgroundColor:isDark ? finish.dark : finish.light} : undefined}
                             role="button"
-                            tabIndex={0}
-                            aria-label={`${String.fromCharCode(97 + col)}${8 - row}`}
+                            tabIndex={focusedSquare === i ? 0 : -1}
+                            aria-label={squareLabel}
                             aria-pressed={isSelectedSquare}
                             data-square={`${String.fromCharCode(97 + col)}${8 - row}`}
                             data-move-target={isMoveCandidate}
                             data-hint-owner={isMoveCandidate ? (isEnemySelected ? 'opponent' : 'self') : undefined}
                             data-last-move={!!isLastMove}
-                            onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onSquareClick(row, col); } }}
+                            onFocus={() => setFocusedSquare(i)}
+                            onKeyDown={event => {
+                                if (event.altKey || event.metaKey) return;
+                                if (event.key === 'Enter' || event.key === ' ') {
+                                    event.preventDefault(); onSquareClick(row, col); return;
+                                }
+                                const next = nextBoardFocus(i, event.key, isFlipped, event.ctrlKey);
+                                if (next !== null) {
+                                    event.preventDefault(); setFocusedSquare(next);
+                                    squares.current[next]?.focus({preventScroll:true});
+                                    squares.current[next]?.scrollIntoView({block:'nearest', inline:'nearest', behavior:'instant'});
+                                }
+                            }}
                             onClick={() => onSquareClick(row, col)}
                             className={`w-full h-full relative cursor-pointer transition-colors ${bgClass} ${isMoveCandidate ? 'hover:brightness-110' : ''}`} 
                         >

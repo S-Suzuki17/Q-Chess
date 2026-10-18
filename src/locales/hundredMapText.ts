@@ -16,3 +16,6 @@ const rows:Record<Language,readonly string[]>={
  ta:['100 கட்டச் சவால்','அடுத்த கட்டம்','அடுத்த கட்டத்திற்குச் செல்கிறது','அசைவைக் கடந்து செல்','தற்போதைய இடம்','தேர்வு','100 கட்டங்களும்','கட்டம்','இலக்கு','100 கட்டங்களை ஒவ்வொன்றாக முடிக்கவும். சேமித்த வெற்றி அடுத்த கட்டத்தைத் திறக்கும். ','100 கட்டங்களும் முடிந்தன!','இப்போது தொடங்கு'],
 };
 export const hundredMapText=(lang:Language,key:typeof keys[number])=>rows[lang][keys.indexOf(key)];
+
+const rangeLabels:Record<Language,string>={ja:'マップの範囲',en:'Map section',zh:'地图范围',ru:'Участок карты',fr:'Section de la carte',de:'Kartenabschnitt',es:'Sección del mapa',tr:'Harita bölümü',pl:'Odcinek mapy',hi:'नक्शे का भाग',pt:'Seção do mapa',ta:'வரைபடப் பகுதி'};
+export const hundredMapRangeLabel=(lang:Language)=>rangeLabels[lang];

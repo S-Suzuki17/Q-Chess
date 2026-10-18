@@ -1,0 +1,2 @@
+Stat Id,Event Property Name,Stat Display Name,Stat Description,Icon File Name,Good value direction,Unit
+circuit_stars,currentProgress,Circuit stars,Collect stars across the 100-stage circuit.,progress.png,INCREASING,

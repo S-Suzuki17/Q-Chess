@@ -3,7 +3,7 @@
 .victory-fx canvas{display:block;width:100%;height:100%}
 .victory-fx canvas[data-victory-layer=cinematic]{position:absolute;inset:0;visibility:hidden}
 .victory-fx[data-cinematic=ready] canvas[data-victory-layer=cinematic]{visibility:visible}
-.victory-fx[data-effect-preview=false][data-finished=true]{opacity:0;transition:opacity .2s ease-out}
+.victory-fx[data-effect-preview=false][data-dismissed=true]{opacity:0;transition:opacity .2s ease-out}
 .victory-fx-fallback{position:absolute;inset:20%;display:grid;place-items:center}
 .victory-fx-fallback svg{height:100%;max-width:100%}
 .victory-fx[data-rendered=true] .victory-fx-fallback{display:none}
@@ -45,4 +45,6 @@
 .campaign-result[data-result] .campaign-primary{background:#d6e4ef;color:#101e2b;border-color:#d6e4ef}
 .campaign-result[data-result] .campaign-stars{font-size:28px;color:#f0cf86;letter-spacing:.2em}
 @media(max-width:480px){.reward-preview-dialog[data-reward-kind=effect]{padding:18px}.reward-preview-dialog[data-reward-kind=effect] .reward-preview-board{margin-inline:-18px;height:280px}.campaign-result .campaign-result-cinema{height:170px}}
-@media(prefers-reduced-motion:reduce){.victory-fx-fallback{animation:none!important}.victory-fx:not([data-effect-preview=true]):not([data-contained=true]){display:none}}
+.map-result[data-result=win] .campaign-result-cinema{position:relative;height:clamp(150px,23dvh,190px);overflow:hidden;isolation:isolate}
+.map-result .campaign-result-cinema .victory-fx{z-index:1}
+@media(prefers-reduced-motion:reduce){.victory-fx-fallback{animation:none!important}.victory-fx[data-dismissed=true]{transition:none}}

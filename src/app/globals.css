@@ -1,4 +1,5 @@
-@import "tailwindcss";
+@import "tailwindcss" source("../");
+@import "../styles/text-flow.css";
 @import "../components/game-page.css";
 
 :root {
@@ -39,9 +40,9 @@ main[data-screen="level_select"]>div.pointer-events-none { display:none; }
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans), "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", "Meiryo", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  --font-serif: var(--font-cinzel), var(--font-playfair), "Times New Roman", "Yu Mincho", "Hiragino Mincho ProN", serif;
+  --font-sans: var(--font-geist-sans),var(--font-noto-devanagari),var(--font-noto-tamil), "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", "Meiryo", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: var(--font-geist-mono),var(--font-noto-devanagari),var(--font-noto-tamil), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --font-serif: var(--font-cinzel),var(--font-noto-devanagari),var(--font-noto-tamil), var(--font-playfair),var(--font-noto-devanagari),var(--font-noto-tamil), "Times New Roman", "Yu Mincho", "Hiragino Mincho ProN", serif;
 }
 
 html, body {

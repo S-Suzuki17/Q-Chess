@@ -98,10 +98,10 @@ export function createVictoryCinematic(canvas: HTMLCanvasElement, plan: VictoryP
         renderer.setClearColor(0x000000, 0);
         renderer.outputColorSpace = THREE.SRGBColorSpace;
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        renderer.toneMappingExposure = 1.15;
+        renderer.toneMappingExposure = 1.05;
         renderer.localClippingEnabled = true;
         renderer.shadowMap.enabled = !compact;
-        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.shadowMap.type = THREE.PCFShadowMap;
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(31, 1, .1, 30);
         camera.position.set(0, 1.65, 8.2); camera.lookAt(0, .12, 0);
@@ -120,7 +120,7 @@ export function createVictoryCinematic(canvas: HTMLCanvasElement, plan: VictoryP
             const mesh = new THREE.Mesh(geometry, material); mesh.castShadow = true; mesh.receiveShadow = true; parent.add(mesh); return mesh;
         };
         const ambient = new THREE.AmbientLight(0xa6c5b8, .55); scene.add(ambient);
-        const key = own(new THREE.SpotLight(0xffe4a8, 48, 24, Math.PI / 5, .8, 2));
+        const key = own(new THREE.SpotLight(0xffe4a8, 36, 24, Math.PI / 5, .8, 2));
         key.position.set(-3.6, 5, 4.5); key.target.position.set(0, .4, 0); key.castShadow = !compact;
         key.shadow.mapSize.set(1024, 1024); key.shadow.bias = -.001; scene.add(key, key.target);
         const rim = own(new THREE.PointLight(0x72d9b0, 28, 12, 2)); rim.position.set(2.5, 2.3, -1.8); scene.add(rim);
@@ -137,6 +137,13 @@ export function createVictoryCinematic(canvas: HTMLCanvasElement, plan: VictoryP
         const shadow = addMesh(shadowGeometry, new THREE.ShadowMaterial({ opacity: .3 }), root);
         shadow.rotation.x = -Math.PI / 2; shadow.position.y = -.53;
         const floorRing = addMesh(new THREE.TorusGeometry(1.4, .008, 4, 80), gold, plinth); floorRing.rotation.x = Math.PI / 2; floorRing.position.y = .05;
+        // Solid bevel rings add a silhouette and reflected edge, not another particle pool.
+        const collar = addMesh(new THREE.TorusGeometry(1.08, .026, 6, compact ? 48 : 72), paleGold, plinth);
+        collar.rotation.x = Math.PI / 2; collar.position.y = .12;
+        const halo = addMesh(new THREE.TorusGeometry(.85, .024, 6, compact ? 48 : 72), paleGold, hero);
+        halo.position.set(0, .05, -.28);
+        const innerHalo = addMesh(new THREE.TorusGeometry(.79, .009, 4, compact ? 48 : 72), gold, hero);
+        innerHalo.position.set(0, .05, -.25);
 
         // The local procedural seal is always ready, including while a Blender GLB loads.
         const crown = new THREE.Group(); hero.add(crown);
@@ -276,9 +283,10 @@ export function createVictoryCinematic(canvas: HTMLCanvasElement, plan: VictoryP
                 motif.visible = seconds >= .45; crown.visible = plan.motif !== 'shards' && seconds >= .45;
             }
             canvas.style.opacity = String(f.opacity);
-            // Small object travel creates depth. Camera remains steady and never shakes.
-            hero.rotation.y = rest * -.42;
-            hero.position.y = .67 - (1 - gather) * .32 + f.settle * .1;
+            // A bounded 0.42s push and descending seal give weight without shaking.
+            camera.position.z = 8.6 - .4 * ease(seconds / .42);
+            hero.rotation.y = -.14 + rest * -.28;
+            hero.position.y = .67 + (1 - gather) * .45 + f.settle * .1;
             hero.scale.setScalar(.84 + .16 * gather);
             crown.rotation.y = rest * .4;
             if (loadedCrown) loadedCrown.rotation.y = -.18;
@@ -316,7 +324,11 @@ export function createVictoryCinematic(canvas: HTMLCanvasElement, plan: VictoryP
             }
             dust.instanceMatrix.needsUpdate = true;
             glowMaterial.opacity = .5 + f.pulse;
-            rim.intensity = 24 + reveal * 8; front.intensity = 8 + reveal * 5;
+            // The existing bell cue starts at .45s; light crosses the bevel once.
+            const polish = unit((seconds - .45) / .75), glint = Math.sin(polish * Math.PI);
+            key.position.x = -3.6 + ease(polish) * 4.8;
+            rim.intensity = 24 + reveal * 8 + glint * 10;
+            front.intensity = 5 + reveal * 3 + glint * 4;
             renderer.render(scene, camera);
         }
         return {

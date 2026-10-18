@@ -12,15 +12,24 @@ import type {Language} from '../locales/dict';
 import {CrownRewardArtwork} from './CrownNavigation';
 import {QubeCompanion} from './QubeCompanion';
 import {hundredMapText} from '../locales/hundredMapText';
+import {VictoryCelebration} from './VictoryCelebration';
 import './campaign.css';
 import './campaign-result-journey.css';
 import './challenge-map.css';
 const duration=(seconds:number)=>`${Math.floor(seconds/60)}:${String(Math.floor(seconds%60)).padStart(2,'0')}`;
-export function CampaignResult({lang,stageId,firstClear,outcome,onNext,onRetry,onBack,saveError,newMusic=[]}: {
+export function CampaignResult({lang,stageId,firstClear,effect,outcome,onNext,onRetry,onBack,saveError,newMusic=[]}: {
     lang:Language;stageId:number;firstClear:boolean;effect:VictoryFinish;pieceFinish?:PieceFinish;foeWhite?:boolean;outcome:CampaignOutcome;onNext?:()=>void;onRetry:()=>void;onBack:()=>void;saveError:boolean;newMusic?:readonly string[];
 }) {
     const dialog=useRef<HTMLDialogElement>(null);
-    useEffect(()=>{const node=dialog.current;node?.showModal();return()=>node?.close();},[]);
+    const heading=useRef<HTMLHeadingElement>(null);
+    useEffect(()=>{
+        const node=dialog.current;
+        const opener=document.activeElement instanceof HTMLElement?document.activeElement:null;
+        node?.showModal();
+        heading.current?.focus({preventScroll:true});
+        if(node)node.scrollTop=0;
+        return()=>{node?.close();if(opener?.isConnected)opener.focus({preventScroll:true});};
+    },[]);
     const t=(key:Parameters<typeof campaignText>[1])=>campaignText(lang,key);
     const stage=CIRCUIT_STAGES[stageId-1],reward=CHAMPIONSHIP_REWARDS[stageId-1],stars=outcomeStars(outcome,stage.timeControl);
     const nextStage=outcome.won&&stageId<100?CIRCUIT_STAGES[stageId]:null;
@@ -28,10 +37,11 @@ export function CampaignResult({lang,stageId,firstClear,outcome,onNext,onRetry,o
     return <dialog ref={dialog} className="campaign-result map-result" data-result={outcome.won?'win':outcome.draw?'draw':'loss'} aria-labelledby="campaign-result-title" onCancel={event=>event.preventDefault()}>
         <div className="campaign-result-cinema" aria-hidden="true">
             <QubeCompanion state={outcome.won&&!saveError?'victory':'encouragement'} size={64} reducedMotion decorative/><div className="map-result-tile">{stageId}</div>
+            {outcome.won&&!outcome.draw&&<VictoryCelebration effect={effect} checkmate={!!outcome.checkmate} contained/>}
         </div>
         <div className="campaign-result-card">
             <p>{hundredMapText(lang,'tile')} {stageId} / 100</p>
-            <h2 id="campaign-result-title">{outcome.won?(stageId===100&&!saveError?hundredMapText(lang,'complete'):t('win')):outcome.draw?t('draw'):t('loss')}</h2>
+            <h2 ref={heading} id="campaign-result-title" tabIndex={-1}>{outcome.won?(stageId===100&&!saveError?hundredMapText(lang,'complete'):t('win')):outcome.draw?t('draw'):t('loss')}</h2>
             {outcome.won&&<><div className="campaign-stars" aria-label={`${stars}/3`}>{'★'.repeat(stars)}{'☆'.repeat(3-stars)}</div>
                 {!saveError&&<><div className="campaign-earned-art" aria-hidden="true"><CrownRewardArtwork kind={reward.kind} id={reward.id}/></div>
                 <p className="campaign-reward-earned" role="status"><Trophy size={18}/>{stageText(lang,firstClear?'newReward':'clearedReward')} · {rewardName(lang,reward.id)}</p></>}</>}

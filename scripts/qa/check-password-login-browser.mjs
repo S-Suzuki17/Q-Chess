@@ -232,7 +232,7 @@ try{
     if(scenario.reload){
      const postsBeforeReload=consentPosts,readsBeforeReload=termsReads;
      await page.reload();await page.locator(`[data-testid="lobby"][data-user="${userId}"]`).waitFor();
-     assert.equal(termsReads,readsBeforeReload+1);assert.equal(consentPosts,postsBeforeReload);
+     assert.equal(termsReads,readsBeforeReload,'Current saved consent must survive reload without another server read');assert.equal(consentPosts,postsBeforeReload);
      assert.equal(await page.evaluate(()=>window.qaTermsScreens),0,'Saved consent must not show the document during reload');
     }
     if(scenario.afterMatch){
@@ -244,6 +244,11 @@ try{
      assert.equal(await page.evaluate(()=>window.qaAccess().userId),null);
      assert.deepEqual(await page.evaluate(()=>[sessionStorage.getItem('qg_ranked_session_v1'),localStorage.getItem('qg_ranked_session_v1')]),[null,null]);
      const readsBeforeRelogin=termsReads,postsBeforeRelogin=consentPosts,screensBeforeRelogin=await page.evaluate(()=>window.qaTermsScreens);
+     if(scenario.clearSavedConsent)await page.evaluate(({userId,termsVersion})=>{
+      const key=`qg_terms_consent_v1_${termsVersion}_${userId}`;
+      if(localStorage.getItem(key)!=='true')throw Error('Expected current account consent cache');
+      localStorage.removeItem(key);
+     },{userId,termsVersion});
      if(scenario.clearSavedConsent||scenario.switchAccount)accepted=false;
      if(scenario.switchAccount)currentUserId='OtherLocalLoginQA';
      await enter();await submit();
@@ -253,7 +258,7 @@ try{
       await page.locator('[data-terms-checkbox]').check();await page.locator('[data-terms-accept]').click();
      }
      await page.locator(`[data-testid="lobby"][data-user="${currentUserId}"]`).waitFor();
-     assert.equal(termsReads,readsBeforeRelogin+1,'Signing in must read this account\'s saved current consent');
+     assert.equal(termsReads,readsBeforeRelogin+(scenario.clearSavedConsent||scenario.switchAccount?1:0),'Only this account and current version may reuse saved consent');
      assert.equal(consentPosts,postsBeforeRelogin+(scenario.clearSavedConsent||scenario.switchAccount?1:0));
      assert.equal(await page.evaluate(()=>window.qaTermsScreens),screensBeforeRelogin+(scenario.clearSavedConsent||scenario.switchAccount?1:0),'Saved consent must not show the document on relogin');
     }

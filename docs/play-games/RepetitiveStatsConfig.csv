@@ -1,0 +1,6 @@
+Stat Id,Event Name,Event Property Name,Aggregation Type,Stat Display Name,Stat Description,Filter Property,Filter Operator,Filter Value,Is Competitive,Min limit,Max limit,Icon File Name,Good value direction,Unit
+matches_completed,matchCompleted,isWinner,COUNT,Matches completed,Finish matches after making at least one move.,,,,FALSE,,,matches.png,INCREASING,
+matches_won,matchCompleted,isWinner,COUNT,Matches won,Win matches after making at least one move.,isWinner,=,TRUE,FALSE,,,wins.png,INCREASING,
+moves_played,matchCompleted,playerMoves,SUM,Moves played,Make legal moves in completed matches.,,,,TRUE,0,3600,moves.png,INCREASING,
+pieces_captured,matchCompleted,piecesCaptured,SUM,Pieces captured,Capture opposing pieces in completed matches.,,,,FALSE,,,captures.png,INCREASING,
+checkmate_wins,matchCompleted,isCheckmateWin,COUNT,Checkmate wins,Win by checkmate after making at least one move.,isCheckmateWin,=,TRUE,FALSE,,,checkmate.png,INCREASING,
