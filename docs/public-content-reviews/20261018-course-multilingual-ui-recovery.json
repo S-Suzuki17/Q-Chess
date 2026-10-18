@@ -264,7 +264,7 @@
         "server/src/game/GameEngine.ts and CrownHintRegistry.ts: current main 30-second rule preserved; protocol IDs 10/180/600 remain compatible.",
         "src/lib/privateRoom.ts plus server/src/services/privateRoomIntegration.test.ts: actual 30000/180000/600000ms engine clocks verified through real sockets, moves and reconnect.",
         "outputs/current-regression-repairs-20261018.json: 58 cases passed, including timed-out recovery, background clock elapsed time, auth restoration and ranked admission.",
-        "PR #28 review fixes: 64 focused tests and 13 real Socket.IO cases preserve the latest Crown revision/clocks and host room after joiner rating/auth failures; private statistics use the authoritative clock while PGS remains OFF."
+        "PR #28 review fixes: 43 final focused tests and 13 real Socket.IO cases preserve the latest Crown revision/clocks and host room after joiner rating/auth failures; private statistics use the authoritative clock while PGS remains OFF."
       ]
     },
     {

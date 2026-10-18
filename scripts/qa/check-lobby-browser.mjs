@@ -9,6 +9,9 @@ const [releaseFlag='--release-flags=off', artifactDirectory='scratch/lobby-20261
 assert.ok(/^--release-flags=(on|off)$/.test(releaseFlag) && extraArgs.length===0,
     'Usage: check-lobby-browser.mjs [--release-flags=on|off] [artifact-directory]');
 const releaseFlagsOn = releaseFlag.endsWith('=on');
+const viewports = [[1920,1080],[1280,800],[390,844],[320,568]];
+const requestedWidths = process.env.QG_TEST_LOBBY_WIDTHS?.split(',').map(Number);
+assert.ok(!requestedWidths || (requestedWidths.length > 0 && requestedWidths.every(width => viewports.some(([known]) => known === width))), 'Unknown lobby viewport');
 
 const root = resolve('out'), artifacts = resolve(artifactDirectory);
 const mime = { '.html':'text/html', '.js':'text/javascript', '.css':'text/css', '.svg':'image/svg+xml', '.jpg':'image/jpeg', '.png':'image/png', '.woff2':'font/woff2', '.mp3':'audio/mpeg' };
@@ -37,7 +40,7 @@ const results = [];
 try {
     await mkdir(artifacts, { recursive:true });
     browser = await chromium.launch({ headless:true, ...(process.env.QG_TEST_CHROMIUM?{executablePath:process.env.QG_TEST_CHROMIUM}:{}) });
-    for (const [width,height] of [[1920,1080],[1280,800],[390,844],[320,568]]) {
+    for (const [width,height] of viewports.filter(([width]) => !requestedWidths || requestedWidths.includes(width))) {
         const context = await browser.newContext({ viewport:{ width,height } });
         const errors = [], remoteRequests = [];
         await context.routeWebSocket('**/*', socket => socket.close());
@@ -155,7 +158,11 @@ try {
         // game above covers every viewport without duplicating all worker runs.
         if (width===390) {
             await page.getByRole('button',{name:/設定/}).first().click();
-            await page.getByRole('button',{name:'アカウント',exact:true}).click();
+            const settings = page.getByRole('dialog'), picker = settings.locator('[data-settings-section-picker]');
+            if (await picker.isVisible()) await picker.selectOption('account');
+            else await settings.getByRole('tab',{name:'アカウント',exact:true}).click();
+            await settings.getByRole('tabpanel',{name:'アカウント',exact:true}).waitFor();
+            await settings.locator('[data-settings-panel="account"]').click();
             await page.getByRole('button',{name:'ログアウト',exact:true}).click();
             await page.getByRole('button',{name:'ゲストとしてプレイ',exact:true}).click();
             await lobby.waitFor();
@@ -163,7 +170,10 @@ try {
             await verifyFreePractice('guest');
             await page.locator('.lobby-campaign-action').click();
             await page.locator('[data-testid="circuit-guest-preview"]').waitFor();
-            assert.equal(await page.locator('[data-map-overview-tile]').count(),100);
+            await page.locator('.map-overview-trigger').click();
+            const overview = page.locator('.map-overview-dialog'); await overview.waitFor();
+            assert.equal(await overview.locator('[data-map-overview-tile]').count(),100);
+            await overview.locator('header button').click(); await overview.waitFor({state:'detached'});
             await page.locator('.map-launch button').click();
             await page.locator('[data-testid="circuit-login-gate"]').waitFor();
             assert.equal(await page.locator('.match-layout').count(),0,'guest preview cannot start account-bound Crown progress');
