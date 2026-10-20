@@ -60,14 +60,30 @@ or treat console verification as evidence of an earned reward.
 
 ### Remaining activation and device checks
 
-- The live server still returns `503 ADS_DISABLED` for new reward requests.
-  Production activation and actual device reward settlement have not yet been
-  verified. A saved callback URL alone is not proof of complete ad delivery.
+- `ADMOB_REWARDS_ENABLED=true` was merged into the existing Render service
+  configuration without replacing other variables. The resulting deploy
+  `dep-dbbpet7f3r2c73ducn6g` reached `live` at 2026-10-21 01:32 JST, using
+  `b05e44142a839d3f04c3b028895c098aadfc3f1c` (same server code as `536ee79`,
+  with the preceding status-document update). New unauthenticated reward
+  requests now return `401 AUTH_REQUIRED`, not `503 ADS_DISABLED`.
+  Health and the real Google-signed nil-UUID console probe return 200; a
+  tampered probe returns 400. No real account, reward intent or balance was
+  written during these probes. Roll back new offers with
+  `ADMOB_REWARDS_ENABLED=false`; verified settlement/recovery remains available.
+- Actual device ad delivery and earned-reward settlement are still unverified.
+  A saved callback URL and active server gate are not proof of either.
 - Native live ads, rewards and interstitials still require explicit Android
   build flags. An existing installed/store build cannot be enabled by changing
   app-ads.txt or saving SSV settings.
-- No new APK/AAB or actual device ad view was produced during the connection
-  repair. The owner agreed to USB device testing. At this checkpoint, the local
+- An Android QA Web build succeeded using the established public settings from
+  the older `q-gambit-app` copy, with native rewards/interstitials enabled,
+  live ads disabled (Google demo units) and native commerce disabled.
+  The build checked 60 JavaScript files, all three required public backend
+  settings and zero unresolved public-environment reads. Capacitor Android
+  sync succeeded. This output is for QA, not a live-ad release.
+- No new APK/AAB or actual device ad view has been produced yet.
+  The owner agreed to USB device testing and to reconnect the SDK drive.
+  At this checkpoint, the local
   SDK junction points to the unavailable `F:\PC-Data-2026-10-03\AndroidSDK`;
   restoring the SDK path is required before the Android build/device checks.
 
