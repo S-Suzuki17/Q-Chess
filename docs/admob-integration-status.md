@@ -1,4 +1,77 @@
-# Android AdMob integration — 2026-09-19, ADS REMAIN OFF
+# Android AdMob integration status
+
+## Current verification — 2026-10-21 (JST)
+
+This section supersedes the September approval, store-link, app-ads.txt and SSV
+status below. Those older observations are retained as history, not current
+activation blockers.
+
+- **Actual Android app is verified and ready** in the live AdMob console:
+  `ca-app-pub-1116866075179199~4430714849`, Play package `com.qgambit.app`.
+  Its approval status is `準備完了`; this is the app ID used by the Android source.
+- Both `https://q-gambit.com/app-ads.txt` and
+  `https://www.q-gambit.com/app-ads.txt` return HTTP 200 with
+  `google.com, pub-1116866075179199, DIRECT, f08c47fec0942fa0`.
+  HTTP redirects to HTTPS and robots.txt permits crawling. The public Play listing
+  links to `https://www.q-gambit.com/privacy`; the developer domain matches.
+  No app-ads.txt edit or Web deployment was necessary.
+- The separate **`(Windows PC) Q-Gambit` registration**
+  (`ca-app-pub-1116866075179199~6104042132`) is unverified and has zero ad units.
+  Its linked Play package is `google.pcc.games.test.playstore.com.qgambit.app`;
+  opening that exact public store URL returned not found. One console recheck
+  still reported the app-ads.txt mismatch. This does not change the actual
+  Android app's verified status. The precise PC crawl failure is unresolved;
+  no app registration or store association was deleted or changed.
+
+### Reward notification connection
+
+- Both production rewarded units now have the saved callback URL
+  `https://q-chess.onrender.com/ads/admob/ssv`:
+  hint `8141474158` (`3 hint_uses`) and online `2288802662` (`3 online_uses`).
+  Each passed the AdMob console's real Google callback verification before saving.
+- The first console test returned HTTP 400. A temporary receiver established
+  that Google sends a valid ECDSA signature but uses placeholder ad unit
+  `1234567890`, not the selected live unit ID. No production account or intent
+  was used in that diagnostic; the receiver and tunnel were stopped afterwards.
+- Server commit `536ee790111dcc128d5377da28d3f34478e9fa45` adds an explicit
+  signed console-probe result. It only accepts the placeholder unit, fixed
+  reward configuration and nil UUID in both test identity fields. The route
+  returns 200 without calling the reward-credit store. Live unit validation,
+  signature checks and atomic reward settlement remain intact.
+- Render workspace `My Workspace`, service `Q-Chess`
+  (`srv-da5jpcgjo6nc73cpjjl0`) automatically deployed that commit.
+  Deploy `dep-dbbp7th7lnhs73fk55sg` reached `live` at 2026-10-21 01:18 JST.
+  Health returned 200, unsigned SSV returned 400, unauthenticated allowance
+  returned 401. The targeted post-deploy error-log query returned no records.
+- Validation: 34 targeted verifier/router/store tests passed; server TypeScript
+  build passed. Replaying the actual captured Google probe against the corrected
+  local router returned 200 with zero credit calls; a tampered probe returned 400.
+
+To reverify either saved URL in AdMob, enter the following in **both** the test
+User ID and Custom data fields:
+
+```text
+00000000-0000-0000-0000-000000000000
+```
+
+These are console-test inputs only. Real app requests continue to send a random,
+server-issued intent ID. Never add the placeholder unit to the reward-unit map
+or treat console verification as evidence of an earned reward.
+
+### Remaining activation and device checks
+
+- The live server still returns `503 ADS_DISABLED` for new reward requests.
+  Production activation and actual device reward settlement have not yet been
+  verified. A saved callback URL alone is not proof of complete ad delivery.
+- Native live ads, rewards and interstitials still require explicit Android
+  build flags. An existing installed/store build cannot be enabled by changing
+  app-ads.txt or saving SSV settings.
+- No new APK/AAB or actual device ad view was produced during the connection
+  repair. The owner agreed to USB device testing. At this checkpoint, the local
+  SDK junction points to the unavailable `F:\PC-Data-2026-10-03\AndroidSDK`;
+  restoring the SDK path is required before the Android build/device checks.
+
+## Historical record — 2026-09-19
 
 ## Latest continuation (supersedes earlier implementation checklist below)
 
