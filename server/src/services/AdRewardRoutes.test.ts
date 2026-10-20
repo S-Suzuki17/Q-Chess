@@ -39,6 +39,11 @@ describe('authenticated advertisement APIs',()=>{
   const f=await fixture();expect((await f.send('/ads/reward',{kind:'hint',earned:true})).status).toBe(400);
   expect((await f.send('/ads/admob/ssv?unverified=1')).status).toBe(400);expect(f.store.credit).not.toHaveBeenCalled();
  });
+ it.each([true,false])('acknowledges a verified console probe without any reward write when offers enabled=%s',async enabled=>{
+  const f=await fixture(enabled);f.verify.mockResolvedValue({kind:'console-test'});
+  expect((await f.send('/ads/admob/ssv?setup=1')).status).toBe(200);
+  expect(f.store.credit).not.toHaveBeenCalled();expect(f.store.intent).not.toHaveBeenCalled();
+ });
  it('forwards only verified evidence, preserves original bytes, and returns failure on storage error',async()=>{
   const f=await fixture();const reward={kind:'hint' as const,intentId:f.id,transactionId:'abcdefgh',timestamp:Date.now(),evidenceSha256:'a'.repeat(64)};f.verify.mockResolvedValue(reward);
   expect((await f.send('/ads/admob/ssv?custom_data=a%2Fb&signature=abc')).status).toBe(200);
