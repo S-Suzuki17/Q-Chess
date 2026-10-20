@@ -1,4 +1,5 @@
 'use client';
+import {sessionOwnsAccount} from './googleAccountIdentity';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { io, type Socket } from 'socket.io-client';
 import { supabase } from './supabaseClient';
@@ -70,7 +71,7 @@ export function SocketProvider({ children, userId }: { children:React.ReactNode;
                     const {data,error}=await supabase.auth.getSession();
                     if(error)throw new Error('Session lookup unavailable');
                     const session=data.session;
-                    if(!error&&session?.user.id===userId&&!session.user.is_anonymous){
+                    if(!error&&sessionOwnsAccount(session,userId)&&!session.user.is_anonymous){
                         token=session.access_token;remainingMs=session.expires_at?session.expires_at*1000-Date.now():undefined;
                     }
                 }
@@ -93,6 +94,8 @@ export function SocketProvider({ children, userId }: { children:React.ReactNode;
                 }else{
                     const next=io(gameServerUrl(),{
                         auth:{token,userId,client:clientRelease},autoConnect:false,transports:['websocket','polling'],
+                        // A listed fallback is only attempted on an opening error with this option.
+                        tryAllTransports:true,
                         reconnection:true,reconnectionAttempts:Infinity,reconnectionDelay:1000,reconnectionDelayMax:5000,
                     });
                     current=next;setSocket(next);

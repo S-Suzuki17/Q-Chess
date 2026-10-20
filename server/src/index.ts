@@ -36,6 +36,9 @@ import {createCurrentTermsRouter} from './services/AccountCurrentTermsRoutes';
 import {createSecurityAudit} from './services/SecurityAudit';
 import {createEngagementMetricsRouter} from './services/EngagementMetricsRoutes';
 import {createDailyLoginRouter} from './services/DailyLoginRoutes';
+import {createLearningRouter} from './services/LearningRoutes';
+import {createGoogleAccountRouter} from './services/GoogleAccountRoutes';
+import {createLearningMaintenance,learningEnabled} from './services/LearningMaintenance';
 import { createRankedRefundRouter } from './services/RankedRefundRoutes';
 import { createRankedSessionInspectionRouter } from './services/RankedSessionInspectionRoutes';
 import {QG_LIVE_MONTHLY_PRICE_ID, StripeMembershipApi, type StripeMembershipMode} from './services/StripeMembership';
@@ -164,6 +167,7 @@ app.use(createPlayNotificationRouter(playCommerce,playNotificationIdentity));
 setInterval(()=>{void playCommerce.tick().catch(()=>{/* Durable jobs retry; never log purchase tokens or provider responses. */});},30000).unref();
 const operations=createServiceOperations(supabaseService.serviceStatusLoader());
 app.use(operations.loginGuard);
+app.use(createGoogleAccountRouter(supabaseService.googleAccountStore(),accountGate,operations));
 app.post('/auth/oauth-admission',createOAuthAdmissionHandler(operations,token=>supabaseService.verifyUser(token)));
 app.get('/service/status',async(_req,res)=>{
     res.setHeader('Cache-Control','no-store');
@@ -191,6 +195,14 @@ app.use(createCurrentTermsRouter(rankedAuth,supabaseService.currentTermsStore(),
 app.use(createAccountTermsRouter(rankedAuth,supabaseService.accountTermsStore(),accountGate));
 app.use(createAccountProgressRouter(rankedAuth,supabaseService.accountProgressStore(),accountGate));
 app.use(createDailyLoginRouter(rankedAuth,supabaseService.dailyLoginStore(),accountGate));
+const learningStore=supabaseService.learningStore();
+app.use(createLearningRouter(rankedAuth,learningStore,accountGate));
+const learningMaintenance=createLearningMaintenance(learningStore);
+const refreshLearning=()=>{
+    if(learningEnabled())void learningMaintenance().catch(()=>console.warn('[learning] weekly publication unavailable; retrying next minute'));
+};
+refreshLearning();
+setInterval(refreshLearning,60000).unref();
 app.use(createCrownAdmissionRouter(rankedAuth,{
     authorize:(...args)=>supabaseService.crownAdmissionStore().authorize(...args),
 },token=>supabaseService.verifyUser(token),accountGate));

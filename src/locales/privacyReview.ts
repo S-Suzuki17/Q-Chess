@@ -103,4 +103,4 @@ const hosting:Record<Language,string>={
     pt:'Cloudflare Pages hospeda o site, Render executa o servidor de partidas e Supabase guarda dados de contas e jogos. Esses provedores podem tratar logs operacionais necessários.',
     ta:'இணையதளம் Cloudflare Pages-இலும் ஆட்டச் சேவையகம் Render-இலும் இயங்குகின்றன; கணக்கு, ஆட்டத் தரவு Supabase-இல் இருக்கும். இவை அவசியமான செயல்பாட்டு பதிவுகளைச் செயலாக்கலாம்.',
 };
-export function privacyReview(lang:Language){const p=revised[lang];return {updated:'2026-10-13',sec3li1:nativeCommercePrivacy[lang].ads,sec3li3:hosting[lang],sec4p:`${p[1]} ${cloudStoragePrivacy[lang]}`,sec5p:p[2],sec6p:p[3],sec2li1:`${p[4]} ${registrationPrivacy[lang]}`,sec2li3:`${engagementPrivacy[lang].choice} ${securityPrivacy[lang]} ${nativeCommercePrivacy[lang].payments}`};}
+export function privacyReview(lang:Language){const p=revised[lang];return {updated:'2026-10-21',sec3li1:nativeCommercePrivacy[lang].ads,sec3li3:hosting[lang],sec4p:`${p[1]} ${cloudStoragePrivacy[lang]}`,sec5p:p[2],sec6p:p[3],sec2li1:`${p[4]} ${registrationPrivacy[lang]}`,sec2li3:`${engagementPrivacy[lang].choice} ${securityPrivacy[lang]} ${nativeCommercePrivacy[lang].payments}`};}

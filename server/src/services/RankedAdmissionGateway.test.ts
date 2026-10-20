@@ -51,6 +51,8 @@ vi.mock('./AccountProfileRoutes', () => ({ createAccountProfileRouter: vi.fn(() 
 vi.mock('./AccountSecurityRoutes', () => ({ createAccountSecurityRouter: vi.fn(() => () => {}) }));
 vi.mock('./AccountProgressRoutes', () => ({ createAccountProgressRouter: vi.fn(() => () => {}) }));
 vi.mock('./DailyLoginRoutes', () => ({ createDailyLoginRouter: vi.fn(() => () => {}) }));
+vi.mock('./GoogleAccountRoutes', () => ({ createGoogleAccountRouter: vi.fn(() => () => {}) }));
+vi.mock('./LearningRoutes', () => ({ createLearningRouter: vi.fn(() => () => {}) }));
 vi.mock('./CpuPracticeRoutes', () => ({ createCpuPracticeRouter: vi.fn(() => () => {}) }));
 // Hint authority is covered by its real routers and the native HTTP/socket suite.
 vi.mock('./MatchHintRoutes', () => ({ createMatchHintRouter: vi.fn(() => () => {}) }));
@@ -96,6 +98,7 @@ async function socket(token: unknown, id = 'socket-1') {
     return { s, next, dispatch };
 }
 beforeEach(async () => {
+    vi.stubEnv('LEARNING_REWARDS_ENABLED', 'false');
     h.entitlementReadsEnabled=false;
     h.admissionStore.renew.mockReset().mockResolvedValue(true);h.admissionStore.admit.mockReset().mockResolvedValue({state:'active'});
     h.admissionStore.void.mockReset().mockResolvedValue({state:'voided'});h.admissionStore.recover.mockReset().mockResolvedValue([]);h.admissionStore.read.mockReset().mockResolvedValue(null);h.admissionStore.busy.mockReset().mockResolvedValue(false);
@@ -121,6 +124,8 @@ beforeEach(async () => {
     (h.service as any).restrictedAccounts = async()=>[];
     (h.service as any).accountProgressStore = () => ({});
     (h.service as any).dailyLoginStore = () => ({});
+    (h.service as any).learningStore = () => ({});
+    (h.service as any).googleAccountStore = () => ({});
     (h.service as any).currentTermsStore = () => ({});
     (h.service as any).accountTermsStore = () => ({});
     (h.service as any).serviceStatusLoader = () => async()=>({maintenance:false,minimumAndroidBuild:0,minimumProtocol:0,announcement:{},revision:''});

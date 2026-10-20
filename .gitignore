@@ -16,6 +16,13 @@ server/node_modules/
 /coverage
 /test-results.json
 /scratch/ticket-sql/
+/scratch/playwright-browsers/
+/scratch/learning-browser/
+/scratch/google-login-*/
+/scratch/crown-browser-results/
+/scratch/crown-vite-cache/
+/scratch/public-guides-20261007/
+/scratch/qube-loading-accessibility/
 /scratch/stripe-postgres/
 /scratch/webpack-cache-before-integration-20261003/
 

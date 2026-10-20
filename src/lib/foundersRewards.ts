@@ -1,3 +1,4 @@
+import {sessionOwnsAccount} from './googleAccountIdentity';
 import {Capacitor,registerPlugin} from '@capacitor/core';
 import {supabase} from './supabaseClient';
 import {gameServerUrl,readRankedSession} from './rankedSession';
@@ -21,7 +22,7 @@ async function request(userId:string,signal:AbortSignal,purchaseToken?:string):P
     if(!token){
         const {data,error}=await supabase.auth.getSession();
         const session=data.session;
-        if(!error&&session?.user.id===userId&&!session.user.is_anonymous&&(!session.expires_at||session.expires_at*1000>Date.now()))token=session.access_token;
+        if(!error&&sessionOwnsAccount(session,userId)&&!session.user.is_anonymous&&(!session.expires_at||session.expires_at*1000>Date.now()))token=session.access_token;
     }
     signal.throwIfAborted();
     if(!token)throw new FoundersClientError('AUTH_REQUIRED');

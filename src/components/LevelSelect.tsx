@@ -33,7 +33,7 @@ import { CPU_LEVELS, cpuDifficulty, type CPULevel } from '../config/cpuDifficult
 import { QubeTeacher } from './QubeTeacher';
 import { LatestMatchHintRecovery } from './CrownHintRecovery';
 import { hintScopeText } from '../locales/hintScopeText';
-import { InteractiveTutorial } from './InteractiveTutorial';
+import {learningText} from '../locales/learningText';
 import { ArrowUpRight, Swords, Dices, UsersRound, LogIn, Crown, Settings2, House, History, Trophy, Gift } from 'lucide-react';
 import { LobbyShowcase } from './LobbyShowcase';
 import { LobbyBrandMark, LobbyChessArtwork } from './LobbyChessArtwork';
@@ -48,12 +48,16 @@ import { circuitAccessText } from '../locales/circuitAccessText';
 import { AccountDeletionPanel } from './AccountDeletionPanel';
 import { AccountSecurityPanel } from './AccountSecurityPanel';
 import { AccountRecoveryPanel } from './AccountRecoveryPanel';
+import {googleAccountFor} from '../lib/googleAccountIdentity';
 import { rewardsHubEnabled } from '../config/rewardsHub';
 import { rewardsHubText } from '../locales/rewardsHubText';
 import './rewards-hub.css';
+import './weekly-problems.css';
 
 const ProfileCosmetics=dynamic(()=>import('./ProfileCosmetics').then(module=>module.ProfileCosmetics),{ssr:false});
 const RewardsDialog=dynamic(()=>import('./RewardsDialog').then(module=>module.RewardsDialog),{ssr:false});
+const WeeklyProblems=dynamic(()=>import('./WeeklyProblems').then(module=>module.WeeklyProblems),{ssr:false});
+const InteractiveTutorial=dynamic(()=>import('./InteractiveTutorial').then(module=>module.InteractiveTutorial),{ssr:false});
 const RewardPreview=dynamic(()=>import('./RewardPreview').then(module=>module.RewardPreview),{ssr:false});
 
 interface LevelSelectProps {
@@ -80,6 +84,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
     const [practiceLevel, setPracticeLevel] = React.useState<CPULevel>(3);
     const [practiceSide, setPracticeSide] = React.useState<'white' | 'black'>('white');
     const [showAdModal, setShowAdModal] = React.useState(false);
+    const [showWeekly,setShowWeekly]=React.useState(false);
     const [adProgress, setAdProgress] = React.useState(0);
     const [showOnlineMenu, setShowOnlineMenu] = React.useState(false);
     const [joinRoomId, setJoinRoomId] = React.useState('');
@@ -166,6 +171,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
         else if(verifyHistory)setVerifyHistory(false);
         else if(lobbyPreview)setLobbyPreview(null);
         else if(showTutorial)setShowTutorial(false);
+        else if(showWeekly)setShowWeekly(false);
         else if(pendingAction)setPendingAction(null);
         else if(showPlayMenu)setShowPlayMenu(false);
         else if(showLiveMatches)setShowLiveMatches(false);
@@ -176,7 +182,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
         else return showAdModal; // The provider owns dismissal of an active ad.
         return true;
     },10);
-    const anyModalOpen = showPlayMenu || showReplays || showLeaderboard || showFriends || showAccount || showRewards || showTutorial || showAdModal || !!pendingAction || showLiveMatches || !!lobbyPreview;
+    const anyModalOpen = showPlayMenu || showReplays || showLeaderboard || showFriends || showAccount || showRewards || showTutorial || showWeekly || showAdModal || !!pendingAction || showLiveMatches || !!lobbyPreview;
 
 
     React.useEffect(() => {
@@ -352,7 +358,8 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
     return (
         <div className="lobby-studio lobby-reference w-full h-full flex flex-col bg-transparent text-[#E8E2D7] font-sans px-6 py-6 md:px-8 md:py-8 overflow-hidden relative">
             {lobbyPreview && <RewardPreview lang={lang} reward={lobbyPreview} progress={cosmetics} onClose={() => setLobbyPreview(null)}/>}
-            {showTutorial && <InteractiveTutorial lang={lang} onClose={() => setShowTutorial(false)} />}
+            {showTutorial && <InteractiveTutorial key={user.id} lang={lang} userId={user.type==='registered'?user.id:undefined} onClose={() => setShowTutorial(false)} />}
+            {showWeekly&&<WeeklyProblems key={user.id} lang={lang} userId={user.type==='registered'?user.id:undefined} onClose={()=>setShowWeekly(false)}/>}
 
 
             {/* Play Menu Modal */}
@@ -546,7 +553,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
                             {rewardsAvailable && <button type="button" onClick={onOpenRewards} className="reward-entry">
                                 <span>{rewardCopy.title}<small>{rewardCopy.description}</small></span><span aria-hidden="true">→</span>
                             </button>}
-                            {user.type==='registered'&&!/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(user.id)&&<AccountRecoveryPanel key={`recovery-${user.id}`} userId={user.id} lang={lang}/>}
+                            {user.type==='registered'&&!googleAccountFor(user.id)&&!/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(user.id)&&<AccountRecoveryPanel key={`recovery-${user.id}`} userId={user.id} lang={lang}/>}
 
                             <button onClick={onBack} className="w-full mt-4 py-4 border border-[#A89C86]/40 hover:border-[#E8E2D7] text-[#A89C86] hover:text-[#E8E2D7] text-xs tracking-widest transition-colors">
                                 {t.logout}
@@ -693,10 +700,13 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
                             {lang==='ja'?'CPUで練習':`${(t as any).practice} · CPU`}
                         </button>
                         <button data-open-tutorial onClick={() => setShowTutorial(true)} className="flex-1 py-4 bg-[#B39A62]/10 border border-[#B39A62]/30 hover:bg-[#B39A62]/30 text-xs tracking-[0.2em] transition-colors text-[#D4B872] hover:text-[#E8E2D7] uppercase font-bold">
-                            {(t as any).rulesButton || "HOW TO PLAY"}
+                            {learningText(lang).title}
                         </button>
                     </div>
 
+                    <button type="button" data-open-weekly className="lobby-weekly-action" aria-haspopup="dialog" onClick={()=>setShowWeekly(true)}>
+                        <Trophy size={24} aria-hidden="true"/><span><strong>{learningText(lang).weekly}</strong><small>{learningText(lang).weeklyDescription}</small></span><ArrowUpRight size={20} aria-hidden="true"/>
+                    </button>
                     {onCampaign && <button type="button" className="lobby-campaign-action" onClick={onCampaign}>
                         <Crown size={24} aria-hidden="true"/><span>{campaignText(lang, 'title')}<small>{!circuitAllowed && circuitAccessText(lang, 'action')}</small></span><ArrowUpRight size={20} aria-hidden="true"/>
                     </button>}

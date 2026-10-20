@@ -5,12 +5,16 @@ import { accountDeletionText } from '../locales/accountDeletionText';
 import { accountDeletionAvailable, AccountDeletionError, clearDeletedAccountDeviceData, deleteOwnAccount } from '../lib/accountDeletion';
 import { campaignStore } from '../lib/campaignStore';
 import { SettingsDialog } from './SettingsDialog';
+import {googleAccountFor} from '../lib/googleAccountIdentity';
+import {GoogleLoginError} from '../lib/googleAccount';
 
 export function AccountDeletionPanel({userId,lang,onDeleted}:{userId:string;lang:Language;onDeleted:()=>void}) {
     const text = accountDeletionText(lang);
     const [open,setOpen] = useState(false),[confirmation,setConfirmation] = useState('');
     const [available,setAvailable] = useState<boolean|null>(null),[error,setError] = useState('');
     const [busy,setBusy] = useState(false);
+    const [password,setPassword]=useState('');
+    const google=!!googleAccountFor(userId);
     const [cleanupFailed,setCleanupFailed] = useState(false);
     const inFlight = useRef(false),mounted = useRef(true);
     useEffect(()=>{mounted.current=true;return()=>{mounted.current=false;};},[]);
@@ -24,7 +28,8 @@ export function AccountDeletionPanel({userId,lang,onDeleted}:{userId:string;lang
         if(confirmation!=='DELETE'||available!==true||inFlight.current)return;
         inFlight.current=true;setBusy(true);setError('');
         try {
-            await deleteOwnAccount(userId);
+            await deleteOwnAccount(userId,password);
+            if(mounted.current)setPassword('');
             const stillCurrent=mounted.current&&campaignStore.getOwner()===userId;
             const cleared=clearDeletedAccountDeviceData(userId,stillCurrent);campaignStore.resetAfterAccountDeletion(userId);
             // A response from an earlier account must not sign out or erase a new owner.
@@ -33,12 +38,14 @@ export function AccountDeletionPanel({userId,lang,onDeleted}:{userId:string;lang
             if(!cleared&&mounted.current)setCleanupFailed(true);
             else onDeleted();
         } catch(failure) {
-            if(mounted.current)setError(failure instanceof AccountDeletionError&&failure.code==='ACCOUNT_BUSY'?text.busy
+            if(mounted.current)setError(failure instanceof GoogleLoginError&&failure.code==='PASSWORD_INCORRECT'
+                ?(lang==='ja'?'Q-Gambit用パスワードを確認してください。':'Check your Q-Gambit password.')
+                :failure instanceof AccountDeletionError&&failure.code==='ACCOUNT_BUSY'?text.busy
                 :failure instanceof AccountDeletionError&&failure.code==='AUTH_REQUIRED'?text.reauthenticate:text.unavailable);
         } finally {inFlight.current=false;if(mounted.current)setBusy(false);}
     };
     return <>
-        <button type="button" className="min-h-11 w-full border border-red-400/40 p-3 text-sm text-red-200" onClick={()=>{setConfirmation('');setError('');setAvailable(null);setOpen(true);}}>{text.title}</button>
+        <button type="button" className="min-h-11 w-full border border-red-400/40 p-3 text-sm text-red-200" onClick={()=>{setPassword('');setConfirmation('');setError('');setAvailable(null);setOpen(true);}}>{text.title}</button>
         {open&&<SettingsDialog label={text.title} onClose={()=>{if(cleanupFailed)onDeleted();else if(!busy)setOpen(false);}}>
             {cleanupFailed?<div className="space-y-5 rounded border border-[#A89C86]/50 bg-[#161513] p-6">
                 <h3 className="text-xl" role="status">{text.done}</h3>
@@ -47,6 +54,9 @@ export function AccountDeletionPanel({userId,lang,onDeleted}:{userId:string;lang
             </div>:
             <form className="space-y-5 rounded border border-red-400/40 bg-[#161513] p-6" onSubmit={event=>{event.preventDefault();void erase();}}>
                 <h3 className="text-xl">{text.title}</h3><p className="text-sm leading-relaxed text-[#d3cabb]">{text.scope}</p>
+                {google&&<label className="block text-sm">{lang==='ja'?'Q-Gambit用パスワード':'Q-Gambit password'}
+                    <input type="password" autoComplete="current-password" value={password} disabled={busy} required onChange={e=>setPassword(e.target.value)}
+                        className="mt-2 min-h-11 w-full rounded border border-[#A89C86]/60 bg-[#24211D] p-3"/></label>}
                 <label className="block text-sm">{text.confirmation}<input autoComplete="off" autoCapitalize="characters" spellCheck={false} value={confirmation} disabled={busy}
                     onChange={event=>setConfirmation(event.target.value)} className="mt-2 min-h-11 w-full rounded border border-[#A89C86]/60 bg-[#24211D] p-3"/></label>
                 {available===false&&<p role="status" className="text-sm text-amber-200">{text.unavailable}</p>}
@@ -54,7 +64,7 @@ export function AccountDeletionPanel({userId,lang,onDeleted}:{userId:string;lang
                 {busy&&<p role="status" className="text-sm">{text.working}</p>}
                 <div className="flex flex-wrap gap-3">
                     <button type="button" disabled={busy} onClick={()=>setOpen(false)} className="min-h-11 flex-1 rounded border border-[#A89C86]/50 p-3 disabled:opacity-50">{text.cancel}</button>
-                    <button type="submit" disabled={busy||confirmation!=='DELETE'||available!==true} className="min-h-11 flex-1 rounded bg-red-900 p-3 text-white disabled:opacity-40">{text.action}</button>
+                    <button type="submit" disabled={busy||confirmation!=='DELETE'||available!==true||(google&&!password)} className="min-h-11 flex-1 rounded bg-red-900 p-3 text-white disabled:opacity-40">{text.action}</button>
                 </div>
             </form>}
         </SettingsDialog>}

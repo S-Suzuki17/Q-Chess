@@ -100,14 +100,14 @@ try {
                     assert.equal(await page.locator('[data-terms-gate]').count(), 0);
                     assert.equal(await page.evaluate(() => localStorage.getItem('qg_guest_terms')), null);
                     // Exercise the real engine-backed course in its default 2D view.
-                    await page.getByRole('button', { name: '遊び方', exact: true }).click();
+                    await page.getByRole('button', { name: 'チュートリアル', exact: true }).click();
                     const tutorial = page.locator('dialog.tutorial-shell');
                     await tutorial.waitFor();
                     assert.equal(await tutorial.locator('[data-qube-teacher]').count(), 1);
                     assert.equal(await tutorial.locator('[data-qube-speaker]').innerText(), 'QUBE');
                     await walkTutorial(page);
                     await tutorial.waitFor({state: 'detached'});
-                    await page.getByRole('button', { name: '遊び方', exact: true }).click();
+                    await page.getByRole('button', { name: 'チュートリアル', exact: true }).click();
                     await tutorial.waitFor();
                     await page.getByRole('button', { name: '閉じる', exact: true }).click();
                     await page.getByRole('button', { name: 'CPUで練習', exact: true }).click();

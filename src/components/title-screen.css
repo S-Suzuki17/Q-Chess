@@ -16,6 +16,12 @@
 .title-practice-direct { display:flex; justify-content:space-between; align-items:center; gap:16px; width:100%; min-height:64px; padding:16px 20px; border:1px solid #d4b872; border-radius:12px; background:#242820; color:#f5e6bd; text-align:left; transition:background .16s, border-color .16s; }
 .title-practice-direct svg { flex-shrink:0; color:#d4b872; }
 .title-practice-direct:hover { background:#32382c; border-color:#f5e8c9; }
+.title-learn-direct { display:flex; align-items:center; gap:12px; width:100%; padding:16px; border:1px solid #7b8967; background:#283327; color:#eee5ca; text-align:left; }
+.title-learn-direct:hover { background:#344330; }
+.title-learn-direct svg { flex-shrink:0; color:#d4c391; }
+.title-learn-direct>span { flex:1; min-width:0; }
+.title-learn-direct strong { display:block; font-size:16px; font-weight:600; line-height:1.5; }
+.title-learn-direct small { display:block; margin-top:4px; color:#bdc7b2; font-size:12px; line-height:1.6; }
 .title-play { display:flex; justify-content:space-between; align-items:center; gap:16px; width:100%; padding:20px; border:1px solid #e5d7b6; background:#e5d7b6; color:#1c2119; font-size:18px; font-weight:500; text-align:left; transition:background .16s; }
 .title-play svg { flex-shrink:0; }.title-play:hover { background:#f5e8c9; }
 .title-tutorial { display:flex; justify-content:space-between; align-items:center; gap:16px; width:100%; min-height:64px; padding:16px 20px; border:1px solid #d4b872; border-radius:12px; background:#303222; color:#f5e6bd; font-size:18px; font-weight:600; text-decoration:none; transition:background .16s; }

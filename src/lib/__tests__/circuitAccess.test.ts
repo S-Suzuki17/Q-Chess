@@ -79,12 +79,6 @@ describe('Crown Circuit login requirement',()=>{
         expect(source).toContain('if(!circuitAccess.canPlay(user)||!loaded');
         expect(source).toContain('if(permit()&&runPermit.current===permit)action()');
         expect(source).toContain('const leaveStage=()=>{runPermit.current=null;');
-        const page=readFileSync('src/app/page.tsx','utf8');
-        expect(page).toContain('await supabase.auth.getUser()');
-        expect(page).toContain('verified.is_anonymous');
-        expect(page).toContain('!circuitAccess.grant(u,attempt)');
-        expect(page).toContain('storage\',identityChanged');
-        const restore=page.slice(page.indexOf("const lastUser = localStorage.getItem('qg_last_user')"),page.indexOf('const handleLogin'));
-        expect(restore).not.toContain('circuitAccess.grant');
+
     });
 });

@@ -9,6 +9,7 @@ import {createRequire} from 'node:module';
 import {createServer} from 'node:http';
 import {readFile,mkdir,writeFile} from 'node:fs/promises';
 import {resolve,sep,extname} from 'node:path';
+import {exportedGoogleSession} from './fixtures/exported-google-session.mjs';
 const require=createRequire(import.meta.url);
 const {chromium}=require('playwright');
 const {GameEngine}=require('../../server/dist/game/GameEngine.js');
@@ -31,7 +32,7 @@ const termsVersion=(await readFile('src/config/terms.ts','utf8')).match(/TERMS_V
 const currentTermsVersion=(await readFile('src/config/currentTerms.ts','utf8')).match(/CURRENT_TERMS_VERSION = '([^']+)'/)[1];
 const currentTermsDate=(await readFile('src/config/currentTerms.ts','utf8')).match(/CURRENT_TERMS_EFFECTIVE_DATE: string \| null = '([^']+)'/)[1];
 const user={id:'RankedStartQA',name:'Ranked QA',type:'registered'};
-const proof={userId:user.id,token:'ranked_'+'r'.repeat(43),expiresAt:Date.now()+3600000};
+const google=await exportedGoogleSession(root,user),proof=google.proof;
 const progress={version:2,stars:{},ascensions:[],stageStars:[],board:'standard',piece:'standard',effect:'standard',music:'standard',avatar:'standard'};
 const scenarios=[
  {name:'npc-white-reconnect',opponent:'cpu',side:'host',tc:'10m',seconds:600,width:375,reconnect:true,characterSeed:101,checkCharacter:true},
@@ -175,7 +176,8 @@ try{
    }
 
    if(!['GET','HEAD'].includes(request.method())){externalWrites.push({path:url.pathname,method:request.method()});return route.fulfill({status:503,json:{code:'UNAVAILABLE'}});}
-   if(url.pathname==='/auth/ranked-session/status')return route.fulfill({json:{userId:user.id,expiresAt:proof.expiresAt,serverNow:Date.now()}});
+   if(url.pathname==='/auth/google/account')return route.fulfill({json:{authId:google.account.authId,account:google.account,termsVersion:currentTermsVersion}});
+   if(url.pathname==='/auth/v1/user')return route.fulfill({json:google.authUser});
    if(url.pathname==='/account/terms')return route.fulfill({json:{userId:user.id,currentVersion:termsVersion,consent:{version:termsVersion,acceptedAt:new Date().toISOString()}}});
    if(url.pathname==='/account/progress')return route.fulfill({json:{userId:user.id,revision:0,progress,saved:true}});
    if(url.pathname==='/game-records')return route.fulfill({json:{records:[]}});
@@ -188,9 +190,9 @@ try{
    if(url.pathname==='/system-status')return route.fulfill({json:{maintenance:false,minimumClientVersion:1}});
    return route.fulfill({status:503,json:{code:'UNAVAILABLE'}});
   });
-  await context.addInitScript(({user,proof,progress,storage})=>{
+  await context.addInitScript(({user,google,progress,storage})=>{
    localStorage.setItem('qg_language','ja');localStorage.setItem('qg_last_user',JSON.stringify(user));
-   sessionStorage.setItem('qg_ranked_session_v1',JSON.stringify(proof));
+   localStorage.setItem(google.sessionKey,JSON.stringify(google.session));
    localStorage.setItem('qchess_is2DView','true');localStorage.setItem('qg_campaign_v1',JSON.stringify(progress));
    localStorage.setItem('qg_sound_config',JSON.stringify({masterMute:true,bgmVolume:0,seVolume:0}));
    window.__rankedCacheFailures=0;
@@ -205,7 +207,7 @@ try{
     if(key==='qg_active_online_match'&&storage==='remove'){window.__rankedCacheFailures++;throw new DOMException('Isolated active match remove failure','SecurityError');}
     return remove.call(this,key);
    };
-  },{user,proof,progress,storage:scenario.storage});
+  },{user,google,progress,storage:scenario.storage});
   const page=await context.newPage();page.setDefaultTimeout(6500);page.on('pageerror',error=>pageErrors.push(error.message));
   let step='restore accepted registered fixture';
   try{

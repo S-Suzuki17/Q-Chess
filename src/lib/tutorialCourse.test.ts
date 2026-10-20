@@ -47,7 +47,7 @@ describe('progressive tutorial through the playable Q-Gambit engine',()=>{
   expect(attemptTutorialMove(state,task,{pieceId:'bk',target:tutorialPosition('g8'),chosenType:K})).toMatchObject({state,accepted:false,feedback:'illegal'});
  });
  it('requires both genuine checkmate and unresolved attacking pieces in the final challenge',()=>{
-  const lesson=tutorialCourse.at(-1)!;let state=lesson.create();
+  const lesson=tutorialCourse.find(item=>item.id==='quantum-mate')!;let state=lesson.create();
   for(const task of lesson.tasks.slice(0,-1))state=attemptTutorialMove(state,task,tutorialReferenceMove(state,task)).state;
   const task=lesson.tasks.at(-1)!,wrong=tutorialMoves(state,'attacker').find(move=>move.target.row===2&&move.target.col===4)!;
   expect(attemptTutorialMove(state,task,wrong)).toMatchObject({state,accepted:false,feedback:'tryMate'});

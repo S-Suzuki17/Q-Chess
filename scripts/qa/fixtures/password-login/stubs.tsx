@@ -4,13 +4,25 @@ import {emptyCampaign} from '../../../../src/config/campaign';
 const qa=()=>((window as any).qa??={});
 const listeners=new Set<(event:string,session:unknown)=>void>();
 export const oauthCallbackAtStartup=captureOAuthCallback();
+const saved=()=>JSON.parse(localStorage.getItem('qa-google-session')??'null');
+const emit=(event:string,session:unknown)=>listeners.forEach(fn=>fn(event,session));
+Object.assign(window,{
+    qaRefresh:()=>emit('TOKEN_REFRESHED',saved()),
+    qaSwitch:(session:unknown)=>{localStorage.setItem('qa-google-session',JSON.stringify(session));emit('SIGNED_IN',session);},
+});
 export const supabase={auth:{
-    async initialize(){return {error:null};},
-    async getSession(){return {data:{session:null},error:null};},
-    async getUser(){return {data:{user:null},error:null};},
+    async initialize(){return {error:qa().initializationError?new Error('Synthetic OAuth failure'):null};},
+    async getSession(){return {data:{session:saved()},error:null};},
+    async getUser(){return {data:{user:saved()?.user??null},error:null};},
     onAuthStateChange(fn:(event:string,session:unknown)=>void){listeners.add(fn);return {data:{subscription:{unsubscribe:()=>listeners.delete(fn)}}};},
-    async signInWithOAuth(){throw new Error('OAuth is outside this password-login fixture');},
-    async signOut(){listeners.forEach(fn=>fn('SIGNED_OUT',null));return {error:null};},
+    async signInWithOAuth(options:unknown){
+        qa().oauthOptions=options;
+        const session=qa().nextSession;
+        localStorage.setItem('qa-google-session',JSON.stringify(session));
+        emit('SIGNED_IN',session);
+        return {data:{url:location.origin},error:null};
+    },
+    async signOut(){localStorage.removeItem('qa-google-session');emit('SIGNED_OUT',null);return {error:null};},
 },from:()=>{throw new Error('Unexpected direct database access');}};
 export const useAppPlatform=()=>({android:false,webContent:true,nativeServices:false});
 export const useNativeAuthLinks=()=>({failed:false,dismiss:()=>{}});

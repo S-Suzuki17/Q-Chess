@@ -1,4 +1,5 @@
 'use client';
+import {sessionOwnsAccount} from './googleAccountIdentity';
 import { crownAdmissionEnabled, crownRankKey } from '../config/crownAdmission';
 import { supabase } from './supabaseClient';
 import { gameServerUrl, readRankedSession } from './rankedSession';
@@ -28,7 +29,7 @@ export async function authorizeCrownStage(userId: string, stageId: number, signa
     if (!token) {
         const { data, error } = await supabase.auth.getSession();
         const session = data.session;
-        if (!error && session?.user.id === userId && !session.user.is_anonymous &&
+        if (!error && sessionOwnsAccount(session,userId) && !session.user.is_anonymous &&
             (!session.expires_at || session.expires_at * 1000 > Date.now())) token = session.access_token;
     }
     if (!token) throw new Error('AUTH_REQUIRED');

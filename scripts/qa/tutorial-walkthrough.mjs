@@ -6,13 +6,15 @@ export const tutorialExercises=[
  ['pawn-step',[['e2','e3']]],['pawn-double',[['e2','e4']]],
  ['opponent-capture',[['e2','e4'],['f5','e4']]],['rook',[['a2','a5']]],
  ['bishop',[['c1','g5']]],['knight',[['b1','c3']]],['queen',[['d1','h5']]],['king',[['e1','f1']]],
- ['candidates',[['e4','h7']]],['deduction-chain',[['e4','h7'],['a7','a6'],['h7','h5']]],
- ['opponent-deduction',[['h7','h5']]],['captured-slots',[['a1','a4']]],
- ['castle',[['e1','g1','castle']]],['promotion',[['e7','e8','2']]],['decline-promotion',[['e7','e8','normal']]],
+ ['chess-castle',[['e1','g1']]],['promotion',[['e7','e8','2']]],
  ['en-passant',[['f7','f5'],['e5','f6']]],['check-block',[['c3','e5']]],
  ['self-check',[['e2','f2'],['e2','e8']]],['king-escape',[['e1','f1']]],
- ['king-candidates',[['a1','a4']]],['last-king',[['a1','a4']]],['stalemate',[['c7','b6']]],
- ['checkmate',[['d6','d8']]],['quantum-mate',[['d5','d6'],['h7','h6'],['d6','d8']]],
+ ['stalemate',[['c7','b6']]],['checkmate',[['d6','d8']]],
+ ['candidates',[['e4','h7']]],['deduction-chain',[['e4','h7'],['a7','a6'],['h7','h5']]],
+ ['opponent-deduction',[['h7','h5']]],['captured-slots',[['a1','a4']]],
+ ['castle',[['e1','g1','castle']]],['decline-promotion',[['e7','e8','normal']]],
+ ['king-candidates',[['a1','a4']]],['last-king',[['a1','a4']]],
+ ['quantum-mate',[['d5','d6'],['h7','h6'],['d6','d8']]],
 ];
 async function activate(page,locator){await locator.focus();await page.keyboard.press('Enter');}
 export async function readTutorialPages(page,tutorial,{strictFit=true}={}){
@@ -39,9 +41,9 @@ export async function readTutorialPages(page,tutorial,{strictFit=true}={}){
   assert(fit.scroll<=fit.client+2&&fit.scrollWidth<=fit.width+1,`Tutorial needs scrolling: ${JSON.stringify(fit)}`);
  }
 }
-export async function walkTutorial(page,{readAllCopy=false,strictFit=true,onLesson=async()=>{},checkRecovery=false}={}){
+export async function walkTutorial(page,{readAllCopy=false,strictFit=true,onLesson=async()=>{},checkRecovery=false,progressKey='qg_tutorial_course_v2'}={}){
  const tutorial=page.locator('dialog.tutorial-shell'),picker=tutorial.locator('#tutorial-lesson-picker');
- await tutorial.waitFor();assert.equal(await picker.locator('option').count(),24);
+ await tutorial.waitFor();assert.equal(await picker.locator('option').count(),25);
  await picker.selectOption('0');
  const square=coordinate=>tutorial.locator('.tutorial-flat-board [data-square="'+coordinate+'"]');
  if(checkRecovery){
@@ -96,7 +98,7 @@ export async function walkTutorial(page,{readAllCopy=false,strictFit=true,onLess
   await tutorial.locator('[data-tutorial-next]').click();
  }
  await tutorial.waitFor({state:'detached'});
- const progress=await page.evaluate(()=>JSON.parse(localStorage.getItem('qg_tutorial_course_v2')));
- assert.equal(progress.completed.length,24);
- return {lessons:24,exercises,copyRead:readAllCopy,keyboardControls:true,specialChoiceCancellation:checkRecovery,unresolvedMate:true};
+ const progress=await page.evaluate(key=>JSON.parse(localStorage.getItem(key)),progressKey);
+ assert.equal(progress.completed.length,25);
+ return {lessons:25,exercises,copyRead:readAllCopy,keyboardControls:true,specialChoiceCancellation:checkRecovery,unresolvedMate:true};
 }

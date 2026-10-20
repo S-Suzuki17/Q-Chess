@@ -43,7 +43,8 @@ describe('landing board preview', () => {
     it('does not crowd the sign-in form with a board preview', () => {
         const html = renderToStaticMarkup(createElement(TitleScreen, { lang: 'en', onLogin: () => {}, initialMode: 'login' }));
         expect(html.match(/<dialog[\s\S]*?<\/dialog>/)?.[0]).not.toContain('data-game-preview');
-        expect(html).toContain('autoComplete="username"');
+        expect(html).toContain('Google');
+        expect(html).not.toMatch(/type="password"|autoComplete="username"|Discord/);
     });
 });
 

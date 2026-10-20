@@ -15,5 +15,13 @@ export function useNativeAuthLinks() {
             exchangeCode: code => supabase.auth.exchangeCodeForSession(code),
             closeBrowser: () => Browser.close(), onError: () => setFailed(true) });
     }, [nativeServices]);
+    useEffect(()=>{
+        if(!nativeServices)return;
+        let active=true;
+        const update=(isActive:boolean)=>{if(active){if(isActive)supabase.auth.startAutoRefresh();else supabase.auth.stopAutoRefresh();}};
+        const listener=App.addListener('appStateChange',state=>update(state.isActive));
+        void App.getState().then(state=>update(state.isActive)).catch(()=>{});
+        return()=>{active=false;supabase.auth.stopAutoRefresh();void listener.then(handle=>handle.remove());};
+    },[nativeServices]);
     return { failed, dismiss: () => setFailed(false) };
 }

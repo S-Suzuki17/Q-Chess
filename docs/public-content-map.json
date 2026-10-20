@@ -5,6 +5,7 @@
       "id": "start-and-controls",
       "sources": [
         "^src/app/page\\.tsx$",
+        "^src/components/GoogleAccountSetup\\.tsx$",
         "^src/locales/(dict|additionalTutorial)\\.ts$",
         "^src/components/(TitleScreen|LobbyShowcase|LevelSelect|InteractiveTutorial|TutorialCopy|GameSettings|ChallengeMap|GuestCircuitPreview|CampaignMode|CrownEntryMotion)\\.tsx$",
         "^src/components/(lobby-reference|crown-reference)\\.css$",
@@ -14,6 +15,9 @@
         "^src/lib/castleQuestJourney\\.ts$",
         "^src/lib/tutorialCourse\\.ts$",
         "^src/locales/tutorialCourseText\\.ts$",
+        "^server/src/learning/",
+        "^src/locales/(learningText|learningEntryText|chessLessonText)\\.ts$",
+        "^src/components/(WeeklyProblems\\.tsx|weekly-problems\\.css)$",
         "^src/components/(game-settings|challenge-map|online-match-waiting|interactive-tutorial)\\.css$",
         "^src/lib/textPageBreaks\\.ts$",
         "^src/(hooks|lib)/(useAndroidBack|androidBack)\\.ts$"
@@ -35,6 +39,8 @@
         "^src/components/(Board2D|Board3D|MatchLayout)\\.tsx$",
         "^src/lib/tutorialCourse\\.ts$",
         "^src/locales/tutorialCourseText\\.ts$",
+        "^server/src/learning/",
+        "^src/locales/chessLessonText\\.ts$",
         "^src/lib/localMoveDestinations\\.ts$"
       ],
       "pages": [
@@ -58,6 +64,7 @@
       "sources": [
         "^src/(hooks|lib)/.*([Hh]int|[Tt]icket)",
         "^src/(config|locales)/([Hh]int|moveHint)",
+        "^src/components/HintExplanation\\.tsx$",
         "^src/components/(LocalGameBoard|OnlineGameBoard)\\.tsx$",
         "^src/lib/cpuPractice\\.ts$",
         "^src/config/gameConfig\\.ts$",
@@ -80,6 +87,8 @@
       "id": "accounts-connections-and-saves",
       "sources": [
         "^src/(hooks|lib)/.*(Auth|auth|OnlineGame|reconnect|Circuit|Storage|storage)",
+        "^src/(hooks/useGoogleLoginSession|lib/googleAccount.*)\\.ts$",
+        "^server/src/services/GoogleAccount",
         "^src/components/(SettingsDialog|GameSettings|OnlineMatchWaiting|AccountDataGuide|CircuitLoginGate|OnlineMatchTermsGate|RankedMatchmakingManager|RankedCancellationNotice)\\.tsx$",
         "^src/locales/(settingsScreenText|matchWaitingText)\\.ts$",
         "^src/locales/(onlineMatchTermsText|rankedStartText)\\.ts$",
@@ -90,6 +99,8 @@
         "^supabase/migrations/",
         "^src/lib/castleQuestJourney\\.ts$",
         "^src/locales/securityPrivacy\\.ts$",
+        "^src/(lib/learningApi|hooks/useLearningRewards)\\.ts$",
+        "^server/src/services/Learning",
         "^server/src/protocol/PrivateRoom\\.ts$",
         "^src/lib/privateRoom\\.ts$",
         "^src/(hooks|lib)/(usePlayGameStats.*|playGameStats.*)\\.ts$"
@@ -117,6 +128,9 @@
         "^src/config/(salesTermsDraft|currentTerms|webCommerce|publicContact|commerceCatalog)\\.ts$",
         "^src/locales/(terms|privacy|engagementPrivacy|commerce|stripeMembership|hintScope)",
         "^server/src/services/(Stripe|Commerce|AccountCurrentTerms)",
+        "^server/src/services/Learning",
+        "^src/(lib/learningApi|lib/adPolicy|hooks/useLearningRewards|locales/learningText)\\.ts$",
+        "^src/components/(WeeklyProblems|LearningRewardNotice)\\.tsx$",
         "^supabase/migrations/",
         "^src/(components|lib|locales)/(NativeCommerce|NativeAdPrivacy|nativeCommerce|nativeAds|playCommerce)",
         "^server/src/services/PlayCommerce",
@@ -191,6 +205,8 @@
         "^src/locales/castleQuestText\\.ts$",
         "^src/lib/tutorialCourse\\.ts$",
         "^src/locales/tutorialCourseText\\.ts$",
+        "^src/locales/(learningText|chessLessonText|hintExplanationText)\\.ts$",
+        "^src/components/(WeeklyProblems|HintExplanation)\\.tsx$",
         "^src/components/NaturalText\\.tsx$"
       ],
       "pages": [

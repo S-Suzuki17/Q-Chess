@@ -9,7 +9,7 @@ const {server,base}=await startSecondaryScreensFixture();let browser;const resul
 const requestedCase=process.argv.find(arg=>arg.startsWith('--case='))?.slice(7);
 const cases=(process.argv.includes('--zoom-only')?[[375,667,'ta',true]]:[[390,844,'ja'],[320,568,'ja'],[844,390,'en'],[1280,800,'en'],[390,844,'de'],[320,568,'ta']]).filter(([width,height,lang])=>!requestedCase||requestedCase===`${lang}:${width}x${height}`);
 assert(cases.length,'Unknown learning layout case');
-const save=async()=>writeFile(resolve(output,'result.json'),JSON.stringify({expectedCases:cases.length,complete:results.length===cases.length,pass:results.length===cases.length,scope:'Real learning pages and 24 engine-backed lessons, 2D default and 3D failure recovery; external traffic blocked. Browser viewports only; not physical Android.',results},null,2)+'\n');
+const save=async()=>writeFile(resolve(output,'result.json'),JSON.stringify({expectedCases:cases.length,complete:results.length===cases.length,pass:results.length===cases.length,scope:'Real learning pages and 25 engine-backed lessons, 2D default and 3D failure recovery; external traffic blocked. Browser viewports only; not physical Android.',results},null,2)+'\n');
 try{
  browser=await chromium.launch({headless:true,...(process.env.QG_TEST_CHROMIUM?{executablePath:process.env.QG_TEST_CHROMIUM}:{})});
  for(const [width,height,lang,textScale200]of cases){

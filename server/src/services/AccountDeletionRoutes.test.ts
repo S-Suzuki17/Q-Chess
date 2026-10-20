@@ -112,7 +112,7 @@ describe('self-service deletion on an isolated HTTP server', () => {
     it('retries Storage and Auth failures without reporting premature completion', async () => {
         const f = await fixture(); const id = '00000000-0000-4000-8000-000000000001';
         f.store.verifyUser.mockResolvedValue(id);
-        expect((await f.send('/account/deletion', 'verified.jwt.token')).status).toBe(202);
+        expect((await f.send('/account/deletion', 'header.'+Buffer.from(JSON.stringify({sub:id})).toString('base64url')+'.signature')).status).toBe(202);
         f.store.removePhotoBatch.mockRejectedValueOnce(new Error('storage down'));
         expect((await f.send('/account/deletion/complete', ticket, { confirmation: 'DELETE' })).status).toBe(503);
         expect(f.store.eraseData).not.toHaveBeenCalled();

@@ -1,4 +1,5 @@
 'use client';
+import {sessionOwnsAccount} from './googleAccountIdentity';
 import { canShowVerifiedAccountAds } from './sharedAdEligibility';
 import {supabase} from './supabaseClient';
 import {gameServerUrl,readRankedSession} from './rankedSession';
@@ -12,7 +13,7 @@ export async function requestRewardApi(userId:string,path:string,body?:unknown):
  let token=readRankedSession(userId)?.token;
  if(!token){
   const {data,error}=await supabase.auth.getSession();const session=data.session;
-  if(!error&&session?.user.id===userId&&!session.user.is_anonymous&&(!session.expires_at||session.expires_at*1000>Date.now()))token=session.access_token;
+  if(!error&&sessionOwnsAccount(session,userId)&&!session.user.is_anonymous&&(!session.expires_at||session.expires_at*1000>Date.now()))token=session.access_token;
  }
  if(!token)throw new Error('AUTH_REQUIRED');
  const url=new URL(path,gameServerUrl());
