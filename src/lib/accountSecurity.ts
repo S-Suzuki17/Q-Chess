@@ -26,7 +26,7 @@ export async function registerAccount(username:string,password:string,email:stri
         if((await response.json())?.registered!==true)throw new Error('UNAVAILABLE');
     }catch(error){if(error instanceof AccountRegistrationError)throw error;throw new AccountRegistrationError('UNAVAILABLE');}
 }
-export async function revokeAllAccountSessions(userId:string):Promise<void>{
-    const value=await requestAccountProfile('/account/sessions/revoke-all',userId,{});
+export async function revokeAllAccountSessions(userId:string,confirmation?:{token:string;proof:string}):Promise<void>{
+    const value=await requestAccountProfile('/account/sessions/revoke-all',userId,{},undefined,confirmation);
     if(value.revoked!==true)throw new AccountProfileError('UNAVAILABLE');
 }

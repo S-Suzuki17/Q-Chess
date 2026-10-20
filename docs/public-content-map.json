@@ -5,6 +5,7 @@
       "id": "start-and-controls",
       "sources": [
         "^src/app/page\\.tsx$",
+        "^src/components/GoogleAccountSetup\\.tsx$",
         "^src/locales/(dict|additionalTutorial)\\.ts$",
         "^src/components/(TitleScreen|LobbyShowcase|LevelSelect|InteractiveTutorial|TutorialCopy|GameSettings|ChallengeMap|GuestCircuitPreview|CampaignMode|CrownEntryMotion)\\.tsx$",
         "^src/components/(lobby-reference|crown-reference)\\.css$",
@@ -86,6 +87,8 @@
       "id": "accounts-connections-and-saves",
       "sources": [
         "^src/(hooks|lib)/.*(Auth|auth|OnlineGame|reconnect|Circuit|Storage|storage)",
+        "^src/(hooks/useGoogleLoginSession|lib/googleAccount.*)\\.ts$",
+        "^server/src/services/GoogleAccount",
         "^src/components/(SettingsDialog|GameSettings|OnlineMatchWaiting|AccountDataGuide|CircuitLoginGate|OnlineMatchTermsGate|RankedMatchmakingManager|RankedCancellationNotice)\\.tsx$",
         "^src/locales/(settingsScreenText|matchWaitingText)\\.ts$",
         "^src/locales/(onlineMatchTermsText|rankedStartText)\\.ts$",

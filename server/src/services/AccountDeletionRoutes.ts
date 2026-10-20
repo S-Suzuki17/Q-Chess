@@ -9,7 +9,13 @@ async function identity(header: unknown, auth: RankedSessionAuthority, store: Ac
     const proof = await auth.verifySession(token);
     if (proof) return { id: proof.userId, authId: null };
     const id = /^[-\w]+\.[-\w]+\.[-\w]+$/.test(token) ? await store.verifyUser(token) : null;
-    return id && isRankedUserId(id) ? { id, authId: id } : null;
+    if(!id||!isRankedUserId(id))return null;
+    // verifyUser has verified this exact JWT and live Auth session. Its subject
+    // can differ from a game ID after an explicitly verified legacy link.
+    let authId:string;
+    try{authId=JSON.parse(Buffer.from(token.split('.')[1],'base64url').toString('utf8')).sub;}
+    catch{return null;}
+    return typeof authId==='string'&&/^[0-9a-f-]{36}$/i.test(authId)?{id,authId}:null;
 }
 export function createAccountDeletionRouter(auth: RankedSessionAuthority, store: AccountDeletionStore, gate: AccountWriteGate,
     isBusy: (id: string) => boolean, disconnect: (id: string) => void,

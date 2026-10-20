@@ -1,4 +1,5 @@
 'use client';
+import {sessionOwnsAccount} from './googleAccountIdentity';
 import { requireCurrentAccountTerms } from './currentAccountTerms';
 
 import { supabase } from './supabaseClient';
@@ -72,7 +73,7 @@ async function request(userId: string, claim: boolean, signal?: AbortSignal): Pr
         if (!token) {
             const { data, error } = await supabase.auth.getSession();
             const session = data.session;
-            if (!error && session?.user.id === userId && !session.user.is_anonymous &&
+            if (!error && sessionOwnsAccount(session,userId) && !session.user.is_anonymous &&
                 (!session.expires_at || session.expires_at * 1000 > Date.now())) token = session.access_token;
         }
         signal?.throwIfAborted();

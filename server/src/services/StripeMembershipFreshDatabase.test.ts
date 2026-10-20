@@ -26,8 +26,8 @@ describe('fresh full-history migration readiness blockers', () => {
                 try { await db.exec(await readFile(resolve(directory, file), 'utf8')); applied.push(file); }
                 catch (error) { failedFile = file; failure = error; break; }
             }
-            expect(all).toHaveLength(56);
-            expect(all.slice(-18)).toEqual(['20261006154443_dormant_legacy_session_runtime.sql',
+            expect(all).toHaveLength(57);
+            expect(all.slice(-19)).toEqual(['20261006154443_dormant_legacy_session_runtime.sql',
                 '20261006155010_atomic_commerce_fulfillment.sql',
                 '20261006171022_dormant_hint_origin_consumption.sql',
                 '20261006171148_shared_match_admission.sql',
@@ -41,7 +41,7 @@ describe('fresh full-history migration readiness blockers', () => {
                 '20261013040752_play_commerce_ledger.sql','20261013071700_conventional_registration_repair.sql',
                 '20261013075800_preserve_legacy_ad_reward_intents.sql','20261013075925_admob_verified_ticket_rewards.sql',
                 '20261013115237_play_commerce_terms_release.sql','20261013135400_play_pending_refund_state.sql',
-                '20261020111637_learning_rewards_and_weekly_problems.sql']);
+                '20261020111637_learning_rewards_and_weekly_problems.sql','20261020153130_google_account_onboarding.sql']);
             expect(applied).toEqual(['20260918062045_ranked_server_settlement.sql']);
             expect(failedFile).toBe('20260918072145_ranked_server_settlement.sql');
             expect(String(failure)).toMatch(/relation "ranked_match_settlements" already exists/);

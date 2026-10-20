@@ -9,6 +9,6 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholde
 const native = ANDROID_BUILD || Capacitor.isNativePlatform();
 // Capture callback shape before automatic initialization can consume the URL.
 export const oauthCallbackAtStartup = captureOAuthCallback();
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, native ? {
-    auth: { flowType: 'pkce', detectSessionInUrl: false },
-} : undefined);
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+    auth: { flowType: 'pkce', detectSessionInUrl: !native, persistSession:true, autoRefreshToken:true },
+});

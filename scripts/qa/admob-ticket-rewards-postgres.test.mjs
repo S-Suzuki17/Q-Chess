@@ -97,7 +97,7 @@ const {
     purchase, contended, MAX, HASH, LEGACY_PRICE, unique, claim
 } = support;
 const { setupBaseline, historical, baselineEvidence } = baseline;
-const { combinedPendingMigrations, hintPolicyMigrations, emailRegistrationMigrations, learningMigrations } = sessionFixture;
+const { combinedPendingMigrations, hintPolicyMigrations, emailRegistrationMigrations, learningMigrations, googleAccountMigrations } = sessionFixture;
 const MIGRATION = DRAFT_SCOPE.migration;
 const PLAY_PARALLEL = '20261013040752_play_commerce_ledger.sql';
 const REGISTRATION_REPAIR = '20261013071700_conventional_registration_repair.sql';
@@ -108,7 +108,7 @@ const preceding = [...combinedPendingMigrations, ...hintPolicyMigrations,
     ...emailRegistrationMigrations, REGISTRATION_REPAIR,'20261013075800_preserve_legacy_ad_reward_intents.sql'].sort();
 const TERMS_RELEASE = '20261013115237_play_commerce_terms_release.sql';
 // The learning suite exercises its forward migration; this historical Ad-only proof keeps its boundary.
-const reviewedInventory = [...preceding, PLAY_PARALLEL, MIGRATION, TERMS_RELEASE,'20261013135400_play_pending_refund_state.sql',...learningMigrations].sort();
+const reviewedInventory = [...preceding, PLAY_PARALLEL, MIGRATION, TERMS_RELEASE,'20261013135400_play_pending_refund_state.sql',...learningMigrations,...googleAccountMigrations].sort();
 const migrationText = name => readFile(sourceURL('supabase/migrations/' + name), 'utf8');
 const hashTransaction = transaction => createHash('sha256').update('admob:' + transaction).digest('hex');
 const errorCode = (promise, code) => assert.rejects(promise, { code });

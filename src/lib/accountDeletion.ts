@@ -1,6 +1,9 @@
 'use client';
+import {sessionOwnsAccount} from './googleAccountIdentity';
 import { supabase } from './supabaseClient';
 import { gameServerUrl, readRankedSession } from './rankedSession';
+import {confirmGooglePassword} from './googleAccount';
+import {googleAccountFor} from './googleAccountIdentity';
 
 export class AccountDeletionError extends Error {
     constructor(public code: 'AUTH_REQUIRED' | 'ACCOUNT_BUSY' | 'UNAVAILABLE') { super(code); }
@@ -12,11 +15,12 @@ function endpoint(path: string) {
     if (url.protocol !== 'https:' && !['127.0.0.1','localhost','[::1]'].includes(url.hostname)) throw new AccountDeletionError('UNAVAILABLE');
     return url;
 }
-async function request(path: string, token?: string, body?: unknown) {
+async function request(path: string, token?: string, body?: unknown,confirmation?:string) {
     try {
         const response = await fetch(endpoint(path), {
             method: body ? 'POST' : 'GET', credentials: 'omit', cache: 'no-store', redirect: 'error',
-            headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(body ? { 'Content-Type': 'application/json' } : {}) },
+            headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(body ? { 'Content-Type': 'application/json' } : {}),
+                ...(confirmation?{'X-QG-Confirmation':confirmation}:{}) },
             ...(body ? { body: JSON.stringify(body) } : {}), signal: AbortSignal.timeout(30000),
         });
         if (response.status === 401) throw new AccountDeletionError('AUTH_REQUIRED');
@@ -43,19 +47,20 @@ function ticketFor(userId: string): string {
 async function authToken(userId: string): Promise<string> {
     const proof = readRankedSession(userId); if (proof) return proof.token;
     const { data, error } = await supabase.auth.getSession();
-    if (!error && data.session?.user.id === userId && !data.session.user.is_anonymous) return data.session.access_token;
+    if (!error && sessionOwnsAccount(data.session,userId) && !data.session.user.is_anonymous) return data.session.access_token;
     throw new AccountDeletionError('AUTH_REQUIRED');
 }
 
 /** Called only after the user types DELETE and confirms. No automatic deletion on load. */
-export async function deleteOwnAccount(userId: string): Promise<void> {
+export async function deleteOwnAccount(userId: string,password?:string): Promise<void> {
     if (!userId || /^(?:guest(?:[-_]|$)|anon(?:ymous)?(?:[-_]|$)|cpu(?:[-_]|$)|ai(?::|$)|supabase-)/i.test(userId)) throw new AccountDeletionError('AUTH_REQUIRED');
     const ticket = ticketFor(userId);
     let phase: string | undefined;
     try { phase = (await request('/account/deletion/complete', ticket, { confirmation: 'DELETE' })).phase; }
     catch (error) {
         if (!(error instanceof AccountDeletionError) || error.code !== 'AUTH_REQUIRED') throw error;
-        await request('/account/deletion', await authToken(userId), { confirmation: 'DELETE', ticket });
+        const confirmed=googleAccountFor(userId)?await confirmGooglePassword(userId,password??'','delete'):null;
+        await request('/account/deletion', confirmed?.token??await authToken(userId), { confirmation: 'DELETE', ticket },confirmed?.proof);
         phase = 'pending';
     }
     for (let attempt = 0; phase === 'pending' && attempt < 30; attempt++) {

@@ -2,7 +2,8 @@ import { createCrownAdmissionStore } from './CrownAdmissionStore';
 import { sharedMatchAdmissionEnabled, sharedMatchAdmissionRecoveryEnabled } from './SharedMatchFeatureGates';
 import { createSharedMatchEntitlements } from './SharedMatchEntitlements';
 import { createDurableRankedAuth, SessionAuthorityUnavailable } from './DurableRankedAuth';
-import { createClient, isAuthApiError, SupabaseClient } from '@supabase/supabase-js';
+import { createClient, isAuthApiError, SupabaseClient, type User as AuthUser } from '@supabase/supabase-js';
+import {createGoogleAccountStore,googleAccountsEnabled,verifiedGoogleActor} from './GoogleAccounts';
 import dotenv from 'dotenv';
 import {v5 as uuidv5} from 'uuid';
 import { parseLocalGameRecord, PRIVATE_RECORD_LIMIT } from './PrivateGameRecords';
@@ -57,6 +58,10 @@ export class SupabaseService {
     }
 
     public durableSessionAuthority() { return createDurableRankedAuth(this.supabase); }
+    public googleAccountStore() { return createGoogleAccountStore(this.supabase,async token=>{
+        const user=await this.verifiedAuthUser(token);
+        return user?verifiedGoogleActor(token,user):null;
+    }); }
 
     public profileAvatarStore() {
         return createProfileAvatarStore(this.supabase,token=>this.verifyUser(token));
@@ -257,6 +262,14 @@ export class SupabaseService {
 
     // Verify JWT and extract user info
     public async verifyUser(token: string): Promise<string | null> {
+        const user=await this.verifiedAuthUser(token);
+        if(!user)return null;
+        if(!googleAccountsEnabled())return user.id;
+        if(!verifiedGoogleActor(token,user))return null;
+        return (await this.googleAccountStore().read(user.id))?.userId??null;
+    }
+
+    private async verifiedAuthUser(token: string): Promise<AuthUser | null> {
         if (typeof token!=='string'||token.length>8192||!/^[-\w]+\.[-\w]+\.[-\w]+$/.test(token)) return null;
         if(this.pendingAuth>=32)throw new SessionAuthorityUnavailable();
         this.pendingAuth++;
@@ -285,9 +298,9 @@ export class SupabaseService {
                 // A recovery-only Auth identity is not a second playable account.
                 if(expired||lookupError)throw new SessionAuthorityUnavailable();
                 if(recovery!==null&&(typeof recovery!=='object'||Array.isArray(recovery)||typeof recovery.user_id!=='string'||!recovery.user_id))throw new SessionAuthorityUnavailable();
-                if(recovery)return null;
+                if(recovery&&(!googleAccountsEnabled()||!verifiedGoogleActor(token,user)))return null;
             }
-            return user.id;
+            return user;
           })(),new Promise<never>((_,reject)=>{
               timeout=setTimeout(()=>{expired=true;reject(new SessionAuthorityUnavailable());},5000);
           })]);

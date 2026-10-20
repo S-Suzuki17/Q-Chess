@@ -37,6 +37,7 @@ import {createSecurityAudit} from './services/SecurityAudit';
 import {createEngagementMetricsRouter} from './services/EngagementMetricsRoutes';
 import {createDailyLoginRouter} from './services/DailyLoginRoutes';
 import {createLearningRouter} from './services/LearningRoutes';
+import {createGoogleAccountRouter} from './services/GoogleAccountRoutes';
 import {createLearningMaintenance,learningEnabled} from './services/LearningMaintenance';
 import { createRankedRefundRouter } from './services/RankedRefundRoutes';
 import { createRankedSessionInspectionRouter } from './services/RankedSessionInspectionRoutes';
@@ -166,6 +167,7 @@ app.use(createPlayNotificationRouter(playCommerce,playNotificationIdentity));
 setInterval(()=>{void playCommerce.tick().catch(()=>{/* Durable jobs retry; never log purchase tokens or provider responses. */});},30000).unref();
 const operations=createServiceOperations(supabaseService.serviceStatusLoader());
 app.use(operations.loginGuard);
+app.use(createGoogleAccountRouter(supabaseService.googleAccountStore(),accountGate,operations));
 app.post('/auth/oauth-admission',createOAuthAdmissionHandler(operations,token=>supabaseService.verifyUser(token)));
 app.get('/service/status',async(_req,res)=>{
     res.setHeader('Cache-Control','no-store');

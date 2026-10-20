@@ -20,7 +20,7 @@ it('fails closed for registration failures and never fabricates a session',async
 });
 it('global logout posts no selectable account and requires an acknowledged result',async()=>{
     h.request.mockResolvedValue({userId:'Alice',revoked:true});await revokeAllAccountSessions('Alice');
-    expect(h.request).toHaveBeenCalledExactlyOnceWith('/account/sessions/revoke-all','Alice',{});
+    expect(h.request).toHaveBeenCalledExactlyOnceWith('/account/sessions/revoke-all','Alice',{},undefined,undefined);
     h.request.mockResolvedValue({revoked:false});await expect(revokeAllAccountSessions('Alice')).rejects.toThrow();
 });
 it('provides security and support text in all twelve languages',()=>{

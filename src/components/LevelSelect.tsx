@@ -48,6 +48,7 @@ import { circuitAccessText } from '../locales/circuitAccessText';
 import { AccountDeletionPanel } from './AccountDeletionPanel';
 import { AccountSecurityPanel } from './AccountSecurityPanel';
 import { AccountRecoveryPanel } from './AccountRecoveryPanel';
+import {googleAccountFor} from '../lib/googleAccountIdentity';
 import { rewardsHubEnabled } from '../config/rewardsHub';
 import { rewardsHubText } from '../locales/rewardsHubText';
 import './rewards-hub.css';
@@ -552,7 +553,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
                             {rewardsAvailable && <button type="button" onClick={onOpenRewards} className="reward-entry">
                                 <span>{rewardCopy.title}<small>{rewardCopy.description}</small></span><span aria-hidden="true">→</span>
                             </button>}
-                            {user.type==='registered'&&!/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(user.id)&&<AccountRecoveryPanel key={`recovery-${user.id}`} userId={user.id} lang={lang}/>}
+                            {user.type==='registered'&&!googleAccountFor(user.id)&&!/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(user.id)&&<AccountRecoveryPanel key={`recovery-${user.id}`} userId={user.id} lang={lang}/>}
 
                             <button onClick={onBack} className="w-full mt-4 py-4 border border-[#A89C86]/40 hover:border-[#E8E2D7] text-[#A89C86] hover:text-[#E8E2D7] text-xs tracking-widest transition-colors">
                                 {t.logout}

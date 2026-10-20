@@ -1,3 +1,4 @@
+import {sessionOwnsAccount} from './googleAccountIdentity';
 import { supabase } from './supabaseClient';
 import { gameServerUrl, readRankedSession } from './rankedSession';
 import { circuitIcon, circuitIconFromUrl } from '../config/circuitIcons';
@@ -46,7 +47,7 @@ export async function saveProfileAvatar(userId: string, value: { iconId: string 
     if (!token) {
         const { data, error } = await supabase.auth.getSession();
         const session = data.session;
-        if (!error && session?.user.id === userId && !session.user.is_anonymous &&
+        if (!error && sessionOwnsAccount(session,userId) && !session.user.is_anonymous &&
             (!session.expires_at || session.expires_at * 1000 > Date.now())) token = session.access_token;
     }
     signal.throwIfAborted();

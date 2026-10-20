@@ -1,6 +1,6 @@
 import {settingsSections,chooseSettingsSection} from './settings-navigation.mjs';
 import {textWrapping} from './text-wrapping.mjs';
-/** Real exported app and real password/profile/reward clients. Every account/API
+/** Real exported app and real Google-session/profile/reward clients. Every account/API
  * response is synthetic and all unknown external traffic is blocked. */
 import assert from 'node:assert/strict';
 import {createServer} from 'node:http';
@@ -34,11 +34,12 @@ try{
  }
  browser=await chromium.launch({headless:true,...(process.env.QG_TEST_CHROMIUM?{executablePath:process.env.QG_TEST_CHROMIUM}:{})});
  const allScenarios=broken?[{name:'published-password-missing-config',width:390}]:[
-  {name:'password-session-balances',width:390},
-  {name:'password-persistent-reload',width:1280,persistent:true,reload:true},
-  {name:'password-zero-balances',width:390,zero:true},
-  {name:'password-reauthenticated-balance-refresh',width:390,reauthenticate:true},
-  {name:'password-data-outage-online-retry',width:390,outage:true},
+  {name:'google-entry',width:320,entry:true},
+  {name:'google-first-setup-balances',width:390,setup:true},
+  {name:'google-persistent-reload',width:1280,persistent:true,reload:true},
+  {name:'google-zero-balances',width:390,zero:true},
+  {name:'google-reauthenticated-balance-refresh',width:390,reauthenticate:true},
+  {name:'google-data-outage-online-retry',width:390,outage:true},
   ...(secondaryScreens?[
    {name:'secondary-390',width:390,height:844,secondary:true},{name:'secondary-375',width:375,height:667,secondary:true},
    {name:'secondary-320',width:320,height:568,secondary:true},{name:'secondary-desktop',width:1280,height:800,secondary:true},
@@ -48,9 +49,16 @@ try{
  assert(scenarios.length,'Unknown scenario: '+only);
  for(const scenario of scenarios){
   activeScenario=scenario.name;
-  const userId='AccountDataFixture',password='synthetic-password-17';
+  const userId='GoogleFixture',password='synthetic-password-17';
   const profile={id:userId,name:'Fixture player',rating:1234,rating_10s:1122,rating_3m:1233,rating_10m:1344,avatar_url:null};
-  const proof={userId,token:'ranked_'+'z'.repeat(43),expiresAt:Date.now()+3600000};
+  const authId='11111111-1111-4111-8111-111111111111',expiresAt=Math.floor(Date.now()/1000)+3600;
+  const encode=value=>Buffer.from(JSON.stringify(value)).toString('base64url');
+  const jwt=encode({alg:'HS256',typ:'JWT'})+'.'+encode({sub:authId,session_id:authId,exp:expiresAt,amr:[{method:'oauth',timestamp:expiresAt-3600}]})+'.synthetic';
+  const authUser={id:authId,aud:'authenticated',role:'authenticated',email:'fixture@example.invalid',is_anonymous:false,app_metadata:{provider:'google',providers:['google']},user_metadata:{},identities:[{provider:'google'}],created_at:'2026-10-20T00:00:00Z'};
+  const savedSession={access_token:jwt,refresh_token:'synthetic-refresh',expires_at:expiresAt,expires_in:3600,token_type:'bearer',user:authUser};
+  const proof={userId,token:jwt,expiresAt:expiresAt*1000};
+  let setupComplete=!scenario.setup;
+  const googleAccount={authId,userId,username:userId,name:profile.name};
   const tickets=scenario.zero?{ranked:0,hint:0}:{ranked:7,hint:3};
   let outage=!!scenario.outage;
   const context=await browser.newContext({viewport:{width:scenario.width,height:scenario.height??844},serviceWorkers:'block'});
@@ -66,10 +74,15 @@ try{
    if(method==='OPTIONS')return respond(204);
    calls.push({host:url.hostname,path:url.pathname,method});
    if(url.hostname==='placeholder.supabase.co')return respond(503,{code:'UNAVAILABLE'});
-   if(url.pathname==='/auth/ranked-session'&&method==='POST'){
-    assert.deepEqual(request.postDataJSON(),{username:userId,password,keepLoggedIn:!!scenario.persistent});
-    return respond(200,{...proof,serverNow:Date.now()});
+   if(url.pathname==='/auth/google/account')return respond(200,{authId,account:setupComplete?googleAccount:null,termsVersion});
+   if(url.pathname==='/auth/google/setup'){
+    assert.deepEqual(request.postDataJSON(),{username:userId,password,accepted:true,termsVersion});
+    assert.equal(request.headers().authorization,'Bearer '+jwt);setupComplete=true;
+    return respond(200,{authId,account:googleAccount,termsVersion});
    }
+   if(url.pathname==='/auth/v1/user')return respond(200,authUser);
+   if(url.pathname==='/auth/v1/token')return respond(200,savedSession);
+   if(url.pathname==='/auth/ranked-session'&&method==='POST')throw new Error('Password sign-in must not be called');
    if(url.pathname==='/service/status')return respond(200,{maintenance:false,minimumAndroidBuild:0,minimumProtocol:0,announcement:{},revision:'fixture',serverTime:Date.now()});
    if(url.pathname==='/rest/v1/profiles'){
     assert(!url.searchParams.get('select')?.includes('password'));
@@ -90,15 +103,31 @@ try{
    if(url.pathname==='/membership/stripe/status')return respond(200,{userId,enabled:true,active:false,canManageBilling:false,cancelAtPeriodEnd:false,periodEnd:null,lastGrantUtcDay:null,tickets:{ranked:0,hint:0},availableCheckoutSkus:[]});
    return respond(503,{code:'UNAVAILABLE'});
   });
-  await context.addInitScript(()=>localStorage.setItem('qg_language','ja'));
+  await context.addInitScript(session=>{
+   localStorage.setItem('qg_language','ja');
+   if(session)localStorage.setItem('sb-gtxbvbsplfkkjlmnqath-auth-token',JSON.stringify(session));
+  },scenario.entry?null:savedSession);
   const page=activePage=await context.newPage();page.on('pageerror',error=>errors.push(error.message));
   await page.goto(origin,{waitUntil:'domcontentloaded'});
-  assert.equal(await page.locator('.title-tutorial').getAttribute('href'),target==='android'?'https://q-gambit.com/rules/':'/rules/','Export must render the selected distribution target');
-  await page.getByRole('button',{name:'ログイン',exact:true}).click();
-  await page.getByLabel('アカウント名',{exact:true}).fill(userId);
-  await page.locator('input[name="password"]').fill(password);
-  if(scenario.persistent)await page.locator('#keepLoggedIn').check();
-  await page.locator('.title-auth-submit').click();
+  if(scenario.entry){
+   await page.getByRole('button',{name:'Googleでログイン・新規登録',exact:true}).click();
+   await page.getByRole('button',{name:'Googleで続ける',exact:true}).waitFor();
+   assert.equal(await page.locator('.title-auth-dialog input[type="password"]').count(),0);
+   assert(!/Discord/i.test(await page.locator('.title-auth-dialog').innerText()));
+   assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
+   await page.screenshot({path:resolve(artifacts,scenario.name+'.png')});
+   results.push({name:scenario.name,target,passed:true,liveMutations:0});await context.close();continue;
+  }
+  if(scenario.setup){
+   await page.locator('[data-google-setup]').waitFor();
+   assert.equal(await page.getByRole('button',{name:'設定して同意する',exact:true}).isEnabled(),false);
+   await page.screenshot({path:resolve(artifacts,'google-first-setup-form.png'),fullPage:true});
+   await page.getByLabel('ユーザー名',{exact:true}).fill(userId);
+   await page.getByLabel('新しいQ-Gambit用パスワード',{exact:true}).fill(password);
+   await page.getByLabel('パスワードの確認',{exact:true}).fill(password);
+   await page.locator('input[type="checkbox"][required]').check();
+   await page.getByRole('button',{name:'設定して同意する',exact:true}).click();
+  }
   await page.locator('.lobby-studio').waitFor();
   if(broken){
    await page.waitForTimeout(1500);
@@ -119,14 +148,14 @@ try{
    await check();
    if(scenario.reauthenticate){
     tickets.ranked=11;tickets.hint=4;
-    await page.evaluate(()=>window.dispatchEvent(new Event('qg-ranked-session-change')));
+    await page.reload();await page.locator('.lobby-studio').waitFor();
     await check();
    }
-   if(scenario.reload){await page.reload();await page.locator('.lobby-studio').waitFor();await check();}
+   if(scenario.reload){await page.reload();await page.locator('.lobby-studio').waitFor();assert.equal(await page.locator('.title-auth-dialog').count(),0);await check();}
    if(scenario.outage)assert(calls.filter(x=>x.path==='/rewards/daily-login/claim').length>=2,'Failed daily claim must retry when online');
    assert.deepEqual(errors,[]);
   }
-  if(homeLanguages.length&&scenario.name==='password-session-balances'){
+  if(homeLanguages.length&&scenario.name==='google-first-setup-balances'){
    for(const [width,height]of [[320,568],[390,844]])for(const lang of homeLanguages){
     await page.setViewportSize({width,height});
     await page.evaluate(()=>window.dispatchEvent(new Event('qg-open-settings')));

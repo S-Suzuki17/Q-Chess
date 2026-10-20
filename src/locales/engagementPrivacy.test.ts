@@ -18,7 +18,7 @@ describe('optional gameplay metrics privacy notice', () => {
     it('does not describe the retired Vercel host or optional metrics as disabled', () => {
         for (const { code } of LANGUAGES) {
             const displayed = privacyReview(code);
-            expect(displayed.updated).toBe('2026-10-20');
+            expect(displayed.updated).toBe('2026-10-21');
             expect(registrationPrivacy[code].length).toBeGreaterThan(40);
             expect(displayed.sec2li1).toContain(registrationPrivacy[code]);
             expect(displayed.sec3li3).toContain('Cloudflare');

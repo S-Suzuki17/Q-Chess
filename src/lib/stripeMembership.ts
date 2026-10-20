@@ -1,4 +1,5 @@
 'use client';
+import {sessionOwnsAccount} from './googleAccountIdentity';
 import { isCommerceSku, type CommerceSku } from '../config/commerceCatalog';
 import { requireCurrentAccountTerms } from './currentAccountTerms';
 
@@ -159,7 +160,7 @@ async function request(userId: string, action: Action, signal?: AbortSignal, usa
         if (!token) {
             const { data, error } = await supabase.auth.getSession();
             const session = data.session;
-            if (!error && session?.user.id === userId && !session.user.is_anonymous &&
+            if (!error && sessionOwnsAccount(session,userId) && !session.user.is_anonymous &&
                 (!session.expires_at || session.expires_at * 1000 > Date.now())) token = session.access_token;
         }
         signal?.throwIfAborted();

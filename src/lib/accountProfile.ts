@@ -1,4 +1,5 @@
 'use client';
+import {sessionOwnsAccount} from './googleAccountIdentity';
 import { supabase } from './supabaseClient';
 import { gameServerUrl, readRankedSession } from './rankedSession';
 import type { Friend, Profile } from './gameRecordService';
@@ -6,7 +7,8 @@ import type { Friend, Profile } from './gameRecordService';
 export class AccountProfileError extends Error {
     constructor(public readonly code: 'AUTH_REQUIRED' | 'INVALID_REQUEST' | 'CONFLICT' | 'UNAVAILABLE') { super(code); }
 }
-export async function requestAccountProfile(path: string, userId: string, body?: unknown, signal?: AbortSignal): Promise<Record<string, unknown>> {
+export async function requestAccountProfile(path: string, userId: string, body?: unknown, signal?: AbortSignal,
+    confirmation?:{token:string;proof:string}): Promise<Record<string, unknown>> {
     if (!userId || /^(?:guest(?:[-_]|$)|anon(?:ymous)?(?:[-_]|$)|cpu(?:[-_]|$)|ai(?::|$)|supabase-)/i.test(userId)) throw new AccountProfileError('AUTH_REQUIRED');
     try {
         signal?.throwIfAborted();
@@ -14,7 +16,7 @@ export async function requestAccountProfile(path: string, userId: string, body?:
         if (!token) {
             const { data, error } = await supabase.auth.getSession();
             const session = data.session;
-            if (!error && session?.user.id === userId && !session.user.is_anonymous &&
+            if (!error && sessionOwnsAccount(session,userId) && !session.user.is_anonymous &&
                 (!session.expires_at || session.expires_at * 1000 > Date.now())) token = session.access_token;
         }
         signal?.throwIfAborted();
@@ -23,7 +25,8 @@ export async function requestAccountProfile(path: string, userId: string, body?:
         if (endpoint.protocol !== 'https:' && !['localhost', '127.0.0.1', '[::1]'].includes(endpoint.hostname)) throw new AccountProfileError('UNAVAILABLE');
         const response = await fetch(endpoint, {
             method: body === undefined ? 'GET' : 'POST',
-            headers: { Authorization: `Bearer ${token}`, ...(body === undefined ? {} : { 'Content-Type': 'application/json' }) },
+            headers: { Authorization: `Bearer ${confirmation?.token??token}`, ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
+                ...(confirmation?{'X-QG-Confirmation':confirmation.proof}:{}) },
             ...(body === undefined ? {} : { body: JSON.stringify(body) }),
             credentials: 'omit', redirect: 'error', cache: 'no-store', signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(15000)]) : AbortSignal.timeout(15000),
         });

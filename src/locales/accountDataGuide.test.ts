@@ -8,6 +8,6 @@ describe('public account data guide', () => {
     expect(copy.every(value => value.length > 40)).toBe(true);
     expect(copy[0]).toContain('DELETE');
     expect(copy[2]).toContain('Google');
-    expect(copy[2]).toContain('Discord');
+    expect(copy[2]).not.toContain('Discord');
   });
 });
