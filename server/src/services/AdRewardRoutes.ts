@@ -25,6 +25,7 @@ export function createAdRewardRouter(auth:RankedSessionAuthority,store:AdRewardS
   try{
    const reward=await verifier.verifyQuery(req.originalUrl.split('?')[1]??'');
    if(!reward){res.sendStatus(400);return;}
+   if(reward.kind==='console-test'){res.sendStatus(200);return;}
    await store.credit(reward);
    res.sendStatus(200);
   }catch{res.sendStatus(503);}

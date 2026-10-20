@@ -51,11 +51,11 @@ jobs:
           if-no-files-found: error
       - name: Install browser for static-page verification
         run: npx playwright install chromium
-      - name: Verify email registration and legacy account-name sign-in
+      - name: Verify Google setup, explicit consent and existing account linking
         run: node scripts/qa/account-registration-browser.mjs
-      - name: Verify password login through Home consent and cloud subscriptions
+      - name: Verify Google Home consent and cloud subscriptions
         run: node scripts/qa/check-password-login-browser.mjs
-      - name: Verify isolated legacy sign-in restoration
+      - name: Verify Google restoration, cancellation and legacy-proof rejection
         run: node scripts/qa/verify-legacy-session-browser.mjs
       - name: Verify explicit match choice on desktop and mobile
         run: node scripts/qa/shared-choice-browser.mjs

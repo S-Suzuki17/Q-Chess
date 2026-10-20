@@ -7,6 +7,8 @@ const UNITS:Record<string,{kind:'hint'|'online';item:string}>={
 };
 type KeySet={keys:{keyId:number;pem:string}[]};
 export type VerifiedAdReward={kind:'hint'|'online';intentId:string;transactionId:string;timestamp:number;evidenceSha256:string};
+export type VerifiedAdMobConsoleTest={kind:'console-test'};
+const CONSOLE_TEST_ID='00000000-0000-0000-0000-000000000000';
 
 /** Verifies Google evidence only. The caller must additionally atomically check a
  * server-issued, unexpired intent and unique transaction before granting credit.
@@ -33,7 +35,7 @@ export class AdMobVerification {
    this.keys=keys;this.expires=this.now()+3600000;
   })().finally(()=>{this.refreshing=undefined;}));
  }
- async verifyQuery(rawQuery:string):Promise<VerifiedAdReward|null>{
+ async verifyQuery(rawQuery:string):Promise<VerifiedAdReward|VerifiedAdMobConsoleTest|null>{
   // The signature covers the original bytes, not re-encoded URLSearchParams.
   if(rawQuery.length>8192)return null;
   const match=/^(.+)&signature=([^&]+)&key_id=(\d+)$/.exec(rawQuery);
@@ -50,10 +52,17 @@ export class AdMobVerification {
   const config=UNITS[unit];
   const timestamp=Number(params.get('timestamp'));
   const intentId=params.get('custom_data')??'',transactionId=params.get('transaction_id')??'';
-  if(!config||params.get('reward_amount')!=='3'||params.get('reward_item')!==config.item)return null;
   if(!Number.isSafeInteger(timestamp)||timestamp<=0||timestamp>this.now()+300000)return null;
   if(!/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(intentId)||!/^\w{8,128}$/.test(transactionId))return null;
   if(params.get('user_id')!==intentId)return null;
+  // AdMob's console sends a signed probe with this placeholder ad unit.
+  // Only our nil-UUID setup probe is acknowledged, and it can never be credit.
+  if(params.get('ad_unit')==='1234567890'&&intentId===CONSOLE_TEST_ID
+    &&params.get('reward_amount')==='3'
+    &&['hint_uses','online_uses'].includes(params.get('reward_item')??'')){
+   return{kind:'console-test'};
+  }
+  if(!config||params.get('reward_amount')!=='3'||params.get('reward_item')!==config.item)return null;
   return{kind:config.kind,intentId,transactionId,timestamp,evidenceSha256:createHash('sha256').update(match[1],'utf8').digest('hex')};
  }
 }
