@@ -27,7 +27,9 @@ WebとAndroidでセッション保存・更新を有効にする。起動時の�
 
 2026-10-21追加確認：既存機能を含む286ファイル・3,521テスト、型検査、サーバービルドが成功。WebとAndroidの公開設定付きビルドは各63個のJavaScriptを照合し、未解決の公開設定参照は0件。両ターゲットで各6件の画面テストが成功した。旧ログインを前提にしていたCIの画面検査を更新し、実際のHome・Google設定・規約画面とGoogle HTTPルーターを組み合わせた17ケースが成功した（OAuthとDBは合成、パスワードハッシュは実処理）。別途mainに公開されたAdMobコンソール検証対応も取り込み、関連34テストとサーバービルドが成功した。
 
-署名済みAndroid候補は `build/releases/q-gambit-1.21-code26-google/q-gambit-1.21-code26.aab`。`com.qgambit.app`、versionCode 26、versionName 1.21、144,145,281 bytes、SHA256 `7abbd61668deebead3a7e5d7ac7235863a6f6cea656e9a71aaae192255a0d7ad`。bundletool 1.18.3の検証とjarsignerの検証が成功し、署名証明書SHA256 `296a49d93e3341a63053d5d55c106f6990453c0a929c529f962c4b83c6683273` は以前の配布版と一致。同梱Web 261ファイルが同期済みAndroid出力と一致し、非debug・広告ID権限なし・Play Games設定・Googleコールバックschemeを確認した。Android実装のソースは `61087ed1c420d24de9f9d6626857a6bcb69b3339`。後続の変更はCI検査・記録とサーバーのAdMob検証対応で、Android同梱コードは変わらない。
+署名済みAndroid候補は `com.qgambit.app`、versionCode 26、versionName 1.21。初回候補はbundletool 1.18.3とjarsignerの検証に成功し、署名証明書SHA256 `296a49d93e3341a63053d5d55c106f6990453c0a929c529f962c4b83c6683273` は以前の配布版と一致。同梱Web 261ファイルを照合し、非debug・広告ID権限なし・Play Games設定・Googleコールバックschemeを確認した。
+
+最終CIで判明した短い画面の表示について、横向きでは章と課題の選択を1行にまとめ、章の達成数は見出しと同じ行に配置した。844×390の英語と320×568のタミル語で25課題が通過した。配信にはこの修正を含む再ビルドを使い、最終AABのパス・ソースコミット・サイズ・SHA256・署名と同梱ファイルの検証結果を `build/releases/` の対応する `verification.json` に記録する。初回候補のハッシュを修正版の証明として流用しない。
 
 週替わり問題の広告だけを専用フラグで有効にし、対局間広告・動画報酬・購入UIのフラグは追加で有効化しない。署名済み候補の生成とPlayへのアップロード・実端末でのGoogle認証往復は別であり、後二者は未実施。
 

@@ -82,7 +82,7 @@
     },
     {
       "path": "src/components/interactive-tutorial.css",
-      "gitBlob": "6bf60d947244037ccca5527703f1c077ccc893c0"
+      "gitBlob": "e41e3d72ceb339a7ee10c0d381c838083c0e6767"
     },
     {
       "path": "src/components/weekly-problems.css",
@@ -329,7 +329,8 @@
         "2026-10-21: LearningRoutes, hintExplanation and MatchLayout focused regression tests: 100 passed; configured Web build passed.",
         "2026-10-21: npm test: 286 files / 3521 tests passed; Web typecheck and server build passed.",
         "docs/google-account-login-20261021.md; scripts/qa/google-account-postgres.test.mjs: 8 PostgreSQL tests passed.",
-        "build/google-account-web-final/result.json and build/google-account-android/result.json: six Google-entry/setup/restoration/balance/retry browser cases passed per target; synthetic data only."
+        "build/google-account-web-final/result.json and build/google-account-android/result.json: six Google-entry/setup/restoration/balance/retry browser cases passed per target; synthetic data only.",
+        "2026-10-21: landscape course controls and compact completion counts preserve 44px buttons; 25 lessons passed at 844x390 English and 320x568 Tamil. Public tutorial/reward wording is unchanged."
       ]
     }
   ]
