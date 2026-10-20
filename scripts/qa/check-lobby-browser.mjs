@@ -5,6 +5,7 @@ import { createServer } from 'node:http';
 import { readFile, mkdir } from 'node:fs/promises';
 import { resolve, sep, extname } from 'node:path';
 import { chromium } from 'playwright';
+import {exportedGoogleSession} from './fixtures/exported-google-session.mjs';
 const [releaseFlag='--release-flags=off', artifactDirectory='scratch/lobby-20261007', ...extraArgs] = process.argv.slice(2);
 assert.ok(/^--release-flags=(on|off)$/.test(releaseFlag) && extraArgs.length===0,
     'Usage: check-lobby-browser.mjs [--release-flags=on|off] [artifact-directory]');
@@ -28,7 +29,7 @@ const termsSource = await readFile('src/config/currentTerms.ts', 'utf8');
 const termsVersion = termsSource.match(/CURRENT_TERMS_VERSION\s*=\s*'([^']+)'/)[1];
 const termsDate = termsSource.match(/CURRENT_TERMS_EFFECTIVE_DATE[^=]*=\s*'([^']+)'/)[1];
 const user = { id:'QA_LobbyOnly', name:'QA Lobby', type:'registered' };
-const proof = { userId:user.id, token:'ranked_' + 'a'.repeat(43), expiresAt:Date.now() + 3600000 };
+const google=await exportedGoogleSession(root,user);
 const progress = { version:2, stars:{}, ascensions:[], stageStars:[], board:'walnut', piece:'boxwood', effect:'standard', music:'standard', avatar:'standard' };
 const records = Array.from({ length:10 }, (_, index) => ({
     id:`00000000-0000-4000-8000-${String(index).padStart(12,'0')}`, created_at:new Date(Date.now() - index * 3600000).toISOString(),
@@ -48,7 +49,9 @@ try {
             const url = new URL(route.request().url());
             if (url.origin === origin) return route.continue();
             remoteRequests.push(url.pathname);
-            if (url.pathname === '/auth/ranked-session/status') return route.fulfill({ json:{ userId:proof.userId, expiresAt:proof.expiresAt, serverNow:Date.now() } });
+            if (url.pathname === '/auth/google/account') return route.fulfill({json:{authId:google.account.authId,account:google.account,termsVersion}});
+            if (url.pathname === '/auth/v1/user') return route.fulfill({json:google.authUser});
+            if (url.pathname === '/auth/v1/logout') return route.fulfill({status:204,body:''});
             if (url.pathname === '/account/current-terms') return route.fulfill({ json:{ userId:user.id, currentVersion:termsVersion, effectiveDate:termsDate, effective:true, consent:{ version:termsVersion, acceptedAt:new Date().toISOString() } } });
             if (url.pathname === '/account/progress') return route.fulfill({ json:{ userId:user.id, revision:0, progress, saved:true } });
             if (url.pathname === '/game-records') return route.fulfill({ json:{ records } });
@@ -64,12 +67,12 @@ try {
             // Fail closed for every other external request; no real traffic escapes.
             return route.fulfill({ status:503, json:{ code:'UNAVAILABLE' } });
         });
-        await context.addInitScript(({ user,proof }) => {
+        await context.addInitScript(({ user,google }) => {
             localStorage.setItem('qg_language', 'ja');
             localStorage.setItem('qg_last_user', JSON.stringify(user));
-            localStorage.setItem('qg_ranked_session_v1', JSON.stringify(proof));
+            localStorage.setItem(google.sessionKey, JSON.stringify(google.session));
             localStorage.setItem('qchess_is2DView', 'true');
-        }, { user,proof });
+        }, { user,google });
         const page = await context.newPage(); page.on('pageerror', error => errors.push(error.message));
         try {
         await page.goto(origin, { waitUntil:'domcontentloaded' });
@@ -178,7 +181,7 @@ try {
             await page.locator('[data-testid="circuit-login-gate"]').waitFor();
             assert.equal(await page.locator('.match-layout').count(),0,'guest preview cannot start account-bound Crown progress');
             // Reload restores the explicitly owned synthetic registered fixture
-            // through the same real session-status route, without live sign-in.
+            // through the real Google-account route, without live sign-in.
             await page.reload({waitUntil:'domcontentloaded'});await lobby.waitFor();
         }
         await page.locator('.lobby-campaign-action').click();
@@ -195,7 +198,7 @@ try {
         await page.locator('.campaign-screen').waitFor();
         await page.locator('.campaign-header button').first().click();await lobby.waitFor();
         assert.deepEqual(errors, [], `runtime errors ${width}`);
-        assert.ok(remoteRequests.includes('/auth/ranked-session/status'));
+        assert.ok(remoteRequests.includes('/auth/google/account'));
         results.push({ width,height, history:10, releaseFlagsOn, preview:true, settings:true, nativeDialogs:true, zeroBalancePracticeLegalHint:true, guestFreePractice:width===390, practiceHintNetworkCalls:0, cpuReply:true, crownTicketLabel:true, crownGuestLoginGate:width===390, liveTraffic:false });
         } catch (error) {
             await page.screenshot({ path:resolve(artifacts, `failure-${width}.png`) });

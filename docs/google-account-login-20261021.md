@@ -31,6 +31,8 @@ WebとAndroidでセッション保存・更新を有効にする。起動時の�
 
 週替わり問題の広告だけを専用フラグで有効にし、対局間広告・動画報酬・購入UIのフラグは追加で有効化しない。署名済み候補の生成とPlayへのアップロード・実端末でのGoogle認証往復は別であり、後二者は未実施。
 
+最終Webプレビュー `https://pr29-google-18c69dd.q-gambit-web.pages.dev/` の配信ファイルでもGoogle入口・初回設定・保存復帰など6ケースが成功。ロビー4サイズ、Googleセッションを使う対局開始・規約確認・再接続24ケース、公開ガイド6ケース、12言語のPlay Gamesプライバシー24ケースも成功した。これらは合成通信の検証であり、本番アカウントや本番残高への書き込みはない。
+
 ## 同期リリース
 
 対象は既存のSupabase `gtxbvbsplfkkjlmnqath`、Render `Q-Chess`、Cloudflare Pages `q-gambit-web`、Android `com.qgambit.app`。ユーザーの実施承認と「My Workspace」の選択を引き継ぐ。
