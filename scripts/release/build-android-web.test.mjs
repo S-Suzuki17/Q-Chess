@@ -45,7 +45,7 @@ test('configured secrets do not enter the release and advertising remains off', 
     assert.equal(config.SUPABASE_SERVICE_ROLE_KEY, undefined);
     assert.equal(config.NEXT_PUBLIC_SUPABASE_ANON_KEY, publicKey);
     for (const key of ['NEXT_PUBLIC_ADMOB_LIVE', 'NEXT_PUBLIC_NATIVE_REWARDS_ENABLED',
-        'NEXT_PUBLIC_NATIVE_INTERSTITIAL_ENABLED', 'NEXT_PUBLIC_FOUNDERS_REWARDS_ENABLED']) {
+        'NEXT_PUBLIC_NATIVE_INTERSTITIAL_ENABLED','NEXT_PUBLIC_NATIVE_LEARNING_INTERSTITIAL_ENABLED', 'NEXT_PUBLIC_FOUNDERS_REWARDS_ENABLED']) {
         assert.equal(config[key], 'false');
     }
 });
@@ -97,13 +97,13 @@ test('imports exactly the allowlisted release flags for Web, honoring explicit s
 test('forces Android commercial switches OFF while keeping independently approved ticket use',()=>{
     const android=run(allOn,'android',allOn)[2].env;
     for(const name of releaseNames) assert.equal(android[name],webOnly.includes(name)?'false':'true');
-    for(const name of ['NEXT_PUBLIC_ADMOB_LIVE','NEXT_PUBLIC_NATIVE_REWARDS_ENABLED','NEXT_PUBLIC_NATIVE_INTERSTITIAL_ENABLED']) assert.equal(android[name],'false');
+    for(const name of ['NEXT_PUBLIC_ADMOB_LIVE','NEXT_PUBLIC_NATIVE_REWARDS_ENABLED','NEXT_PUBLIC_NATIVE_INTERSTITIAL_ENABLED','NEXT_PUBLIC_NATIVE_LEARNING_INTERSTITIAL_ENABLED']) assert.equal(android[name],'false');
 });
 test('rejects malformed switch values rather than silently enabling a partial release',()=>{
     for(const value of ['1','TRUE','yes',' true','',null]) assert.throws(()=>run({},'web',{NEXT_PUBLIC_QG_STRIPE_WEB_CHECKOUT_ENABLED:value}),/true or false/);
 });
 test('native flags require explicit Android inputs and cannot enter a Web release',()=>{
-    const native=['NEXT_PUBLIC_ADMOB_LIVE','NEXT_PUBLIC_NATIVE_REWARDS_ENABLED','NEXT_PUBLIC_NATIVE_INTERSTITIAL_ENABLED','NEXT_PUBLIC_NATIVE_COMMERCE_ENABLED'];
+    const native=['NEXT_PUBLIC_ADMOB_LIVE','NEXT_PUBLIC_NATIVE_REWARDS_ENABLED','NEXT_PUBLIC_NATIVE_INTERSTITIAL_ENABLED','NEXT_PUBLIC_NATIVE_LEARNING_INTERSTITIAL_ENABLED','NEXT_PUBLIC_NATIVE_COMMERCE_ENABLED'];
     const flags=Object.fromEntries(native.map(key=>[key,'true']));
     for(const key of native){
         assert.equal(run(flags,'android')[2].env[key],'true');
@@ -111,4 +111,11 @@ test('native flags require explicit Android inputs and cannot enter a Web releas
         assert.equal(run({},'android',flags)[2].env[key],'false');
         assert.throws(()=>run({[key]:'yes'},'android'),/true or false/);
     }
+});
+
+test('weekly ads can be enabled without enabling circuit ads or rewarded ads',()=>{
+ const config=run({NEXT_PUBLIC_ADMOB_LIVE:'true',NEXT_PUBLIC_NATIVE_LEARNING_INTERSTITIAL_ENABLED:'true'},'android')[2].env;
+ assert.equal(config.NEXT_PUBLIC_NATIVE_LEARNING_INTERSTITIAL_ENABLED,'true');
+ assert.equal(config.NEXT_PUBLIC_NATIVE_INTERSTITIAL_ENABLED,'false');
+ assert.equal(config.NEXT_PUBLIC_NATIVE_REWARDS_ENABLED,'false');
 });

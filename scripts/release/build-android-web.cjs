@@ -50,7 +50,7 @@ for (const [name, scope] of Object.entries(publicReleaseFlags)) {
 }
 // Native features require deliberate build inputs. They never inherit from a
 // configured Web project. Commerce display still requires server readiness/sales gates.
-const nativeFlags=['NEXT_PUBLIC_ADMOB_LIVE','NEXT_PUBLIC_NATIVE_REWARDS_ENABLED','NEXT_PUBLIC_NATIVE_INTERSTITIAL_ENABLED','NEXT_PUBLIC_NATIVE_COMMERCE_ENABLED'];
+const nativeFlags=['NEXT_PUBLIC_ADMOB_LIVE','NEXT_PUBLIC_NATIVE_REWARDS_ENABLED','NEXT_PUBLIC_NATIVE_INTERSTITIAL_ENABLED','NEXT_PUBLIC_NATIVE_LEARNING_INTERSTITIAL_ENABLED','NEXT_PUBLIC_NATIVE_COMMERCE_ENABLED'];
 for(const name of nativeFlags){
     const value=originalEnv[name];
     if(value!==undefined&&value!=='true'&&value!=='false')throw new Error(`Release flag must be true or false: ${name}`);

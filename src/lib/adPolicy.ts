@@ -40,7 +40,7 @@ export async function requestCircuitInterstitial(matchKey:string):Promise<import
  * Unknown/paid accounts and unavailable providers skip the ad without blocking learning. */
 export async function requestLearningInterstitial(checkpointKey:string,userId:string):Promise<import('./nativeAds').AdResult> {
  const {canShowVerifiedAccountAdsFor}=await import('./sharedAdEligibility');
- if(!checkpointKey||!canShowVerifiedAccountAdsFor(userId)||process.env.NEXT_PUBLIC_NATIVE_INTERSTITIAL_ENABLED!=='true')return 'unavailable';
+ if(!checkpointKey||!canShowVerifiedAccountAdsFor(userId)||process.env.NEXT_PUBLIC_NATIVE_LEARNING_INTERSTITIAL_ENABLED!=='true')return 'unavailable';
  const {nativeAds,isAndroidApp}=await import('./nativeAds');
  return isAndroidApp()&&canShowVerifiedAccountAdsFor(userId)?nativeAds.interstitial():'unavailable';
 }

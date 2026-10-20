@@ -106,7 +106,7 @@
     },
     {
       "path": "src/lib/adPolicy.ts",
-      "gitBlob": "4e87c6c123f5f9be1e9d239746268b9b0f830e34"
+      "gitBlob": "3c254445fd28f55134e30b212ceda50d84b60a04"
     },
     {
       "path": "src/lib/cpuPractice.ts",
@@ -266,7 +266,7 @@
     {
       "group": "commerce-and-disclosures",
       "decision": "updated",
-      "reason": "初回クリアによる無償の交互配布と全10題の報酬、5/10題目の広告についてガイドを更新した。広告視聴をチケット付与の根拠とせず、広告なし会員と広告取得不可を通過させる。購入価格・規約同意バージョンは変更していない。Web広告とH5は既存の無効状態を維持し、実広告配信や本番DB反映済みとは記載していない。 通信制限を確認済みアカウント単位へ変更し、共有プロキシ経由の他の利用者への影響を防いだ。保存項目・報酬・規約・問い合わせの説明は同じ。 初回設定で規約への明示同意を保存し、Googleパスワードを受け取らないことと専用パスワードの用途を説明した。規約版・価格・付与額は変更しない。",
+      "reason": "初回クリアによる無償の交互配布と全10題の報酬、5/10題目の広告についてガイドを更新した。広告視聴をチケット付与の根拠とせず、広告なし会員と広告取得不可を通過させる。購入価格・規約同意バージョンは変更していない。Web広告とH5は既存の無効状態を維持し、実広告配信や本番DB反映済みとは記載していない。 通信制限を確認済みアカウント単位へ変更し、共有プロキシ経由の他の利用者への影響を防いだ。保存項目・報酬・規約・問い合わせの説明は同じ。 初回設定で規約への明示同意を保存し、Googleパスワードを受け取らないことと専用パスワードの用途を説明した。規約版・価格・付与額は変更しない。 週替わり広告のビルドフラグを独立させ、5・10題目を有効にしてもサーキット広告・動画報酬を追加で有効化しない。",
       "checkedPages": [
         "/faq/#hints",
         "/contact/",
@@ -281,7 +281,8 @@
         "LearningRoutes.test.ts: 121 unauthenticated requests cannot throttle a signed-in account; account isolation, shared route/session budget and expiry verified.",
         "2026-10-21: npm test: 286 files / 3521 tests passed; Web typecheck and server build passed.",
         "docs/google-account-login-20261021.md; scripts/qa/google-account-postgres.test.mjs: 8 PostgreSQL tests passed.",
-        "build/google-account-web-final/result.json and build/google-account-android/result.json: six Google-entry/setup/restoration/balance/retry browser cases passed per target; synthetic data only."
+        "build/google-account-web-final/result.json and build/google-account-android/result.json: six Google-entry/setup/restoration/balance/retry browser cases passed per target; synthetic data only.",
+        "learningAds.test.ts and build-android-web.test.mjs: independent weekly gate and forced Web OFF verified."
       ]
     },
     {
