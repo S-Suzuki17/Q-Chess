@@ -7,6 +7,9 @@ import type { Token } from '../lib/GameEngine';
 import { LANGUAGES } from '../locales/dict';
 import { matchText } from '../locales/matchText';
 import { moveHintText } from '../locales/moveHintText';
+import { hintExplanationText } from '../locales/hintExplanationText';
+import { createInitialState } from '../quantum-engine/initialState';
+import { positionForDisplay } from '../lib/localGame';
 
 const piece: Token = { id:'white_1', player:'white', row:6, col:4,
     probabilities:{King:1, Queen:1, Rook:1, Bishop:1, Knight:1, Pawn:1} };
@@ -20,6 +23,19 @@ const base: ComponentProps<typeof MatchLayout> = {
 const render = (overrides: Partial<typeof base> = {}) => renderToStaticMarkup(createElement(MatchLayout, {...base,...overrides}));
 
 describe('Match decision feedback', () => {
+    it.each(LANGUAGES.map(language=>language.code))('offers a translated explanation of the current hint in %s', lang => {
+        const view = positionForDisplay(createInitialState());
+        const props = { lang, tokens: view.tokens, candidatesMap: view.pool.piecePossibilities,
+            hintMove: { fromRow:6, fromCol:4, toRow:4, toCol:5 } };
+        const html = render(props);
+        expect(html).toContain('data-testid="hint-explanation"');
+        expect(html).toContain(hintExplanationText(lang).title);
+        expect(html).toContain(hintExplanationText(lang).manual);
+        expect(html).toContain(matchText(lang, 'ナイト', 'Knight'));
+        expect(render({...props, currentTurn:'black'})).not.toContain('data-testid="hint-explanation"');
+        expect(render({...props, finished:true})).not.toContain('data-testid="hint-explanation"');
+        expect(render({...props, hintPending:true})).not.toContain('data-testid="hint-explanation"');
+    });
     it.each(LANGUAGES.map(language=>language.code))('renders opponent, black-side and spectator thinking in %s',lang=>{
         const thinking=lang==='en'?'THINKING':matchText(lang,'思考中','Thinking...');
         for(const state of [{currentTurn:'black' as const},{bottomSide:'black' as const},{spectator:true},{currentTurn:'black' as const,is2D:false}]){

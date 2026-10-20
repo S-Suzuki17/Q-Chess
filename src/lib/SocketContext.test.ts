@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { SocketWithoutUpgrade, Transport as EngineTransport } from 'engine.io-client';
 
 // Deterministic effect harness: transport/Auth are mocked, not the lifecycle
 // under test. Native/browser rendering remains a separate release QA gate.
@@ -398,4 +399,42 @@ it('manual retry never recreates a transport from an unverified cached ID after 
     expect(h.io).toHaveBeenCalledTimes(1);
     expect(render().isAuthenticated).toBe(false);
     expect(render().connectionError).toBe('AUTH_REQUIRED');
+});
+
+it('opens the fallback transport when WebSocket fails, using the provider’s real Engine.IO options', async () => {
+    const attempted: string[] = [];
+    class BlockedWebSocket extends EngineTransport {
+        get name() { return 'websocket'; }
+        doOpen() { attempted.push(this.name); queueMicrotask(() => this.onError('WebSocket blocked', 'fixture')); }
+        doClose() {}
+        write() {}
+    }
+    class AvailablePolling extends EngineTransport {
+        get name() { return 'polling'; }
+        doOpen() {
+            attempted.push(this.name);
+            queueMicrotask(() => {
+                this.onOpen();
+                this.onPacket({ type: 'open', data: JSON.stringify({
+                    sid: 'local-fixture', upgrades: [], pingInterval: 25000, pingTimeout: 20000, maxPayload: 1000000,
+                }) });
+            });
+        }
+        doClose() {}
+        write() {}
+    }
+    render();
+    const options = h.io.mock.calls[0][1];
+    expect(options.transports).toEqual(['websocket', 'polling']);
+    const engine = new SocketWithoutUpgrade('http://127.0.0.1', { ...options, transports: [BlockedWebSocket, AvailablePolling] });
+    const errors: unknown[] = [];
+    engine.on('error', error => errors.push(error));
+    try {
+        await flush();
+        expect(attempted).toEqual(['websocket', 'polling']);
+        expect(engine.readyState).toBe('open');
+        expect(engine.transport.name).toBe('polling');
+        expect(errors).toEqual([]);
+        expect(transport.auth).toMatchObject({ userId: 'alice', token: 'first-proof' });
+    } finally { engine.close(); }
 });

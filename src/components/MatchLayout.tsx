@@ -14,6 +14,8 @@ import './match-layout.css';
 import './checkmate.css';
 import { matchText } from '../locales/matchText';
 import { hintAdviceText } from '../locales/hintAdviceText';
+import { hintExplanationText } from '../locales/hintExplanationText';
+import { HintExplanation } from './HintExplanation';
 import { moveHintText } from '../locales/moveHintText';
 import type { HintAccess } from '../lib/hintPolicy';
 import { dict, type Language } from '../locales/dict';
@@ -179,8 +181,11 @@ export function MatchLayout(props: Props) {
                     <span className="advice-from">{label('動かす駒', 'Move from')} <strong data-testid="hint-source">{square(hint.fromRow,hint.fromCol)}</strong></span>
                     <span className="advice-arrow" aria-hidden="true">→</span>
                     <span className="advice-to">{label('移動先', 'Move to')} <strong data-testid="hint-destination">{square(hint.toRow,hint.toCol)}</strong></span>
-                    <small>{label('青の駒を選び、金色のマスへ', 'Select blue, then move to gold')}</small>
+                    <small className="advice-manual">{hintExplanationText(props.lang).manual}</small>
                     {hintChoice && <small className="advice-choice" data-testid="hint-choice">{hintChoice}</small>}
+                    <HintExplanation key={`${hint.fromRow}:${hint.fromCol}:${hint.toRow}:${hint.toCol}`}
+                        lang={props.lang} hint={hint} tokens={props.tokens} candidates={props.candidatesMap}
+                        turn={props.currentTurn} history={props.history}/>
                 </div> : <span>{hintPending ? hintText.thinking : props.hintError || label('ヒントを取得できませんでした。もう一度お試しください。', 'Hint unavailable. Please try again.')}</span>}
                 </QubeTeacher>
                 {props.onClearHint && <button onClick={props.onClearHint} aria-label={label('ヒントを閉じる', 'Dismiss hint')}><X size={16}/></button>}</>}

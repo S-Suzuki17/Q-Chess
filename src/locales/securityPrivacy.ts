@@ -1,17 +1,17 @@
 import type {Language} from './dict';
 export const cloudStoragePrivacy:Record<Language,string>={
-    "ja": "ログイン中の100マスチャレンジの進行と外観の選択はサーバーにも同期されます。チュートリアルの進行はこの端末内だけに保存されます。アカウント削除時は、クラウド保存データも削除します。",
-    "en": "Signed-in 100-Tile Challenge progress and appearance choices also sync to the server. Tutorial progress stays only on this device. Account deletion erases the cloud save as well.",
-    "zh": "登录后的100格挑战进度和外观选择也会同步到服务器。教程进度仅保存在本设备上。删除账户时也会删除云存档。",
-    "ru": "Прогресс испытания «100 клеток» и оформление вошедшего пользователя синхронизируются с сервером. Прогресс обучения хранится только на этом устройстве. При удалении аккаунта облачное сохранение также удаляется.",
-    "fr": "La progression du défi 100 cases et les choix d’apparence du compte connecté sont aussi synchronisés sur le serveur. La progression du tutoriel reste uniquement sur cet appareil. Supprimer le compte efface également la sauvegarde cloud.",
-    "de": "Fortschritt in der 100-Felder-Challenge und Gestaltung angemeldeter Konten werden auch mit dem Server synchronisiert. Der Tutorial-Fortschritt bleibt nur auf diesem Gerät. Bei Kontolöschung wird der Cloud-Spielstand ebenfalls gelöscht.",
-    "es": "El progreso del desafío de 100 casillas y la apariencia de la cuenta iniciada también se sincronizan con el servidor. El progreso del tutorial se guarda solo en este dispositivo. Borrar la cuenta elimina la copia en la nube.",
-    "tr": "Giriş yapılan hesabın 100 Kare Mücadelesi ilerlemesi ve görünüm tercihleri sunucuya da eşitlenir. Öğretici ilerlemesi yalnızca bu cihazda saklanır. Hesap silinince bulut kaydı da silinir.",
-    "pl": "Postęp wyzwania 100 pól i wygląd zalogowanego konta są też synchronizowane z serwerem. Postęp samouczka pozostaje tylko na tym urządzeniu. Usunięcie konta usuwa również zapis w chmurze.",
-    "hi": "लॉगिन किए खाते की 100 खानों की चुनौती की प्रगति और रूप के चुनाव सर्वर से भी सिंक होते हैं। ट्यूटोरियल की प्रगति केवल इस उपकरण पर रहती है। खाता हटाने पर क्लाउड सेव भी हटता है।",
-    "pt": "O progresso do desafio de 100 casas e a aparência da conta conectada também são sincronizados com o servidor. O progresso do tutorial fica apenas neste dispositivo. Excluir a conta também apaga o arquivo na nuvem.",
-    "ta": "உள்நுழைந்த கணக்கின் 100 கட்டச் சவால் முன்னேற்றமும் தோற்றத் தேர்வுகளும் சேவையகத்திலும் ஒத்திசைக்கப்படும். பயிற்சியின் முன்னேற்றம் இந்தச் சாதனத்தில் மட்டுமே சேமிக்கப்படும். கணக்கை நீக்கும்போது மேகச் சேமிப்பும் நீக்கப்படும்."
+    "ja": "ログイン中の100マスチャレンジの進行、外観、チュートリアルと週替わり問題のクリア履歴・報酬はサーバーに保存されます。ゲストのチュートリアル進捗と未送信のクリア手順は端末内に保存します。アカウント削除時は紐づくクラウド保存データも削除します。",
+    "en": "Signed-in challenge progress, appearance, tutorial and weekly problem clears and rewards are saved on the server. Guest tutorial progress and unsent completion moves are stored on the device. Account deletion also erases linked cloud saves.",
+    "zh": "登录后的挑战进度、外观、教程和每周题目的完成记录及奖励保存在服务器。游客教程进度和未发送的完成步骤保存在设备上。删除账户也会删除关联云存档。",
+    "ru": "Прогресс испытаний, оформление, пройденные уроки, недельные задачи и награды аккаунта сохраняются на сервере. Гостевой прогресс и неотправленные ходы хранятся на устройстве. Удаление аккаунта стирает связанные облачные данные.",
+    "fr": "Progression, apparence, leçons et problèmes hebdomadaires réussis et récompenses du compte sont enregistrés sur le serveur. La progression invité et les coups non envoyés restent sur l’appareil. Supprimer le compte efface les sauvegardes cloud liées.",
+    "de": "Fortschritt, Gestaltung, abgeschlossene Lektionen und Wochenaufgaben sowie Belohnungen angemeldeter Konten werden auf dem Server gespeichert. Gastfortschritt und noch nicht gesendete Lösungszüge bleiben auf dem Gerät. Kontolöschung entfernt verknüpfte Cloud-Daten.",
+    "es": "El progreso, apariencia, lecciones, problemas semanales resueltos y premios de la cuenta se guardan en el servidor. El progreso de invitado y las soluciones sin enviar quedan en el dispositivo. Borrar la cuenta elimina los datos vinculados en la nube.",
+    "tr": "Hesabın ilerlemesi, görünümü, tamamlanan dersleri, haftalık soruları ve ödülleri sunucuda saklanır. Misafir ilerlemesi ve gönderilmemiş çözüm hamleleri cihazda tutulur. Hesap silinince bağlı bulut verileri de silinir.",
+    "pl": "Postęp, wygląd, ukończone lekcje i zadania tygodnia oraz nagrody konta są zapisywane na serwerze. Postęp gościa i niewysłane ruchy rozwiązania pozostają na urządzeniu. Usunięcie konta usuwa powiązane dane w chmurze.",
+    "hi": "खाते की प्रगति, रूप, पूरे पाठ, साप्ताहिक समस्याएँ और पुरस्कार सर्वर पर सहेजे जाते हैं। अतिथि की प्रगति और न भेजी गई समाधान चालें उपकरण पर रहती हैं। खाता हटाने से जुड़े क्लाउड डेटा भी हटते हैं।",
+    "pt": "Progresso, aparência, lições e problemas semanais concluídos e recompensas da conta são salvos no servidor. Progresso de visitante e soluções ainda não enviadas ficam no dispositivo. Excluir a conta apaga os dados vinculados na nuvem.",
+    "ta": "கணக்கின் முன்னேற்றம், தோற்றம், முடித்த பாடங்கள், வாரப் புதிர்கள், பரிசுகள் சேவையகத்தில் சேமிக்கப்படும். விருந்தினர் முன்னேற்றமும் அனுப்பப்படாத தீர்வு நகர்வுகளும் சாதனத்தில் இருக்கும். கணக்கை நீக்கும்போது இணைந்த மேகத் தரவும் நீக்கப்படும்."
 };
 
 export const securityPrivacy:Record<Language,string>={

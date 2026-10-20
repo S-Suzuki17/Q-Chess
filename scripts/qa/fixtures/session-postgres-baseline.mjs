@@ -63,7 +63,8 @@ export const release22Migrations = [
     '20261013115237_play_commerce_terms_release.sql',
     '20261013135400_play_pending_refund_state.sql',
 ];
-export const reviewedMigrationInventory = [...combinedPendingMigrations, ...hintPolicyMigrations, ...emailRegistrationMigrations, ...release22Migrations].sort();
+export const learningMigrations = ['20261020111637_learning_rewards_and_weekly_problems.sql'];
+export const reviewedMigrationInventory = [...combinedPendingMigrations, ...hintPolicyMigrations, ...emailRegistrationMigrations, ...release22Migrations, ...learningMigrations].sort();
 export const combinedHistoricalMigrations = [...historicalSessionMigrations,
     ...commerceHistoricalDependencies.filter(name => !historicalSessionMigrations.includes(name))];
 export const sessionBaselineEvidence = Object.freeze({

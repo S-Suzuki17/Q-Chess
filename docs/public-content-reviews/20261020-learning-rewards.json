@@ -1,0 +1,260 @@
+{
+  "schemaVersion": 1,
+  "status": "completed",
+  "baseRevision": "1e74cb4f8427048dc7018f7290a48043bf11214c",
+  "reviewer": "Codex — local implementation and public-content review; not publication approval",
+  "changes": [
+    {
+      "path": "server/src/learning/protocol.ts",
+      "gitBlob": "f839f61b44e2162d25330ddfd1499a9e4385af2b"
+    },
+    {
+      "path": "server/src/learning/tutorialCourse.ts",
+      "gitBlob": "e2716e5544d5f2fa3890eca521b495a93d1499af"
+    },
+    {
+      "path": "server/src/learning/weeklyProblems.ts",
+      "gitBlob": "14507b83ac76a58cfbfc7f665d5aa0da55e3e7d9"
+    },
+    {
+      "path": "server/src/services/LearningMaintenance.ts",
+      "gitBlob": "bb708069f527c42e4c4fa33c1a6c9bf5f88189d5"
+    },
+    {
+      "path": "server/src/services/LearningRoutes.ts",
+      "gitBlob": "5a2fa89ac91a15bc40f7cfeea396762b7614ea0a"
+    },
+    {
+      "path": "server/src/services/LearningStore.ts",
+      "gitBlob": "04048ca1e2b1f33d07884c169d42b2158cfe6f91"
+    },
+    {
+      "path": "server/src/services/SupabaseService.ts",
+      "gitBlob": "a8b33f8dd36ecf3e9483edbd0bc79f9c0e0cebb7"
+    },
+    {
+      "path": "src/components/HintExplanation.tsx",
+      "gitBlob": "2fd347c4ba33bbcbe630e0be02936f22bc219347"
+    },
+    {
+      "path": "src/components/InteractiveTutorial.tsx",
+      "gitBlob": "bd15b17e1595d3a29a4a5279de7cfbfbf32a8b43"
+    },
+    {
+      "path": "src/components/LearningRewardNotice.tsx",
+      "gitBlob": "c439ab85b671aec4a53b09ec971340497dd70064"
+    },
+    {
+      "path": "src/components/LevelSelect.tsx",
+      "gitBlob": "8f542d80d9bf946b797b5b0a2db7adbcecdfe0cf"
+    },
+    {
+      "path": "src/components/MatchLayout.tsx",
+      "gitBlob": "1f4ed59182fabce7d2d69577eb0903a758faf305"
+    },
+    {
+      "path": "src/components/TitleScreen.tsx",
+      "gitBlob": "7fad77515a2365bebe9216142326ba0ab2d428b4"
+    },
+    {
+      "path": "src/components/WeeklyProblems.tsx",
+      "gitBlob": "2d8f34b44ec951eb8465ab53e2bd3902de188132"
+    },
+    {
+      "path": "src/components/interactive-tutorial.css",
+      "gitBlob": "6bf60d947244037ccca5527703f1c077ccc893c0"
+    },
+    {
+      "path": "src/components/weekly-problems.css",
+      "gitBlob": "16ddd09a43a71691ef52ac5b81114c4f46c67802"
+    },
+    {
+      "path": "src/hooks/useLearningRewards.ts",
+      "gitBlob": "96df771906b1c39f36bf58b23da9fa381fd0cc2f"
+    },
+    {
+      "path": "src/lib/SocketContext.tsx",
+      "gitBlob": "c797ad2bcf1405b8228bc6ab6a9f749f62295e05"
+    },
+    {
+      "path": "src/lib/adPolicy.ts",
+      "gitBlob": "4e87c6c123f5f9be1e9d239746268b9b0f830e34"
+    },
+    {
+      "path": "src/lib/hintExplanation.ts",
+      "gitBlob": "085a684e0ca77f37e62a19e232be45d7a4c3cac8"
+    },
+    {
+      "path": "src/lib/learningApi.ts",
+      "gitBlob": "7d2a2668a19c6097c8c4d6cecc42b1e445716a2b"
+    },
+    {
+      "path": "src/lib/tutorialCourse.ts",
+      "gitBlob": "bc071bf7a5a77f4439b73ad4c003cdc63e0ffa74"
+    },
+    {
+      "path": "src/locales/chessLessonText.ts",
+      "gitBlob": "b80032267623dfcc17640651c69066449c86aa1e"
+    },
+    {
+      "path": "src/locales/hintExplanationText.ts",
+      "gitBlob": "eb10125a32b79a8a8c2e5b75df7f687fed88cdef"
+    },
+    {
+      "path": "src/locales/learningEntryText.ts",
+      "gitBlob": "d82dddd2afe1e22bbd594080cc3e6c21d4ce178a"
+    },
+    {
+      "path": "src/locales/learningText.ts",
+      "gitBlob": "1cc0aa2984fe18a80b3c873bcf951d253e14e573"
+    },
+    {
+      "path": "src/locales/privacyReview.ts",
+      "gitBlob": "05588e7745ab2746af126919f767dbc59472487d"
+    },
+    {
+      "path": "src/locales/securityPrivacy.ts",
+      "gitBlob": "476a8f1b35562711a4d14bc7e7826f3df31e1df8"
+    },
+    {
+      "path": "src/locales/siteContent.ts",
+      "gitBlob": "cd39d8dd3edf262d85424384552a0cd6cf28b5f5"
+    },
+    {
+      "path": "src/locales/tutorialCourseText.ts",
+      "gitBlob": "f748f5cdd1c96b52ebc16edd8f60fdad79bc4dd9"
+    },
+    {
+      "path": "supabase/migrations/20261020111637_learning_rewards_and_weekly_problems.sql",
+      "gitBlob": "c85176da0b9a186c7b8c75dbd3cc9c675b34ff05"
+    }
+  ],
+  "reviews": [
+    {
+      "group": "start-and-controls",
+      "decision": "updated",
+      "reason": "タイトルとロビーのチュートリアル入口、通常チェス16課題から独自ルール9課題への順序、別の週替わり10題を日本語・英語ガイドへ反映した。ゲスト練習、ログインが必要な報酬、見本と再クリアが報酬対象外であることを確認した。",
+      "checkedPages": [
+        "/guide/#start",
+        "/faq/#guest"
+      ],
+      "evidence": [
+        "docs/learning-rewards-20261020.md: implementation, executed checks and release boundaries",
+        "scripts/qa/learning-browser.mjs: 25 authenticated and guest lessons, 10 weekly problems, retry, 12 locales, hint interaction and real entrypoints passed",
+        "scripts/qa/learning-postgres.test.mjs: PostgreSQL 17.11 independent-backend contention, publication, rollback and role checks passed",
+        "node scripts/release/check-web-review.mjs: 8 exported public pages passed; scratch/learning-browser/public-review.json: Japanese and English rendering passed"
+      ]
+    },
+    {
+      "group": "candidates-and-outcomes",
+      "decision": "updated",
+      "reason": "実際のエンジンで25課題と1手メイトを検証した。通常キャスリングを追加し、基本ルールの説明から独自の候補枠の説明を分離した。既存の駒の動き・勝敗ルールは変わらず、ガイドの学習順序とヒント説明だけを更新した。",
+      "checkedPages": [
+        "/rules/",
+        "/guide/#candidates",
+        "/guide/#outcomes",
+        "/guide/#practice",
+        "/guide/#chain",
+        "/faq/#move",
+        "/faq/#win"
+      ],
+      "evidence": [
+        "docs/learning-rewards-20261020.md: implementation, executed checks and release boundaries",
+        "scripts/qa/learning-browser.mjs: 25 authenticated and guest lessons, 10 weekly problems, retry, 12 locales, hint interaction and real entrypoints passed",
+        "scripts/qa/learning-postgres.test.mjs: PostgreSQL 17.11 independent-backend contention, publication, rollback and role checks passed",
+        "node scripts/release/check-web-review.mjs: 8 exported public pages passed; scratch/learning-browser/public-review.json: Japanese and English rendering passed"
+      ]
+    },
+    {
+      "group": "hints-and-clock",
+      "decision": "updated",
+      "reason": "ヒントは元の駒と移動先を自分で選ぶことと、開閉できる即時変化の説明をガイド・FAQへ反映した。練習無料、その他のヒントのチケット消費条件、時計の仕様は変更していない。AIの探索理由や接続障害の根本解消は断定していない。",
+      "checkedPages": [
+        "/guide/#start",
+        "/faq/#clock",
+        "/faq/#hints"
+      ],
+      "evidence": [
+        "docs/learning-rewards-20261020.md: implementation, executed checks and release boundaries",
+        "scripts/qa/learning-browser.mjs: 25 authenticated and guest lessons, 10 weekly problems, retry, 12 locales, hint interaction and real entrypoints passed",
+        "scripts/qa/learning-postgres.test.mjs: PostgreSQL 17.11 independent-backend contention, publication, rollback and role checks passed",
+        "node scripts/release/check-web-review.mjs: 8 exported public pages passed; scratch/learning-browser/public-review.json: Japanese and English rendering passed"
+      ]
+    },
+    {
+      "group": "accounts-connections-and-saves",
+      "decision": "updated",
+      "reason": "認証済みのチュートリアル・週替わりクリアと報酬のサーバー保存、ゲスト進捗・未送信手順の端末保存、退会時の連動削除を12言語の保存説明とFAQへ反映した。通信失敗後の再試行と重複防止を実操作で確認した。問い合わせ先と既存の認証・回復手順は維持している。",
+      "checkedPages": [
+        "/faq/#connection",
+        "/faq/#save",
+        "/faq/#privacy",
+        "/contact/",
+        "/privacy/"
+      ],
+      "evidence": [
+        "docs/learning-rewards-20261020.md: implementation, executed checks and release boundaries",
+        "scripts/qa/learning-browser.mjs: 25 authenticated and guest lessons, 10 weekly problems, retry, 12 locales, hint interaction and real entrypoints passed",
+        "scripts/qa/learning-postgres.test.mjs: PostgreSQL 17.11 independent-backend contention, publication, rollback and role checks passed",
+        "node scripts/release/check-web-review.mjs: 8 exported public pages passed; scratch/learning-browser/public-review.json: Japanese and English rendering passed"
+      ]
+    },
+    {
+      "group": "commerce-and-disclosures",
+      "decision": "updated",
+      "reason": "初回クリアによる無償の交互配布と全10題の報酬、5/10題目の広告についてガイドを更新した。広告視聴をチケット付与の根拠とせず、広告なし会員と広告取得不可を通過させる。購入価格・規約同意バージョンは変更していない。Web広告とH5は既存の無効状態を維持し、実広告配信や本番DB反映済みとは記載していない。",
+      "checkedPages": [
+        "/faq/#hints",
+        "/contact/",
+        "/privacy/",
+        "/terms/"
+      ],
+      "evidence": [
+        "docs/learning-rewards-20261020.md: implementation, executed checks and release boundaries",
+        "scripts/qa/learning-browser.mjs: 25 authenticated and guest lessons, 10 weekly problems, retry, 12 locales, hint interaction and real entrypoints passed",
+        "scripts/qa/learning-postgres.test.mjs: PostgreSQL 17.11 independent-backend contention, publication, rollback and role checks passed",
+        "node scripts/release/check-web-review.mjs: 8 exported public pages passed; scratch/learning-browser/public-review.json: Japanese and English rendering passed"
+      ]
+    },
+    {
+      "group": "public-guidance-and-navigation",
+      "decision": "updated",
+      "reason": "静的出力の8公開ページを日本語と英語で確認し、横はみ出しとページ例外がないこと、ガイドの16+9課題と週替わり問題、プライバシーの学習保存説明と更新日を確認した。既存のcanonical・検索公開範囲・問い合わせ導線の検査も通過した。",
+      "checkedPages": [
+        "/",
+        "/guide/",
+        "/faq/",
+        "/rules/",
+        "/about/",
+        "/contact/",
+        "/privacy/",
+        "/terms/"
+      ],
+      "evidence": [
+        "docs/learning-rewards-20261020.md: implementation, executed checks and release boundaries",
+        "scripts/qa/learning-browser.mjs: 25 authenticated and guest lessons, 10 weekly problems, retry, 12 locales, hint interaction and real entrypoints passed",
+        "scripts/qa/learning-postgres.test.mjs: PostgreSQL 17.11 independent-backend contention, publication, rollback and role checks passed",
+        "node scripts/release/check-web-review.mjs: 8 exported public pages passed; scratch/learning-browser/public-review.json: Japanese and English rendering passed"
+      ]
+    },
+    {
+      "group": "qube-teaching",
+      "decision": "updated",
+      "reason": "QUBEの25課題とヒント解説を実盤面と照合した。12言語の短い画面で説明をページ送りし、PC・モバイルでヒントを開いて示された手を指せることを確認した。量子ルールは独立した後半の9課題にまとめ、キャラクターや外観プレビューなど変更対象外の案内に新しい報酬を誤って追加していない。",
+      "checkedPages": [
+        "/",
+        "/about/",
+        "/rules/",
+        "/guide/",
+        "/faq/",
+        "game: tutorial, help dialogs, move hints and feedback, promotion/castling, stage/setup explanations, cosmetic preview/equipment guidance"
+      ],
+      "evidence": [
+        "docs/learning-rewards-20261020.md: implementation, executed checks and release boundaries",
+        "scripts/qa/learning-browser.mjs: 25 authenticated and guest lessons, 10 weekly problems, retry, 12 locales, hint interaction and real entrypoints passed",
+        "scripts/qa/learning-postgres.test.mjs: PostgreSQL 17.11 independent-backend contention, publication, rollback and role checks passed",
+        "node scripts/release/check-web-review.mjs: 8 exported public pages passed; scratch/learning-browser/public-review.json: Japanese and English rendering passed"
+      ]
+    }
+  ]
+}

@@ -93,6 +93,8 @@ export function SocketProvider({ children, userId }: { children:React.ReactNode;
                 }else{
                     const next=io(gameServerUrl(),{
                         auth:{token,userId,client:clientRelease},autoConnect:false,transports:['websocket','polling'],
+                        // A listed fallback is only attempted on an opening error with this option.
+                        tryAllTransports:true,
                         reconnection:true,reconnectionAttempts:Infinity,reconnectionDelay:1000,reconnectionDelayMax:5000,
                     });
                     current=next;setSocket(next);

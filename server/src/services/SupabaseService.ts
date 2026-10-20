@@ -21,6 +21,7 @@ import {createAccountTermsStore} from './AccountTerms';
 import {createCurrentTermsStore} from './AccountCurrentTerms';
 import {createEngagementMetricsStore} from './EngagementMetrics';
 import {createDailyLoginStore} from './DailyLoginStore';
+import {createLearningStore} from './LearningStore';
 import {createStripeMembershipStore} from './StripeMembershipStore';
 import { createStripeCommerceStore } from './StripeCommerceStore';
 import { createStripeCommercePrerequisites } from './StripeCommerceReadiness';
@@ -68,6 +69,7 @@ export class SupabaseService {
         return createDailyLoginStore(this.supabase, token=>this.verifyUser(token),
             id=>this.accountDeletionStore().blocked(id));
     }
+    public learningStore() { return createLearningStore(this.supabase,this.dailyLoginStore()); }
     public stripeMembershipStore() {
         return createStripeMembershipStore(this.supabase, token=>this.verifyUser(token),
             id=>this.accountDeletionStore().blocked(id));

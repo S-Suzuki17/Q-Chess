@@ -73,7 +73,9 @@ export function clearDeletedAccountDeviceData(userId?:string,includeShared=true)
             const storage = globalThis[name];
             const keys = Array.from({ length: storage.length }, (_, index) => storage.key(index));
             for (const key of keys) {
-                if(!includeShared&&(!userId||![`qg_campaign_v2:${encodeURIComponent(userId)}`,`qg_campaign_v2:${encodeURIComponent(userId)}:dirty`].includes(key??'')))continue;
+                const learningKeys=userId?[`qg_learning_pending_v1:${userId}`,`qg_tutorial_course_v2:${userId}`]:[];
+                if(userId&&/^(qg_learning_pending_v1:|qg_tutorial_course_v2:)/.test(key??'')&&!learningKeys.includes(key??''))continue;
+                if(!includeShared&&(!userId||![`qg_campaign_v2:${encodeURIComponent(userId)}`,`qg_campaign_v2:${encodeURIComponent(userId)}:dirty`,...learningKeys].includes(key??'')))continue;
                 if(userId&&key?.startsWith('qg_campaign_v2:')&&![`qg_campaign_v2:${encodeURIComponent(userId)}`,`qg_campaign_v2:${encodeURIComponent(userId)}:dirty`].includes(key))continue;
                 if (key && /^(?:qg_|qchess_)/.test(key)) {
                     try { storage.removeItem(key); } catch { cleared = false; }

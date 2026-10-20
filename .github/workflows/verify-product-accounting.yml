@@ -37,6 +37,8 @@ jobs:
             report: admob-legacy-upgrade-postgres.log
           - suite: conventional-registration
             report: conventional-registration-postgres-results.json
+          - suite: learning
+            report: learning-postgres-results.json
     services:
       postgres:
         image: postgres:17.11-bookworm

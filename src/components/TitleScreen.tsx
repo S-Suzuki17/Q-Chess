@@ -14,14 +14,19 @@ import { authFormText } from '../locales/authFormText';
 import { registrationFormIssues, type RegistrationIssue, type RegistrationField } from '../../server/src/services/RegistrationValidation';
 import { AccountRecoveryPanel } from './AccountRecoveryPanel';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
+import { learningEntryText } from '../locales/learningEntryText';
+import { useAndroidBackHandler } from '../hooks/useAndroidBack';
 import './title-screen.css';
-import { ArrowUpRight, ChevronRight } from 'lucide-react';
+import { ArrowUpRight, BookOpen, ChevronRight } from 'lucide-react';
 
 import { CommunityFeed } from './CommunityFeed';
 import { LandingGamePreview } from './LandingGamePreview';
 import { Capacitor } from '@capacitor/core';
 import { useAppPlatform } from '../hooks/useAppPlatform';
 import { Browser } from '@capacitor/browser';
+
+const InteractiveTutorial = dynamic(() => import('./InteractiveTutorial').then(module => module.InteractiveTutorial), { ssr: false });
 
 interface TitleScreenProps {
     lang: Language;
@@ -36,6 +41,12 @@ export function TitleScreen({ lang, onLogin, initialMode='select', onQuickPracti
     const { android, webContent } = useAppPlatform();
     const t = { ...dict['en'], ...(dict[lang] || {}) } as any;
     const [mode, setMode] = useState<'select' | 'register' | 'login' | 'rules'>(initialMode);
+    const [showTutorial, setShowTutorial] = useState(false);
+    useAndroidBackHandler(() => {
+        if (!showTutorial) return false;
+        setShowTutorial(false);
+        return true;
+    }, 50);
     const authDialog=React.useRef<HTMLDialogElement>(null);
     const authTrigger=React.useRef<HTMLElement|null>(null);
     const formText=(key:Parameters<typeof authFormText>[1])=>authFormText(lang,key);
@@ -198,6 +209,12 @@ export function TitleScreen({ lang, onLogin, initialMode='select', onQuickPracti
             <div className="title-screen-actions relative z-10 w-full flex flex-col gap-6">
                 {(
                     <div className="flex flex-col gap-4">
+                        <button type="button" data-open-tutorial className="title-learn-direct"
+                            aria-haspopup="dialog" onClick={() => setShowTutorial(true)}>
+                            <BookOpen size={24} aria-hidden="true"/>
+                            <span><strong>{learningEntryText[lang].title}</strong><small>{learningEntryText[lang].detail}</small></span>
+                            <ChevronRight size={20} aria-hidden="true"/>
+                        </button>
                         <button type="button" onClick={handleQuickPractice} className="title-practice-direct">
                             <div className="flex flex-col text-left">
                                 <span className="font-semibold text-base md:text-lg tracking-wide">{t.practiceVsCpu || (lang === 'ja' ? 'CPUで練習' : 'PRACTICE VS CPU')}</span>
@@ -342,6 +359,7 @@ export function TitleScreen({ lang, onLogin, initialMode='select', onQuickPracti
             </div>
 
             <CommunityFeed lang={lang} />
+            {showTutorial && <InteractiveTutorial lang={lang} onClose={() => setShowTutorial(false)}/>}
 
             {webContent && <div className="title-badge relative w-full z-10 flex flex-col items-center pointer-events-none">
                 <div className="mb-2 opacity-20 hover:opacity-100 grayscale hover:grayscale-0 transition-all duration-300 pointer-events-auto">

@@ -1,0 +1,32 @@
+.weekly-overlay{position:fixed;inset:0;z-index:210;background:#0a100be8}
+.weekly-problems{box-sizing:border-box;width:min(680px,calc(100vw - 24px));height:min(900px,calc(100dvh - 24px));max-height:calc(100dvh - 24px);margin:auto;padding:18px;border:1px solid #bda57566;border-radius:18px;background:#161e18;color:#e9e3d2;overflow:auto;font:14px/1.65 var(--font-geist-sans),var(--font-noto-devanagari),var(--font-noto-tamil),system-ui,sans-serif}
+.weekly-problems::backdrop{background:#0a100be8}
+.weekly-problems *{box-sizing:border-box}
+.weekly-problems header{display:flex;align-items:center;gap:12px;justify-content:space-between}
+.weekly-problems h2{font-size:22px;line-height:1.35;margin:0;overflow-wrap:anywhere;color:#e8d3a3}
+.weekly-problems small{color:#bcb89f}
+.weekly-problems p{margin:10px 0;overflow-wrap:anywhere}
+.weekly-problems button{font:inherit;cursor:pointer;min-height:44px;padding:8px 12px;border:1px solid #bda57566;border-radius:9px;background:#253b27;color:#f0dfb6;overflow-wrap:anywhere}
+.weekly-problems header button{min-width:44px;font-size:24px}
+.weekly-problems button:disabled{opacity:.5;cursor:default}
+.weekly-problems button:focus-visible,.weekly-problems summary:focus-visible{outline:2px solid #e2c68e;outline-offset:2px}
+.weekly-about{font-size:12px;color:#bfc7b5}
+.weekly-about summary{min-height:44px;align-content:center;cursor:pointer}
+.weekly-progress{display:flex;gap:12px;align-items:center;font-variant-numeric:tabular-nums;margin:12px 0;color:#e7d6a6}
+.weekly-progress progress{flex:1;min-width:0;accent-color:#d5be86}
+.weekly-goal{font-size:13px}
+.weekly-board{width:100%;height:min(55dvh,calc(100vw - 66px),500px);min-height:230px;position:relative;background:#0c130f;border-radius:12px;overflow:hidden}
+.weekly-progress progress{appearance:none;height:10px;border:0;border-radius:8px;background:#2c382d}
+.weekly-progress progress::-webkit-progress-bar{background:#2c382d;border-radius:8px}
+.weekly-progress progress::-webkit-progress-value{background:#d5be86;border-radius:8px}
+.weekly-progress progress::-moz-progress-bar{background:#d5be86;border-radius:8px}
+.weekly-board .board-2d{padding:4px}
+.weekly-feedback{min-height:28px;padding-top:8px;color:#e4d1a1}
+.weekly-success{padding:10px;border:1px solid #92ad7466;border-radius:8px;background:#29402a}
+.weekly-problems footer{position:sticky;bottom:0;display:flex;justify-content:space-between;gap:8px;padding-top:10px;background:#161e18}
+.weekly-problems [data-weekly-next]{background:#d5be86;color:#192c1b}
+.lobby-weekly-action{display:flex;width:100%;text-align:left;align-items:center;gap:12px;padding:16px;border:1px solid #a58a5744;border-radius:12px;background:#baa2720c;color:#dfcfac;margin-top:12px;min-height:52px}
+.lobby-weekly-action span{flex:1;min-width:0;overflow-wrap:anywhere}
+.lobby-weekly-action strong,.lobby-weekly-action small{display:block;line-height:1.6}
+.lobby-weekly-action small{color:#aeb7a2;font-size:11px;margin-top:3px}
+@media(max-width:380px){.weekly-problems{padding:12px}.weekly-problems h2{font-size:18px}}

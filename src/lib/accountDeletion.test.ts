@@ -91,4 +91,13 @@ describe('account erasure client boundary', () => {
         expect(clearDeletedAccountDeviceData('Alice',false)).toBe(true);
         expect(localStorage.getItem('qg_campaign_v2:Alice')).toBeNull();expect(localStorage.getItem('qg_campaign_v2:Bob')).toBe('new');expect(localStorage.getItem('qg_last_user')).toBe('Bob');
     });
+    it('erases only the deleted account learning proof and progress during a late cleanup',()=>{
+        for(const prefix of ['qg_learning_pending_v1:','qg_tutorial_course_v2:']){
+            localStorage.setItem(prefix+'Alice','old');localStorage.setItem(prefix+'Bob','keep');
+        }
+        expect(clearDeletedAccountDeviceData('Alice',false)).toBe(true);
+        for(const prefix of ['qg_learning_pending_v1:','qg_tutorial_course_v2:']){
+            expect(localStorage.getItem(prefix+'Alice')).toBeNull();expect(localStorage.getItem(prefix+'Bob')).toBe('keep');
+        }
+    });
 });

@@ -8,11 +8,14 @@ import {Board2D} from './Board2D';
 import {QubeTeacher} from './QubeTeacher';
 import {TutorialCopy} from './TutorialCopy';
 import {NaturalText} from './NaturalText';
+import {learningText} from '../locales/learningText';
+import {useLearningRewards} from '../hooks/useLearningRewards';
+import {LearningRewardNotice} from './LearningRewardNotice';
 import {useReducedMotion} from '../hooks/useReducedMotion';
 import {recordTutorialCompleted, recordTutorialStarted} from '../lib/engagementMetrics';
 import {positionForDisplay} from '../lib/localGame';
 import {tutorialCourse, tutorialPosition, tutorialSquare, tutorialMoves, tutorialReferenceMove,
-    attemptTutorialMove, TUTORIAL_PROGRESS_KEY, TUTORIAL_COURSE_VERSION} from '../lib/tutorialCourse';
+    attemptTutorialMove, TUTORIAL_PROGRESS_KEY, TUTORIAL_COURSE_VERSION,TUTORIAL_PATH,TUTORIAL_SECTIONS} from '../lib/tutorialCourse';
 import type {TutorialAttempt} from '../lib/tutorialCourse';
 import type {GameState, Move} from '../quantum-engine/types';
 import {generateLegalMoves} from '../quantum-engine/moveGenerator';
@@ -20,9 +23,9 @@ import {PIECE_KING as K, PIECE_QUEEN as Q, PIECE_ROOK as R,
     PIECE_BISHOP as B, PIECE_KNIGHT as N, PIECE_PAWN as P} from '../quantum-engine/constants';
 import './interactive-tutorial.css';
 
-function savedProgress(): {index:number; completed:string[]} {
+function savedProgress(userId?:string): {index:number; completed:string[]} {
     try {
-        const saved=JSON.parse(localStorage.getItem(TUTORIAL_PROGRESS_KEY)??'null');
+        const saved=JSON.parse(localStorage.getItem(userId?`${TUTORIAL_PROGRESS_KEY}:${userId}`:TUTORIAL_PROGRESS_KEY)??'null');
         if(saved?.version!==TUTORIAL_COURSE_VERSION) return {index:0,completed:[]};
         const completed=Array.isArray(saved.completed)?saved.completed.filter((id:unknown)=>
             typeof id==='string'&&tutorialCourse.some(lesson=>lesson.id===id)):[];
@@ -30,8 +33,8 @@ function savedProgress(): {index:number; completed:string[]} {
         return {index,completed:Array.from(new Set<string>(completed))};
     } catch {return {index:0,completed:[]};}
 }
-function saveProgress(index:number,completed:string[]) {
-    try {localStorage.setItem(TUTORIAL_PROGRESS_KEY,JSON.stringify({version:TUTORIAL_COURSE_VERSION,index,completed}));}
+function saveProgress(index:number,completed:string[],userId?:string) {
+    try {localStorage.setItem(userId?`${TUTORIAL_PROGRESS_KEY}:${userId}`:TUTORIAL_PROGRESS_KEY,JSON.stringify({version:TUTORIAL_COURSE_VERSION,index,completed}));}
     catch { /* Lessons remain playable when local storage is blocked. */ }
 }
 function pieceNames(mask:number,lang:Language) {
@@ -61,8 +64,10 @@ function MoveChoice({moves,state,lang,onChoose,onCancel}:{moves:Move[];state:Gam
     </dialog>;
 }
 
-export function InteractiveTutorial({lang,onClose}:{lang:Language;onClose:()=>void}) {
-    const [saved]=useState(savedProgress);
+export function InteractiveTutorial({lang,onClose,userId}:{lang:Language;onClose:()=>void;userId?:string}) {
+    const [saved]=useState(()=>savedProgress(userId));
+    const account=useLearningRewards(userId);
+    const learning=learningText(lang);
     const [lessonIndex,setLessonIndex]=useState(saved.index);
     const [completed,setCompleted]=useState(saved.completed);
     const [state,setState]=useState(()=>tutorialCourse[saved.index].create());
@@ -77,6 +82,7 @@ export function InteractiveTutorial({lang,onClose}:{lang:Language;onClose:()=>vo
     const dialog=useRef<HTMLDialogElement>(null),nextButton=useRef<HTMLButtonElement>(null);
     const demoTimer=useRef<ReturnType<typeof setTimeout>|null>(null);
     const demoActive=useRef(false);
+    const proof=useRef<Move[]>([]);
     const reducedMotion=useReducedMotion();
     const lesson=tutorialCourse[lessonIndex],task=lesson.tasks[Math.min(taskIndex,lesson.tasks.length-1)];
     const done=taskIndex>=lesson.tasks.length;
@@ -85,6 +91,9 @@ export function InteractiveTutorial({lang,onClose}:{lang:Language;onClose:()=>vo
     const valid=useMemo(()=>selected?tutorialMoves(state,selected):[],[state,selected]);
     const TutorialBoard=flatBoard?Board2D:Board3D;
     const guided=task.kind!=='mate'||showHint;
+    const section=TUTORIAL_SECTIONS.find(group=>group.indices.some(index=>index===lessonIndex))!;
+    const learned=Array.from(new Set([...completed,...(account.status?.tutorial??[])]));
+    const pathIndex=TUTORIAL_PATH.indexOf(lessonIndex);
 
     useEffect(()=>{
         const previous=document.activeElement as HTMLElement|null,modal=dialog.current;
@@ -109,13 +118,15 @@ export function InteractiveTutorial({lang,onClose}:{lang:Language;onClose:()=>vo
     function reset(index=lessonIndex) {
         if(demoTimer.current)clearTimeout(demoTimer.current);
         demoActive.current=false;setDemo(false);setLessonIndex(index);setTaskIndex(0);
+        proof.current=[];account.clearReceipt();
         setState(tutorialCourse[index].create());setSelected(null);setFeedback(null);
-        setChoices([]);setChanges('');setShowHint(false);saveProgress(index,completed);
+        setChoices([]);setChanges('');setShowHint(false);saveProgress(index,completed,userId);
     }
     function submit(move:Move) {
         const result=attemptTutorialMove(state,task,move);
         setChoices([]);setSelected(null);setFeedback(result.feedback);
         if(!result.accepted)return;
+        proof.current=[...proof.current,move];
         const changed=result.state.pieces.filter(piece=>
             piece.state!==state.pieces.find(previous=>previous.id===piece.id)?.state ||
             piece.promotedType!==state.pieces.find(previous=>previous.id===piece.id)?.promotedType);
@@ -124,11 +135,12 @@ export function InteractiveTutorial({lang,onClose}:{lang:Language;onClose:()=>vo
         setState(result.state);setTaskIndex(current=>current+1);setShowHint(false);
         if(taskIndex===lesson.tasks.length-1) {
             const next=Array.from(new Set([...completed,lesson.id]));
-            setCompleted(next);saveProgress(lessonIndex,next);
+            setCompleted(next);saveProgress(lessonIndex,next,userId);
+            if(userId)void account.submit({kind:'tutorial',lessonId:lesson.id,moves:proof.current});
         }
     }
     function clickSquare(row:number,col:number) {
-        if(done||demo||choices.length)return;
+        if(done||demo||choices.length||account.busy)return;
         const occupant=state.pieces.find(piece=>piece.alive&&piece.position.row===row&&piece.position.col===col);
         if(occupant?.owner===state.sideToMove) {
             setSelected(occupant.id);setFeedback(null);return;
@@ -160,14 +172,14 @@ export function InteractiveTutorial({lang,onClose}:{lang:Language;onClose:()=>vo
     const selectedPiece=state.pieces.find(piece=>piece.id===selected);
     const focusPiece=selectedPiece??(!done?targetPiece:state.pieces.find(piece=>piece.id===state.lastMove?.pieceId));
     const candidateDescription=focusPiece?
-        copy.candidates+' · '+tutorialSquare(focusPiece.position)+': '+pieceNames(focusPiece.promotedType??focusPiece.state,lang):'';
+        (section.id==='quantum'?copy.candidates+' · ':'')+tutorialSquare(focusPiece.position)+': '+pieceNames(focusPiece.promotedType??focusPiece.state,lang):'';
     const detail=[
         feedback?copy[feedback]:'',
         changes,
         done&&!demo?copy.completed:'',
         copy.lessons[lessonIndex],
         !done?candidateDescription:'',
-        lessonIndex===0?copy.practice:'',
+        lessonIndex===0?copy.practice+(!userId?'\n'+learning.login:''):'',
     ].filter(Boolean).join('\n\n');
     const command=demo?copy.demo:done?copy.completed:task.kind==='mate'&&!showHint?copy.challenge:
         (task.kind==='reject'?copy.test:selected?copy.move:copy.select)+' · '+task.from+' → '+task.to;
@@ -186,14 +198,23 @@ export function InteractiveTutorial({lang,onClose}:{lang:Language;onClose:()=>vo
                 <button type="button" onClick={onClose} aria-label={labels.close}>×</button>
             </header>
             <div className="tutorial-course-picker">
+                <nav className="tutorial-sections" aria-label={copy.title}>
+                    {TUTORIAL_SECTIONS.map(group=><button key={group.id} type="button"
+                        aria-pressed={section.id===group.id} disabled={demo||account.busy}
+                        onClick={()=>reset(group.indices[0])}>{learning[group.id]}
+                        <small>{group.indices.filter(index=>learned.includes(tutorialCourse[index].id)).length}/{group.indices.length}</small>
+                    </button>)}
+                </nav>
                 <label className="sr-only" htmlFor="tutorial-lesson-picker">{copy.chooseLesson}</label>
-                <select id="tutorial-lesson-picker" value={lessonIndex} disabled={demo}
+                <select id="tutorial-lesson-picker" value={lessonIndex} disabled={demo||account.busy}
                     onChange={event=>reset(Number(event.target.value))}>
-                    {tutorialCourse.map((item,index)=><option key={item.id} value={index}>
-                        {completed.includes(item.id)?'✓ ':''}{index+1}. {copy.titles[index]}
-                    </option>)}
+                    {TUTORIAL_SECTIONS.map(group=><optgroup key={group.id} label={learning[group.id]}>
+                        {group.indices.map(index=><option key={tutorialCourse[index].id} value={index}>
+                            {learned.includes(tutorialCourse[index].id)?'✓ ':''}{TUTORIAL_PATH.indexOf(index)+1}. {copy.titles[index]}
+                        </option>)}
+                    </optgroup>)}
                 </select>
-                <output aria-label={copy.progress}>{completed.length} / {tutorialCourse.length}</output>
+                <output aria-label={copy.progress}>{learned.length} / {tutorialCourse.length}</output>
             </div>
             <div className="tutorial-board">
                 <div className={flatBoard?'tutorial-board-surface tutorial-flat-board board-render-fallback':'tutorial-board-surface tutorial-spatial-board'}>
@@ -204,6 +225,7 @@ export function InteractiveTutorial({lang,onClose}:{lang:Language;onClose:()=>vo
                 </div>
             </div>
             <div className="tutorial-explanation">
+                {userId&&<LearningRewardNotice lang={lang} account={account} userId={userId}/>}
                 <div className="tutorial-command" data-tutorial-status role="status">
                     <small>{!done?(state.sideToMove==='white'?copy.white:copy.black)+' · ':''}{Math.min(taskIndex+1,lesson.tasks.length)} / {lesson.tasks.length}</small>
                     <strong>{command}</strong>
@@ -214,14 +236,14 @@ export function InteractiveTutorial({lang,onClose}:{lang:Language;onClose:()=>vo
             </div>
             <footer className="tutorial-actions">
                 <div>
-                    <button type="button" data-tutorial-review-demo onClick={showExample} disabled={demo||done}>▶ {copy.demo}</button>
-                    <button type="button" data-tutorial-reset onClick={()=>reset()}>↺ {labels.resetStep}</button>
+                    <button type="button" data-tutorial-review-demo onClick={showExample} disabled={demo||done||account.busy}>▶ {copy.demo}</button>
+                    <button type="button" data-tutorial-reset onClick={()=>reset()} disabled={account.busy}>↺ {labels.resetStep}</button>
                     {!done&&task.kind==='mate'&&<button type="button" data-tutorial-hint onClick={()=>setShowHint(value=>!value)}>{showHint?copy.hideHint:copy.hint}</button>}
                 </div>
-                {done&&!demo&&<button type="button" data-tutorial-next ref={nextButton} onClick={()=>{
-                    if(lessonIndex===tutorialCourse.length-1){recordTutorialCompleted();onClose();}
-                    else reset(lessonIndex+1);
-                }}>{lessonIndex===tutorialCourse.length-1?copy.finish:labels.next}</button>}
+                {done&&!demo&&<button type="button" data-tutorial-next ref={nextButton} disabled={account.busy} onClick={()=>{
+                    if(pathIndex===TUTORIAL_PATH.length-1){recordTutorialCompleted();onClose();}
+                    else reset(TUTORIAL_PATH[pathIndex+1]);
+                }}>{pathIndex===TUTORIAL_PATH.length-1?copy.finish:labels.next}</button>}
             </footer>
             {choices.length>0&&<MoveChoice moves={choices} state={state} lang={lang}
                 onChoose={submit} onCancel={()=>setChoices([])}/>}

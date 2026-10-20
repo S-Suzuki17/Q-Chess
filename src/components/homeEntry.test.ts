@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { dict, LANGUAGES } from '../locales/dict';
 import { TitleScreen } from './TitleScreen';
+import { learningEntryText } from '../locales/learningEntryText';
 
 describe('home entry points', () => {
     it('offers the translated public guide alongside guest and account entry', () => {
@@ -14,6 +15,10 @@ describe('home entry points', () => {
             expect(html).toContain('title-practice-direct');
             expect(html).toContain('title-play');
             expect(html).toContain('title-auth-actions');
+            expect(html).toContain('data-open-tutorial');
+            expect(html).toContain('aria-haspopup="dialog"');
+            expect(html).toContain(learningEntryText[lang].title);
+            expect(html).toContain(learningEntryText[lang].detail);
         }
     });
 

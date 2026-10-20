@@ -16,6 +16,8 @@ server/node_modules/
 /coverage
 /test-results.json
 /scratch/ticket-sql/
+/scratch/playwright-browsers/
+/scratch/learning-browser/
 /scratch/stripe-postgres/
 /scratch/webpack-cache-before-integration-20261003/
 

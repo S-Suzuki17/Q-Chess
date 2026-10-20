@@ -1,4 +1,6 @@
 import type {Language} from './dict';
+import {learningText} from './learningText';
+import {chessLessonText} from './chessLessonText';
 
 type CourseCopy = {
  title:string; chapters:string[]; titles:string[]; lessons:string[];
@@ -350,3 +352,14 @@ const controls:Record<Exclude<Language,'ja'|'en'>,Omit<CourseCopy,'chapters'|'ti
 export const tutorialCourseText:Record<Language,CourseCopy>={ja,en,
  ...Object.fromEntries(Object.keys(translations).map(code=>[code,{...translations[code as keyof typeof translations],...controls[code as keyof typeof controls]}])) as Record<Exclude<Language,'ja'|'en'>,CourseCopy>,
 };
+for(const lang of Object.keys(tutorialCourseText) as Language[]){
+ const text=tutorialCourseText[lang],learning=learningText(lang);
+ text.title=learning.title;
+ text.practice=learning.rewardRule;
+ text.lessons[13]=chessLessonText[lang][0];
+ text.lessons[17]=chessLessonText[lang][1];
+ text.lessons[14]+=' '+chessLessonText[lang][2];
+ text.titles.push(text.castle);
+ text.lessons.push(learning.castleLesson);
+ text.finish=learning.finish;
+}
