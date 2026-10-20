@@ -204,11 +204,11 @@ jobs:
           NEXT_PUBLIC_SERVER_URL=https://fixture.invalid
           EOF
       - run: npx playwright install chromium
-      - name: Build configured Web export and verify real password-login data
+      - name: Build configured Web export and verify Google account data
         run: |
           node scripts/release/build-android-web.cjs scratch/account-data-public-settings web
           node scripts/qa/check-account-data-browser.mjs scratch/account-data-web --target=web --secondary-screens --home-languages=ja,en,zh,de,fr,es,pt,ru,tr,pl,hi,ta
-      - name: Build configured Android export and verify real password-login data
+      - name: Build configured Android export and verify Google account data
         run: |
           node scripts/release/build-android-web.cjs scratch/account-data-public-settings android
           node scripts/qa/check-account-data-browser.mjs scratch/account-data-android --target=android --secondary-screens --home-languages=ja,en,zh,de,fr,es,pt,ru,tr,pl,hi,ta

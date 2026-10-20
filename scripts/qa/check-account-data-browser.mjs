@@ -4,7 +4,7 @@ import {textWrapping} from './text-wrapping.mjs';
  * response is synthetic and all unknown external traffic is blocked. */
 import assert from 'node:assert/strict';
 import {createServer} from 'node:http';
-import {readFile,mkdir,writeFile} from 'node:fs/promises';
+import {readFile,mkdir,writeFile,readdir} from 'node:fs/promises';
 import {resolve,extname,sep} from 'node:path';
 import {chromium} from 'playwright';
 const args=process.argv.slice(2),artifacts=resolve(args.find(x=>!x.startsWith('--'))||'scratch/account-data-browser');
@@ -15,6 +15,18 @@ const only=args.find(x=>x.startsWith('--only='))?.slice(7);
 const homeLanguages=args.find(x=>x.startsWith('--home-languages='))?.slice(17).split(',')??[];
 assert(['web','android'].includes(target));
 const root=resolve('out'),mime={'.html':'text/html','.js':'application/javascript','.css':'text/css','.svg':'image/svg+xml','.woff2':'font/woff2','.png':'image/png','.jpg':'image/jpeg','.mp3':'audio/mpeg'};
+// The SDK derives its storage key from the configured project. CI and release
+// exports intentionally use different public hosts; never seed a fixed account key.
+const authProjects=new Set();
+for(const file of await readdir(resolve(root,'_next/static'),{recursive:true})){
+ if(!file.endsWith('.js'))continue;
+ const source=await readFile(resolve(root,'_next/static',file),'utf8');
+ for(const match of source.matchAll(/["']https:\/\/([a-z0-9]+)\.supabase\.co\/?["']/g)){
+  if(match[1]!=='placeholder'||broken)authProjects.add(match[1]);
+ }
+}
+assert.equal(authProjects.size,1,'Expected one configured public Auth project in the export');
+const sessionKey=`sb-${[...authProjects][0]}-auth-token`;
 let server,browser,activePage,activeScenario,activeCalls,activeErrors;
 const version=await readFile('src/config/currentTerms.ts','utf8');
 const termsVersion=version.match(/CURRENT_TERMS_VERSION\s*=\s*'([^']+)'/)[1],termsDate=version.match(/CURRENT_TERMS_EFFECTIVE_DATE[^=]*=\s*'([^']+)'/)[1];
@@ -103,10 +115,10 @@ try{
    if(url.pathname==='/membership/stripe/status')return respond(200,{userId,enabled:true,active:false,canManageBilling:false,cancelAtPeriodEnd:false,periodEnd:null,lastGrantUtcDay:null,tickets:{ranked:0,hint:0},availableCheckoutSkus:[]});
    return respond(503,{code:'UNAVAILABLE'});
   });
-  await context.addInitScript(session=>{
+  await context.addInitScript(({session,key})=>{
    localStorage.setItem('qg_language','ja');
-   if(session)localStorage.setItem('sb-gtxbvbsplfkkjlmnqath-auth-token',JSON.stringify(session));
-  },scenario.entry?null:savedSession);
+   if(session)localStorage.setItem(key,JSON.stringify(session));
+  },{session:scenario.entry?null:savedSession,key:sessionKey});
   const page=activePage=await context.newPage();page.on('pageerror',error=>errors.push(error.message));
   await page.goto(origin,{waitUntil:'domcontentloaded'});
   if(scenario.entry){
