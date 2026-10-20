@@ -22,7 +22,7 @@
     },
     {
       "path": "server/src/services/LearningRoutes.ts",
-      "gitBlob": "5a2fa89ac91a15bc40f7cfeea396762b7614ea0a"
+      "gitBlob": "2e96558ff93aa74a440025fb10acead68d216b0a"
     },
     {
       "path": "server/src/services/LearningStore.ts",
@@ -34,7 +34,7 @@
     },
     {
       "path": "src/components/HintExplanation.tsx",
-      "gitBlob": "2fd347c4ba33bbcbe630e0be02936f22bc219347"
+      "gitBlob": "8fc73f309bc445e24af2f974c0b8cf733f4c0b8d"
     },
     {
       "path": "src/components/InteractiveTutorial.tsx",
@@ -82,7 +82,7 @@
     },
     {
       "path": "src/lib/hintExplanation.ts",
-      "gitBlob": "085a684e0ca77f37e62a19e232be45d7a4c3cac8"
+      "gitBlob": "483ae63725b4004f67f8e39bd913118f64e64224"
     },
     {
       "path": "src/lib/learningApi.ts",
@@ -98,7 +98,7 @@
     },
     {
       "path": "src/locales/hintExplanationText.ts",
-      "gitBlob": "eb10125a32b79a8a8c2e5b75df7f687fed88cdef"
+      "gitBlob": "038ad4b0e7ee6b61f252173bf5a89c82d0f6f777"
     },
     {
       "path": "src/locales/learningEntryText.ts",
@@ -168,7 +168,7 @@
     {
       "group": "hints-and-clock",
       "decision": "updated",
-      "reason": "ヒントは元の駒と移動先を自分で選ぶことと、開閉できる即時変化の説明をガイド・FAQへ反映した。練習無料、その他のヒントのチケット消費条件、時計の仕様は変更していない。AIの探索理由や接続障害の根本解消は断定していない。",
+      "reason": "ヒントは元の駒と移動先を自分で選ぶことと、開閉できる即時変化の説明をガイド・FAQへ反映した。練習無料、その他のヒントのチケット消費条件、時計の仕様は変更していない。AIの探索理由や接続障害の根本解消は断定していない。 キャスリングの確定ルークも移動元→移動先で説明し、12言語の見出しを他の駒の変化へ統一。既存ガイドの即時変化という説明と一致する。",
       "checkedPages": [
         "/guide/#start",
         "/faq/#clock",
@@ -178,13 +178,14 @@
         "docs/learning-rewards-20261020.md: implementation, executed checks and release boundaries",
         "scripts/qa/learning-browser.mjs: 25 authenticated and guest lessons, 10 weekly problems, retry, 12 locales, hint interaction and real entrypoints passed",
         "scripts/qa/learning-postgres.test.mjs: PostgreSQL 17.11 independent-backend contention, publication, rollback and role checks passed",
-        "node scripts/release/check-web-review.mjs: 8 exported public pages passed; scratch/learning-browser/public-review.json: Japanese and English rendering passed"
+        "node scripts/release/check-web-review.mjs: 8 exported public pages passed; scratch/learning-browser/public-review.json: Japanese and English rendering passed",
+        "2026-10-21: LearningRoutes, hintExplanation and MatchLayout focused regression tests: 100 passed; configured Web build passed."
       ]
     },
     {
       "group": "accounts-connections-and-saves",
       "decision": "updated",
-      "reason": "認証済みのチュートリアル・週替わりクリアと報酬のサーバー保存、ゲスト進捗・未送信手順の端末保存、退会時の連動削除を12言語の保存説明とFAQへ反映した。通信失敗後の再試行と重複防止を実操作で確認した。問い合わせ先と既存の認証・回復手順は維持している。",
+      "reason": "認証済みのチュートリアル・週替わりクリアと報酬のサーバー保存、ゲスト進捗・未送信手順の端末保存、退会時の連動削除を12言語の保存説明とFAQへ反映した。通信失敗後の再試行と重複防止を実操作で確認した。問い合わせ先と既存の認証・回復手順は維持している。 通信制限を確認済みアカウント単位へ変更し、共有プロキシ経由の他の利用者への影響を防いだ。保存項目・報酬・規約・問い合わせの説明は同じ。",
       "checkedPages": [
         "/faq/#connection",
         "/faq/#save",
@@ -196,13 +197,14 @@
         "docs/learning-rewards-20261020.md: implementation, executed checks and release boundaries",
         "scripts/qa/learning-browser.mjs: 25 authenticated and guest lessons, 10 weekly problems, retry, 12 locales, hint interaction and real entrypoints passed",
         "scripts/qa/learning-postgres.test.mjs: PostgreSQL 17.11 independent-backend contention, publication, rollback and role checks passed",
-        "node scripts/release/check-web-review.mjs: 8 exported public pages passed; scratch/learning-browser/public-review.json: Japanese and English rendering passed"
+        "node scripts/release/check-web-review.mjs: 8 exported public pages passed; scratch/learning-browser/public-review.json: Japanese and English rendering passed",
+        "LearningRoutes.test.ts: 121 unauthenticated requests cannot throttle a signed-in account; account isolation, shared route/session budget and expiry verified."
       ]
     },
     {
       "group": "commerce-and-disclosures",
       "decision": "updated",
-      "reason": "初回クリアによる無償の交互配布と全10題の報酬、5/10題目の広告についてガイドを更新した。広告視聴をチケット付与の根拠とせず、広告なし会員と広告取得不可を通過させる。購入価格・規約同意バージョンは変更していない。Web広告とH5は既存の無効状態を維持し、実広告配信や本番DB反映済みとは記載していない。",
+      "reason": "初回クリアによる無償の交互配布と全10題の報酬、5/10題目の広告についてガイドを更新した。広告視聴をチケット付与の根拠とせず、広告なし会員と広告取得不可を通過させる。購入価格・規約同意バージョンは変更していない。Web広告とH5は既存の無効状態を維持し、実広告配信や本番DB反映済みとは記載していない。 通信制限を確認済みアカウント単位へ変更し、共有プロキシ経由の他の利用者への影響を防いだ。保存項目・報酬・規約・問い合わせの説明は同じ。",
       "checkedPages": [
         "/faq/#hints",
         "/contact/",
@@ -213,7 +215,8 @@
         "docs/learning-rewards-20261020.md: implementation, executed checks and release boundaries",
         "scripts/qa/learning-browser.mjs: 25 authenticated and guest lessons, 10 weekly problems, retry, 12 locales, hint interaction and real entrypoints passed",
         "scripts/qa/learning-postgres.test.mjs: PostgreSQL 17.11 independent-backend contention, publication, rollback and role checks passed",
-        "node scripts/release/check-web-review.mjs: 8 exported public pages passed; scratch/learning-browser/public-review.json: Japanese and English rendering passed"
+        "node scripts/release/check-web-review.mjs: 8 exported public pages passed; scratch/learning-browser/public-review.json: Japanese and English rendering passed",
+        "LearningRoutes.test.ts: 121 unauthenticated requests cannot throttle a signed-in account; account isolation, shared route/session budget and expiry verified."
       ]
     },
     {
@@ -240,7 +243,7 @@
     {
       "group": "qube-teaching",
       "decision": "updated",
-      "reason": "QUBEの25課題とヒント解説を実盤面と照合した。12言語の短い画面で説明をページ送りし、PC・モバイルでヒントを開いて示された手を指せることを確認した。量子ルールは独立した後半の9課題にまとめ、キャラクターや外観プレビューなど変更対象外の案内に新しい報酬を誤って追加していない。",
+      "reason": "QUBEの25課題とヒント解説を実盤面と照合した。12言語の短い画面で説明をページ送りし、PC・モバイルでヒントを開いて示された手を指せることを確認した。量子ルールは独立した後半の9課題にまとめ、キャラクターや外観プレビューなど変更対象外の案内に新しい報酬を誤って追加していない。 キャスリングの確定ルークも移動元→移動先で説明し、12言語の見出しを他の駒の変化へ統一。既存ガイドの即時変化という説明と一致する。",
       "checkedPages": [
         "/",
         "/about/",
@@ -253,7 +256,8 @@
         "docs/learning-rewards-20261020.md: implementation, executed checks and release boundaries",
         "scripts/qa/learning-browser.mjs: 25 authenticated and guest lessons, 10 weekly problems, retry, 12 locales, hint interaction and real entrypoints passed",
         "scripts/qa/learning-postgres.test.mjs: PostgreSQL 17.11 independent-backend contention, publication, rollback and role checks passed",
-        "node scripts/release/check-web-review.mjs: 8 exported public pages passed; scratch/learning-browser/public-review.json: Japanese and English rendering passed"
+        "node scripts/release/check-web-review.mjs: 8 exported public pages passed; scratch/learning-browser/public-review.json: Japanese and English rendering passed",
+        "2026-10-21: LearningRoutes, hintExplanation and MatchLayout focused regression tests: 100 passed; configured Web build passed."
       ]
     }
   ]

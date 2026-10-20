@@ -13,19 +13,21 @@ export function createLearningRouter(auth:RankedSessionAuthority,store:LearningS
     const authenticate:RequestHandler=async(req,res,next)=>{
         res.setHeader('Cache-Control','no-store');res.setHeader('Vary','Authorization');
         if(!enabled()){res.status(503).json({code:'FEATURE_DISABLED'});return;}
-        const stamp=now();
-        for(const [key,value]of attempts)if(value.until<=stamp)attempts.delete(key);
-        const ip=req.socket.remoteAddress??'unknown',entry=attempts.get(ip)??{count:0,until:stamp+60000};
-        if(entry.count>=120||(!attempts.has(ip)&&attempts.size>=10000)){
-            res.setHeader('Retry-After','60');res.status(429).json({code:'TRY_LATER'});return;
-        }
-        entry.count++;attempts.set(ip,entry);
         if(Object.keys(req.query).length){res.status(400).json({code:'INVALID_REQUEST'});return;}
         const token=/^Bearer ([-\w.]{1,8192})$/i.exec(req.headers.authorization??'')?.[1];
         try{
             const proof=token?await auth.verifySession(token):null;
             const userId=proof?.userId??(token&&/^[-\w]+\.[-\w]+\.[-\w]+$/.test(token)?await store.verifyUser(token):null);
             if(!userId||!isRankedUserId(userId)){res.status(401).json({code:'AUTH_REQUIRED'});return;}
+            // Render's transport peer is a shared proxy. Only a verified account may
+            // consume its own bucket; forged identities and forwarded headers cannot.
+            const stamp=now();
+            for(const [key,value]of attempts)if(value.until<=stamp)attempts.delete(key);
+            const entry=attempts.get(userId)??{count:0,until:stamp+60000};
+            if(entry.count>=120||(!attempts.has(userId)&&attempts.size>=10000)){
+                res.setHeader('Retry-After','60');res.status(429).json({code:'TRY_LATER'});return;
+            }
+            entry.count++;attempts.set(userId,entry);
             if(gate.blocked(userId)||await store.blocked(userId)){res.status(423).json({code:'ACCOUNT_DELETING'});return;}
             res.locals.userId=userId;res.locals.token=token;res.locals.legacy=!!proof;next();
         }catch{res.status(503).json({code:'LEARNING_UNAVAILABLE'});}

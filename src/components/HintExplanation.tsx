@@ -32,7 +32,7 @@ export function HintExplanation({ lang, hint, tokens, candidates, turn, history 
             {explanation.excluded.length > 0 && <div><dt>{text.excluded}</dt><dd>{names(explanation.excluded)}</dd></div>}
             {explanation.otherChanges.length > 0 && <div><dt>{text.chain}</dt>
                 <dd>{explanation.otherChanges.map(change => <span key={change.square}>
-                    <b>{change.square}</b>: {names(change.remaining)}
+                    <b>{change.fromSquare ? `${change.fromSquare} → ${change.square}` : change.square}</b>: {names(change.remaining)}
                 </span>)}</dd></div>}
         </dl>
         <p>{text.scope}</p>

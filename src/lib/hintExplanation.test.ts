@@ -55,9 +55,16 @@ describe('immediate hint explanations', () => {
         const { view, hint } = exercise('castle');
         const explain = (intention?: 'normal' | 'castle') =>
             explainHint({ ...hint, intention }, view.tokens, view.pool.piecePossibilities, 'white');
-        expect(explain('castle')?.remaining).toEqual(['King']);
+        expect(explain('castle')).toMatchObject({ remaining: ['King'],
+            otherChanges: expect.arrayContaining([{ fromSquare: 'h1', square: 'f1', remaining: ['Rook'] }]) });
         expect(explain('normal')?.remaining).toEqual(['Rook']);
+        expect(explain('normal')?.otherChanges.some(change => change.fromSquare)).toBe(false);
         expect(explain()).toBeNull();
+    });
+    it('reports the confirmed rook relocation in classical castling', () => {
+        expect(exercise('chess-castle').explain()).toMatchObject({
+            remaining: ['King'], otherChanges: [{ fromSquare: 'h1', square: 'f1', remaining: ['Rook'] }],
+        });
     });
     it('handles all promotion choices without calling the Pawn identity an excluded candidate', () => {
         const { view, hint } = exercise('promotion');

@@ -17,7 +17,7 @@ export interface HintExplanation {
     remaining: PieceType[];
     excluded: PieceType[];
     capturedSquares: string[];
-    otherChanges: { square: string; remaining: PieceType[] }[];
+    otherChanges: { square: string; fromSquare?: string; remaining: PieceType[] }[];
     givesCheck: boolean;
     escapesCheck: boolean;
 }
@@ -77,8 +77,10 @@ export function explainHint(
             }),
             otherChanges: after.pieces.flatMap(piece => {
                 const old = previous.get(piece.id)!;
-                return piece.alive && piece.id !== mover.id && old.state !== piece.state
+                const relocated = old.position.row !== piece.position.row || old.position.col !== piece.position.col;
+                return piece.alive && piece.id !== mover.id && (old.state !== piece.state || relocated)
                     ? [{ square: squareName(piece.position.row, piece.position.col),
+                        ...(relocated ? { fromSquare: squareName(old.position.row, old.position.col) } : {}),
                         remaining: names(piece.promotedType ?? piece.state) }] : [];
             }),
             givesCheck: !after.winner && isPlayerInCheck(after.sideToMove, after),
