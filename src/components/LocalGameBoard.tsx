@@ -3,7 +3,7 @@ import {useAndroidBackHandler} from '../hooks/useAndroidBack';
 
 import {castleQuestText} from '../locales/castleQuestText';
 
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback } from 'react';
 import { matchText } from '../locales/matchText';
 import { useBoardPreferences } from '../hooks/useBoardPreferences';
 import { useMoveHint } from '../hooks/useMoveHint';
@@ -41,6 +41,7 @@ import { getWinner } from '../quantum-engine/terminal';
 import { isCheckmateFinish, gameOverDialogDelay, showPlayerVictory } from '../lib/checkmatePresentation';
 import { createLocalPosition, applyLocalMove } from '../lib/localGame';
 import { localMoveDestinations } from '../lib/localMoveDestinations';
+import { clockDisplaySnapshot } from '../lib/matchClock';
 import { recordReplayMove } from '../lib/replayHistory';
 import { replayText } from '../locales/replayText';
 import { ReplaySaveSession } from '../lib/replaySave';
@@ -125,12 +126,6 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
     const poolRef = useRef<IdentityPool>(pool);
     useEffect(() => { poolRef.current = pool; }, [pool]);
     const [tokens, setTokens] = useState<Token[]>(initialPosition.tokens);
-    const [movingPiece, setMovingPiece] = useState<{ id: string, fromRow: number, fromCol: number, toRow: number, toCol: number } | null>(null);
-    useEffect(() => {
-        if (!movingPiece) return;
-        const timer = setTimeout(() => setMovingPiece(null), 400);
-        return () => clearTimeout(timer);
-    }, [movingPiece]);
     const tokensRef = useRef<Token[]>([]);
     const executeMoveRef = useRef<((token: Token, targetRow: number, targetCol: number, possibleTypesForMove: PieceType[], targetToken?: Token, isLocalMove?: boolean, promotedTo?: PieceType) => void) | null>(null);
     
@@ -220,7 +215,8 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
         turnClock.current={start,base};
         const tick=()=>{
             const remaining=Math.max(0,base-(performance.now()-start)/1000);
-            (currentTurn==='white'?setTimeLeftWhite:setTimeLeftBlack)(remaining);
+            // Keep the precise deadline in turnClock; render only when the displayed second changes.
+            (currentTurn==='white'?setTimeLeftWhite:setTimeLeftBlack)(previous=>clockDisplaySnapshot(previous,remaining));
             if(remaining===0){if(paidCrown)setCrownNeedsSync(true);else setWinner(currentTurn==='white'?'black_wins':'white_wins');}
         };
         const timer=setInterval(tick,100);
@@ -546,7 +542,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
 
     // A worker keeps the board responsive; cancellation discards stale replies.
     useEffect(() => {
-        if (!introDone || currentTurn !== cpuSide || winner || roomId || movingPiece || tokens.length === 0 || cpuFailed) return;
+        if (!introDone || currentTurn !== cpuSide || winner || roomId || tokens.length === 0 || cpuFailed) return;
         const controller = new AbortController();
         setCpuFailed(false);
         if(paidCrown&&(!crownClient||!crownSession||crownBusy.current||crownPending||crownNeedsSync))return;
@@ -569,7 +565,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
             setCpuFailed(true);
         });
         return () => controller.abort();
-    }, [currentTurn, winner, tokens, pool, roomId, moveHistory, cpuRetry, cpuFailed, movingPiece, cpuLevel, cpuSide, activePersonality, cpuSearchProfile, introDone,paidCrown,crownClient,crownSession,crownPending,crownNeedsSync]);
+    }, [currentTurn, winner, tokens, pool, roomId, moveHistory, cpuRetry, cpuFailed, cpuLevel, cpuSide, activePersonality, cpuSearchProfile, introDone,paidCrown,crownClient,crownSession,crownPending,crownNeedsSync]);
 
     useEffect(() => {
         let timer1: NodeJS.Timeout | null = null;
@@ -642,7 +638,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
                 if(token.player===playerSide&&timeControl==='10s'){
                     perMoveTime.current.turns++;perMoveTime.current.remaining+=(playerSide==='white'?session.whiteMs:session.blackMs)/1000;
                 }
-                acceptCrown(session);setMovingPiece({id:token.id,fromRow:token.row,fromCol:token.col,toRow:targetRow,toCol:targetCol});
+                acceptCrown(session);
                 playMoveSound();setErrorMsg(null);setCpuFailed(false);
             }).catch(async()=>{
                 if(controller.signal.aborted)return;
@@ -674,7 +670,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
             setTimeout(() => setTutorialHint(null), 7000);
         }
 
-        if (!introDone || winner || movingPiece) return;
+        if (!introDone || winner) return;
         const remaining=Math.max(0,turnClock.current.base-(performance.now()-turnClock.current.start)/1000);
         if(remaining===0){setWinner(currentTurn==='white'?'black_wins':'white_wins');return;}
         let result;
@@ -705,8 +701,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
         // Replace both snapshots; never mutate React's current pool in place.
         setPool(result.pool);
         setTokens(result.tokens);
-        setMovingPiece({ id: token.id, fromRow: token.row, fromCol: token.col, toRow: targetRow, toCol: targetCol });
-        setTimeout(() => playMoveSound(), 400);
+        playMoveSound();
         setWinner(result.state.winner === 'draw' ? 'draw' : result.state.winner ? `${result.state.winner}_wins` : null);
         setIsCheck(isPlayerInCheck(nextTurn, result.tokens, result.pool));
 
@@ -726,10 +721,10 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
 
 
     const handleSquareClick = (targetRow: number, targetCol: number) => {
-        if (!introDone || winner || movingPiece || onlineRole === 'spectator'||(paidCrown&&(crownPending||crownNeedsSync||!crownSession||hint.pending))) return;
+        if (!introDone || winner || onlineRole === 'spectator') return;
         
         // Inspection is safe while the CPU thinks; only submitting a move is blocked.
-        if (!roomId && currentTurn === cpuSide) {
+        if ((!roomId && currentTurn === cpuSide)||(paidCrown&&(crownPending||crownNeedsSync||!crownSession||hint.pending))) {
             const inspected = tokens.find(token => !token.isCaptured && token.row === targetRow && token.col === targetCol);
             setSelectedTokenId(inspected && inspected.id !== selectedTokenId ? inspected.id : null);
             return;
@@ -859,6 +854,18 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
     
     const whiteRatingToDisplay = onlineRole === 'spectator' ? null : (myRole === 'white' ? myRating : opponentRating);
     const blackRatingToDisplay = onlineRole === 'spectator' ? null : (myRole === 'black' ? myRating : opponentRating);
+    // Clock/notice updates must not reconcile every mesh and candidate icon.
+    // Read the latest committed handler so a memoized board never submits an old turn.
+    const squareClickRef = useRef(handleSquareClick);
+    useLayoutEffect(() => { squareClickRef.current = handleSquareClick; });
+    const onBoardSquareClick = useCallback((row:number,col:number) => squareClickRef.current(row,col),[]);
+    const board = useMemo(() => {
+        const props = {lang,quietLayout:true,boardDesign,boardFinish,hintMove,autoRotate:false,
+            tokens,onlineRole,selectedTokenId,validMoves,moveHistory,showCheckWarning,
+            onSquareClick:onBoardSquareClick,showMoveHints,currentTurn,candidatesMap:pool.piecePossibilities};
+        return is2DView ? <Board2D {...props}/> : <Board3D {...props} key={viewResetKey} pieceFinish={pieceFinish} checkmate={checkmate}/>;
+    },[lang,boardDesign,boardFinish,hintMove,tokens,onlineRole,selectedTokenId,validMoves,moveHistory,
+        showCheckWarning,onBoardSquareClick,showMoveHints,currentTurn,pool,is2DView,viewResetKey,pieceFinish,checkmate]);
     useEffect(()=>{
         if (!winner || !onComplete || resultReported.current) return;
         resultReported.current=true;
@@ -887,35 +894,10 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
             onHome={() => setShowHomeConfirm(true)} onRules={() => setShowRules(true)} onResign={() => setShowResignConfirm(true)}
             boardArrival={crownStageId&&introDone?<MapBoardFocus/>:undefined}
             showMoveHints={showMoveHints} onHintsChange={setShowMoveHints}
-            notice={disconnectTimeLeft !== null ? (matchText(lang, '再接続を待っています… ', 'Waiting for reconnection… ')) + disconnectTimeLeft + 's' : errorMsg || undefined}
+            notice={disconnectTimeLeft !== null ? (matchText(lang, '再接続を待っています… ', 'Waiting for reconnection… ')) + disconnectTimeLeft + 's' : errorMsg ||
+                (crownPending?matchText(lang,'着手を確認しています…','Confirming move…'):undefined)}
             
-            board={is2DView ? (
-                    <Board2D lang={lang} quietLayout boardDesign={boardDesign} boardFinish={boardFinish} hintMove={hintMove} autoRotate={false}
-                    tokens={tokens}
-                    onlineRole={onlineRole}
-                    selectedTokenId={selectedTokenId}
-                    validMoves={validMoves}
-                    moveHistory={moveHistory}
-                    showCheckWarning={showCheckWarning}
-                    onSquareClick={handleSquareClick}
-                    showMoveHints={showMoveHints}
-                    currentTurn={currentTurn}
-                    candidatesMap={pool.piecePossibilities}
-                />
-                ) : (
-                    <Board3D lang={lang} quietLayout key={viewResetKey} boardDesign={boardDesign} boardFinish={boardFinish} pieceFinish={pieceFinish} hintMove={hintMove} autoRotate={false} checkmate={checkmate}
-                    tokens={tokens}
-                    onlineRole={onlineRole}
-                    selectedTokenId={selectedTokenId}
-                    validMoves={validMoves}
-                    moveHistory={moveHistory}
-                    showCheckWarning={showCheckWarning}
-                    onSquareClick={handleSquareClick}
-                    showMoveHints={showMoveHints}
-                    currentTurn={currentTurn}
-                    candidatesMap={pool.piecePossibilities}
-                />
-                )}
+            board={board}
         >
 
             {!introDone&&(crownStageId&&!roomId&&onHome?<MapMatchIntro lang={lang} stageId={crownStageId} side={playerSide} label={campaignLabel||castleQuestText(lang,'title')} onDone={finishIntro} onCancel={onHome}/>:<MatchIntro lang={lang} label={campaignLabel||t.vsCPU||'CPU'} onDone={finishIntro}

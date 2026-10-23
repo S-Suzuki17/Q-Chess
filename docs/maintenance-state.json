@@ -1,0 +1,24 @@
+{
+  "updatedAt": "2026-10-23T02:29:31.753336Z",
+  "ownerThread": "01a164bb-3c83-7030-a0b9-730230049a96",
+  "sourceHead": "edfc7f94ae3e7d96f7334237479f086fcbb6e6cc",
+  "production": {
+    "web": "https://q-gambit.com",
+    "cloudflareDeployment": "c7da05d9-08c1-44ff-88b6-64d8dafe31ce",
+    "renderDeployment": "dep-dbdc6dui0phs7399lokg",
+    "renderCommit": "f55eba7318b545067eef8cc499116371c5d6fd71",
+    "googleMigration": "20261023021029_google_account_onboarding",
+    "authProviders": {"google": true, "email": false, "discord": false},
+    "googleLoginEnabled": true,
+    "learningRewardsEnabled": true,
+    "weeklyProblems": {"week": "2026-10-20", "count": 10},
+    "maintenance": false,
+    "webVerification": {"checks": 114, "assetsHashed": 80, "passed": true},
+    "artifactManifest": "build/cloudflare-pages-2026-10-20T17-45-45-821Z.manifest.json"
+  },
+  "completed": ["Interrupted PR #29 release completed under explicit approval", "Public status confirms available", "Health monitor unit tests 8 passed"],
+  "inProgress": ["Investigate and fix input/CPU latency in practice and 100-stage challenge for shared Web and Android code"],
+  "android": {"publishedThisTask": false, "deviceAcceptance": false, "note": "Existing code26 candidate cannot replace a different code26 already submitted. Verify Play version history before next package."},
+  "automation": {"id": "q-gambit-web-android", "cadence": "daily 09:00 Asia/Tokyo"},
+  "next": ["Finish latency fix and verify desktop/mobile 2D/3D", "Record revised Web and Android artifacts separately", "Preserve independent Play follow-up and weekly content audit automations"]
+}

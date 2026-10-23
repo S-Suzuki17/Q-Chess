@@ -255,13 +255,15 @@ export default function Home() {
             reset={googleLogin.state.status==='reset'} onComplete={googleLogin.finish} onCancel={()=>void handleLogout()}/>;
     }
     if(googleLogin.state.status==='checking'||googleLogin.state.status==='error'){
-        return <main data-google-session={googleLogin.state.status} className="min-h-[100dvh] flex flex-col items-center justify-center gap-5 bg-[#11100E] px-6 text-[#E8E2D7]">
+        return <><main data-google-session={googleLogin.state.status} className="min-h-[100dvh] flex flex-col items-center justify-center gap-5 bg-[#11100E] px-6 text-[#E8E2D7]">
             <h1 className="font-serif text-3xl">Q-GAMBIT</h1>
             <p role="status">{googleLogin.state.status==='checking'?matchText(lang,'ログイン状態を確認しています…','Checking your saved sign-in…')
                 :matchText(lang,'ログイン状態を確認できません。接続を確認して再試行してください。','Could not check your sign-in. Check your connection and retry.')}</p>
             {googleLogin.state.status==='error'&&<button type="button" className="min-h-11 border p-3" onClick={googleLogin.retry}>{matchText(lang,'再試行','Retry')}</button>}
             <button type="button" className="min-h-11 p-3 underline" onClick={()=>{googleLogin.cancel();setUser(null);setGameState('title');}}>{dict[lang].cancel}</button>
-        </main>;
+        </main>
+        {webContent && <><SiteIntroduction lang={lang}/><SiteLinks lang={lang}/></>}
+        </>;
     }
 
     return (

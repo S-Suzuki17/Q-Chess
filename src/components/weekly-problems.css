@@ -22,6 +22,7 @@
 .weekly-progress progress::-moz-progress-bar{background:#d5be86;border-radius:8px}
 .weekly-board .board-2d{padding:4px}
 .weekly-feedback{min-height:28px;padding-top:8px;color:#e4d1a1}
+.weekly-candidates{min-height:24px;font-size:13px;color:#e7d6a6}
 .weekly-success{padding:10px;border:1px solid #92ad7466;border-radius:8px;background:#29402a}
 .weekly-problems footer{position:sticky;bottom:0;display:flex;justify-content:space-between;gap:8px;padding-top:10px;background:#161e18}
 .weekly-problems [data-weekly-next]{background:#d5be86;color:#192c1b}

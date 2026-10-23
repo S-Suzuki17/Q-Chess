@@ -14,6 +14,9 @@ export interface LearningStore extends Pick<DailyLoginStore,'verifyUser'|'blocke
     publish(set:WeeklyProblemSet):Promise<void>;
 }
 export function createLearningStore(client:SupabaseClient,account:Pick<DailyLoginStore,'verifyUser'|'blocked'|'hasCurrentTerms'>):LearningStore {
+    // Published boards are shared by all players. Only board data is cached; account
+    // authorization, progress and reward writes always go through their live checks.
+    const weeks=new Map<string,{expires:number;value:Promise<WeeklyProblemSet|null>}>();
     const rpc=async(name:string,args:Record<string,unknown>)=>{
         const {data,error}=await client.rpc(name,args).abortSignal(AbortSignal.timeout(5000));
         if(error){
@@ -25,6 +28,9 @@ export function createLearningStore(client:SupabaseClient,account:Pick<DailyLogi
     return {
         ...account,
         async week(week){
+            const cached=weeks.get(week);
+            if(cached&&cached.expires>Date.now())return cached.value;
+            const value=(async()=>{
             const {data:header,error}=await client.from('learning_weeks').select('week,opens_at,closes_at').eq('week',week).abortSignal(AbortSignal.timeout(5000)).maybeSingle();
             if(error)throw new LearningError('LEARNING_UNAVAILABLE');
             if(!header)return null;
@@ -32,6 +38,16 @@ export function createLearningStore(client:SupabaseClient,account:Pick<DailyLogi
             if(problemError||rows?.length!==10||!rows.every((row,i)=>row.ordinal===i+1&&row.state?.pieces))throw new LearningError('LEARNING_UNAVAILABLE');
             return {week:header.week,opensAt:header.opens_at,closesAt:header.closes_at,
                 problems:rows.map(row=>({id:String(row.ordinal),positionKey:row.position_key,state:row.state}))};
+            })();
+            const entry={expires:Date.now()+60000,value};
+            weeks.delete(week);
+            if(weeks.size>=4)weeks.delete(weeks.keys().next().value!);
+            weeks.set(week,entry);
+            try{
+                const result=await value;
+                if(!result&&weeks.get(week)===entry)weeks.delete(week);
+                return result;
+            }catch(error){if(weeks.get(week)===entry)weeks.delete(week);throw error;}
         },
         async progress(userId,week){return parseLearningProgress(await rpc('learning_progress',{p_user_id:userId,p_week:week}));},
         async complete(userId,submission){
@@ -49,6 +65,6 @@ export function createLearningStore(client:SupabaseClient,account:Pick<DailyLogi
                 if(data.length<1000)return keys;
             }
         },
-        async publish(set){await rpc('publish_learning_week',{p_week:set.week,p_problems:set.problems});},
+        async publish(set){await rpc('publish_learning_week',{p_week:set.week,p_problems:set.problems});weeks.delete(set.week);},
     };
 }

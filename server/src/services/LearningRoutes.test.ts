@@ -73,6 +73,9 @@ describe('learning reward HTTP authorization and proof validation',()=>{
   expect((await post({...submission,state:set.problems[0].state})).status).toBe(400);
   expect((await post({...submission,moves:[{...submission.moves[0],pieceId:'forged'}]})).status).toBe(400);
   expect(store.complete).not.toHaveBeenCalled();
+  const quantum=set.problems[5];
+  expect((await post({...submission,problemId:6,moves:[mateSolutions(quantum.state)[0]]})).status).toBe(200);
+  expect(store.complete).toHaveBeenCalledTimes(1);
  },15000);
  it('maintenance catches up after restart and retries a failed atomic publication',async()=>{
   const generate=vi.fn().mockResolvedValue({week:'2026-10-20',problems:[]});

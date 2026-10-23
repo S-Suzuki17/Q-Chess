@@ -6,14 +6,16 @@ import { applyMove } from '../stateTransition';
 /**
  * Returns all possible concrete moves (including individual quantum type choices)
  */
-export function getConcreteMoveChildren(state: GameState, options: { allPromotions?: boolean; playable?: boolean } = {}): { move: Move; next: GameState }[] {
+export function getConcreteMoveChildren(state: GameState, options: { allPromotions?: boolean; playable?: boolean; pieceId?: string; target?: {row:number;col:number} } = {}): { move: Move; next: GameState }[] {
     const moves: Move[] = [];
-    const myPieces = state.pieces.filter(p => p.alive && p.owner === state.sideToMove);
+    const myPieces = state.pieces.filter(p => p.alive && p.owner === state.sideToMove &&
+        (options.pieceId === undefined || p.id === options.pieceId));
 
     for (const piece of myPieces) {
         const candidates = generateLegalMoves(state, piece.id);
 
         for (const candidate of candidates) {
+            if (options.target && (candidate.target.row !== options.target.row || candidate.target.col !== options.target.col)) continue;
             let handledTypes = candidate.requiredTypes;
 
             // Castling branch
@@ -77,7 +79,7 @@ export function getConcreteMoveChildren(state: GameState, options: { allPromotio
     });
 }
 
-export function getAllConcreteMoves(state: GameState, options: { allPromotions?: boolean; playable?: boolean } = {}): Move[] {
+export function getAllConcreteMoves(state: GameState, options: { allPromotions?: boolean; playable?: boolean; pieceId?: string; target?: {row:number;col:number} } = {}): Move[] {
     return getConcreteMoveChildren(state, options).map(child => child.move);
 }
 
