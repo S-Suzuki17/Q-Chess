@@ -1,13 +1,13 @@
 'use client';
 import {sessionOwnsAccount} from './googleAccountIdentity';
-import { canShowVerifiedAccountAds } from './sharedAdEligibility';
+import { canShowVerifiedAccountAdsFor } from './sharedAdEligibility';
 import {supabase} from './supabaseClient';
 import {gameServerUrl,readRankedSession} from './rankedSession';
 import {isAndroidApp,nativeAds} from './nativeAds';
 import {createRewardFlow} from './rewardFlow';
 import {DAILY_LOGIN_REWARD_CHANGED_EVENT} from './dailyLoginRewards';
 export type RewardKind='hint'|'online';
-export const nativeRewardsEnabled=()=>canShowVerifiedAccountAds()&&isAndroidApp()&&process.env.NEXT_PUBLIC_NATIVE_REWARDS_ENABLED==='true';
+export const nativeRewardsEnabled=(userId?:string)=>canShowVerifiedAccountAdsFor(userId)&&isAndroidApp()&&process.env.NEXT_PUBLIC_NATIVE_REWARDS_ENABLED==='true';
 export async function requestRewardApi(userId:string,path:string,body?:unknown):Promise<Record<string,unknown>>{
  if(!userId||/^(?:guest(?:[-_]|$)|anon(?:ymous)?(?:[-_]|$)|cpu(?:[-_]|$)|ai(?::|$)|supabase-)/i.test(userId))throw new Error('AUTH_REQUIRED');
  let token=readRankedSession(userId)?.token;

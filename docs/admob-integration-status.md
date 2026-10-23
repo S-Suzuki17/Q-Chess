@@ -1,5 +1,21 @@
 # Android AdMob integration status
 
+## Current checkpoint — 2026-10-23 (JST)
+
+The October 21 activation/device blockers below are historical. See
+[the current ad release record](ads-release-20261023.md) for the source changes
+and remaining release boundaries. The Q-Gambit UMP message is published worldwide.
+Google test interstitial display and both hint/online rewarded-video completion
+and dismissal now pass on Pixel 10. The real NativeAds wrapper needed a fix for
+Capacitor's synthetic `then` method; unit tests previously used plain SDK objects
+and missed that failure. A new regression test covers it.
+
+The owner approved neutral age-range screening. The new screen preserves child
+protection for every range and never sends the range to Google or our server.
+Android 29 / 1.24 is the release candidate; signed packaging and Play submission
+are tracked separately. No real-user reward credit is claimed by test-ad QA.
+Web AdSense re-review was accepted October 23 and is pending; Web ads remain off.
+
 ## Current verification — 2026-10-21 (JST)
 
 This section supersedes the September approval, store-link, app-ads.txt and SSV

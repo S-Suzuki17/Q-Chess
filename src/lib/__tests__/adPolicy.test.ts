@@ -4,7 +4,7 @@ describe('disabled ads and future allowance model',()=>{
  const today=Date.UTC(2026,8,17,23,59),tomorrow=today+60000;
  it('does not enforce limits or pretend banners are rewarded ads',async()=>{
   expect(Object.values(AD_POLICY)).toEqual([false,false,false]);
-  expect(await requestCircuitInterstitial('match-1')).toBe('unavailable');
+  expect(await requestCircuitInterstitial('match-1','Alice')).toBe('unavailable');
  });
  it('counts categories independently, charges once and adds exactly three',()=>{
   let state=emptyAllowance(today);

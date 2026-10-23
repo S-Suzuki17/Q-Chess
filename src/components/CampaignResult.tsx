@@ -8,7 +8,7 @@ import {battleMusicTitle} from '../config/circuitMusic';
 import {campaignText,rewardName} from '../locales/campaignText';
 import {stageText} from '../locales/stageText';
 import {circuitText} from '../locales/circuitText';
-import type {Language} from '../locales/dict';
+import {dict,type Language} from '../locales/dict';
 import {CrownRewardArtwork} from './CrownNavigation';
 import {QubeCompanion} from './QubeCompanion';
 import {hundredMapText} from '../locales/hundredMapText';
@@ -17,8 +17,8 @@ import './campaign.css';
 import './campaign-result-journey.css';
 import './challenge-map.css';
 const duration=(seconds:number)=>`${Math.floor(seconds/60)}:${String(Math.floor(seconds%60)).padStart(2,'0')}`;
-export function CampaignResult({lang,stageId,firstClear,effect,outcome,onNext,onRetry,onBack,saveError,newMusic=[]}: {
-    lang:Language;stageId:number;firstClear:boolean;effect:VictoryFinish;pieceFinish?:PieceFinish;foeWhite?:boolean;outcome:CampaignOutcome;onNext?:()=>void;onRetry:()=>void;onBack:()=>void;saveError:boolean;newMusic?:readonly string[];
+export function CampaignResult({lang,stageId,firstClear,effect,outcome,onNext,onRetry,onBack,saveError,newMusic=[],busy=false}: {
+    lang:Language;stageId:number;firstClear:boolean;effect:VictoryFinish;pieceFinish?:PieceFinish;foeWhite?:boolean;outcome:CampaignOutcome;onNext?:()=>void;onRetry:()=>void;onBack:()=>void;saveError:boolean;newMusic?:readonly string[];busy?:boolean;
 }) {
     const dialog=useRef<HTMLDialogElement>(null);
     const heading=useRef<HTMLHeadingElement>(null);
@@ -52,9 +52,10 @@ export function CampaignResult({lang,stageId,firstClear,effect,outcome,onNext,on
             {nextStage&&onNext&&<div className="campaign-next-encounter" data-next-encounter={nextStage.id}>
                 <span><small>{t('next')}</small><strong>{hundredMapText(lang,'tile')} {nextStage.id}</strong></span>
             </div>}
-            <div className="campaign-result-actions">
-                {onNext&&<button className="campaign-primary" data-map-next onClick={onNext}>{hundredMapText(lang,'next')}<ArrowUpRight size={18}/></button>}
-                <button onClick={onRetry}>{t('retry')}</button><button onClick={onBack}>{t('back')}</button>
+            {busy&&<p role="status">{dict[lang].loading}</p>}
+            <div className="campaign-result-actions" aria-busy={busy}>
+                {onNext&&<button disabled={busy} className="campaign-primary" data-map-next onClick={onNext}>{hundredMapText(lang,'next')}<ArrowUpRight size={18}/></button>}
+                <button disabled={busy} onClick={onRetry}>{t('retry')}</button><button disabled={busy} onClick={onBack}>{t('back')}</button>
             </div>
         </div>
     </dialog>;

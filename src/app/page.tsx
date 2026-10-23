@@ -7,12 +7,12 @@ import Link from 'next/link';
 import GameBoard from '../components/GameBoard';
 import {NativeRewardSettings} from '../components/NativeRewardSettings';
 import {NativeAdPrivacySettings} from '../components/NativeAdPrivacySettings';
+import {NativeAdAudienceGate,NativeAdAudienceSettings} from '../components/NativeAdAudienceGate';
 import {FoundersSettings} from '../components/FoundersSettings';
 import {useFoundersRewards} from '../hooks/useFoundersRewards';
 import {foundersText} from '../locales/foundersText';
 import { SiteIntroduction, SiteLinks } from '../components/SiteInformation';
 import { AppSupportLinks } from '../components/AppSupportLinks';
-import {nativeRewardsEnabled} from '../lib/nativeRewards';
 import { useAppPlatform } from '../hooks/useAppPlatform';
 import { useNativeAuthLinks } from '../hooks/useNativeAuthLinks';
 import {useNativeCommerceRecovery} from '../hooks/useNativeCommerceRecovery';
@@ -316,10 +316,11 @@ export default function Home() {
                             </div>}
                             <CampaignCloudPanel key={cloud.userId??'guest'} lang={lang} cloud={cloud} locked={matchDesignLocked}/>
                         </>:null}
-                        accountExtra={android&&user&&nativeRewardsEnabled()&&!matchDesignLocked?<NativeRewardSettings key={user.id} userId={user.id} lang={lang} locked={matchDesignLocked}/>:undefined}
+                        accountExtra={android&&user&&!matchDesignLocked?<NativeRewardSettings key={user.id} userId={user.id} lang={lang} locked={matchDesignLocked}/>:undefined}
                         privacy={<>
                             {webContent && <OptionalMetricsSettings lang={lang}/>}
                             {android && <NativeAdPrivacySettings lang={lang} locked={matchDesignLocked}/>}
+                            {android && <NativeAdAudienceSettings lang={lang} locked={matchDesignLocked}/>}
                             <a className="settings-policy-link" href={android?'https://q-gambit.com/privacy/':'/privacy/'} target="_blank" rel="noopener noreferrer">{dict[lang].privacyPolicy} ↗</a>
                         </>}
                         support={<>
@@ -420,6 +421,7 @@ export default function Home() {
 
             {gameState === 'title' && android && <footer className="relative z-10 mt-6"><AppSupportLinks lang={lang}/></footer>}
 
+            {android && <NativeAdAudienceGate lang={lang}/>}
         </main></SocketProvider></TermsGate>
     );
 }
