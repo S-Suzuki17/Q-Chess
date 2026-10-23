@@ -1,0 +1,187 @@
+{
+  "schemaVersion": 1,
+  "status": "completed",
+  "baseRevision": "f55eba7318b545067eef8cc499116371c5d6fd71",
+  "reviewer": "Codex — implementation, Japanese/English guidance and actual-component verification; not an independent human review",
+  "changes": [
+    {
+      "path": "server/src/learning/publishedProblemHistory.ts",
+      "gitBlob": "1d70edb575b1fd7cc2cb351dd8f19e179bdbf0a9"
+    },
+    {
+      "path": "server/src/learning/tutorialCourse.ts",
+      "gitBlob": "4482d8fac699b19f6a5ba60fbe7b1287cef4daf5"
+    },
+    {
+      "path": "server/src/learning/weeklyProblems.ts",
+      "gitBlob": "5ab488669e2a9ca68717b8e43cdaa91354cbddce"
+    },
+    {
+      "path": "server/src/quantum-engine/ai/random.ts",
+      "gitBlob": "d5633d34722b594d1650f0d4989ec2aaab7d3826"
+    },
+    {
+      "path": "server/src/services/LearningStore.ts",
+      "gitBlob": "2e62bb7c78d46f3730e321ddcdbd733228b37806"
+    },
+    {
+      "path": "src/app/page.tsx",
+      "gitBlob": "a7d4aa40dd38d4a9db545bcbc49f54141dfe207c"
+    },
+    {
+      "path": "src/components/LocalGameBoard.tsx",
+      "gitBlob": "7513e8e96da56092b929131ca0a152696b627aa4"
+    },
+    {
+      "path": "src/components/WeeklyProblems.tsx",
+      "gitBlob": "1bd4f499d399a46ed1fb15e5e87c045b3690ba74"
+    },
+    {
+      "path": "src/components/weekly-problems.css",
+      "gitBlob": "16a5635b36c6baafde227e75769e6ee50079dfe8"
+    },
+    {
+      "path": "src/locales/matchText.ts",
+      "gitBlob": "8df835b6bf80ff18d832f873c88dfcd0f005f038"
+    },
+    {
+      "path": "src/locales/siteContent.ts",
+      "gitBlob": "598885eb3305c630c8e4cc328ff32d7d9a72307b"
+    }
+  ],
+  "reviews": [
+    {
+      "group": "start-and-controls",
+      "decision": "updated",
+      "reason": "日本語・英語ガイドの週替わり問題を通常5題とQ-Gambit5題へ更新した。開始導線、ゲスト練習、16+9課題、火曜14時更新は同じ。週替わり問題の正解表示は即時、次へは保存確認後で、既存の操作説明と一致する。",
+      "checkedPages": [
+        "/guide/#start",
+        "/faq/#guest"
+      ],
+      "evidence": [
+        "docs/responsive-weekly-release-20261023.md: source changes, targeted tests, measured browser behavior and release boundaries",
+        "src/locales/siteContent.ts: Japanese/English guide and FAQ compared with LocalGameBoard, WeeklyProblems, matchClock, LearningStore and weeklyProblems",
+        "build/supervision-20261023/final-web-verification.log: production 114 checks, 80 asset hashes passed",
+        "build/supervision-20261023/weekly-save-retry.json and registered-challenge.json: delayed persistence, retry and inspection without premature rewards or moves",
+        "build/supervision-20261023/current-week-server-compatibility.json: all 10 problems have the same unique solution on the current production server"
+      ]
+    },
+    {
+      "group": "candidates-and-outcomes",
+      "decision": "updated",
+      "reason": "候補を絞る独自ルール5題をガイドに明示した。候補、全体制約、王手・詰み・捕獲のルールは変更しない。手生成のpieceId/target絞り込みは既存の合法手集合を保つ。後半5題は未確定駒の着手による唯一の詰みを確認した。",
+      "checkedPages": [
+        "/rules/",
+        "/guide/#candidates",
+        "/guide/#outcomes",
+        "/guide/#practice",
+        "/guide/#chain",
+        "/faq/#move",
+        "/faq/#win"
+      ],
+      "evidence": [
+        "docs/responsive-weekly-release-20261023.md: source changes, targeted tests, measured browser behavior and release boundaries",
+        "src/locales/siteContent.ts: Japanese/English guide and FAQ compared with LocalGameBoard, WeeklyProblems, matchClock, LearningStore and weeklyProblems",
+        "build/supervision-20261023/final-web-verification.log: production 114 checks, 80 asset hashes passed",
+        "build/supervision-20261023/weekly-save-retry.json and registered-challenge.json: delayed persistence, retry and inspection without premature rewards or moves",
+        "build/supervision-20261023/current-week-server-compatibility.json: all 10 problems have the same unique solution on the current production server"
+      ]
+    },
+    {
+      "group": "hints-and-clock",
+      "decision": "no-change-needed",
+      "reason": "400msの表示待ちを除去し、表示時計の再描画を秒単位に抑えた。時計の単調時刻による判定、時間設定、CPU強度、ヒント消費条件は変わらない。ガイド開始節とFAQの時計・ヒント説明を照合し、追記は不要と判断した。",
+      "checkedPages": [
+        "/guide/#start",
+        "/faq/#clock",
+        "/faq/#hints"
+      ],
+      "evidence": [
+        "docs/responsive-weekly-release-20261023.md: source changes, targeted tests, measured browser behavior and release boundaries",
+        "src/locales/siteContent.ts: Japanese/English guide and FAQ compared with LocalGameBoard, WeeklyProblems, matchClock, LearningStore and weeklyProblems",
+        "build/supervision-20261023/final-web-verification.log: production 114 checks, 80 asset hashes passed",
+        "build/supervision-20261023/weekly-save-retry.json and registered-challenge.json: delayed persistence, retry and inspection without premature rewards or moves",
+        "build/supervision-20261023/current-week-server-compatibility.json: all 10 problems have the same unique solution on the current production server"
+      ]
+    },
+    {
+      "group": "accounts-connections-and-saves",
+      "decision": "no-change-needed",
+      "reason": "キャッシュするのは全員共通の問題局面だけで、アカウント進捗・報酬は保存確認後に更新する。通信失敗時は未送信手順と正解表示を保持し再試行できる。FAQの接続・保存・プライバシーとsecurityPrivacyの保存項目に新しいデータ種別や共有範囲は生じない。",
+      "checkedPages": [
+        "/faq/#connection",
+        "/faq/#save",
+        "/faq/#privacy",
+        "/contact/",
+        "/privacy/"
+      ],
+      "evidence": [
+        "docs/responsive-weekly-release-20261023.md: source changes, targeted tests, measured browser behavior and release boundaries",
+        "src/locales/siteContent.ts: Japanese/English guide and FAQ compared with LocalGameBoard, WeeklyProblems, matchClock, LearningStore and weeklyProblems",
+        "build/supervision-20261023/final-web-verification.log: production 114 checks, 80 asset hashes passed",
+        "build/supervision-20261023/weekly-save-retry.json and registered-challenge.json: delayed persistence, retry and inspection without premature rewards or moves",
+        "build/supervision-20261023/current-week-server-compatibility.json: all 10 problems have the same unique solution on the current production server"
+      ]
+    },
+    {
+      "group": "commerce-and-disclosures",
+      "decision": "no-change-needed",
+      "reason": "全10題クリアの券1枚と5/10題目の広告条件は従来どおり。正解表示が早まっても券の付与はサーバー確認後に限る。広告なし会員・未確認アカウントの保護を維持し、Web広告は審査未承認のため無効。価格、規約版、問い合わせ先、データ開示に変更はない。",
+      "checkedPages": [
+        "/faq/#hints",
+        "/contact/",
+        "/privacy/",
+        "/terms/"
+      ],
+      "evidence": [
+        "docs/responsive-weekly-release-20261023.md: source changes, targeted tests, measured browser behavior and release boundaries",
+        "src/locales/siteContent.ts: Japanese/English guide and FAQ compared with LocalGameBoard, WeeklyProblems, matchClock, LearningStore and weeklyProblems",
+        "build/supervision-20261023/final-web-verification.log: production 114 checks, 80 asset hashes passed",
+        "build/supervision-20261023/weekly-save-retry.json and registered-challenge.json: delayed persistence, retry and inspection without premature rewards or moves",
+        "build/supervision-20261023/current-week-server-compatibility.json: all 10 problems have the same unique solution on the current production server"
+      ]
+    },
+    {
+      "group": "public-guidance-and-navigation",
+      "decision": "updated",
+      "reason": "日本語・英語の公開ガイドに5+5の問題構成を反映。8公開ページの導線、ルール、運営情報、問い合わせ、プライバシーと規約の関係は維持する。本番配信物の114検査・80ファイルハッシュ照合が成功。広告の承認済み・表示済みとは記載しない。 追加点検でGoogle保存ログイン確認画面が初期HTMLの公開導線を隠していたことを検出。Webに限り確認中・エラー時も既存のゲーム説明と公開リンクを表示し、認証待ちでもガイドを読めるようにした。認証や対局への権限は変更しない。",
+      "checkedPages": [
+        "/",
+        "/guide/",
+        "/faq/",
+        "/rules/",
+        "/about/",
+        "/contact/",
+        "/privacy/",
+        "/terms/"
+      ],
+      "evidence": [
+        "docs/responsive-weekly-release-20261023.md: source changes, targeted tests, measured browser behavior and release boundaries",
+        "src/locales/siteContent.ts: Japanese/English guide and FAQ compared with LocalGameBoard, WeeklyProblems, matchClock, LearningStore and weeklyProblems",
+        "build/supervision-20261023/final-web-verification.log: production 114 checks, 80 asset hashes passed",
+        "build/supervision-20261023/weekly-save-retry.json and registered-challenge.json: delayed persistence, retry and inspection without premature rewards or moves",
+        "build/supervision-20261023/current-week-server-compatibility.json: all 10 problems have the same unique solution on the current production server"
+      ]
+    },
+    {
+      "group": "qube-teaching",
+      "decision": "updated",
+      "reason": "ガイドとゲーム内週替わり説明を独自ルールに揃え、保存中の状態も表示する。模擬通信1500msで正解盤面が約14msで反映し、承認前に次へ進まないことを確認。チュートリアルの手生成を絞っても課題・ヒント・昇格・キャスリング・外観案内の意味は変えない。廃止済み投稿コーナーは復活させない。",
+      "checkedPages": [
+        "/",
+        "/about/",
+        "/rules/",
+        "/guide/",
+        "/faq/",
+        "game: tutorial, help dialogs, move hints and feedback, promotion/castling, stage/setup explanations, cosmetic preview/equipment guidance"
+      ],
+      "evidence": [
+        "docs/responsive-weekly-release-20261023.md: source changes, targeted tests, measured browser behavior and release boundaries",
+        "src/locales/siteContent.ts: Japanese/English guide and FAQ compared with LocalGameBoard, WeeklyProblems, matchClock, LearningStore and weeklyProblems",
+        "build/supervision-20261023/final-web-verification.log: production 114 checks, 80 asset hashes passed",
+        "build/supervision-20261023/weekly-save-retry.json and registered-challenge.json: delayed persistence, retry and inspection without premature rewards or moves",
+        "build/supervision-20261023/current-week-server-compatibility.json: all 10 problems have the same unique solution on the current production server"
+      ]
+    }
+  ]
+}
