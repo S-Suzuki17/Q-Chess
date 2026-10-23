@@ -11,19 +11,32 @@ import type { RankedAdmissionCoordinator } from '../services/RankedAdmissionCoor
 
 export type CpuRunner=(state:PublicGameState,profile:CpuProfile)=>Promise<RankCpuWorkerResponse>;
 
+class CpuFailure extends Error {
+    constructor(public readonly reason: 'deadline' | 'worker_error' | 'no_result' | 'search_error' | 'version_mismatch' | 'no_legal_move' | 'illegal_move') {
+        super(`CPU ${reason}`);
+    }
+}
+
 /** Worker budget includes startup; search cannot block Socket.IO or other clocks. */
 export const runCpuWorker:CpuRunner=(state,profile)=>new Promise((resolve,reject)=>{
+    const deadline=Date.now()+3000;
     const js=path.join(__dirname,'rankCpuWorker.js');
-    const worker=new Worker(existsSync(js)?js:path.join(__dirname,'rankCpuWorker.ts'),{workerData:{state,profile}});
+    const worker=new Worker(existsSync(js)?js:path.join(__dirname,'rankCpuWorker.ts'),{workerData:{state,profile,deadline:deadline-100,reportProgress:true}});
     let done=false;
+    let fallback:RankCpuWorkerResponse|undefined;
     const finish=(response?:RankCpuWorkerResponse,error?:Error)=>{
         if(done)return;done=true;clearTimeout(timer);void worker.terminate();
         if(error)reject(error);else resolve(response!);
     };
-    const timer=setTimeout(()=>finish(undefined,new Error('CPU deadline exceeded')),3000);
-    worker.once('message',response=>finish(response));
-    worker.once('error',error=>finish(undefined,error instanceof Error?error:new Error('CPU worker error')));
-    worker.once('exit',()=>{if(!done)finish(undefined,new Error('CPU stopped without a move'));});
+    const timer=setTimeout(()=>fallback?finish(fallback):finish(undefined,new CpuFailure('deadline')),Math.max(0,deadline-Date.now()));
+    worker.on('message',(response:RankCpuWorkerResponse)=>{
+        if(done)return;
+        if(response.partial) {
+            if(response.version===state.version&&response.move&&!response.error)fallback={version:response.version,move:response.move};
+        } else finish(response);
+    });
+    worker.once('error',()=>finish(undefined,new CpuFailure('worker_error')));
+    worker.once('exit',()=>{if(!done)finish(undefined,new CpuFailure('no_result'));});
 });
 
 /** One terminal path for moves, resignations, idle timeouts and disconnections. */
@@ -127,18 +140,25 @@ export class RankedRuntime {
             if(!match.cpu||state.introPending||Date.now()<(state.startsAt??0)||this.cpuBusy.has(match.matchId))continue;
             if(state.turn!==(match.cpu.side==='host'?0:1))continue;
             this.cpuBusy.add(match.matchId);
+            const cpuStartedAt=Date.now();
             void this.runCpu(state,match.cpu.profile).then(response=>{
                 if(match.state!=='IN_GAME'||!match.engine||!match.cpu||(match.admission&&!this.admission?.canAdvance(match)))return;
                 if(this.matchmaking.authorityCheckPending(match))return;
                 const current=match.engine.getPublicState(match.cpu.id);
                 if(current.gameOver||current.version!==state.version||current.turn!==state.turn)return;
-                if(response.error||response.version!==state.version||!response.move)throw new Error('CPU unavailable');
+                if(response.error)throw new CpuFailure('search_error');
+                if(response.version!==state.version)throw new CpuFailure('version_mismatch');
+                if(!response.move)throw new CpuFailure('no_legal_move');
                 const result=match.engine.processAction({actionId:`cpu:${state.version}`,version:state.version,playerId:match.cpu.id,action:{type:'MOVE',payload:response.move}});
-                if(!result.success&&!match.engine.getPublicState(match.cpu.id).gameOver)throw new Error('CPU illegal move');
+                if(!result.success&&!match.engine.getPublicState(match.cpu.id).gameOver)throw new CpuFailure('illegal_move');
                 this.afterAction(match);
-            }).catch(()=>{
+            }).catch(error=>{
                 // Infrastructure failure is a void match, never a free rated win/loss.
                 if(match.state==='IN_GAME') {
+                    const current=match.engine?.getPublicState(match.players.host);
+                    if(!current||current.gameOver||current.version!==state.version||current.turn!==state.turn)return;
+                    console.warn('[RankedCPU] Move failed', {reason:error instanceof CpuFailure?error.reason:'worker_error',
+                        level:match.cpu?.profile.level,version:state.version,elapsedMs:Date.now()-cpuStartedAt});
                     if(match.admission&&this.admission)void this.admission.cancel(match,'cpu_unavailable');
                     else {
                         this.matchmaking.finishMatch(match,'CANCELLED');

@@ -83,18 +83,21 @@ describe('ranked runtime', () => {
         expect(match.engine!.getHistory()).toEqual([{turn:1,player:'white',tokenId:'token_17',from:[6,0],to:[5,0],possibleTypes:expect.any(Array),replayVersion:2,changes:[[17,40,57,1,0]]}]);
     });
 
-    it('discards a stale successful worker result after the authoritative version changes', async () => {
+    it.each(['success', 'failure'])('discards a stale worker %s after the authoritative version changes', async outcome => {
         const { io, mm, match } = fixture();
         const cpu = deferred<RankCpuWorkerResponse>();
         const runtime = new RankedRuntime(io as any, mm, vi.fn(), () => cpu.promise);
         runtime.tick();
         expect(match.engine!.processAction({ actionId: 'external-move', version: 0, playerId: match.cpu!.id, action: { type: 'MOVE', payload: openingMove } }).success).toBe(true);
-        cpu.resolve({ version: 0, move: { pieceId: -1, toX: -1, toY: -1 } }); await flush();
+        if(outcome === 'success') cpu.resolve({ version: 0, move: { pieceId: -1, toX: -1, toY: -1 } });
+        else cpu.reject(new Error('late worker failure'));
+        await flush();
         expect(match.state).toBe('IN_GAME');
         expect(match.engine!.getPublicState('human')).toMatchObject({ version: 1, moveCount: 1 });
     });
 
     it.each(['reject', 'no-move', 'illegal-move'])('voids %s CPU failures without recording rating changes', async kind => {
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
         const { io, mm, match, events } = fixture();
         const settle = vi.fn();
         const runCpu = vi.fn(async () => {
@@ -108,6 +111,10 @@ describe('ranked runtime', () => {
         expect(settle).not.toHaveBeenCalled();
         expect(events).toContainEqual({ room: match.matchId, event: 'match_cancelled', payload: { matchId:match.matchId,reason: 'cpu_unavailable' } });
         expect(mm.getPlayerSession('human')?.state).toBe('IDLE');
+        expect(warn).toHaveBeenCalledWith('[RankedCPU] Move failed', {
+            reason: kind === 'reject' ? 'worker_error' : kind === 'no-move' ? 'no_legal_move' : 'illegal_move',
+            level: match.cpu!.profile.level, version: 0, elapsedMs: 0,
+        });
     });
 
     it('settles an idle clock timeout exactly once even with concurrent ticks and an unfinished worker', async () => {
