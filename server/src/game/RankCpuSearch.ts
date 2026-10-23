@@ -66,11 +66,15 @@ function terminalScore(position: Position, ply: number): number | null {
  * king step, so add it explicitly and let attemptLegalMove adjudicate every candidate.
  * All simulation and quantum collapse remain owned by the authoritative server rules.
  */
-function candidates(position: Position, budget: SearchBudget): Candidate[] {
+function candidates(position: Position, budget: SearchBudget, firstMoveDeadline = budget.deadline, onFirstMove?: (move: CpuMove) => void): Candidate[] {
     const result: Candidate[] = [];
+    // Difficulty limits deeper search, not our chance to find even one legal move.
+    // Once a root move exists, immediately return to the ordinary thinking budget.
+    const exhausted = () => budget.nodes >= budget.maxNodes
+        || Date.now() >= (result.length === 0 ? firstMoveDeadline : budget.deadline);
     for (const piece of position.pieces) {
         if (piece.captured || piece.team !== position.turn) continue;
-        if (outOfTime(budget)) break;
+        if (exhausted()) break;
         const destinations = new Map<string, { x: number; y: number }>();
         for (const destination of getValidMoves(piece, position.board, position.pieces) as { x: number; y: number }[]) {
             destinations.set(`${destination.x},${destination.y}`, destination);
@@ -82,30 +86,33 @@ function candidates(position: Position, budget: SearchBudget): Candidate[] {
             }
         }
         for (const { x, y } of destinations.values()) {
-            if (outOfTime(budget)) break;
+            if (exhausted()) break;
             const castleGeometry = y === piece.y && Math.abs(x - piece.x) === 2 && piece.possibilities.includes('K');
             const intentions: (CpuMove['intention'])[] = castleGeometry ? [undefined, 'normal', 'castle'] : [undefined];
             // The authoritative API also allows a superposed mover to explicitly exclude K.
             // This can be the only legal escape when an ordinary move would confirm its king.
             if (!castleGeometry && piece.possibilities.includes('K') && piece.possibilities.length > 1) intentions.push('normal');
             for (const intention of intentions) {
-                if (outOfTime(budget)) break;
+                if (exhausted()) break;
                 const move: CpuMove = { pieceId: piece.id, toX: x, toY: y };
                 if (intention) move.intention = intention;
                 const promotions = !piece.promoted && y === (piece.team === 0 ? 7 : 0)
                     && filterPossibilities(piece, x, y, position.board, position.board[y * 8 + x] !== null, position.pieces).includes('P')
                     ? ['Q', 'R', 'B', 'N'] : [undefined];
                 for (const promotedTo of promotions) {
-                    if (outOfTime(budget)) break;
+                    if (exhausted()) break;
                     const choice = { ...move, ...(promotedTo ? { promotedTo } : {}) };
                     budget.nodes++;
                     const simulated = attemptLegalMove(position.pieces, position.board, piece.id, x, y, intention, promotedTo);
                     if (!simulated.success) continue;
+                    // Publish before evaluation, which can itself exceed the remaining time.
+                    if (result.length === 0) onFirstMove?.(choice);
                     const next: Position = { board: simulated.board, pieces: simulated.pieces, turn: 1 - position.turn };
                     const winner = checkGameOver(simulated.pieces);
                     const win = winner === (position.turn === 0 ? 'WHITE' : 'BLACK');
                     const capture = simulated.capturedPiece ? pieceValue(simulated.capturedPiece) : 0;
-                    result.push({ move: choice, next, order: (win ? MATE : 0) + capture * 8 - evaluateCpuPosition(next,budget.personality) + (intention === 'castle' ? 30 : 0) });
+                    const evaluation = outOfTime(budget) ? 0 : evaluateCpuPosition(next,budget.personality);
+                    result.push({ move: choice, next, order: (win ? MATE : 0) + capture * 8 - evaluation + (intention === 'castle' ? 30 : 0) });
                 }
             }
         }
@@ -144,24 +151,28 @@ function decisionNoise(seed: string, move: CpuMove, level: number): number {
 
 /**
  * Return a MOVE payload without mutating the snapshot. deadline, when supplied, is an
- * absolute Date.now() timestamp and can only shorten the profile's bounded budget.
+ * absolute Date.now() hard deadline. The first legal move may use the bounded reserve
+ * after the profile's thinking budget; deeper search never uses that reserve.
  * A worker must be terminated by its caller for a strict wall-clock cap: individual
  * authoritative rule calls are synchronous and cannot be interrupted internally.
  */
-export function chooseCpuMove(state: PublicGameState, profile: CpuProfile, deadline?: number): CpuMove | null {
+export function chooseCpuMove(state: PublicGameState, profile: CpuProfile, deadline?: number, onProgress?: (move: CpuMove) => void): CpuMove | null {
     if (state.gameOver || state.introPending || (state.turn !== 0 && state.turn !== 1)) return null;
     const level = Math.max(1, Math.min(9, Math.round(Number.isFinite(profile.level) ? profile.level : 3)));
     const thinkMs = Math.max(1, Math.min(1500, Number.isFinite(profile.thinkMs) ? profile.thinkMs : 140));
+    const startedAt = Date.now();
+    const hardDeadline = Number.isFinite(deadline) ? Math.min(deadline!, startedAt + 2800) : startedAt + 1500;
     const budget: SearchBudget = {
-        deadline: Math.min(Date.now() + thinkMs, Number.isFinite(deadline) ? deadline! : Infinity),
+        deadline: Math.min(startedAt + thinkMs, hardDeadline),
         nodes: 0,
         maxNodes: 1200 + level * 1400,
         personality:profile.personality && profile.personality in PERSONALITY_WEIGHTS ? profile.personality : 'balanced',
     };
-    if (outOfTime(budget) || checkGameOver(state.pieces)) return null;
-    const rootMoves = candidates(state, budget);
+    if (Date.now() >= hardDeadline || checkGameOver(state.pieces)) return null;
+    const rootMoves = candidates(state, budget, hardDeadline, onProgress);
     if (rootMoves.length === 0) return null;
     let bestMove = rootMoves[0].move;
+    onProgress?.(bestMove);
     let bestScore = -Infinity;
     const maxDepth = Math.max(1, Math.min(4, Math.round(Number.isFinite(profile.maxDepth) ? profile.maxDepth : 2)));
     const seed = `${state.matchId}:${state.version}:${state.moveCount}`;
@@ -187,6 +198,7 @@ export function chooseCpuMove(state: PublicGameState, profile: CpuProfile, deadl
         if (completed || depth === 1 && iterationScore > -Infinity) {
             bestMove = iterationMove;
             bestScore = iterationScore;
+            onProgress?.(bestMove);
         }
         if (!completed || bestScore > MATE - 1000) break;
         // Search the previous best first to improve pruning in subsequent iterations.

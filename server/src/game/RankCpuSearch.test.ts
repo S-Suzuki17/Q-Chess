@@ -7,6 +7,7 @@ import { CPU_PERSONALITIES } from '../quantum-engine/ai/personalities';
 import { PERSONALITY_WEIGHTS } from '../quantum-engine/ai/personalities';
 import { EvalQoppelia } from '../quantum-engine/ai/evalQoppelia';
 import { rankedEvaluationState } from './RankCpuEvaluation';
+import * as evaluation from './RankCpuEvaluation';
 
 const strong: CpuProfile = { rating: 2200, level: 9, thinkMs: 500, maxDepth: 2 };
 const piece = (id: number, team: number, x: number, y: number, possibilities: string[], hasMoved = true): Piece =>
@@ -139,5 +140,56 @@ describe('ranked server CPU', () => {
         expect(chooseCpuMove({ ...state, gameOver: 'WHITE' }, strong)).toBeNull();
         expect(chooseCpuMove({ ...state, introPending: true }, strong)).toBeNull();
         expect(chooseCpuMove(state, strong, Date.now() - 1)).toBeNull();
+    });
+
+    it.each([undefined, 3_800])('still finds a legal move when the thinking budget expires on a blocked piece (deadline %s)', deadline => {
+        const state = position([piece(0, 0, 0, 0, ['R']), piece(1, 0, 0, 1, ['P']),
+            piece(2, 0, 1, 0, ['P']), piece(3, 0, 4, 0, ['K']), piece(4, 1, 7, 7, ['K'])]);
+        let now = 1_000;
+        const clock = vi.spyOn(Date, 'now').mockImplementation(() => now);
+        const original = rules.getValidMoves;
+        const moves = vi.spyOn(rules, 'getValidMoves').mockImplementation((...args) => {
+            const result = original(...args);
+            if (args[0].id === 0) now = 1_300; // Slow host: no legal root candidate yet.
+            return result;
+        });
+        try {
+            const move = chooseCpuMove(state, { ...strong, thinkMs: 210 }, deadline);
+            expect(move).not.toBeNull();
+            expect(attemptLegalMove(state.pieces, state.board, move!.pieceId, move!.toX, move!.toY, move!.intention, move!.promotedTo).success).toBe(true);
+        } finally { moves.mockRestore(); clock.mockRestore(); }
+    });
+
+    it('stops looking for its first legal move at the hard deadline', () => {
+        const state = position([piece(0, 0, 0, 0, ['R']), piece(1, 0, 0, 1, ['P']),
+            piece(2, 0, 1, 0, ['P']), piece(3, 0, 4, 0, ['K']), piece(4, 1, 7, 7, ['K'])]);
+        let now = 1_000;
+        const clock = vi.spyOn(Date, 'now').mockImplementation(() => now);
+        const original = rules.getValidMoves;
+        const moves = vi.spyOn(rules, 'getValidMoves').mockImplementation((...args) => {
+            const result = original(...args); now = 4_000; return result;
+        });
+        try {
+            expect(chooseCpuMove(state, { ...strong, thinkMs: 210 }, 3_800)).toBeNull();
+            expect(moves).toHaveBeenCalledTimes(1);
+        } finally { moves.mockRestore(); clock.mockRestore(); }
+    });
+
+    it('reports an authoritative legal fallback before expensive evaluation', () => {
+        const state = position([piece(0, 0, 0, 0, ['K']), piece(1, 1, 7, 7, ['K'])]);
+        let now = 1_000;
+        const clock = vi.spyOn(Date, 'now').mockImplementation(() => now);
+        const progress = vi.fn((move) => {
+            expect(attemptLegalMove(state.pieces, state.board, move.pieceId, move.toX, move.toY, move.intention, move.promotedTo).success).toBe(true);
+        });
+        const score = vi.spyOn(evaluation, 'evaluateRankedCandidates').mockImplementation(() => {
+            expect(progress).toHaveBeenCalled();
+            now = 4_000; return 0;
+        });
+        try {
+            const move = chooseCpuMove(state, strong, 3_800, progress);
+            expect(move).toEqual(progress.mock.calls[0][0]);
+            expect(score).toHaveBeenCalledTimes(1);
+        } finally { score.mockRestore(); clock.mockRestore(); }
     });
 });
