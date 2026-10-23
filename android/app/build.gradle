@@ -18,8 +18,8 @@ android {
         applicationId "com.qgambit.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 26
-        versionName "1.21"
+        versionCode 28
+        versionName "1.23"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         buildConfigField 'boolean', 'PLAY_GAMES_ENABLED', playGamesEnabled
         manifestPlaceholders.playGamesEnabled = playGamesEnabled

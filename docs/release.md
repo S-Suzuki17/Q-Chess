@@ -11,6 +11,8 @@ npm run release:status -- <web|android|itch> で作業場所、HEAD、変更状�
 対象差分を検証し、対象コミットと未コミット変更を記録する。
 このコマンドは情報表示のみで、ビルド、署名検証、公開や端末確認は行わない。
 
+`npm run release:health` は公開APIの `/service/status` をGETし、中断されたメンテナンスを点検する。火曜11〜14時JST以外にメンテナンスが有効で、保存状態の更新から30分以上経過している場合は `maintenance_needs_review` と終了コード1を返す。更新日時はメンテナンス開始時刻の証明ではないため、継続の必要性はリリース記録と照合する。通信失敗・不正な応答・古いサーバー時刻も成功扱いにしない。アカウント作成・設定変更・メンテナンス解除は行わない。検証: `node --test scripts/release/check-service-health.test.mjs`。
+
 ## Web
 新UI・課金・台帳・対局権限の同時反映は [同期リリース手順](commerce-production-release-20261008.md) に従う。通常の設定なしビルドは配信用ではない。
 npm run build で静的出力 out/ を生成する。

@@ -147,7 +147,7 @@ export function verifyTutorialSolution(lessonId: string, moves: readonly Move[])
 
 export function tutorialMoves(state: GameState, pieceId: string): Move[] {
     if (state.winner) return [];
-    return getAllConcreteMoves(state, {allPromotions:true,playable:true}).filter(move => move.pieceId === pieceId);
+    return getAllConcreteMoves(state, {allPromotions:true,playable:true,pieceId});
 }
 /** Resolve an ordinary destination without silently choosing castling or a promotion. */
 export function tutorialReferenceMove(state: GameState, task: TutorialTask): Move {
