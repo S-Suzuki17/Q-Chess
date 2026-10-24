@@ -34,7 +34,6 @@ import { QubeTeacher } from './QubeTeacher';
 import { LatestMatchHintRecovery } from './CrownHintRecovery';
 import { hintScopeText } from '../locales/hintScopeText';
 import {learningText} from '../locales/learningText';
-import {prefetchLearning} from '../lib/learningApi';
 import { ArrowUpRight, Swords, Dices, UsersRound, LogIn, Crown, Settings2, House, History, Trophy, Gift } from 'lucide-react';
 import { LobbyShowcase } from './LobbyShowcase';
 import { LobbyBrandMark, LobbyChessArtwork } from './LobbyChessArtwork';
@@ -233,8 +232,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
 
     React.useEffect(() => {
         refreshUserProfile();
-        if (user.type === 'registered') prefetchLearning(user.id);
-    }, [refreshUserProfile, user.type, user.id]);
+    }, [refreshUserProfile]);
 
     React.useEffect(() => {
         if (showAccount) {
