@@ -27,10 +27,10 @@ export function DailyLoginClaimController({ user, termsReady }: { user: User | n
             controller?.abort(); controller = new AbortController();
             const request = controller;
             void claimDailyLoginReward(user.id, request.signal)
-            .then(() => {
+            .then(status => {
                 if (!request.signal.aborted && circuitAccess.canPlay(user)) {
                     window.dispatchEvent(new CustomEvent(DAILY_LOGIN_REWARD_CHANGED_EVENT, {
-                        detail: { userId: user.id },
+                        detail: { userId: user.id, status },
                     }));
                 }
             })

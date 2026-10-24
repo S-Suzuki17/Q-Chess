@@ -168,10 +168,26 @@ export class CrownHintRunClient {
     }
 }
 
+let displayCache: {
+    hintContextId: string;
+    moves: string[];
+    state: GameState;
+    position: ReturnType<typeof positionForDisplay>;
+    history: MoveRecord[];
+} | null = null;
+
 export function displayCrownRun(run: CrownRunSnapshot) {
-    let state = createInitialState(), position = positionForDisplay(state);
-    const history: MoveRecord[] = [];
-    for (const accepted of run.history) {
+    const moveKeys = run.history.map(m => JSON.stringify(m));
+    const canReuse = displayCache !== null
+        && displayCache.hintContextId === run.hintContextId
+        && displayCache.moves.length <= moveKeys.length
+        && displayCache.moves.every((key, idx) => key === moveKeys[idx]);
+    let state = canReuse ? structuredClone(displayCache!.state) : createInitialState();
+    let position = canReuse ? structuredClone(displayCache!.position) : positionForDisplay(state);
+    const history: MoveRecord[] = canReuse ? structuredClone(displayCache!.history) : [];
+    const startIdx = canReuse ? displayCache!.moves.length : 0;
+    for (let i = startIdx; i < run.history.length; i++) {
+        const accepted = run.history[i];
         const move = quantumToLegacyMove(accepted, state), piece = state.pieces.find(value => value.id === accepted.pieceId);
         if (!piece) throw new PaidHintError('HINT_RESPONSE_INVALID');
         const result = applyLocalMove(position.tokens, position.pool, move, state.sideToMove, history);
@@ -182,5 +198,12 @@ export function displayCrownRun(run: CrownRunSnapshot) {
     }
     if (JSON.stringify(state.pieces) !== JSON.stringify(run.state.pieces) || state.sideToMove !== run.state.sideToMove
         || JSON.stringify(state.lastMove) !== JSON.stringify(run.state.lastMove)) throw new PaidHintError('HINT_RESPONSE_INVALID');
+    displayCache = {
+        hintContextId: run.hintContextId,
+        moves: moveKeys,
+        state: structuredClone(state),
+        position: { tokens: structuredClone(position.tokens), pool: structuredClone(position.pool) },
+        history: structuredClone(history),
+    };
     return { ...positionForDisplay(run.state), history };
 }

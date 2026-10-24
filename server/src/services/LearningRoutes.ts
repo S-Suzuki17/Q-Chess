@@ -47,16 +47,20 @@ export function createLearningRouter(auth:RankedSessionAuthority,store:LearningS
         const userId=res.locals.userId as string,release=gate.enter(userId);
         if(!release){res.status(423).json({code:'ACCOUNT_DELETING'});return;}
         try{
-            if(await store.blocked(userId)){res.status(423).json({code:'ACCOUNT_DELETING'});return;}
             const token=res.locals.token as string;
-            if(res.locals.legacy?!(await auth.verifySession(token,userId)):await store.verifyUser(token)!==userId){
-                res.status(401).json({code:'AUTH_REQUIRED'});return;
-            }
-            if(!await store.hasCurrentTerms(userId)){res.status(403).json({code:'CURRENT_TERMS_REQUIRED'});return;}
+            const [blocked,validAuth,hasTerms,set]=await Promise.all([
+                store.blocked(userId),
+                res.locals.legacy?(async()=>!!(await auth.verifySession(token,userId)))():store.verifyUser(token).then(id=>id===userId),
+                store.hasCurrentTerms(userId),
+                submission.kind==='weekly'?store.week(submission.week):Promise.resolve(null),
+            ]);
+            if(blocked){res.status(423).json({code:'ACCOUNT_DELETING'});return;}
+            if(!validAuth){res.status(401).json({code:'AUTH_REQUIRED'});return;}
+            if(!hasTerms){res.status(403).json({code:'CURRENT_TERMS_REQUIRED'});return;}
             if(submission.kind==='tutorial'){
                 if(!verifyTutorialSolution(submission.lessonId,submission.moves))throw new LearningError('INVALID_SOLUTION');
             }else{
-                const set=await store.week(submission.week),problem=set?.problems[submission.problemId-1];
+                const problem=set?.problems[submission.problemId-1];
                 if(!problem)throw new LearningError('WEEK_EXPIRED');
                 if(!isProblemMate(problem.state,submission.moves[0]))throw new LearningError('INVALID_SOLUTION');
             }

@@ -1,0 +1,149 @@
+{
+  "schemaVersion": 1,
+  "status": "completed",
+  "baseRevision": "f64b210729d9e19f548c4b2704504825b7710bce",
+  "reviewer": "Antigravity — server round-trip reduction, parallelization and client optimistic board latency review",
+  "changes": [
+    {
+      "path": "server/src/services/AccountCurrentTermsRoutes.ts",
+      "gitBlob": "efbb3425dba262f5795a97247d00fc4d2e16c31f"
+    },
+    {
+      "path": "server/src/services/CrownHintRoutes.ts",
+      "gitBlob": "0205ba4b145c86854e927db7c29bb6b935a7b433"
+    },
+    {
+      "path": "server/src/services/LearningRoutes.ts",
+      "gitBlob": "40b187acc37d8a342da5cce74847f5c11a200b62"
+    },
+    {
+      "path": "server/src/services/RankedAdmissionCoordinator.ts",
+      "gitBlob": "f78529f4ddfcfb2b1c5b11ab3e5aa9c927e58db7"
+    },
+    {
+      "path": "server/src/services/StripeMembershipRoutes.ts",
+      "gitBlob": "e29820c3b0b16c6175db55c717e805c171e2393f"
+    },
+    {
+      "path": "server/src/services/SupabaseService.ts",
+      "gitBlob": "42c8b0ab409f79e75dcd297dddb1391d7089f86b"
+    },
+    {
+      "path": "src/components/LevelSelect.tsx",
+      "gitBlob": "fdc97ef48ab379857b799e8a216fdbe5669435ff"
+    },
+    {
+      "path": "src/components/LobbyTicketSummary.tsx",
+      "gitBlob": "92abed836e1c52b37055bc5f907594b84ab28bfb"
+    },
+    {
+      "path": "src/components/LocalGameBoard.tsx",
+      "gitBlob": "6f366ddb8c4bc731fed8e789168bba292f3e76dc"
+    },
+    {
+      "path": "src/components/OnlineGameBoard.tsx",
+      "gitBlob": "53946b5bc8b3523fbe2ae9402ed5fd94832ead8d"
+    },
+    {
+      "path": "src/hooks/useGoogleLoginSession.ts",
+      "gitBlob": "5255b72fb17da839d280b35ac8c430f968d695b2"
+    },
+    {
+      "path": "src/hooks/useLearningRewards.ts",
+      "gitBlob": "fae650870c9a963e7996d260cd35a3a126e732d3"
+    },
+    {
+      "path": "src/lib/crownHintRun.ts",
+      "gitBlob": "457a48d74514242ad89b411ade837ff930deab4b"
+    },
+    {
+      "path": "src/lib/googleAccount.ts",
+      "gitBlob": "0f612f11652bb32d078dd799254ba4844fd019d3"
+    },
+    {
+      "path": "src/lib/learningApi.ts",
+      "gitBlob": "c78b303a37549836ee8ba157ee62907f55b5f6fc"
+    }
+  ],
+  "reviews": [
+    {
+      "group": "start-and-controls",
+      "decision": "no-change-needed",
+      "reason": "サーバー通信の往復削減・並列化と着手時の即時描画のみを変更し、対局開始・時間設定・手番・操作方法やゲスト練習の仕様は変更しないため、ガイド・FAQの更新は不要。",
+      "checkedPages": [
+        "/guide/#start",
+        "/faq/#guest"
+      ],
+      "evidence": [
+        "docs/release.md: release verification boundaries and status checks",
+        "server/src/services/RankedSessionAuthority.test.ts: session authority contract and recheck coverage",
+        "src/components/MatchLayout.test.ts: board layout, interaction and clock stability"
+      ]
+    },
+    {
+      "group": "hints-and-clock",
+      "decision": "no-change-needed",
+      "reason": "100マスチャレンジの合法手着手時の即時描画とバックグラウンド同期、ヒント同期時の重複認証削減を行った。ヒント券の消費条件・時計計測・探索強度の仕様は変更しないため、ガイド・FAQの更新は不要。",
+      "checkedPages": [
+        "/guide/#start",
+        "/faq/#clock",
+        "/faq/#hints"
+      ],
+      "evidence": [
+        "src/lib/crownHintRun.test.ts: incremental crown replay and snapshot consistency",
+        "src/lib/crownRunRecovery.test.ts: crown hint context recovery and clock integrity",
+        "src/hooks/useMoveHint.test.ts: move hint delivery and ticket debit rules"
+      ]
+    },
+    {
+      "group": "accounts-connections-and-saves",
+      "decision": "no-change-needed",
+      "reason": "Googleログイン復元時の重複中断防止、規約同意のローカル保持、CORS preflightの24時間キャッシュ、verifyUser内DB問い合わせの並列化を行った。アカウント仕様・保存・プライバシー方針は変更しないため、FAQ・連絡先・プライバシーの更新は不要。",
+      "checkedPages": [
+        "/faq/#connection",
+        "/faq/#save",
+        "/faq/#privacy",
+        "/contact/",
+        "/privacy/"
+      ],
+      "evidence": [
+        "server/src/services/GoogleAccountIdentity.test.ts: Google OAuth session and user mapping verification",
+        "server/src/services/ratings.test.ts: auth session checks and rate lookup invariants",
+        "src/hooks/useGoogleLoginSession.test.ts: Google login session deduplication"
+      ]
+    },
+    {
+      "group": "commerce-and-disclosures",
+      "decision": "no-change-needed",
+      "reason": "Stripe会員状態取得クエリの並列化、デイリーログインclaim時の不要な再取得削減、学習完了時の重複イベント抑制を行った。課金体系・利用規約・開示事項は変更しないため、FAQ・連絡先・プライバシー・規約の更新は不要。",
+      "checkedPages": [
+        "/faq/#hints",
+        "/contact/",
+        "/privacy/",
+        "/terms/"
+      ],
+      "evidence": [
+        "server/src/services/StripeMembershipRoutes.test.ts: membership status query parallelization and contract",
+        "server/src/services/AccountCurrentTermsRoutes.test.ts: current terms recheck and consent validation",
+        "server/src/services/LearningRoutes.test.ts: learning completion and terms verification"
+      ]
+    },
+    {
+      "group": "qube-teaching",
+      "decision": "no-change-needed",
+      "reason": "盤面コンポーネントにおけるレート取得スキップや着手時同期の最適化のみで、キャラクター案内・ルール解説・チュートリアル・演出テキストは変更しないため、公開ページおよびゲーム内解説の更新は不要。",
+      "checkedPages": [
+        "/",
+        "/about/",
+        "/rules/",
+        "/guide/",
+        "/faq/",
+        "game: tutorial, help dialogs, move hints and feedback, promotion/castling, stage/setup explanations, cosmetic preview/equipment guidance"
+      ],
+      "evidence": [
+        "src/components/MatchLayout.test.ts: component layout and guide links integrity",
+        "src/components/TermsGate.test.ts: terms gating and disclosure presentation"
+      ]
+    }
+  ]
+}

@@ -61,7 +61,7 @@ import { MatchHintError } from './services/MatchHintTypes';
 import {stripeDeploymentModeAllowed} from './services/StripeDeploymentMode';
 
 const app = express();
-app.use(cors());
+app.use(cors({ maxAge: 86400 }));
 const supabaseService = new SupabaseService();
 const audit=createSecurityAudit((event,outcome,id)=>supabaseService.recordSecurityEvent(event,outcome,id));
 const rankedAuth: RankedSessionAuthority = createRankedSessionAuthority(supabaseService);
@@ -282,7 +282,7 @@ const admission=(rankedAdmissionRecoveryEnabled()||sharedMatchAdmissionRecoveryE
     ? new RankedAdmissionCoordinator(matchmaking,supabaseService.rankedAdmissionStore(),sendMatchStart,notifyAdmission,undefined,undefined,async match=>{
         const humans=Object.values(match.players).filter(id=>id!==match.cpu?.id);
         if((await supabaseService.restrictedAccounts(humans)).length)return false;
-        for(const id of humans){
+        const verifiedHumans=await Promise.all(humans.map(async id=>{
             const session=matchmaking.getPlayerSession(id),socket=session&&io.sockets.sockets.get(session.socketId);
             if(!socket?.connected||!socket.data.verified||accountGate.blocked(id))return false;
             const token=socket.handshake.auth.token;
@@ -291,8 +291,9 @@ const admission=(rankedAdmissionRecoveryEnabled()||sharedMatchAdmissionRecoveryE
             if(identity!==id||!socket.connected||socket.handshake.auth.token!==token
                 ||matchmaking.getPlayerSession(id)?.socketId!==socket.id)return false;
             if(proof)legacySockets.capture(socket,token,proof);
-            if(!legacySockets.canAdmit(socket))return false;
-        }
+            return legacySockets.canAdmit(socket);
+        }));
+        if(verifiedHumans.some(ok=>!ok))return false;
         // Admission/identity I/O can outlast the five-second operator cache.
         // Refresh it after those awaits; activateMatch still checks the exact
         // schedule boundary synchronously before constructing the engine.
@@ -443,7 +444,14 @@ io.use(async (socket, next) => {
       if (!userId) {
           return next(authenticationError('AUTH_REQUIRED','Authentication Error: Invalid token'));
       }
-      if(accountGate.blocked(userId)||(!guest&&(await deletionStore.blocked(userId)||await supabaseService.accountSecurityStore().restricted(userId))))return next(authenticationError('AUTH_REQUIRED','Authentication Error: Account unavailable'));
+      if(accountGate.blocked(userId))return next(authenticationError('AUTH_REQUIRED','Authentication Error: Account unavailable'));
+      if(!guest){
+          const [delBlocked,secRestricted]=await Promise.all([
+              deletionStore.blocked(userId),
+              supabaseService.accountSecurityStore().restricted(userId),
+          ]);
+          if(delBlocked||secRestricted)return next(authenticationError('AUTH_REQUIRED','Authentication Error: Account unavailable'));
+      }
       // Logout cannot disconnect a handshake which has not connected yet.
       // Recheck the legacy proof after the asynchronous account guards.
       const currentProof=proof?await rankedAuth.verifySession(token,userId):null;
@@ -562,19 +570,24 @@ io.on('connection', (socket: Socket) => {
     const unavailable=await operations.admission(socket.handshake.auth.client);
     if(unavailable)return fail(unavailable);
     let rating:number|null=null;
+    let busyChecked=false;
     if(sharedMatchAdmissionEnabled()){
         if(!socket.data.verified)return fail('AUTH_REQUIRED');
-        try{if(await admission?.accountBusy(userId))return fail('ACCOUNT_BUSY');}
+        try{if(await admission?.accountBusy(userId))return fail('ACCOUNT_BUSY');busyChecked=true;}
         catch{return fail('SHARED_MATCH_UNAVAILABLE');}
     }
     if(mode==='ranked') {
         if(!socket.data.verified)return fail('AUTH_REQUIRED');
-        if(admission) {
+        if(admission&&!busyChecked) {
             try{if(await admission.accountBusy(userId))return fail('ACCOUNT_BUSY');}
             catch{return fail('RANKED_UNAVAILABLE');}
         }
-        if(!await supabaseService.rankedReady())return fail('RANKED_UNAVAILABLE');
-        rating=await supabaseService.getMatchRating(userId,timeControl);
+        const [ready,fetchedRating]=await Promise.all([
+            supabaseService.rankedReady(),
+            supabaseService.getMatchRating(userId,timeControl),
+        ]);
+        if(!ready)return fail('RANKED_UNAVAILABLE');
+        rating=fetchedRating;
         if(rating===null)return fail('RATING_UNAVAILABLE');
     }
     try {if(!await verifyAdmission())return fail('AUTH_REQUIRED');}
@@ -596,8 +609,11 @@ io.on('connection', (socket: Socket) => {
     if(entitlementRequest||!socket.data.verified||accountGate.blocked(userId))return;
     entitlementRequest=true;
     try {
-        if(!await verifyAdmission())return;
-        const entitlement=sharedMatchEntitlementEnabled() ? await supabaseService.sharedMatchEntitlement(userId) : null;
+        const [admitted,entitlement]=await Promise.all([
+            verifyAdmission(),
+            sharedMatchEntitlementEnabled() ? supabaseService.sharedMatchEntitlement(userId) : Promise.resolve(null),
+        ]);
+        if(!admitted)return;
         if(currentOwner())socket.emit('shared_entitlement',{userId,entitlement,sharedAdmissionEnabled:sharedMatchAdmissionEnabled()});
     } catch { if(currentOwner())socket.emit('shared_entitlement',{userId,entitlement:null,sharedAdmissionEnabled:null}); }
     finally { entitlementRequest=false; }
@@ -688,16 +704,18 @@ io.on('connection', (socket: Socket) => {
     reserved=matchmaking.reserveMatch(userId,data.matchId,data.userName,data.privateRoom);
     if(!reserved)return fail('CONNECTION_FAILED');
     const role=reserved.players.host===userId?'host':'joiner';
-    const openingRating=reserved.engine?.getPublicState(userId).playerRatings?.[role];
+    const openingRating=reserved.engine?.getPublicState(userId).playerRatings?.[role]??reserved.appearances?.[role]?.rating;
     let rating=openingRating;
-    try{if(rating===undefined)rating=await supabaseService.getMatchRating(userId,reserved.timeControl);}
+    let didAsyncLookup=false;
+    try{if(rating===undefined){didAsyncLookup=true;rating=await supabaseService.getMatchRating(userId,reserved.timeControl);}}
     catch{return fail('RATING_UNAVAILABLE');}
     if(data.avatarFrame==='avatar-frame-founders'){
+      didAsyncLookup=true;
       try{if(!await supabaseService.foundersStore().owned(userId))data.avatarFrame='standard';}
       catch{data.avatarFrame='standard';}
     }
     if(!currentConnection())return;
-    if(!existingGame || restoringDisconnectedGame){
+    if(didAsyncLookup&&(!existingGame || restoringDisconnectedGame)){
         try{if(!await verifyAdmission())return fail('AUTH_REQUIRED');}
         catch{return fail('AUTH_UNAVAILABLE');}
     }

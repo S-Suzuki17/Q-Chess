@@ -294,6 +294,14 @@ export default function OnlineGameBoard({ lang, user, roomId, onlineRole: initia
         let cancelled=false;
         const ids=[hostId,joinerId].filter(isRatedPlayer);
         if(!ids.length)return;
+        const hostKnown=!isRatedPlayer(hostId)||typeof gameState?.playerRatings?.host==='number';
+        const joinerKnown=!isRatedPlayer(joinerId)||typeof gameState?.playerRatings?.joiner==='number';
+        const oppRole=hostId===user?.id?'joiner':joinerId===user?.id?'host':null;
+        const oppNameKnown=!oppRole||typeof gameState?.playerNames?.[oppRole]==='string';
+        if(hostKnown&&joinerKnown&&oppNameKnown){
+            setRatingLookupKey(ratingKey);
+            return;
+        }
         const column=effectiveTimeControl==='10s'?'rating_10s':effectiveTimeControl==='3m'?'rating_3m':'rating_10m';
         const controller=new AbortController();
         const timeout=setTimeout(()=>controller.abort(),2500);

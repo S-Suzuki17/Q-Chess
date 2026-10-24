@@ -218,6 +218,7 @@ export function LevelSelect({ lang, user, onSelect, onOnlineMatch, onStartGlobal
     }, [user.id]);
 
     const refreshUserProfile = React.useCallback(async () => {
+        if (!user.id || /^(GUEST-|anon_)/i.test(user.id)) return;
         const { data, error } = await supabase.from('profiles').select(PUBLIC_PROFILE_COLUMNS).eq('id', user.id).maybeSingle();
         if (error || historyIdentity.current !== user.id) return;
         if (data) {

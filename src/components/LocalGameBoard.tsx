@@ -144,6 +144,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
 
     // Fetch only public fields; missing ratings remain unavailable, never fabricated.
     useEffect(()=>{
+        if(crownMode)return;
         let cancelled=false;
         const ratingCol=timeControl==='10s'?'rating_10s':timeControl==='3m'?'rating_3m':'rating_10m';
         const fetchRating=async(id:string|undefined,own:boolean)=>{
@@ -156,7 +157,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
         };
         void fetchRating(user?.id,true);void fetchRating(opponentId,false);
         return()=>{cancelled=true;};
-    },[user?.id,opponentId,timeControl]);
+    },[user?.id,opponentId,timeControl,crownMode]);
     const [isCheck, setIsCheck] = useState<boolean>(false);
     const [showMoveHints, setShowMoveHints] = useState<boolean>(true);
     const [showResignConfirm, setShowResignConfirm] = useState<boolean>(false);
@@ -628,6 +629,22 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
     const executeMove = (token: Token, targetRow: number, targetCol: number, possibleTypesForMove: PieceType[], targetToken?: Token, isLocalMove: boolean = true, promotedTo?: PieceType) => {
         if(paidCrown){
             if(!introDone||winner||!crownClient||!crownSession||crownBusy.current||crownNeedsSync||hint.pending||token.player!==currentTurn)return;
+            let optimisticResult;
+            try {
+                optimisticResult = applyLocalMove(tokens, pool, {
+                    tokenId: token.id, targetRow, targetCol,
+                    possibleTypes: possibleTypesForMove, promotedTo
+                }, currentTurn, moveHistory);
+            } catch {
+                setErrorMsg(t.errInvalidMove);
+                return;
+            }
+            const nextTurn = optimisticResult.state.sideToMove;
+            setPool(optimisticResult.pool);
+            setTokens(optimisticResult.tokens);
+            setIsCheck(isPlayerInCheck(nextTurn, optimisticResult.tokens, optimisticResult.pool));
+            setSelectedTokenId(null);
+            playMoveSound();
             crownBusy.current=true;setCrownPending(true);
             const controller=new AbortController();crownOperation.current=controller;
             const move={pieceId:token.id,target:{row:targetRow,col:targetCol},
@@ -639,7 +656,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
                     perMoveTime.current.turns++;perMoveTime.current.remaining+=(playerSide==='white'?session.whiteMs:session.blackMs)/1000;
                 }
                 acceptCrown(session);
-                playMoveSound();setErrorMsg(null);setCpuFailed(false);
+                setErrorMsg(null);setCpuFailed(false);
             }).catch(async()=>{
                 if(controller.signal.aborted)return;
                 setErrorMsg(hintText.sync);setCrownNeedsSync(true);

@@ -34,7 +34,6 @@ export function createCurrentTermsRouter(auth: RankedSessionAuthority, store: Re
     router.get('/account/current-terms', async (_req, res) => {
         try {
             const value = await store.read(res.locals.owner);
-            if (!await recheck(res)) { res.status(401).json({ code: 'AUTH_REQUIRED' }); return; }
             res.json(value);
         } catch { res.status(503).json({ code: 'TERMS_UNAVAILABLE' }); }
     });

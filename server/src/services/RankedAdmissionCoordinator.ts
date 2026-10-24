@@ -234,7 +234,7 @@ export class RankedAdmissionCoordinator {
     }
     public async accountBusy(userId: string) {
         // Recovery checks ownership atomically; it never fences a live peer.
-        await this.recover();
+        if (this.clock.mono() >= this.recoveryAt) await this.recover();
         return this.store.busy(userId);
     }
     private async recover() {
