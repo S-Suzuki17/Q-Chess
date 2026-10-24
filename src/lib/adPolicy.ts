@@ -1,4 +1,4 @@
-import { canShowVerifiedAccountAds } from './sharedAdEligibility';
+import { canShowVerifiedAccountAdsFor } from './sharedAdEligibility';
 /** Owner decision, 2026-09-17: ordinary AdSense only. Do not gate play until
  * authenticated quotas AND a real rewarded provider have been integrated.
  * Banners, adBreakDone/afterAd and elapsed time are never reward evidence. */
@@ -31,10 +31,10 @@ export function applyVerifiedReward(state:AllowanceLedger,kind:AllowanceKind,rec
     return {...state,bonus:{...state.bonus,[kind]:state.bonus[kind]+REWARDED_EXTRA_USES},receipts:[...state.receipts,receiptId]};
 }
 /** Called once per completed circuit match by CampaignMode. Web remains disabled. */
-export async function requestCircuitInterstitial(matchKey:string):Promise<import('./nativeAds').AdResult> {
- if(!canShowVerifiedAccountAds()||!matchKey||process.env.NEXT_PUBLIC_NATIVE_INTERSTITIAL_ENABLED!=='true')return 'unavailable';
+export async function requestCircuitInterstitial(matchKey:string,userId:string):Promise<import('./nativeAds').AdResult> {
+ if(!canShowVerifiedAccountAdsFor(userId)||!matchKey||process.env.NEXT_PUBLIC_NATIVE_INTERSTITIAL_ENABLED!=='true')return 'unavailable';
  const {nativeAds,isAndroidApp}=await import('./nativeAds');
- return isAndroidApp()?nativeAds.interstitial():'unavailable';
+ return isAndroidApp()&&canShowVerifiedAccountAdsFor(userId)?nativeAds.interstitial():'unavailable';
 }
 /** Ordinary interstitials at a weekly checkpoint are independent of the earned ticket.
  * Unknown/paid accounts and unavailable providers skip the ad without blocking learning. */

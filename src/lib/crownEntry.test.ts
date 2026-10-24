@@ -47,13 +47,11 @@ describe('Crown entry admission', () => {
             expect(serverKey(invalid)).toBeNull();
         }
     });
-    it('preserves legacy membership exemption and lets unavailable legacy ads keep existing play behavior', async () => {
+    it('starts closed-gate play without waiting on membership or displaying an ad', async () => {
         const {entry,dependencies}=setup(false);
         expect((await entry.start('Alice',1,()=>true)).state).toBe('ready');
-        expect(dependencies.authorize).not.toHaveBeenCalled(); expect(dependencies.legacyInterstitial).toHaveBeenCalledOnce();
-        dependencies.legacyPaid.mockResolvedValue(true);
-        expect((await entry.start('Alice',1,()=>true)).state).toBe('ready');
-        expect(dependencies.legacyInterstitial).toHaveBeenCalledOnce();
+        expect(dependencies.authorize).not.toHaveBeenCalled();
+        expect(dependencies.legacyPaid).not.toHaveBeenCalled();expect(dependencies.legacyInterstitial).not.toHaveBeenCalled();
     });
     it('never starts twice for repeated clicks', async () => {
         const {entry,dependencies}=setup(), gate=deferred<typeof receipt>(); dependencies.authorize.mockReturnValue(gate.promise);
@@ -72,14 +70,12 @@ describe('Crown entry admission', () => {
         expect(entry.pending).toBe(false);
         expect(dependencies.authorize).not.toHaveBeenCalled();
     });
-    it('still cancels a delayed optional ad failure after leaving or revoking permission', async () => {
-        const {entry,dependencies}=setup(false), ad=deferred<unknown>();
-        dependencies.legacyInterstitial.mockImplementation(async()=>{await ad.promise;throw new Error('ad failed');});
+    it('revokes an immediate free entry when the screen is left before activation', async () => {
+        const {entry}=setup(false);
         let allowed=true;
-        const pending=entry.start('Alice',1,()=>allowed);
-        await vi.waitFor(()=>expect(dependencies.legacyInterstitial).toHaveBeenCalledOnce());
-        allowed=false;entry.cancel();ad.resolve('unavailable');
-        expect(await pending).toEqual({state:'cancelled'});
+        const result=await entry.start('Alice',1,()=>allowed);
+        allowed=false;entry.cancel();
+        expect(result.state).toBe('ready');if(result.state==='ready')expect(result.canActivate()).toBe(false);
         expect(entry.pending).toBe(false);
     });
     it('never bypasses failed verified authorization when the release gate is enabled', async () => {
@@ -97,11 +93,11 @@ describe('Crown entry admission', () => {
         expect((await entry.start('Alice',1,()=>true)).state).toBe('ready');
         expect(dependencies.legacyInterstitial).not.toHaveBeenCalled();
     });
-    it.each([true,false])('discards revoked permission and same-account reauthentication before activation (enabled=%s)', async enabled => {
-        const {entry,dependencies}=setup(enabled); let revision=1;
-        const gate=deferred<any>(); if(enabled) dependencies.authorize.mockReturnValue(gate.promise); else dependencies.legacyPaid.mockReturnValue(gate.promise);
+    it('discards revoked permission and same-account reauthentication during authorization', async () => {
+        const {entry,dependencies}=setup(true); let revision=1;
+        const gate=deferred<typeof receipt>(); dependencies.authorize.mockReturnValue(gate.promise);
         const captured=revision, pending=entry.start('Alice',1,()=>captured===revision);
-        revision++; gate.resolve(enabled?receipt:false);
+        revision++; gate.resolve(receipt);
         expect(await pending).toEqual({state:'cancelled'}); expect(dependencies.legacyInterstitial).not.toHaveBeenCalled();
     });
     it('does not let an older cancelled request clear a newer pending entry', async () => {

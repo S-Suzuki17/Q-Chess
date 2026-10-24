@@ -24,12 +24,32 @@ function fixture(supported=true,live=false,canShowAds: (userId?:string)=>boolean
   prepareInterstitial:vi.fn().mockResolvedValue({}),
   showInterstitial:vi.fn().mockResolvedValue(undefined),
  };
- const load=vi.fn(async()=>sdk as unknown as AdMobPlugin);
- return{ads:new NativeAds(()=>supported,()=>live,load,canShowAds),sdk,load,events,removed};
+ const load=vi.fn(async()=>({AdMob:sdk as unknown as AdMobPlugin}));
+ const audience=vi.fn(async()=>true);
+ return{ads:new NativeAds(()=>supported,()=>live,load,canShowAds,undefined,audience),sdk,load,events,removed,audience};
 }
 async function flush(){for(let i=0;i<40;i++)await Promise.resolve();}
 afterEach(()=>{vi.useRealTimers();resetAdEntitlement();});
 describe('Android AdMob lifecycle',()=>{
+ it('never treats the Capacitor plugin proxy as a Promise during privacy or ad setup',async()=>{
+  const f=fixture();const then=vi.fn(()=>{throw new Error('AdMob.then() is not implemented on android');});
+  const proxy=new Proxy(f.sdk,{get(target,prop,receiver){if(prop==='then')return then;return Reflect.get(target,prop,receiver);}});
+  f.load.mockResolvedValue({AdMob:proxy as unknown as AdMobPlugin});
+  await f.ads.privacyRequirement();
+  const result=f.ads.reward('hint',proof);await flush();
+  expect(f.sdk.showRewardVideoAd).toHaveBeenCalledOnce();
+  f.events.get('reward')!();f.events.get('dismiss')!();
+  expect(await result).toBe('earned');expect(then).not.toHaveBeenCalled();
+ });
+ it('skips provider initialization when the age prompt is cancelled',async()=>{
+  const f=fixture();f.audience.mockResolvedValue(false);
+  expect(await f.ads.interstitial()).toBe('unavailable');expect(f.load).not.toHaveBeenCalled();
+ });
+ it('rechecks the account after the age prompt before requesting consent',async()=>{
+  let eligible=true;const f=fixture(true,false,()=>eligible);
+  f.audience.mockImplementation(async()=>{eligible=false;return true;});
+  expect(await f.ads.reward('hint',proof)).toBe('unavailable');expect(f.load).not.toHaveBeenCalled();
+ });
  it('does not initialize on Web or without a server intent',async()=>{
   const f=fixture(false);expect(await f.ads.reward('hint',proof)).toBe('unavailable');expect(f.load).not.toHaveBeenCalled();
   const android=fixture();expect(await android.ads.reward('hint',{...proof,intentId:''})).toBe('unavailable');expect(android.load).not.toHaveBeenCalled();

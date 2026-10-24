@@ -22,6 +22,7 @@ import { CIRCUIT_STAGES, finishStage, stageUnlocked } from '../config/circuitSta
 import { stageText } from '../locales/stageText';
 import { randomCPUPersonality } from '../config/cpuPersonalities';
 import { requestCircuitInterstitial } from '../lib/adPolicy';
+import { createCircuitResultTransition } from '../lib/circuitResultAd';
 import { circuitAccess } from '../lib/circuitAccess';
 import { useCircuitAccess } from '../hooks/useCircuitAccess';
 import { GuestCircuitPreview } from './GuestCircuitPreview';
@@ -70,16 +71,14 @@ function MemberCircuit({lang,user,onBack,onPlayingChange}:CampaignProps) {
     const [runDesign,setRunDesign]=useState(()=>({music:progress.music,effect:progress.effect,piece:progress.piece}));
     const [starting,setStarting]=useState(false);
     const [entryError,setEntryError]=useState(false);
+    const [leavingResult,setLeavingResult]=useState(false);
+    const resultPending=useRef(false);
+    const [resultTransition]=useState(()=>createCircuitResultTransition(requestCircuitInterstitial));
     const [journey,setJourney]=useState<MapJourney|null>(null);
     const [runProgress,setRunProgress]=useState(progress);
     const finishedRun=useRef(false);
     const [entry]=useState(()=>createCrownEntryController({
         enabled:crownAdmissionEnabled,authorize:authorizeCrownStage,
-        legacyPaid:async(userId,signal)=>{
-            const {readStripeMembershipStatus}=await import('../lib/stripeMembership');
-            return (await readStripeMembershipStatus(userId,signal)).active;
-        },
-        legacyInterstitial:requestCircuitInterstitial,
     }));
     const runPermit=useRef<(()=>boolean)|null>(null);
     useEffect(()=>()=>{entry.cancel();runPermit.current=null;onPlayingChange?.(false);},[entry,onPlayingChange]);
@@ -148,10 +147,13 @@ function MemberCircuit({lang,user,onBack,onPlayingChange}:CampaignProps) {
         setFirstClear(!progress.stageStars?.[id-1]);setSelected(id);setOutcome(null);setRun(value=>value+1);setActiveId(id);
     };
     const leaveStage=()=>{runPermit.current=null;returnFocus.current=true;cancelEntry();setActiveId(null);onPlayingChange?.(false);};
-    const afterResult=async(action:()=>void)=>{
+    const afterResult=async(action:()=>void|Promise<void>)=>{
         const permit=runPermit.current;
-        if(!permit?.())return;
-        if(permit()&&runPermit.current===permit)action();
+        if(resultPending.current||!outcome||!finishedRun.current||!crownRunId||!permit?.())return;
+        resultPending.current=true;
+        setLeavingResult(true);
+        try{await resultTransition(crownRunId,user.id,()=>permit()&&runPermit.current===permit,action);}
+        finally{resultPending.current=false;setLeavingResult(false);}
     };
     const nextStage=activeId?castleQuestNextStage(progress,activeId,outcome,storageError):null;
     const goNext=()=>{
@@ -174,7 +176,7 @@ function MemberCircuit({lang,user,onBack,onPlayingChange}:CampaignProps) {
             resultPanel={outcome&&<CampaignResult lang={lang} stageId={activeId} firstClear={firstClear} effect={runDesign.effect} pieceFinish={runDesign.piece} foeWhite={side==='black'} outcome={outcome} saveError={storageError}
                 newMusic={CIRCUIT_MUSIC.filter(track=>!runMusic.includes(track.id)&&rewardUnlocked(progress,track.id)).map(track=>track.id)}
                 onRetry={()=>void afterResult(()=>start(activeId))} onBack={()=>void afterResult(leaveStage)}
-                onNext={nextStage?goNext:undefined}/>}/>;
+                busy={leavingResult} onNext={nextStage?()=>void afterResult(goNext):undefined}/>}/>;
     }
     return <section ref={screen} lang={lang} className="campaign-screen crown-screen map-screen" data-circuit-stage={selected} aria-label={t('title')}>
         <header className="campaign-header crown-header">

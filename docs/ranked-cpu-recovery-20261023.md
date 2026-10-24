@@ -9,3 +9,5 @@ CPUサービスエラーによる中断の報告を受けて探索の時間制�
 検証は関連82テストとサーバービルドが合格。ビルドした本番ワーカーによる合成対局12手もすべて合法で、1msと210msの交互の思考予算に対して42〜266msで返った。外部対局・アカウント・台帳を作らない検証である。証拠は `build/supervision-20261023/cpu-recovery-tests.json` と `cpu-worker-acceptance.json`。別のオンライン統合テストはサーバー起動フックが10秒でタイムアウトし、CPUテスト実行前に停止したため、独立した実ワーカー検証で確認した。
 
 反映対象はWebとAndroidが共通で利用する対局サーバー。DBスキーマ・残高・クライアント配布物の変更はない。復旧は直前のサーバーリリースへ戻す。
+
+PR #31は4本のCI成功後にmain `1b8e7bab3b1add553847fc1f61b4d1427e250dd5` へ統合済み。Render `dep-dbdfds61egvs738k1lk0` は2026-10-23 05:56:58 UTCにLiveとなり、公開APIのavailable・maintenance=false・issues=[]を確認した。証拠は `build/supervision-20261023/cpu-production-health.json`。個別の券照合結果は公開リポジトリへ含めない。

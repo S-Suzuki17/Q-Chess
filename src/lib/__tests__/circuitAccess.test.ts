@@ -77,7 +77,7 @@ describe('Crown Circuit login requirement',()=>{
         expect(source).toContain('key={`${props.user.id}:${revision}`}');
         expect(source).toContain('!runPermit.current?.()');
         expect(source).toContain('if(!circuitAccess.canPlay(user)||!loaded');
-        expect(source).toContain('if(permit()&&runPermit.current===permit)action()');
+        expect(source).toContain('resultTransition(crownRunId,user.id,()=>permit()&&runPermit.current===permit,action)');
         expect(source).toContain('const leaveStage=()=>{runPermit.current=null;');
 
     });

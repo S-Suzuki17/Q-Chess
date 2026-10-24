@@ -1,0 +1,114 @@
+{
+  "schemaVersion": 1,
+  "status": "completed",
+  "baseRevision": "1b8e7bab3b1add553847fc1f61b4d1427e250dd5",
+  "reviewer": "Codex — source and guidance comparison plus device acceptance; not an independent human review",
+  "changes": [
+    {
+      "path": "src/app/page.tsx",
+      "gitBlob": "43d4a3ffa84e378b32402da98a0a072a0635c497"
+    },
+    {
+      "path": "src/components/CampaignMode.tsx",
+      "gitBlob": "4474b32aafd441375da84c164179029439ea2f1a"
+    },
+    {
+      "path": "src/components/CampaignResult.tsx",
+      "gitBlob": "3913b1a5b2e1fd43dcf851de6d658fae664ff576"
+    },
+    {
+      "path": "src/lib/adPolicy.ts",
+      "gitBlob": "bc4e793da33c9c420f298e10520d8e7fcc24254e"
+    },
+    {
+      "path": "src/lib/nativeAds.ts",
+      "gitBlob": "670ecfb9fc687ddf4a73ed8922060cf52517e650"
+    },
+    {
+      "path": "src/locales/privacyReview.ts",
+      "gitBlob": "9621cd445f2222d4d5439f3c18e1720d237c567f"
+    },
+    {
+      "path": "src/locales/siteContent.ts",
+      "gitBlob": "2f5ce7d9133e885597d88d70da05c5c27489f2a8"
+    }
+  ],
+  "reviews": [
+    {
+      "group": "start-and-controls",
+      "decision": "updated",
+      "reason": "開始・ゲスト練習・Google認証の説明を現行コードと照合。100マスの開始前の広告待ちを結果操作後へ移したため、FAQにタイミングを追記した。対局権限、通常5題＋独自5題、16＋9チュートリアルの開始手順は同じ。",
+      "checkedPages": [
+        "/guide/#start",
+        "/faq/#guest"
+      ],
+      "evidence": [
+        "docs/ads-release-20261023.md: scope, device test results and unverified live-delivery boundary",
+        "src/locales/siteContent.ts: Japanese/English guide and FAQ checked against CampaignMode, WeeklyProblems, NativeRewardSettings",
+        "src/locales/privacyReview.ts and src/locales/adAudienceText.ts: local-only age-range disclosure in all twelve languages",
+        "build/supervision-20261023/ads-release-tests.log: 100 targeted checks passed",
+        "build/supervision-20261023/device/instrumentation-rewardedAdvertising.txt: real Google test videos, earned events and native dismissal passed"
+      ]
+    },
+    {
+      "group": "commerce-and-disclosures",
+      "decision": "updated",
+      "reason": "12言語のプライバシーに年齢層を端末内だけに保存することを追加し、FAQに広告の任意視聴・サーバー確認後の券反映・確認待ち時の再確認を記載。Web広告無効とAndroid限定の開示を維持する。価格、購入受付、会員資格、問い合わせ先と利用規約の版は変更しない。",
+      "checkedPages": [
+        "/faq/#hints",
+        "/contact/",
+        "/privacy/",
+        "/terms/"
+      ],
+      "evidence": [
+        "docs/ads-release-20261023.md: scope, device test results and unverified live-delivery boundary",
+        "src/locales/siteContent.ts: Japanese/English guide and FAQ checked against CampaignMode, WeeklyProblems, NativeRewardSettings",
+        "src/locales/privacyReview.ts and src/locales/adAudienceText.ts: local-only age-range disclosure in all twelve languages",
+        "build/supervision-20261023/ads-release-tests.log: 100 targeted checks passed",
+        "build/supervision-20261023/device/instrumentation-rewardedAdvertising.txt: real Google test videos, earned events and native dismissal passed"
+      ]
+    },
+    {
+      "group": "public-guidance-and-navigation",
+      "decision": "updated",
+      "reason": "日本語・英語FAQにAndroidの広告タイミング、年齢設定、未配信時の継続と報酬確認を追加。公開ガイド、ルール、運営情報、連絡先、規約、公開ページへの導線を現行ソースと照合し、広告承認・全利用者への配信済みとは記載しない。プライバシーは12言語の年齢保存を説明する。",
+      "checkedPages": [
+        "/",
+        "/guide/",
+        "/faq/",
+        "/rules/",
+        "/about/",
+        "/contact/",
+        "/privacy/",
+        "/terms/"
+      ],
+      "evidence": [
+        "docs/ads-release-20261023.md: scope, device test results and unverified live-delivery boundary",
+        "src/locales/siteContent.ts: Japanese/English guide and FAQ checked against CampaignMode, WeeklyProblems, NativeRewardSettings",
+        "src/locales/privacyReview.ts and src/locales/adAudienceText.ts: local-only age-range disclosure in all twelve languages",
+        "build/supervision-20261023/ads-release-tests.log: 100 targeted checks passed",
+        "build/supervision-20261023/device/instrumentation-rewardedAdvertising.txt: real Google test videos, earned events and native dismissal passed"
+      ]
+    },
+    {
+      "group": "qube-teaching",
+      "decision": "updated",
+      "reason": "QUBEヒント・チュートリアル・候補説明・昇格・キャスリング・外観獲得条件は同じ。FAQの広告説明を結果画面と設定に合わせた。100マスの広告はゲーム完了後の操作にだけ付随し、ヒント、勝敗、週替わり全問報酬の条件を変えない。廃止済みQUBE投稿は作成しない。",
+      "checkedPages": [
+        "/",
+        "/about/",
+        "/rules/",
+        "/guide/",
+        "/faq/",
+        "game: tutorial, help dialogs, move hints and feedback, promotion/castling, stage/setup explanations, cosmetic preview/equipment guidance"
+      ],
+      "evidence": [
+        "docs/ads-release-20261023.md: scope, device test results and unverified live-delivery boundary",
+        "src/locales/siteContent.ts: Japanese/English guide and FAQ checked against CampaignMode, WeeklyProblems, NativeRewardSettings",
+        "src/locales/privacyReview.ts and src/locales/adAudienceText.ts: local-only age-range disclosure in all twelve languages",
+        "build/supervision-20261023/ads-release-tests.log: 100 targeted checks passed",
+        "build/supervision-20261023/device/instrumentation-rewardedAdvertising.txt: real Google test videos, earned events and native dismissal passed"
+      ]
+    }
+  ]
+}

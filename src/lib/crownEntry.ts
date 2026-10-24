@@ -3,8 +3,6 @@ import type { CrownAuthorization } from './crownAdmission';
 type Dependencies = {
     enabled(): boolean;
     authorize(userId: string, stageId: number, signal: AbortSignal): Promise<CrownAuthorization>;
-    legacyPaid(userId: string, signal: AbortSignal): Promise<boolean>;
-    legacyInterstitial(key: string): Promise<unknown>;
 };
 type EntryResult = { state: 'ready'; canActivate(): boolean } | { state: 'busy' | 'cancelled' | 'reward_required' | 'unavailable' };
 /** One pending entry per mounted Campaign. The captured permission predates all
@@ -28,16 +26,6 @@ export function createCrownEntryController(dependencies: Dependencies) {
                     if (!current()) return { state: 'cancelled' };
                     if (result.userId !== userId) return { state: 'unavailable' };
                     if (result.state === 'reward_required') return { state: 'reward_required' };
-                } else {
-                    // Existing public behavior while both release gates are closed.
-                    // Interstitial completion is never treated as verified reward evidence.
-                    let paid = false;
-                    try { paid = await dependencies.legacyPaid(userId, controller.signal); } catch { /* Existing fallback. */ }
-                    if (!current()) return { state: 'cancelled' };
-                    if (!paid) {
-                        try { await dependencies.legacyInterstitial(`circuit-display:${crypto.randomUUID()}`); }
-                        catch { /* Ads are optional while admission/provider gates are closed. */ }
-                    }
                 }
                 return current() ? { state: 'ready', canActivate: current } : { state: 'cancelled' };
             } catch { return { state: current() ? 'unavailable' : 'cancelled' }; }
