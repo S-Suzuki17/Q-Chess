@@ -89,11 +89,12 @@ try{
         results.push(`${viewport.width}: three time controls and retry share strength 1; stage 4 uses strength 2`);
 
         await page.evaluate(()=>{window.qaEnabled=false;window.qaMembershipHold=true;});const before=requests;
-        await start();await page.waitForFunction(()=>!!window.qaReleaseMembership);
-        await page.locator('.campaign-header button').first().click();await page.evaluate(()=>{window.qaMembershipHold=false;window.qaReleaseMembership();});
-        await page.waitForTimeout(60);assert.equal(requests,before);assert.equal(await page.locator('[data-crown-board]').count(),0);
+        await start();await page.locator('[data-crown-board]').waitFor();
+        assert.equal(requests,before);assert.equal(await page.evaluate(()=>window.qaMembershipCalls??0),0,'Starting a challenge must not wait for membership or optional ads');
+        await page.locator('[data-leave]').click();await page.locator('.campaign-header button').first().click();
         await page.locator('[data-reopen]').click();await start();await page.locator('[data-crown-board]').waitFor();
-        await page.locator('[data-leave]').click();results.push(`${viewport.width}: closed gate preserves legacy paid entry and cancels delayed membership lookup`);
+        assert.equal(await page.evaluate(()=>window.qaMembershipCalls??0),0);
+        await page.locator('[data-leave]').click();results.push(`${viewport.width}: closed gate starts and reopens without membership lookup or optional ad waits`);
         await page.screenshot({path:resolve(output,`campaign-${viewport.width}.png`)});
         assert.deepEqual(errors,[]);await context.close();
     }
