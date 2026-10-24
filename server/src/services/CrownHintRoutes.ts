@@ -43,17 +43,20 @@ export function createCrownHintRouter(auth: RankedSessionAuthority, options: Cro
             const abort = () => controller.abort(new CrownHintError('CANCELLED'));
             req.once('aborted', abort);
             res.once('close', () => { if (!res.writableEnded) abort(); });
-            const context: CrownHintRequestContext = { signal: controller.signal, async check() {
+            const checkSync = () => {
                 controller.signal.throwIfAborted();
                 if (gate.blocked(userId)) throw new CrownHintError('ACCOUNT_UNAVAILABLE');
                 if (!recovery && options.accountBusy?.(userId)) throw new CrownHintError('ACCOUNT_BUSY');
+            };
+            const context: CrownHintRequestContext = { signal: controller.signal, async check() {
+                checkSync();
                 if (legacy ? !(await auth.verifySession(token, userId)) : !token || await options.verifyUser(token) !== userId) {
                     throw new CrownHintError('AUTH_REQUIRED');
                 }
                 controller.signal.throwIfAborted();
             } };
-            await context.check();
-            res.locals.crownUser = userId; res.locals.crownContext = context; next();
+            checkSync();
+            res.locals.crownUser = userId; res.locals.crownContext = context; res.locals.crownCheckSync = checkSync; next();
         } catch (error) { if (!res.destroyed) respondError(res, error); }
     };
     const json: RequestHandler = (req, res, next) => {
@@ -70,9 +73,12 @@ export function createCrownHintRouter(auth: RankedSessionAuthority, options: Cro
         if (!release) { res.status(423).json({ code: 'ACCOUNT_UNAVAILABLE' }); return; }
         try {
             const context: CrownHintRequestContext = res.locals.crownContext;
-            await context.check();
-            const result = await run(body, res.locals.crownUser, context, req);
-            await context.check();
+            const checkSync: () => void = res.locals.crownCheckSync;
+            checkSync();
+            const pending = run(body, res.locals.crownUser, context, req);
+            const result = pending instanceof Promise ? (await pending) : pending;
+            if (pending instanceof Promise) await context.check();
+            else checkSync();
             if (!res.destroyed) res.json(result);
         } catch (error) { if (!res.destroyed) respondError(res, error); }
         finally { release(); }

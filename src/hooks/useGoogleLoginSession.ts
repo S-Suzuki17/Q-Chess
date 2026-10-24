@@ -38,6 +38,7 @@ export function useGoogleLoginSession(onReady:(user:User)=>void,onSignedOut:()=>
         const restore=async(session:Session|null)=>{
             if(!alive.current||suspended.current)return;
             if(session&&accepted.current===session.user.id&&!wantsGooglePasswordReset())return;
+            if(session&&scope.current?.authId===session.user.id&&!scope.current.controller.signal.aborted&&!wantsGooglePasswordReset())return;
             const previous=accepted.current;invalidate();
             const request=generation.current;
             const attempt=circuitAccess.beginAuthentication(),controller=new AbortController();

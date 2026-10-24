@@ -48,6 +48,9 @@ const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'dummy_key';
 export class SupabaseService {
     private supabase: SupabaseClient;
     private ratingRequests = new Map<string, Promise<number | null>>();
+    private rankedReadyCache: { until: number; promise: Promise<boolean> } | null = null;
+    private googleLinkCache = new Map<string, { userId: string; until: number }>();
+    private googleLinkRequests = new Map<string, Promise<string | null>>();
     private pendingAuth=0;
 
     constructor(client?: SupabaseClient) {
@@ -165,10 +168,21 @@ export class SupabaseService {
     }
 
     public async rankedReady():Promise<boolean> {
-        try {
-            const {data,error}=await this.supabase.rpc('ranked_protocol_version').abortSignal(AbortSignal.timeout(3000));
-            return !error && data===1;
-        } catch { return false; }
+        const now = Date.now();
+        if (this.rankedReadyCache && this.rankedReadyCache.until > now) return this.rankedReadyCache.promise;
+        const promise = (async () => {
+            try {
+                const {data,error}=await this.supabase.rpc('ranked_protocol_version').abortSignal(AbortSignal.timeout(3000));
+                const ok = !error && data===1;
+                if (!ok) this.rankedReadyCache = null;
+                return ok;
+            } catch {
+                this.rankedReadyCache = null;
+                return false;
+            }
+        })();
+        this.rankedReadyCache = { until: now + 60_000, promise };
+        return promise;
     }
 
     public async getPrivateGameRecords(userId:string, limit=PRIVATE_RECORD_LIMIT):Promise<PrivateGameRecord[]> {
@@ -266,7 +280,24 @@ export class SupabaseService {
         if(!user)return null;
         if(!googleAccountsEnabled())return user.id;
         if(!verifiedGoogleActor(token,user))return null;
-        return (await this.googleAccountStore().read(user.id))?.userId??null;
+        const now=Date.now(),cached=this.googleLinkCache.get(user.id);
+        if(cached&&cached.until>now)return cached.userId;
+        const pending=this.googleLinkRequests.get(user.id);
+        if(pending)return pending;
+        const request=(async()=>{
+            const {data,error}=await this.supabase.from('google_account_links').select('user_id').eq('auth_user_id',user.id)
+                .abortSignal(AbortSignal.timeout(5000)).maybeSingle();
+            if(error)throw new SessionAuthorityUnavailable();
+            const userId=typeof data?.user_id==='string'&&data.user_id?data.user_id:null;
+            if(userId){
+                if(this.googleLinkCache.size>=1000)this.googleLinkCache.clear();
+                this.googleLinkCache.set(user.id,{userId,until:Date.now()+60_000});
+            }
+            return userId;
+        })();
+        this.googleLinkRequests.set(user.id,request);
+        void request.finally(()=>this.googleLinkRequests.delete(user.id)).catch(()=>{});
+        return request;
     }
 
     private async verifiedAuthUser(token: string): Promise<AuthUser | null> {
@@ -289,12 +320,18 @@ export class SupabaseService {
             if (user.is_anonymous===true) return null;
             const sessionId=verifiedTokenSessionId(token,user.id);
             if(!sessionId)return null;
-            const {data:live,error:sessionError}=await this.supabase.rpc('account_session_active',{p_user_id:user.id,p_session_id:sessionId});
+            const recoveryEnabled=process.env.ACCOUNT_RECOVERY_ENABLED==='true';
+            const [sessionRes,recoveryRes]=await Promise.all([
+                this.supabase.rpc('account_session_active',{p_user_id:user.id,p_session_id:sessionId}),
+                recoveryEnabled
+                    ? this.supabase.from('account_recovery_emails').select('user_id').eq('auth_user_id',user.id).maybeSingle()
+                    : Promise.resolve({data:null,error:null}),
+            ]);
+            const {data:live,error:sessionError}=sessionRes;
             if(expired||sessionError||typeof live!=='boolean')throw new SessionAuthorityUnavailable();
             if(!live)return null;
-            if(process.env.ACCOUNT_RECOVERY_ENABLED==='true') {
-                const {data:recovery,error:lookupError}=await this.supabase.from('account_recovery_emails')
-                    .select('user_id').eq('auth_user_id',user.id).maybeSingle();
+            if(recoveryEnabled) {
+                const {data:recovery,error:lookupError}=recoveryRes;
                 // A recovery-only Auth identity is not a second playable account.
                 if(expired||lookupError)throw new SessionAuthorityUnavailable();
                 if(recovery!==null&&(typeof recovery!=='object'||Array.isArray(recovery)||typeof recovery.user_id!=='string'||!recovery.user_id))throw new SessionAuthorityUnavailable();

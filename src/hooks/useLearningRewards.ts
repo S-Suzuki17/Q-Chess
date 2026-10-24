@@ -1,6 +1,6 @@
 'use client';
 import {useCallback,useEffect,useRef,useState} from 'react';
-import {completeLearning,readLearning,type LearningStatus,type LearningReceipt,type LearningSubmission} from '../lib/learningApi';
+import {completeLearning,getCachedLearningStatus,readLearning,type LearningStatus,type LearningReceipt,type LearningSubmission} from '../lib/learningApi';
 import {parseLearningSubmission} from '../../server/src/learning/protocol';
 const key=(userId:string)=>`qg_learning_pending_v1:${userId}`;
 function saved(userId:string):LearningSubmission[] {
@@ -12,11 +12,11 @@ function saved(userId:string):LearningSubmission[] {
 const submissionKey=(p:LearningSubmission)=>p.kind==='tutorial'?`tutorial:${p.lessonId}`:`weekly:${p.week}:${p.problemId}`;
 /** Pending proof survives a lost response/closed dialog. The server is always the reward authority. */
 export function useLearningRewards(userId?:string) {
-    const [status,setStatus]=useState<LearningStatus|null>(null);
+    const [status,setStatus]=useState<LearningStatus|null>(()=>getCachedLearningStatus(userId));
     const [receipt,setReceipt]=useState<LearningReceipt|null>(null);
     const [pending,setPending]=useState<LearningSubmission|null>(null);
     const [busy,setBusy]=useState(false),[error,setError]=useState(false);
-    const [loading,setLoading]=useState(!!userId);
+    const [loading,setLoading]=useState(()=>!!userId&&!getCachedLearningStatus(userId));
     const identity=useRef(userId);identity.current=userId;
     const lifetime=useRef<AbortController|null>(null),inFlight=useRef<AbortSignal|null>(null);
     const queue=useRef<LearningSubmission[]>([]);
@@ -49,20 +49,25 @@ export function useLearningRewards(userId?:string) {
         if(!userId)return;
         const signal=lifetime.current?.signal;
         const revision=mutationRevision.current;
-        setLoading(true);setError(false);
+        if(!getCachedLearningStatus(userId))setLoading(true);
+        setError(false);
         try{
             const result=await readLearning(userId,signal);
             if(identity.current===userId&&!signal?.aborted&&revision===mutationRevision.current){
                 setStatus(result);
                 // An expired week cannot earn new clears. A committed lost response is reflected in this wallet read.
-                if(result.weeklySet)persist(queue.current.filter(p=>p.kind!=='weekly'||p.week>=result.weeklySet!.week));
+                persist(queue.current.filter(p=>p.kind==='tutorial'
+                    ?!result.tutorial.includes(p.lessonId)
+                    :result.weeklySet?p.week>=result.weeklySet.week&&(p.week!==result.weeklySet.week||!result.weekly.includes(p.problemId)):true));
             }
         }catch{if(identity.current===userId&&!signal?.aborted)setError(true);}
         finally{if(identity.current===userId&&!signal?.aborted)setLoading(false);}
     },[userId,persist]);
     useEffect(()=>{
         const controller=new AbortController();lifetime.current=controller;
-        setStatus(null);setReceipt(null);setError(false);setBusy(false);
+        const cached=getCachedLearningStatus(userId);
+        setStatus(cached);setReceipt(null);setError(false);setBusy(false);
+        setLoading(!!userId&&!cached);
         persist(userId?saved(userId):[]);
         if(userId){
             void refresh().then(async()=>{

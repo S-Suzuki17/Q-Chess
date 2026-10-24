@@ -6,6 +6,7 @@ import {gameServerUrl} from './rankedSession';
 import {clientReleaseHeaders} from './clientRelease';
 import {beginOAuthLoginIntent,clearOAuthLoginIntent} from './oauthLoginIntent';
 import {CURRENT_TERMS_VERSION} from '../config/currentTerms';
+import {setLocalTermsConsent} from './currentAccountTerms';
 import {type GoogleAccount,googleAccountFor} from './googleAccountIdentity';
 
 export const GOOGLE_PASSWORD_RESET_KEY='qg_google_password_reset';
@@ -44,6 +45,7 @@ export async function completeGoogleAccount(authId:string,username:string,passwo
         ...(legacyPassword===undefined?{}:{legacyPassword})},signal);
     const account=parseAccount(value.account,authId);
     if(!account)throw new GoogleLoginError('SETUP_UNAVAILABLE');
+    setLocalTermsConsent(account.userId);
     return account;
 }
 export async function startGoogleSignIn(resetPassword=false) {

@@ -46,7 +46,8 @@ export function createCrownAdmissionRouter(auth: RankedSessionAuthority, store: 
                 }
                 controller.signal.throwIfAborted();
             };
-            await check();
+            controller.signal.throwIfAborted();
+            if (gate.blocked(userId)) throw new CrownAdmissionError('ACCOUNT_UNAVAILABLE');
             const result = await store.authorize(userId, rankKey, controller.signal);
             // The durable authorization survives a lost response; a revoked request
             // cannot activate a game with it. A fresh valid request can retrieve it.

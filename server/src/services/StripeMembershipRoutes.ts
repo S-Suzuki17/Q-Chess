@@ -188,10 +188,11 @@ export function createStripeMembershipRouter(
     router.get('/membership/stripe/status', authenticate, async (_req, res) => {
         try {
             const userId = res.locals.memberUser as string;
-            const status = await store.status(userId, api!.livemode);
-            const commerce = commerceStatusStore ? await commerceStatusStore.status(userId, api!.livemode) : null;
-            const owner = portalEnabled() && portalApi
-                ? await store.portalCustomer(userId, portalApi.livemode) : null;
+            const [status, commerce, owner] = await Promise.all([
+                store.status(userId, api!.livemode),
+                commerceStatusStore ? commerceStatusStore.status(userId, api!.livemode) : Promise.resolve(null),
+                portalEnabled() && portalApi ? store.portalCustomer(userId, portalApi.livemode) : Promise.resolve(null),
+            ]);
             res.json({ enabled: true, ...status,
                 ...(commerce ? { commerce } : {}),
                 availableCheckoutSkus: checkoutEnabled() && commerceStore ? api!.availableCheckoutSkus() : [],

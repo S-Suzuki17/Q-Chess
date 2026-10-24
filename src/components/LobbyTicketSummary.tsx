@@ -21,7 +21,15 @@ export function LobbyTicketSummary({user,lang,allowed}:{user:User;lang:Language;
     if(alive&&!current.signal.aborted)setLoaded({userId:status.userId,revision,tickets:status.tickets});
    }).catch(()=>{if(alive&&!current.signal.aborted)setLoaded(null);});
   };
-  const changed=(event:Event)=>{const id=(event as CustomEvent<{userId?:string}>).detail?.userId;if(!id||id===user.id)refresh();};
+  const changed=(event:Event)=>{
+   const detail=(event as CustomEvent<{userId?:string;status?:{userId:string;tickets:DailyTicketAmounts}}>).detail;
+   if(detail?.status?.userId===user.id&&detail.status.tickets){
+    request?.abort();
+    setLoaded({userId:user.id,revision,tickets:detail.status.tickets});
+    return;
+   }
+   if(!detail?.userId||detail.userId===user.id)refresh();
+  };
   const reauthenticated=()=>{setLoaded(null);refresh();};
   const visible=()=>{if(document.visibilityState==='visible')refresh();};
   refresh();window.addEventListener(DAILY_LOGIN_REWARD_CHANGED_EVENT,changed);
