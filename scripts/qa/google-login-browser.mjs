@@ -36,6 +36,7 @@ export async function verifyGoogleLogin(group='all') {
     if(component==='GameBoard')return `export {GameBoard as default} from ${JSON.stringify(stub)};`;
     if(component==='SiteInformation')return `export {Empty as SiteLinks,Empty as SiteIntroduction} from ${JSON.stringify(stub)};`;
     if(component==='MemberTicketsPanel')return `export {Empty as MemberTicketClaimController} from ${JSON.stringify(stub)};`;
+    if(component==='NativeAdAudienceGate')return `export {Empty as NativeAdAudienceGate,Empty as NativeAdAudienceSettings} from ${JSON.stringify(stub)};`;
     return `export {Empty as default,Empty as ${component}} from ${JSON.stringify(stub)};`;
    }
    if(name==='supabase')return `export {supabase,oauthCallbackAtStartup} from ${JSON.stringify(stub)};`;
