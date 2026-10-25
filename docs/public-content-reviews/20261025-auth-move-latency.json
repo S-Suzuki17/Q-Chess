@@ -1,0 +1,69 @@
+{
+  "schemaVersion": 1,
+  "status": "completed",
+  "baseRevision": "51f0adcef1e7df19ddf5e22722190cd12ca51c9b",
+  "reviewer": "Codex",
+  "changes": [
+    {
+      "path": "server/src/quantum-engine/moveGenerator.ts",
+      "gitBlob": "b122172573f5f533275f1411e88e5b56fb192c0d"
+    },
+    {
+      "path": "server/src/quantum-engine/stateTransition.ts",
+      "gitBlob": "8e8e8d65aa141b801f28223ace1ee3b8b80985ed"
+    },
+    {
+      "path": "server/src/quantum-engine/terminal.ts",
+      "gitBlob": "6974ff26a9a87991f0be7b67a3043124ea031200"
+    },
+    {
+      "path": "server/src/services/GoogleAccounts.ts",
+      "gitBlob": "523869ece9d4f179dbb0db1042d1037fbaf179ab"
+    },
+    {
+      "path": "server/src/services/SupabaseService.ts",
+      "gitBlob": "5290d97b755fa5e49e61ad290ded4a519825464b"
+    }
+  ],
+  "reviews": [
+    {
+      "group": "candidates-and-outcomes",
+      "decision": "no-change-needed",
+      "reason": "Compared Japanese and English rules, guide candidates/outcomes/practice/chain and FAQ move/win with the exact engine diff. The single-target query calls the same candidate geometry, blockers, castling, en passant, promotion and identity filters as full enumeration. Candidate propagation, final living King safety and terminal outcomes are unchanged, so the existing explanations remain accurate.",
+      "checkedPages": [
+        "/rules/",
+        "/guide/#candidates",
+        "/guide/#outcomes",
+        "/guide/#practice",
+        "/guide/#chain",
+        "/faq/#move",
+        "/faq/#win"
+      ],
+      "evidence": [
+        "src/locales/siteContent.ts: Japanese and English learningCopy sections, exercises, chain explanations and move/win FAQ inspected",
+        "src/app/rules/page.tsx and src/locales/rulesVisualDict.ts: effective capture and checkmate explanations inspected",
+        "docs/latency-improvement-20261025.md: focused engine regression tests and local before/after measurements passed",
+        "scratch/latency-20261025/browser-results.json and device-results.json: actual practice selection, move, CPU, hint and 3D passed"
+      ]
+    },
+    {
+      "group": "accounts-connections-and-saves",
+      "decision": "no-change-needed",
+      "reason": "Compared Japanese and English connection/save/privacy FAQ, contact instructions and effective privacyReview overrides with GoogleAccounts and SupabaseService changes. Only pending identical-token provider requests are coalesced; every caller still checks current session/recovery identity and later revocation checks remain. Profile linking uses the existing relationship, fails closed on missing/error responses and introduces no new storage, collection, sharing, consent or account workflow. Existing support, authentication and retention explanations require no change.",
+      "checkedPages": [
+        "/faq/#connection",
+        "/faq/#save",
+        "/faq/#privacy",
+        "/contact/",
+        "/privacy/"
+      ],
+      "evidence": [
+        "src/locales/siteContent.ts: Japanese and English connection/save/privacy FAQ and contact copy inspected",
+        "src/app/privacy/page.tsx, src/locales/privacyReview.ts and src/components/AccountDataGuide.tsx: effective account/storage/privacy disclosures inspected",
+        "server/src/services/GoogleAccountIdentity.test.ts: pending-only coalescing, per-caller live checks, token isolation, retry and timeout coverage passed",
+        "server/src/services/GoogleAccounts.test.ts: one joined API read and missing-profile/error fail-closed coverage passed",
+        "docs/latency-improvement-20261025.md: six synthetic account scenarios passed for each Web/Android export"
+      ]
+    }
+  ]
+}

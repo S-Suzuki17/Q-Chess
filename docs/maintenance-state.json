@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-10-25T08:28:11.965Z",
+  "updatedAt": "2026-10-25T08:34:38.680Z",
   "ownerThread": "01a164bb-3c83-7030-a0b9-730230049a96",
   "sourceHead": "0e2f5078d09d177b595fd8b7496c549db8687ad5",
   "mergedPullRequest": "https://github.com/S-Suzuki17/Q-Chess/pull/33",
@@ -69,9 +69,9 @@
   ],
   "inProgress": [
     "Publish approved latency correction through GitHub CI, main, Render and Pages",
-    "Obtain Android 30 Play submission approval after verified package and isolated Pixel 10 acceptance",
     "Keep prior Play 29 follow-up with its existing owner",
-    "Web advertising provider/review remains separate; no new advertising integration"
+    "Web advertising provider/review remains separate; no new advertising integration",
+    "Submit verified Android 30 to Play production under explicit approval; preserve six pending disclosure/store changes"
   ],
   "android": {
     "versionCode": 29,
@@ -113,8 +113,18 @@
       "embeddedWebFilesVerifiedPerArtifact": 259,
       "aabSignedEntriesVerified": 766,
       "signingCertificateSha256": "296a49d93e3341a63053d5d55c106f6990453c0a929c529f962c4b83c6683273",
-      "playSubmissionApproved": false,
-      "deviceEvidence": "scratch/latency-20261025/device-results.json"
+      "playSubmissionApproved": true,
+      "deviceEvidence": "scratch/latency-20261025/device-results.json",
+      "approval": {
+        "versionCode": 30,
+        "versionName": "1.25",
+        "track": "production",
+        "countries": "preserve all current production regions",
+        "submitForReview": true,
+        "publishAfterApproval": true,
+        "preserveExistingSixChanges": true,
+        "paidPlan": false
+      }
     }
   },
   "ads": {
@@ -141,7 +151,7 @@
   },
   "next": [
     "Publish approved latency correction and verify live Render/Pages revisions",
-    "Obtain separate Android 30 Play submission approval",
+    "Submit approved Android 30 to Play production and publish when approved",
     "Keep all plans free; do not add paid services",
     "Complete application work before the requested storage consolidation and cleanup"
   ],
@@ -189,8 +199,9 @@
       "relatedTestsAndRecords": true,
       "database": false,
       "paidPlan": false,
-      "play30": false
-    }
+      "play30": true
+    },
+    "pullRequest": "https://github.com/S-Suzuki17/Q-Chess/pull/34"
   },
   "pendingStorageCleanup": {
     "status": "queued_after_application_improvement_and_release_verification",
