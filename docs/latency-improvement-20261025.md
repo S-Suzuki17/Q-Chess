@@ -166,3 +166,16 @@ above remain historical evidence for the previous candidate. Rebuild and verify
 the final artifacts before upload. No plans, fees or database behavior changed.
 
 The user also requested sign-in as the primary home action. The Google button is now first and uses the existing high-contrast primary style; guest, practice and tutorial remain below it. The retained photo stays above the actions on mobile. Four matching before/after browser cases (320/390/1280 px, Japanese/English/Tamil) passed with no overflow, immediate sign-in visibility, dialog cancellation and focus restoration. The existing 32 home/session tests passed. Routine button descriptions and the unselected-board slogan were removed. CI found one old QUBE retirement assertion that required the intentionally removed thinking sentence; it now preserves the image, identity and busy-state assertions without requiring that sentence.
+
+Final photo-above-actions layout was rechecked against Web package
+`cloudflare-pages-2026-10-25T09-03-56-556Z` (product source `c685897`).
+All four cases pass explicit geometry, dialog cancellation and focus restoration;
+`login-layout/final.json` supersedes the intermediate `after.json` layout evidence.
+Shared admission (4 cases), Crown (12), ranked start/recovery (24) and secondary
+screens (16) also pass locally. The admission browser check now verifies disabled
+and busy controls, absent routine status copy, enabled cancellation and error retry.
+The full CI unit suite passed 3594 tests before finding that stale browser assertion.
+Final Web and Android Web exports each pass six synthetic account cases. Native
+rebuild is blocked because F is no longer visible; old APK/AAB and device results
+are kept only as previous-candidate evidence. Play draft 7 has saved name/notes,
+with no bundle uploaded or submitted. No production change is claimed here.

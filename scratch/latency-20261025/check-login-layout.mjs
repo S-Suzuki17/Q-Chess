@@ -30,7 +30,7 @@ try{
    const rect=node=>{const b=node.getBoundingClientRect();return{top:b.top,bottom:b.bottom,left:b.left,right:b.right};};
    return{login:rect(login),guest:rect(guest),preview:rect(preview),background:getComputedStyle(login).backgroundColor,guestBackground:getComputedStyle(guest).backgroundColor,overflow:document.documentElement.scrollWidth>innerWidth+1,firstAction:document.querySelector('.title-screen-actions button')===login};
   });
-  if(phase==='after'){
+  if(phase!=='before'){
    assert(geometry.firstAction);assert(geometry.login.top>=0&&geometry.login.bottom<=height,'Login is immediately reachable');
    assert(geometry.login.bottom<=geometry.guest.top);assert.notEqual(geometry.background,geometry.guestBackground);assert(!geometry.overflow);
    if(width<768)assert(geometry.preview.bottom<=geometry.login.top);

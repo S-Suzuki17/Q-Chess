@@ -45,10 +45,10 @@ const offer = (matchId = ids.first, grantId) => ({
 const words = {
     en: { title: 'Choose how to start this match', ticket: 'Use 1 rank ticket', ad: 'Use 1 verified ad match',
         unavailable: 'Rewarded ad option currently unavailable', cancel: 'Cancel without spending',
-        pending: 'Confirming your choice…', error: 'Couldn’t confirm your choice. Retry or cancel.' },
+        error: 'Couldn’t confirm your choice. Retry or cancel.' },
     ja: { title: 'ランク戦の参加方法', ticket: 'ランク戦チケットを1枚使う', ad: '確認済み広告の1局分を使う',
         unavailable: '広告の参加方法は現在利用できません', cancel: 'キャンセル（消費なし）',
-        pending: '参加を確認中…', error: '参加を確認できませんでした。再試行するかキャンセルしてください。' },
+        error: '参加を確認できませんでした。再試行するかキャンセルしてください。' },
 };
 async function checkLayout(page) {
     const boxes = await page.getByRole('dialog').evaluate(dialog => {
@@ -95,7 +95,6 @@ try {
         const choices = () => messages('choose_match_admission');
         const text = words[lang];
         const ticket = page.getByRole('button', { name: text.ticket, exact: true });
-        const pending = page.getByRole('status');
         const fixture = page.getByTestId('fixture');
         const assertState = async (isPending, isError = false) => {
             await page.waitForFunction(({ isPending, isError }) => {
@@ -120,11 +119,15 @@ try {
             // Synchronous repeated DOM clicks exercise the hook's ref guard too.
             await ticket.evaluate(button => { button.click(); button.click(); });
             assert.deepEqual(await choices(), [{ socket: 'account-a', event: 'choose_match_admission', data: { matchId: ids.first, source: 'ticket' } }]);
-            await assertState(true); assert.equal(await pending.textContent(), text.pending); assert(await ticket.isDisabled());
+            await assertState(true); assert(await ticket.isDisabled());
+            assert.equal(await ticket.getAttribute('aria-busy'), 'true');
+            assert.equal(await page.getByRole('status').count(), 0, 'Pending work stays inside the choice controls');
+            assert(await page.getByRole('button', { name: text.cancel, exact: true }).isEnabled());
             await show(); assert(await ticket.isDisabled()); assert.equal((await choices()).length, 1); await checkLayout(page);
             await receive('match_admission_choice_error', { matchId: ids.next }); await assertState(true);
             await receive('match_admission_choice_error', { matchId: ids.first }); await assertState(false, true);
             assert.equal(await page.getByRole('alert').textContent(), text.error); assert(await ticket.isEnabled());
+            assert.equal(await ticket.getAttribute('aria-busy'), 'false');
             assert.equal((await choices()).length, 1); await checkLayout(page);
             if (artifactDir) await page.screenshot({ path: resolve(artifactDir, `shared-choice-error-${lang}-${width}.png`) });
             await ticket.click(); await assertState(true); assert.equal((await choices()).length, 2);

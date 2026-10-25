@@ -1,7 +1,7 @@
 {
-  "updatedAt": "2026-10-25T08:50:16.455Z",
+  "updatedAt": "2026-10-25T09:28:09.112Z",
   "ownerThread": "01a164bb-3c83-7030-a0b9-730230049a96",
-  "sourceHead": "0e2f5078d09d177b595fd8b7496c549db8687ad5",
+  "sourceHead": "c685897923f2ed99853eae9cb315292d737b36e5",
   "mergedPullRequest": "https://github.com/S-Suzuki17/Q-Chess/pull/33",
   "mainCommit": "51f0adcef1e7df19ddf5e22722190cd12ca51c9b",
   "production": {
@@ -99,22 +99,22 @@
     "nextCandidate": {
       "versionCode": 30,
       "versionName": "1.25",
-      "sourceCommit": "0e2f5078d09d177b595fd8b7496c549db8687ad5",
+      "sourceCommit": "c685897923f2ed99853eae9cb315292d737b36e5",
       "webBuildPassed": true,
       "syntheticAccountCasesPassed": 6,
-      "signingMatchesVersion29": true,
-      "nativeBuild": "rebuild_required_for_quiet_ui",
+      "signingMatchesVersion29": null,
+      "nativeBuild": "final_web_export_and_capacitor_sync_passed_native_rebuild_blocked_F_disconnected",
       "deviceAcceptance": "previous_candidate_passed_new_ui_rerun_required",
       "uploadedToPlay": false,
       "buildDirectory": "F:/QG-Builds/latency30-release-20261025",
-      "releaseApkSha256": "bb2ec619296e2e27e953fe82252c928f5fbc209eea5d9275504a104c23e40511",
-      "releaseAabSha256": "a49ddb935d66d26ebdc89ea62c6930e5dbc60382889f4e2b575ed9aa2f03e7a6",
-      "qaApkSha256": "c83001c1bf32b5142431ade6e0fb1c2e96e848b89e44dfe93b7dea7b32a2c4b2",
-      "embeddedWebFilesVerifiedPerArtifact": 259,
-      "aabSignedEntriesVerified": 766,
-      "signingCertificateSha256": "296a49d93e3341a63053d5d55c106f6990453c0a929c529f962c4b83c6683273",
+      "releaseApkSha256": null,
+      "releaseAabSha256": null,
+      "qaApkSha256": null,
+      "embeddedWebFilesVerifiedPerArtifact": null,
+      "aabSignedEntriesVerified": null,
+      "signingCertificateSha256": null,
       "playSubmissionApproved": true,
-      "deviceEvidence": "scratch/latency-20261025/device-results.json",
+      "deviceEvidence": null,
       "approval": {
         "versionCode": 30,
         "versionName": "1.25",
@@ -129,7 +129,18 @@
         "releaseApkSha256": "bb2ec619296e2e27e953fe82252c928f5fbc209eea5d9275504a104c23e40511",
         "releaseAabSha256": "a49ddb935d66d26ebdc89ea62c6930e5dbc60382889f4e2b575ed9aa2f03e7a6",
         "qaApkSha256": "c83001c1bf32b5142431ade6e0fb1c2e96e848b89e44dfe93b7dea7b32a2c4b2",
-        "deviceEvidence": "scratch/latency-20261025/device-results.json"
+        "deviceEvidence": "scratch/latency-20261025/device-results.json",
+        "embeddedWebFilesVerifiedPerArtifact": 259,
+        "aabSignedEntriesVerified": 766,
+        "signingCertificateSha256": "296a49d93e3341a63053d5d55c106f6990453c0a929c529f962c4b83c6683273",
+        "signingMatchesVersion29": true
+      },
+      "playDraft": {
+        "release": 7,
+        "releaseName": "30 (1.25)",
+        "notesSaved": true,
+        "bundleUploaded": false,
+        "submitted": false
       }
     }
   },
@@ -181,11 +192,12 @@
       "paidPlanChangeApproved": false
     },
     "webCandidate": {
-      "directory": "build/cloudflare-pages-2026-10-25T07-33-03-399Z",
+      "directory": "build/cloudflare-pages-2026-10-25T09-03-56-556Z",
       "files": 261,
-      "manifestSHA256": "964e58516434c4f984a21fe0eaa7526a78ea9a987578f20d4eb5b89152ab17af",
+      "manifestSHA256": "7f6bf8693c403934130e7004b7bfa0f4f48d24b1003efab561b87823a13450e8",
       "uploaded": false,
-      "superseded": true
+      "superseded": false,
+      "sourceCommit": "c685897923f2ed99853eae9cb315292d737b36e5"
     },
     "verified": {
       "focusedUnitTests": 241,
@@ -195,7 +207,7 @@
       "serverBuild": true,
       "typecheck": true
     },
-    "next": "Push reviewed source and records; verify CI and merge; deploy Web/server on free plans",
+    "next": "Finish PR #34 CI and merge, then verify Render and Pages deployment; Android rebuild waits for stable F drive",
     "approvedOriginalCommit": "e6faa3355d829527c243758c8dd7df90054fbb84",
     "sameImplementationTree": "25c99be6143cacd199c443bfdd082b8d86de9a7a",
     "approval": {
@@ -233,7 +245,7 @@
   },
   "quietInterface": {
     "requestedByUser": true,
-    "status": "source_and_targeted_tests_passed",
+    "status": "final_web_and_android_web_exports_passed_native_rebuild_pending",
     "scope": "Remove routine move, hint, admission, sign-in and 3D preparation copy and decorative title slogans; preserve errors, recovery, consent and hints",
     "verified": {
       "targetedTests": 201,
@@ -241,8 +253,18 @@
       "hintBrowserWidths": [
         390,
         1280
-      ]
+      ],
+      "finalHomeLayoutCases": 4,
+      "sharedAdmissionBrowserCases": 4,
+      "crownBrowserCases": 12,
+      "rankedStartBrowserCases": 24,
+      "secondaryScreenBrowserCases": 16,
+      "finalArtifactSyntheticAccountCases": {
+        "web": 6,
+        "android": 6
+      },
+      "homeEvidence": "scratch/latency-20261025/login-layout/final.json"
     },
-    "release": "Rebuild Web and Android 30 before upload; earlier artifact hashes and device evidence apply only to the previous candidate"
+    "release": "Web package bound to c685897 is ready. Production remains PR #33 pending CI and deployment. Final Android native artifact/device acceptance are pending; previousCandidate is historical."
   }
 }
