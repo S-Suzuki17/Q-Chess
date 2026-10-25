@@ -147,3 +147,20 @@ cleanup is queued **after application improvement and release verification**.
 No storage cleanup has been started. Preserve source changes, signing assets,
 latest verified packages and evidence; inventory remaining files before any
 deletion under `permissions.md`.
+
+## Quiet interface request (October 25)
+
+The user requested removal of unnecessary processing copy before publication.
+Routine move confirmation, hint calculation and recovery-button text, admission
+confirmation, saved-sign-in checking, online connection steps and 3D preparation
+copy are no longer shown. Decorative title slogans were removed. Errors, match
+recovery, ticket/consent labels, clocks, QUBE images and actual hint explanations
+remain. Pending hint work keeps its stable label, disabled/busy state and cancel
+control. Online waiting no longer causes a timer render every second.
+
+201 related unit tests and typecheck passed. Existing isolated hint browser
+checks passed at 390/1280 pixels, including repeated clicks, cancellation,
+reduced motion, success/failure and stale replies. This UI revision supersedes
+the previously prepared Web/Android packages; their hashes and Pixel timings
+above remain historical evidence for the previous candidate. Rebuild and verify
+the final artifacts before upload. No plans, fees or database behavior changed.

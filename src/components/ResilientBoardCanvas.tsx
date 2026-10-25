@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { boardFrameLoop, graphicsQuality, observeGraphicsContext, observePageVisibility } from './boardGraphics';
 import { matchText } from '../locales/matchText';
-import { dict, type Language } from '../locales/dict';
+import type { Language } from '../locales/dict';
 
 class GraphicsBoundary extends React.Component<{children: React.ReactNode; onError: () => void}, {failed: boolean}> {
     state = { failed: false };
@@ -66,11 +66,11 @@ export function ResilientBoardCanvas({children, fallback, toolbar, lang, onRetry
     const frameloop = boardFrameLoop(visible, reducedMotion);
     return <>
         <div className="board-scene-tools">
-            {phase !== 'ready' && <div className="board-render-status" role="status">
-                <span>{phase === 'failed' ? matchText(lang,'3Dを表示できないため2Dで表示しています。','3D unavailable. Showing 2D.') : `3D · ${dict[lang].loading}`}</span>
-                {phase === 'failed' && <button type="button" onClick={() => {
+            {phase === 'failed' && <div className="board-render-status" role="status">
+                <span>{matchText(lang,'3Dを表示できないため2Dで表示しています。','3D unavailable. Showing 2D.')}</span>
+                <button type="button" onClick={() => {
                     onRetry(); recoveryCount.current = 0; setEpoch(value => value + 1); setPhase('loading');
-                }}>{matchText(lang,'3Dを再読み込み','Reload 3D')}</button>}
+                }}>{matchText(lang,'3Dを再読み込み','Reload 3D')}</button>
             </div>}
             {toolbar}
         </div>

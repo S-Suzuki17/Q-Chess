@@ -911,8 +911,7 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
             onHome={() => setShowHomeConfirm(true)} onRules={() => setShowRules(true)} onResign={() => setShowResignConfirm(true)}
             boardArrival={crownStageId&&introDone?<MapBoardFocus/>:undefined}
             showMoveHints={showMoveHints} onHintsChange={setShowMoveHints}
-            notice={disconnectTimeLeft !== null ? (matchText(lang, '再接続を待っています… ', 'Waiting for reconnection… ')) + disconnectTimeLeft + 's' : errorMsg ||
-                (crownPending?matchText(lang,'着手を確認しています…','Confirming move…'):undefined)}
+            notice={disconnectTimeLeft !== null ? (matchText(lang, '再接続を待っています… ', 'Waiting for reconnection… ')) + disconnectTimeLeft + 's' : errorMsg || undefined}
             
             board={board}
         >

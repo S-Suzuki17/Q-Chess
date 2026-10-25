@@ -61,8 +61,8 @@ try{
   const context=await browser.newContext({viewport:{width,height},reducedMotion:'reduce'}),page=await context.newPage();
   await context.route('**/*',route=>new URL(route.request().url()).origin===base?route.continue():route.abort());
   await page.clock.install();await page.goto(base+'/?screen=waiting&lang='+lang+'&connected=0');await page.locator('[data-match-waiting=connecting]').waitFor();
-  await fit(page,'.online-match-waiting','connecting '+width+' '+lang);assert.equal(await page.locator('.waiting-steps [data-complete=true]').count(),0);
-  await page.evaluate(()=>window.qaWaiting.setConnected(true));await page.locator('[data-match-waiting=syncing]').waitFor();assert.equal(await page.locator('.waiting-steps [data-complete=true]').count(),1);
+  await fit(page,'.online-match-waiting','connecting '+width+' '+lang);assert.equal(await page.locator('.waiting-steps').count(),0);
+  await page.evaluate(()=>window.qaWaiting.setConnected(true));await page.locator('[data-match-waiting=syncing]').waitFor();assert.equal(await page.locator('.waiting-steps').count(),0);
   await page.clock.fastForward(16000);await page.locator('.waiting-delayed').waitFor();await fit(page,'.online-match-waiting','delayed '+width+' '+lang);
   for(const reason of ['admitting','recovering','unavailable','checking']){await page.evaluate(value=>window.qaWaiting.setPreparation(value),reason);await page.locator(`[data-match-waiting=${reason}]`).waitFor();}
   await page.screenshot({path:resolve(output,`waiting-${width}-${lang}.png`)});

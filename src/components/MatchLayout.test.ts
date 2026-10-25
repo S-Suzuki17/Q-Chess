@@ -147,20 +147,21 @@ describe('Match decision feedback', () => {
         expect(html).toContain('match-hint-action" aria-busy="false"');
         expect(html).not.toContain('qube-icon thinking');
     });
-    it.each(LANGUAGES.map(language => language.code))('exposes pending feedback and a disabled busy action without duplicate icon text in %s', lang => {
+    it.each(LANGUAGES.map(language => language.code))('keeps the hint label stable and action busy without a processing banner in %s', lang => {
         const html = render({lang, hintPending:true});
         const button = html.match(/<button class="match-button match-hint-action"[^]*?<\/button>/)?.[0];
         const status = html.match(/<section class="match-advice"[^]*?<\/section>/)?.[0];
         expect(button).toContain('disabled="" aria-busy="true"');
         expect(button).toContain('src="/qube_icon.jpg" alt="" aria-hidden="true" class="qube-icon thinking"');
-        expect(button).toContain(matchText(lang,'QUBEが考え中…','QUBE is thinking…'));
+        expect(button).toContain(moveHintText(lang).free);
         expect(button).not.toContain('alt="QUBE"');
-        expect(status).toContain(matchText(lang,'QUBEが考え中…','QUBE is thinking…'));
+        expect(status).not.toContain(matchText(lang,'QUBEが考え中…','QUBE is thinking…'));
+        expect(html).not.toContain('data-testid="move-advice"');
         expect(status).not.toContain('aria-busy="true"');
     });
-    it('shows pending feedback ahead of a stale result, then makes a failed hint retryable', () => {
+    it('hides stale advice while pending, then makes a failed hint retryable', () => {
         const pending = render({hintPending:true, hintMove:{fromRow:6,fromCol:4,toRow:4,toCol:4}});
-        expect(pending).toContain('QUBEが考え中…');
+        expect(pending).not.toContain('QUBEが考え中…');
         expect(pending).not.toContain('data-testid="hint-source"');
         const failed = render({hintFailed:true});
         expect(failed).toContain('ヒントを取得できませんでした');

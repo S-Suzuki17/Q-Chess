@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-10-25T08:34:38.680Z",
+  "updatedAt": "2026-10-25T08:50:16.455Z",
   "ownerThread": "01a164bb-3c83-7030-a0b9-730230049a96",
   "sourceHead": "0e2f5078d09d177b595fd8b7496c549db8687ad5",
   "mergedPullRequest": "https://github.com/S-Suzuki17/Q-Chess/pull/33",
@@ -103,8 +103,8 @@
       "webBuildPassed": true,
       "syntheticAccountCasesPassed": 6,
       "signingMatchesVersion29": true,
-      "nativeBuild": "passed",
-      "deviceAcceptance": "isolated_qa_passed",
+      "nativeBuild": "rebuild_required_for_quiet_ui",
+      "deviceAcceptance": "previous_candidate_passed_new_ui_rerun_required",
       "uploadedToPlay": false,
       "buildDirectory": "F:/QG-Builds/latency30-release-20261025",
       "releaseApkSha256": "bb2ec619296e2e27e953fe82252c928f5fbc209eea5d9275504a104c23e40511",
@@ -124,6 +124,12 @@
         "publishAfterApproval": true,
         "preserveExistingSixChanges": true,
         "paidPlan": false
+      },
+      "previousCandidate": {
+        "releaseApkSha256": "bb2ec619296e2e27e953fe82252c928f5fbc209eea5d9275504a104c23e40511",
+        "releaseAabSha256": "a49ddb935d66d26ebdc89ea62c6930e5dbc60382889f4e2b575ed9aa2f03e7a6",
+        "qaApkSha256": "c83001c1bf32b5142431ade6e0fb1c2e96e848b89e44dfe93b7dea7b32a2c4b2",
+        "deviceEvidence": "scratch/latency-20261025/device-results.json"
       }
     }
   },
@@ -178,7 +184,8 @@
       "directory": "build/cloudflare-pages-2026-10-25T07-33-03-399Z",
       "files": 261,
       "manifestSHA256": "964e58516434c4f984a21fe0eaa7526a78ea9a987578f20d4eb5b89152ab17af",
-      "uploaded": false
+      "uploaded": false,
+      "superseded": true
     },
     "verified": {
       "focusedUnitTests": 241,
@@ -223,5 +230,19 @@
     "instructionDate": "2026-10-25",
     "renderMustRemainFree": true,
     "userDecision": "Keep Free and use code improvements only; never use paid plans"
+  },
+  "quietInterface": {
+    "requestedByUser": true,
+    "status": "source_and_targeted_tests_passed",
+    "scope": "Remove routine move, hint, admission, sign-in and 3D preparation copy and decorative title slogans; preserve errors, recovery, consent and hints",
+    "verified": {
+      "targetedTests": 201,
+      "typecheck": true,
+      "hintBrowserWidths": [
+        390,
+        1280
+      ]
+    },
+    "release": "Rebuild Web and Android 30 before upload; earlier artifact hashes and device evidence apply only to the previous candidate"
   }
 }

@@ -72,7 +72,6 @@ export function TitleScreen({ lang, onLogin, initialMode='select', onQuickPracti
                 <h1 className="font-serif text-[#E8E2D7] mb-4">
                     <span>Q</span>-GAMBIT
                 </h1>
-                <p className="text-xs md:text-sm tracking-[0.4em] text-[#A89C86] font-light uppercase">{(t as any)?.subtitle2 || "A game of hidden identity"}</p>
             </div>
 
             <LandingGamePreview lang={lang} />
@@ -123,11 +122,7 @@ export function TitleScreen({ lang, onLogin, initialMode='select', onQuickPracti
                 </dialog>}
             </div>
             
-            {/* SEO & User Content Section for AdSense Quality */}
             <div className="title-screen-description relative w-full z-10 flex flex-col items-center max-w-2xl text-center">
-                <p className="text-gray-400 text-xs md:text-sm mb-2 font-sans pointer-events-none">
-                    {(t as any)?.seoDesc || 'Q-GAMBIT is a revolutionary Quantum Chess experience where pieces exist in a state of superposition. Master the art of information warfare and quantum collapse.'}
-                </p>
                 <div className="flex gap-4">
                     {android ? <a href="https://q-gambit.com/rules/" target="_blank" rel="noopener noreferrer" className="title-rules">
                         {t.rulesGuide || 'READ RULES & STRATEGY GUIDE'}

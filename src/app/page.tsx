@@ -257,8 +257,8 @@ export default function Home() {
     if(googleLogin.state.status==='checking'||googleLogin.state.status==='error'){
         return <><main data-google-session={googleLogin.state.status} className="min-h-[100dvh] flex flex-col items-center justify-center gap-5 bg-[#11100E] px-6 text-[#E8E2D7]">
             <h1 className="font-serif text-3xl">Q-GAMBIT</h1>
-            <p role="status">{googleLogin.state.status==='checking'?matchText(lang,'ログイン状態を確認しています…','Checking your saved sign-in…')
-                :matchText(lang,'ログイン状態を確認できません。接続を確認して再試行してください。','Could not check your sign-in. Check your connection and retry.')}</p>
+            {googleLogin.state.status==='error'&&<p role="alert">{matchText(lang,'ログイン状態を確認できません。接続を確認して再試行してください。','Could not check your sign-in. Check your connection and retry.')}</p>}
+            {googleLogin.state.status==='checking'&&<div role="status" aria-busy="true" aria-label={dict[lang].loading} className="h-5 w-5 rounded-full border-2 border-[#A89C86]/30 border-t-[#A89C86] motion-safe:animate-spin"/>}
             {googleLogin.state.status==='error'&&<button type="button" className="min-h-11 border p-3" onClick={googleLogin.retry}>{matchText(lang,'再試行','Retry')}</button>}
             <button type="button" className="min-h-11 p-3 underline" onClick={()=>{googleLogin.cancel();setUser(null);setGameState('title');}}>{dict[lang].cancel}</button>
         </main>
