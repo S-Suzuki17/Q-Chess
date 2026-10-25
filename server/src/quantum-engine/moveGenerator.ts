@@ -32,77 +32,84 @@ export function isBlocked(
     return false;
 }
 
-export function generateLegalMoves(state: GameState, pieceId: string): MoveCandidate[] {
-    const piece = state.pieces.find(p => p.id === pieceId);
-    if (!piece || !piece.alive || piece.owner !== state.sideToMove) return [];
-
-    const candidates: MoveCandidate[] = [];
+function candidateForTarget(state: GameState, piece: QuantumPiece,
+    targetPos: { row: number; col: number }): MoveCandidate | null {
     const hasMoved = piece.hasMoved;
     const kingStartRow = piece.owner === 'white' ? 7 : 0;
     const forwardDir = piece.owner === 'white' ? -1 : 1;
 
-    for (let r = 0; r < 8; r++) {
-        for (let c = 0; c < 8; c++) {
-            const targetPos = { row: r, col: c };
-            if (posEquals(piece.position, targetPos)) continue;
+    if (posEquals(piece.position, targetPos)) return null;
 
-            const targetPiece = state.pieces.find(p => p.alive && posEquals(p.position, targetPos));
-            if (targetPiece && targetPiece.owner === piece.owner) {
-                continue; // Cannot capture own piece
-            }
+    const targetPiece = state.pieces.find(p => p.alive && posEquals(p.position, targetPos));
+    if (targetPiece && targetPiece.owner === piece.owner) {
+        return null; // Cannot capture own piece
+    }
 
-            const isCapture = !!targetPiece;
-            let requiredTypes = deduceMoveTypesGeometry(piece.position, targetPos, piece.owner, isCapture, hasMoved);
+    const isCapture = !!targetPiece;
+    let requiredTypes = deduceMoveTypesGeometry(piece.position, targetPos, piece.owner, isCapture, hasMoved);
 
-            // Castling Extra Validation
-            if (hasType(requiredTypes, PIECE_KING) && Math.abs(targetPos.col - piece.position.col) === 2 && Math.abs(targetPos.row - piece.position.row) === 0) {
-                const cornerCol = targetPos.col > piece.position.col ? 7 : 0;
-                const cornerToken = state.pieces.find(p => p.alive && p.owner === piece.owner && p.position.row === kingStartRow && p.position.col === cornerCol);
+    // Castling Extra Validation
+    if (hasType(requiredTypes, PIECE_KING) && Math.abs(targetPos.col - piece.position.col) === 2 && Math.abs(targetPos.row - piece.position.row) === 0) {
+        const cornerCol = targetPos.col > piece.position.col ? 7 : 0;
+        const cornerToken = state.pieces.find(p => p.alive && p.owner === piece.owner && p.position.row === kingStartRow && p.position.col === cornerCol);
 
-                // If corner piece has moved or doesn't exist, invalidate castling
-                if (!cornerToken || cornerToken.hasMoved) {
-                    requiredTypes &= ~PIECE_KING;
+        // If corner piece has moved or doesn't exist, invalidate castling
+        if (!cornerToken || cornerToken.hasMoved) {
+            requiredTypes &= ~PIECE_KING;
+        }
+    }
+
+    // En Passant Extra Validation
+    if (!isCapture && Math.abs(targetPos.col - piece.position.col) === 1 && (targetPos.row - piece.position.row) === forwardDir) {
+        const lastMove = state.lastMove;
+        if (lastMove) {
+            const lastMovePiece = state.pieces.find(p => p.id === lastMove.pieceId);
+            if (lastMovePiece && lastMovePiece.owner !== piece.owner && lastMovePiece.position.row === piece.position.row && lastMovePiece.position.col === targetPos.col) {
+                const from = lastMove.from;
+                const startedOnPawnRank = from?.row === (lastMovePiece.owner === 'white' ? 6 : 1);
+                if (from && startedOnPawnRank && from.col === lastMove.target.col &&
+                    Math.abs(lastMove.target.row - from.row) === 2 &&
+                    hasType(lastMovePiece.state, PIECE_PAWN) && !lastMovePiece.promotedType) {
+                    requiredTypes |= PIECE_PAWN;
                 }
-            }
-
-            // En Passant Extra Validation
-            if (!isCapture && Math.abs(targetPos.col - piece.position.col) === 1 && (targetPos.row - piece.position.row) === forwardDir) {
-                const lastMove = state.lastMove;
-                if (lastMove) {
-                    const lastMovePiece = state.pieces.find(p => p.id === lastMove.pieceId);
-                    if (lastMovePiece && lastMovePiece.owner !== piece.owner && lastMovePiece.position.row === piece.position.row && lastMovePiece.position.col === targetPos.col) {
-                        const from = lastMove.from;
-                        const startedOnPawnRank = from?.row === (lastMovePiece.owner === 'white' ? 6 : 1);
-                        if (from && startedOnPawnRank && from.col === lastMove.target.col &&
-                            Math.abs(lastMove.target.row - from.row) === 2 &&
-                            hasType(lastMovePiece.state, PIECE_PAWN) && !lastMovePiece.promotedType) {
-                            requiredTypes |= PIECE_PAWN;
-                        }
-                    }
-                }
-            }
-
-            // Filter out types that the piece does not have
-            if (piece.promotedType) {
-                requiredTypes &= piece.promotedType;
-            } else {
-                requiredTypes &= piece.state;
-            }
-
-            if (requiredTypes === 0) continue;
-
-            if (isBlocked(piece.position, targetPos, state.pieces)) {
-                requiredTypes &= PIECE_KNIGHT;
-            }
-
-            if (requiredTypes !== 0) {
-                candidates.push({
-                    target: targetPos,
-                    requiredTypes
-                });
             }
         }
     }
 
+    // Filter out types that the piece does not have
+    if (piece.promotedType) {
+        requiredTypes &= piece.promotedType;
+    } else {
+        requiredTypes &= piece.state;
+    }
+
+    if (requiredTypes === 0) return null;
+
+    if (isBlocked(piece.position, targetPos, state.pieces)) {
+        requiredTypes &= PIECE_KNIGHT;
+    }
+
+    return requiredTypes ? { target: targetPos, requiredTypes } : null;
+}
+
+/** Check one submitted destination/attack without enumerating the other 63 squares. */
+export function getMoveCandidate(state: GameState, pieceId: string,
+    target: { row: number; col: number }): MoveCandidate | null {
+    if (![target.row, target.col].every(value => Number.isInteger(value) && value >= 0 && value < 8)) return null;
+    const piece = state.pieces.find(p => p.id === pieceId);
+    if (!piece?.alive || piece.owner !== state.sideToMove) return null;
+    return candidateForTarget(state, piece, target);
+}
+
+export function generateLegalMoves(state: GameState, pieceId: string): MoveCandidate[] {
+    const piece = state.pieces.find(p => p.id === pieceId);
+    if (!piece?.alive || piece.owner !== state.sideToMove) return [];
+    const candidates: MoveCandidate[] = [];
+    for (let row = 0; row < 8; row++) {
+        for (let col = 0; col < 8; col++) {
+            const candidate = candidateForTarget(state, piece, { row, col });
+            if (candidate) candidates.push(candidate);
+        }
+    }
     return candidates;
 }

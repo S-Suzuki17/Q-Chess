@@ -51,6 +51,7 @@ export class SupabaseService {
     private rankedReadyCache: { until: number; promise: Promise<boolean> } | null = null;
     private googleLinkCache = new Map<string, { userId: string; until: number }>();
     private googleLinkRequests = new Map<string, Promise<string | null>>();
+    private authUserRequests = new Map<string, ReturnType<SupabaseClient['auth']['getUser']>>();
     private pendingAuth=0;
 
     constructor(client?: SupabaseClient) {
@@ -300,6 +301,25 @@ export class SupabaseService {
         return request;
     }
 
+    /** Join simultaneous provider lookups only. Each caller still checks the live
+     * session below, including post-write revocation fences; no result is cached. */
+    private requestAuthUser(token: string): ReturnType<SupabaseClient['auth']['getUser']> {
+        const pending = this.authUserRequests.get(token);
+        if (pending) return pending;
+        let timeout: ReturnType<typeof setTimeout>;
+        const request = Promise.race([
+            this.supabase.auth.getUser(token),
+            new Promise<never>((_, reject) => {
+                timeout = setTimeout(() => reject(new SessionAuthorityUnavailable()), 5000);
+            }),
+        ]).finally(() => {
+            clearTimeout(timeout);
+            if (this.authUserRequests.get(token) === request) this.authUserRequests.delete(token);
+        });
+        this.authUserRequests.set(token, request);
+        return request;
+    }
+
     private async verifiedAuthUser(token: string): Promise<AuthUser | null> {
         if (typeof token!=='string'||token.length>8192||!/^[-\w]+\.[-\w]+\.[-\w]+$/.test(token)) return null;
         if(this.pendingAuth>=32)throw new SessionAuthorityUnavailable();
@@ -307,7 +327,7 @@ export class SupabaseService {
         let timeout:ReturnType<typeof setTimeout>|undefined,expired=false;
         try {
           return await Promise.race([(async()=>{
-            const { data: { user }, error } = await this.supabase.auth.getUser(token);
+            const { data: { user }, error } = await this.requestAuthUser(token);
             if(expired)throw new SessionAuthorityUnavailable();
             if(error){
                 // Only documented token/account denials are identity evidence.

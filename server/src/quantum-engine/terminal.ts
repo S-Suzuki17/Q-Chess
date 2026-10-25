@@ -1,9 +1,8 @@
 import { GameState, QuantumPiece } from './types';
 import { PIECE_KING, PIECE_PAWN, PIECE_QUEEN, PlayerColor } from './constants';
-import { generateLegalMoves } from './moveGenerator';
+import { generateLegalMoves, getMoveCandidate } from './moveGenerator';
 import { hasType } from './quantum/quantumState';
 import { applyMove } from './stateTransition';
-import { posEquals } from './board';
 
 export function isPlayerInCheck(player: PlayerColor, state: GameState): boolean {
     const potentialKings = state.pieces.filter(p => p.alive && p.owner === player && hasType(p.state, PIECE_KING));
@@ -18,15 +17,9 @@ export function isPlayerInCheck(player: PlayerColor, state: GameState): boolean 
 
     // If any enemy can legally move to the King's position, it is in check.
     for (const enemy of enemies) {
-        // Since we are checking enemy attacks, we evaluate pseudo-legal moves for the enemy
-        // Note: generating legal moves usually checks whose turn it is.
-        // We temporarily bypass turn checks by mapping over all enemies and generating moves directly.
-        // Wait, generateLegalMoves enforces piece.owner === state.sideToMove.
-        // We need a helper to get pseudo-legal attacks ignoring sideToMove.
-        // Let's create a temporary state where it is the enemy's turn.
+        // Only the King's square matters here, not every enemy destination.
         const tempState: GameState = { ...state, sideToMove: enemy.owner };
-        const moves = generateLegalMoves(tempState, enemy.id);
-        if (moves.some(m => posEquals(m.target, king.position))) {
+        if (getMoveCandidate(tempState, enemy.id, king.position)) {
             return true;
         }
     }

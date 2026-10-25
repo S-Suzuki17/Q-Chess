@@ -1,6 +1,6 @@
 import { GameState, Move, QuantumPiece } from './types';
 import { resolveQuantumState } from './quantum/candidateSolver';
-import { generateLegalMoves } from './moveGenerator';
+import { getMoveCandidate } from './moveGenerator';
 import { InvalidMove, QuantumContradiction } from './errors';
 import { PIECE_PAWN, PIECE_KING, PIECE_ROOK } from './constants';
 import { hasType } from './quantum/quantumState';
@@ -13,8 +13,7 @@ export function applyMove(state: GameState, move: Move): GameState {
         throw new InvalidMove("Invalid piece selected for move.");
     }
 
-    const legalMoves = generateLegalMoves(state, move.pieceId);
-    const candidate = legalMoves.find(m => posEquals(m.target, move.target));
+    const candidate = getMoveCandidate(state, move.pieceId, move.target);
     if (!candidate) {
         throw new InvalidMove("Move is not pseudo-legal.");
     }
