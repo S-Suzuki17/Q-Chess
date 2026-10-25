@@ -33,7 +33,7 @@ try{
   if(phase==='after'){
    assert(geometry.firstAction);assert(geometry.login.top>=0&&geometry.login.bottom<=height,'Login is immediately reachable');
    assert(geometry.login.bottom<=geometry.guest.top);assert.notEqual(geometry.background,geometry.guestBackground);assert(!geometry.overflow);
-   if(width<768)assert(geometry.login.bottom<=geometry.preview.top);
+   if(width<768)assert(geometry.preview.bottom<=geometry.login.top);
   }
   await page.screenshot({path:resolve(output,`${phase}-${width}-${lang}.png`)});
   await login.click();await page.locator('.title-auth-dialog[open]').waitFor();

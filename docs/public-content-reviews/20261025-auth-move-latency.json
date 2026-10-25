@@ -46,14 +46,14 @@
     },
     {
       "path": "src/components/TitleScreen.tsx",
-      "gitBlob": "2332a066517eabab98341021840ea27ad1a6912c"
+      "gitBlob": "5b3c9d19bed33d9b120f437d84d61285f3617990"
     }
   ],
   "reviews": [
     {
       "group": "start-and-controls",
       "decision": "no-change-needed",
-      "reason": "Compared Japanese and English guide start steps and guest FAQ with TitleScreen and saved-session rendering. Entry buttons, tutorial, practice, sign-in, cancellation and error retry are unchanged. Only decorative title copy and a routine checking sentence were removed, so the documented starting steps remain accurate. The subsequent user request promotes the existing Google sign-in action above guest, practice and tutorial and moves the retained preview below the action group on mobile. Guest access and guide links remain available with the same labels and behavior, so the starting instructions remain accurate.",
+      "reason": "Compared Japanese and English guide start steps and guest FAQ with TitleScreen and saved-session rendering. Entry buttons, tutorial, practice, sign-in, cancellation and error retry are unchanged. Only decorative title copy and a routine checking sentence were removed, so the documented starting steps remain accurate. The subsequent user request promotes the existing Google sign-in action above guest, practice and tutorial and keeps the retained photo above the action group on mobile. Guest access and guide links remain available with the same labels and behavior, so the starting instructions remain accurate.",
       "checkedPages": [
         "/guide/#start",
         "/faq/#guest"
@@ -137,7 +137,7 @@
     {
       "group": "public-guidance-and-navigation",
       "decision": "no-change-needed",
-      "reason": "Compared the display-only diff with existing Japanese/English guide and FAQ entry text and the prior eight-page review. Removing title slogans and routine process banners does not alter links, access, rules, support, privacy or terms. The actual tutorial, guide/rules links and public documents remain, so their guidance does not require rewriting. The subsequent user request promotes the existing Google sign-in action above guest, practice and tutorial and moves the retained preview below the action group on mobile. Guest access and guide links remain available with the same labels and behavior, so the starting instructions remain accurate.",
+      "reason": "Compared the display-only diff with existing Japanese/English guide and FAQ entry text and the prior eight-page review. Removing title slogans and routine process banners does not alter links, access, rules, support, privacy or terms. The actual tutorial, guide/rules links and public documents remain, so their guidance does not require rewriting. The subsequent user request promotes the existing Google sign-in action above guest, practice and tutorial and keeps the retained photo above the action group on mobile. Guest access and guide links remain available with the same labels and behavior, so the starting instructions remain accurate.",
       "checkedPages": [
         "/",
         "/guide/",
