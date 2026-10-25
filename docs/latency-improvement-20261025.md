@@ -179,3 +179,11 @@ Final Web and Android Web exports each pass six synthetic account cases. Native
 rebuild is blocked because F is no longer visible; old APK/AAB and device results
 are kept only as previous-candidate evidence. Play draft 7 has saved name/notes,
 with no bundle uploaded or submitted. No production change is claimed here.
+
+CI at `2d5339e` passed the unit suite and 23/24 ranked browser cases. The
+`human-normal` reconnect check observed a new transport before React had sent
+`connect_match`: its fixed 1500 ms sleep was a race with Socket.IO backoff.
+The check now awaits increased transport, resume-request and fresh-snapshot
+counts within five seconds, preserving the assertion that no new queue/ticket
+is created. All three reconnect cases pass locally against the final Web package.
+No application timeout or connection behavior changed.
