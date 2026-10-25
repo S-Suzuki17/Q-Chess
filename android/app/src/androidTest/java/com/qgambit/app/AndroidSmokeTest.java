@@ -32,6 +32,8 @@ public class AndroidSmokeTest {
         // Only this disposable QA app's storage is reset, never com.qgambit.app.
         js("localStorage.clear();localStorage.setItem('qg_language','en');true");
         scenario.recreate();
+        scenario.onActivity(activity -> activity.getWindow().addFlags(
+            android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON));
         waitFor("document.querySelector('.title-play') !== null && document.documentElement.lang === 'en'", 30000);
     }
     @After public void finish() { if (scenario != null) scenario.close(); }
@@ -276,6 +278,70 @@ public class AndroidSmokeTest {
         waitFor("!!document.querySelector('[data-graphics-state=ready] canvas')", 20000);
         screenshot("06-resume-3d");
         System.out.println("QG_QA_PASS native platform; Web-only exclusion; policy link; settings; OFF gates; centered automatic intro; guest practice; move+CPU reply; visible 2D/3D; lifecycle resume");
+    }
+
+    @Test public void responsivePracticeWithIsolatedNetwork() throws Exception {
+        // Exercise the shipped bundle in a real WebView without a real login,
+        // backend writes, ad requests, or changes to the installed Play app.
+        js("""
+            (()=>{
+              const nativeFetch=window.fetch.bind(window);
+              window.__qaLatency={};window.__qaBlocked=[];
+              window.fetch=async(input,options={})=>{
+                const url=new URL(typeof input==='string'?input:input.url||String(input),location.href);
+                if(url.origin===location.origin)return nativeFetch(input,options);
+                window.__qaBlocked.push(url.pathname);
+                const data=url.pathname==='/service/status'
+                  ? {maintenance:false,minimumAndroidBuild:0,minimumProtocol:0,serverTime:Date.now(),revision:new Date().toISOString()}
+                  : {code:'QA_NETWORK_BLOCKED'};
+                return new Response(JSON.stringify(data),{status:url.pathname==='/service/status'?200:503,headers:{'Content-Type':'application/json'}});
+              };
+              window.WebSocket=class extends EventTarget {static CONNECTING=0;static OPEN=1;static CLOSING=2;static CLOSED=3;readyState=3;close(){}send(){} };
+              const xhrOpen=XMLHttpRequest.prototype.open;
+              XMLHttpRequest.prototype.open=function(method,input,...rest){
+                const url=new URL(String(input),location.href);
+                if(url.origin!==location.origin){window.__qaBlocked.push(url.pathname);throw new DOMException('QA_NETWORK_BLOCKED','NetworkError');}
+                return xhrOpen.call(this,method,input,...rest);
+              };
+              window.__qaMeasure=(key,predicate,action)=>{
+                const start=performance.now();
+                const observer=new MutationObserver(()=>{
+                  if(predicate()){
+                    observer.disconnect();
+                    requestAnimationFrame(()=>{window.__qaLatency[key]=performance.now()-start;});
+                  }
+                });
+                observer.observe(document.body,{subtree:true,childList:true,attributes:true});
+                action();
+              };
+              return true;
+            })()
+            """);
+        click(".title-practice-direct");
+        waitFor("!!document.querySelector('[data-terms-checkbox], [data-testid=match-board]')",15000);
+        if("true".equals(js("!!document.querySelector('[data-terms-checkbox]')"))) {
+            click("[data-terms-checkbox]");click("[data-terms-accept]");
+        }
+        waitFor("!!document.querySelector('[data-testid=match-board]')&&!document.querySelector('.match-intro')",20000);
+        button("2D");waitFor("!!document.querySelector('[data-square=e2]')",10000);
+        js("window.__qaMeasure('selectionMs',()=>document.querySelector('[data-square=e2]')?.getAttribute('aria-pressed')==='true'&&document.querySelector('[data-square=e4]')?.getAttribute('data-move-target')==='true',()=>document.querySelector('[data-square=e2]').click());true");
+        waitFor("Number.isFinite(window.__qaLatency.selectionMs)",5000);
+        js("window.__qaMeasure('moveMs',()=>document.querySelectorAll('.match-history li').length>=1,()=>{});window.__qaMeasure('moveAndCpuMs',()=>document.querySelectorAll('.match-history li').length>=2,()=>document.querySelector('[data-square=e4]').click());true");
+        waitFor("Number.isFinite(window.__qaLatency.moveAndCpuMs)",30000);
+        System.out.println("QG_QA_LATENCY "+js("JSON.stringify(window.__qaLatency)"));
+        // Hint analysis has a 15-second budget plus worker startup/cleanup.
+        click(".match-hint-action");waitFor("!!document.querySelector('[data-testid=hint-destination]')",30000);
+        button("3D");waitFor("!!document.querySelector('[data-graphics-state=ready] canvas')",30000);
+        assertEquals("true",js("document.hasFocus()&&!document.hidden"));
+        screenshot("latency30-practice-3d");
+        scenario.moveToState(Lifecycle.State.CREATED);SystemClock.sleep(800);
+        scenario.moveToState(Lifecycle.State.RESUMED);
+        waitFor("!!document.querySelector('[data-graphics-state=ready] canvas')&&!document.hidden",15000);
+        // Wide bounds catch a blocked UI; report raw numbers without treating a
+        // physical device result as an Internet-latency benchmark.
+        assertEquals("true",js("window.__qaLatency.selectionMs<1000&&window.__qaLatency.moveMs<1000&&window.__qaLatency.moveAndCpuMs<10000"));
+        System.out.println("QG_QA_LATENCY "+js("JSON.stringify(window.__qaLatency)"));
+        System.out.println("QG_QA_PASS practice selection; move; CPU reply; free hint; 3D; resume; isolated external network");
     }
 
     @Test public void everyRewardBgmDecodesOnAndroid() throws Exception {
