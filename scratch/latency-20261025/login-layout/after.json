@@ -1,0 +1,125 @@
+{
+  "phase": "after",
+  "results": [
+    {
+      "width": 390,
+      "height": 844,
+      "lang": "ja",
+      "geometry": {
+        "login": {
+          "top": 202.296875,
+          "bottom": 256.296875,
+          "left": 33,
+          "right": 342
+        },
+        "guest": {
+          "top": 272.296875,
+          "bottom": 326.296875,
+          "left": 33,
+          "right": 342
+        },
+        "preview": {
+          "top": 573.296875,
+          "bottom": 839.671875,
+          "left": 16,
+          "right": 359
+        },
+        "background": "rgb(229, 215, 182)",
+        "guestBackground": "rgb(36, 40, 32)",
+        "overflow": false,
+        "firstAction": true
+      },
+      "dialogAndCancelPassed": true
+    },
+    {
+      "width": 320,
+      "height": 568,
+      "lang": "ja",
+      "geometry": {
+        "login": {
+          "top": 189.21875,
+          "bottom": 267.21875,
+          "left": 29,
+          "right": 276
+        },
+        "guest": {
+          "top": 283.21875,
+          "bottom": 337.21875,
+          "left": 29,
+          "right": 276
+        },
+        "preview": {
+          "top": 576.21875,
+          "bottom": 816.84375,
+          "left": 16,
+          "right": 289
+        },
+        "background": "rgb(229, 215, 182)",
+        "guestBackground": "rgb(36, 40, 32)",
+        "overflow": false,
+        "firstAction": true
+      },
+      "dialogAndCancelPassed": true
+    },
+    {
+      "width": 1280,
+      "height": 900,
+      "lang": "en",
+      "geometry": {
+        "login": {
+          "top": 207.59375,
+          "bottom": 276.59375,
+          "left": 757.671875,
+          "right": 1127.5
+        },
+        "guest": {
+          "top": 292.59375,
+          "bottom": 346.59375,
+          "left": 757.671875,
+          "right": 1127.5
+        },
+        "preview": {
+          "top": 228.609375,
+          "bottom": 628.203125,
+          "left": 108.5,
+          "right": 664.671875
+        },
+        "background": "rgb(229, 215, 182)",
+        "guestBackground": "rgb(36, 40, 32)",
+        "overflow": false,
+        "firstAction": true
+      },
+      "dialogAndCancelPassed": true
+    },
+    {
+      "width": 390,
+      "height": 844,
+      "lang": "ta",
+      "geometry": {
+        "login": {
+          "top": 202.296875,
+          "bottom": 256.296875,
+          "left": 33,
+          "right": 342
+        },
+        "guest": {
+          "top": 272.296875,
+          "bottom": 326.296875,
+          "left": 33,
+          "right": 342
+        },
+        "preview": {
+          "top": 573.296875,
+          "bottom": 857.671875,
+          "left": 16,
+          "right": 359
+        },
+        "background": "rgb(229, 215, 182)",
+        "guestBackground": "rgb(36, 40, 32)",
+        "overflow": false,
+        "firstAction": true
+      },
+      "dialogAndCancelPassed": true
+    }
+  ]
+}

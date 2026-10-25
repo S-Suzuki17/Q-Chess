@@ -30,12 +30,12 @@ describe('landing board preview', () => {
         expect(read('src/components/LandingGamePreview.tsx')).not.toMatch(/Board2D|Board3D|setInterval|setTimeout|requestAnimationFrame|useEffect/);
     });
 
-    it.each(LANGUAGES.map(({ code }) => code))('labels the static preview before Play in %s', lang => {
+    it.each(LANGUAGES.map(({ code }) => code))('keeps the static preview after the entry actions in %s', lang => {
         const html = renderToStaticMarkup(createElement(TitleScreen, { lang, onLogin: () => {} }));
         expect(html).toContain('data-game-preview="sample-screenshot"');
         expect(html).toMatch(/<figcaption><span>[^<]+<\/span>/);
         expect(html).toContain('href="/previews/game-screen-sample.png" target="_blank" rel="noopener noreferrer"');
-        expect(html.indexOf('data-game-preview')).toBeLessThan(html.indexOf('class="title-play"'));
+        expect(html.indexOf('class="title-login-primary"')).toBeLessThan(html.indexOf('data-game-preview'));
         expect(html.indexOf('class="title-play"')).toBeLessThan(html.indexOf('class="title-tutorial"'));
         expect(html).not.toMatch(/title-identities|captured gameplay|live match/i);
     });

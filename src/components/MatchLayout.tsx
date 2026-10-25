@@ -199,7 +199,7 @@ export function MatchLayout(props: Props) {
                     <small>{!inspected ? label('未選択', 'NO SELECTION') : `${inspected.player === 'white' ? label('白', 'WHITE') : label('黒', 'BLACK')} · ${selectedTypes.length === 1 ? label('確定', 'RESOLVED') : label(`${selectedTypes.length}候補`, `${selectedTypes.length} TYPES`)}`}</small>
                     {selected && <button className="clear-selection" onClick={props.onClearSelection} aria-label={label('駒の選択を解除', 'Clear selection')}><X size={16}/></button>}
                 </div>
-                <h2>{inspected ? label(`${selectedTypes.length}種類の可能性`, `${selectedTypes.length} possible identities`) : label('すべての駒は、可能性から始まる。', 'Every piece begins with possibilities.')}</h2>
+                {inspected && <h2>{label(`${selectedTypes.length}種類の可能性`, `${selectedTypes.length} possible identities`)}</h2>}
                 <div className="match-candidates">{TYPES.map((type, i) => <div key={type} className={`candidate ${selectedTypes.includes(type) ? 'possible' : inspected ? 'excluded' : ''}`} data-candidate={type} data-possible={selectedTypes.includes(type)} aria-label={`${label(NAMES[i], type)}: ${!inspected ? label('未選択', 'no selection') : selectedTypes.includes(type) ? label('候補', 'possible') : label('候補から除外', 'excluded')}`}>
                     <span aria-hidden="true">{SYMBOLS[i]}</span><small>{label(NAMES[i], type)}</small>
                 </div>)}</div>

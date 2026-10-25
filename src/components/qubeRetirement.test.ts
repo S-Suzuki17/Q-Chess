@@ -30,7 +30,7 @@ describe('QUBE diary retirement', () => {
         expect(readFileSync('src/hooks/useMoveHint.ts', 'utf8')).toMatch(/useMoveHint/);
         expect(readFileSync('src/components/MatchLayout.tsx', 'utf8')).toMatch(/onHint/);
     });
-    it('retains QUBE identity, image and thinking feedback in the development candidate', () => {
+    it('retains QUBE identity, image and busy state without processing copy', () => {
         expect(existsSync('public/qube_icon.jpg')).toBe(true);
         const noop = () => {};
         const props: ComponentProps<typeof MatchLayout> = {
@@ -42,7 +42,7 @@ describe('QUBE diary retirement', () => {
         const ready = renderToStaticMarkup(createElement(MatchLayout, props));
         const pending = renderToStaticMarkup(createElement(MatchLayout, {...props,hintPending:true}));
         for (const html of [ready,pending]) { expect(html).toContain('QUBE'); expect(html).toContain('/qube_icon.jpg'); }
-        expect(pending).toContain('考え中');
+        expect(pending).not.toContain('考え中');
         expect(pending).toContain('aria-busy="true"');
     });
 });

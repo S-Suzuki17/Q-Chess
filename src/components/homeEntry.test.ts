@@ -18,7 +18,8 @@ describe('home entry points', () => {
             expect(html).toContain('data-open-tutorial');
             expect(html).toContain('aria-haspopup="dialog"');
             expect(html).toContain(learningEntryText[lang].title);
-            expect(html).toContain(learningEntryText[lang].detail);
+            expect(html.indexOf('class="title-login-primary"')).toBeLessThan(html.indexOf('class="title-play"'));
+            expect(html.indexOf('class="title-play"')).toBeLessThan(html.indexOf('data-open-tutorial'));
         }
     });
 
@@ -31,7 +32,6 @@ describe('home entry points', () => {
             }));
             expect(html).toContain('title-practice-direct');
             expect(html).toContain(dict[lang].practiceVsCpu);
-            expect(html).toContain(dict[lang].practiceVsCpuDesc);
         }
     });
 

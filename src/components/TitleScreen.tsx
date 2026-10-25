@@ -74,25 +74,25 @@ export function TitleScreen({ lang, onLogin, initialMode='select', onQuickPracti
                 </h1>
             </div>
 
-            <LandingGamePreview lang={lang} />
-
             <div className="title-screen-actions relative z-10 w-full flex flex-col gap-6">
                 {(
                     <div className="flex flex-col gap-4">
+                        <div className="title-auth-actions">
+                            <button type="button" onClick={()=>changeMode('login')} className="title-login-primary" aria-haspopup="dialog">
+                                {lang==='ja'?'Googleでログイン・新規登録':'Sign in or join with Google'}<ArrowUpRight size={24} aria-hidden="true"/>
+                            </button>
+                        </div>
+                        <button type="button" onClick={handleGuest} className="title-play">{(t as any)?.guestLogin || "PLAY AS GUEST"}<ArrowUpRight size={24} aria-hidden="true"/></button>
+                        <button type="button" onClick={handleQuickPractice} className="title-practice-direct">
+                            <span>{t.practiceVsCpu || (lang === 'ja' ? 'CPUで練習' : 'PRACTICE VS CPU')}</span>
+                            <ArrowUpRight size={24} aria-hidden="true"/>
+                        </button>
                         <button type="button" data-open-tutorial className="title-learn-direct"
                             aria-haspopup="dialog" onClick={() => setShowTutorial(true)}>
                             <BookOpen size={24} aria-hidden="true"/>
-                            <span><strong>{learningEntryText[lang].title}</strong><small>{learningEntryText[lang].detail}</small></span>
+                            <span><strong>{learningEntryText[lang].title}</strong></span>
                             <ChevronRight size={20} aria-hidden="true"/>
                         </button>
-                        <button type="button" onClick={handleQuickPractice} className="title-practice-direct">
-                            <div className="flex flex-col text-left">
-                                <span className="font-semibold text-base md:text-lg tracking-wide">{t.practiceVsCpu || (lang === 'ja' ? 'CPUで練習' : 'PRACTICE VS CPU')}</span>
-                                <span className="text-xs text-[#aeb2a4] font-normal tracking-normal">{t.practiceVsCpuDesc || (lang === 'ja' ? 'AIボットとすぐに対戦' : 'Instant match vs AI bot')}</span>
-                            </div>
-                            <ArrowUpRight size={24} aria-hidden="true"/>
-                        </button>
-                        <button type="button" onClick={handleGuest} className="title-play">{(t as any)?.guestLogin || "PLAY AS GUEST"}<ArrowUpRight size={24} aria-hidden="true"/></button>
                         {android ? (
                             <a href="https://q-gambit.com/rules/" target="_blank" rel="noopener noreferrer" className="title-tutorial">
                                 {t.rulesButton}<ChevronRight size={24} aria-hidden="true"/>
@@ -102,10 +102,6 @@ export function TitleScreen({ lang, onLogin, initialMode='select', onQuickPracti
                                 {t.rulesButton}<ChevronRight size={24} aria-hidden="true"/>
                             </Link>
                         )}
-                        
-                        <div className="title-auth-actions flex flex-col gap-3 mt-4">
-                            <button type="button" onClick={()=>changeMode('login')} className="min-h-11 w-full py-3 bg-[#191714]/80 border border-[#A89C86]/30 hover:bg-[#A89C86]/20 text-sm text-[#E8E2D7]">{lang==='ja'?'Googleでログイン・新規登録':'Sign in or join with Google'}</button>
-                        </div>
                     </div>
                 )}
 
@@ -121,6 +117,7 @@ export function TitleScreen({ lang, onLogin, initialMode='select', onQuickPracti
                     <footer><button type="button" onClick={cancelAuthentication}>{t.cancel}</button></footer>
                 </dialog>}
             </div>
+            <LandingGamePreview lang={lang} />
             
             <div className="title-screen-description relative w-full z-10 flex flex-col items-center max-w-2xl text-center">
                 <div className="flex gap-4">
