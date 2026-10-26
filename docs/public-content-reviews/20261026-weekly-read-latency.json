@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "status": "completed",
+  "baseRevision": "a12879dc2e189cfcc965f42cd8d8a6361919597f",
+  "reviewer": "Codex - scoped weekly board read review",
+  "changes": [
+    {
+      "path": "server/src/services/LearningStore.ts",
+      "gitBlob": "04ae0f5842d59d7a5001d50c3ca016cc6ac4d98a"
+    }
+  ],
+  "reviews": [
+    {
+      "group": "accounts-connections-and-saves",
+      "decision": "no-change-needed",
+      "reason": "The existing week metadata and ten problem boards are read together through their existing foreign key. The account/session checks, progress read, 60-second board cache, pending-clear recovery and stored data are unchanged. The Japanese and English connection, save and privacy FAQs, contact route and privacy notice still describe the same account and storage behavior; no new personal data or recipient is introduced.",
+      "checkedPages": ["/faq/#connection", "/faq/#save", "/faq/#privacy", "/contact/", "/privacy/"],
+      "evidence": [
+        "src/locales/siteContent.ts: Japanese and English connection/save/privacy FAQ entries preserve saved-progress and retry guidance",
+        "src/components/SiteInformation.tsx and src/app/contact/page.tsx: contact route and account-data help remain unchanged",
+        "src/app/privacy/page.tsx and src/locales/privacyReview.ts: account, device and stored-record disclosures remain unchanged",
+        "server/src/services/LearningStore.test.ts and server/src/services/LearningRoutes.test.ts: 16 tests passed, covering joined requests, cache lifetime, incomplete boards, revoked sessions, consent and blocked accounts"
+      ]
+    },
+    {
+      "group": "commerce-and-disclosures",
+      "decision": "no-change-needed",
+      "reason": "Only the published board read is combined. The progress and complete_learning RPCs, server proof validation, reward amount, duplicate-completion handling, advertising checkpoints, hint tickets and current-terms requirement are unchanged. The hint FAQ, contact/privacy pages and Japanese/English terms require no copy change for this read-only optimization; it neither enables a purchase nor changes consent or advertising.",
+      "checkedPages": ["/faq/#hints", "/contact/", "/privacy/", "/terms/"],
+      "evidence": [
+        "src/locales/siteContent.ts: Japanese and English hint FAQ and weekly-program explanation",
+        "src/components/TermsDocument.tsx and src/config/currentTerms.ts: ticket, consent and saved-progress conditions retain the same source",
+        "server/src/services/LearningStore.ts: progress, complete, publish and live account callbacks are unchanged",
+        "server/src/services/LearningRoutes.test.ts: forged weekly solutions, old consent and blocked/revoked accounts remain rejected",
+        "docs/weekly-read-latency-20261026.md: narrow change, validation and production-speed evidence limits"
+      ]
+    }
+  ]
+}
