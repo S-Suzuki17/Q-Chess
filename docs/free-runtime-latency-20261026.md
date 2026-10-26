@@ -91,6 +91,11 @@ Existing API preflight caching (`cors({ maxAge: 86400 })`) was already present.
   authority and real loopback Socket.IO/HTTP integration. The initial combined
   run found one obsolete QUBE Worker mock (updated for request IDs) and an
   integration setup timeout; isolated rerun passed all 43 affected cases.
+- The first PR #36 full regression run passed 3,612 cases and failed nine CPU
+  difficulty/personality cases because their Worker mock still omitted request IDs
+  and expected immediate termination. The mock now echoes IDs and verifies idle
+  expiry, preserving all difficulty/personality assertions. All 34 cases in the
+  three affected CPU test files passed locally; the full CI rerun is required.
 - Root and server TypeScript checks passed. Final production Web build passed,
   with 63 JavaScript files checked and zero unresolved public configuration reads.
 - Eight before/after practice browser scenarios and two 100-tile fixture scenarios
