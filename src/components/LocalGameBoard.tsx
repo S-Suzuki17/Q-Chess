@@ -758,6 +758,14 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
                 return;
             }
 
+            const targetToken = tokens.find(t => !t.isCaptured && t.row === targetRow && t.col === targetCol);
+            // Tapping another friendly piece changes selection in one action.
+            // It never submits a move or bypasses the turn/legality checks below.
+            if (targetToken?.player === token.player) {
+                setSelectedTokenId(targetToken.id);
+                return;
+            }
+
             if (token.player !== currentTurn || (roomId && currentTurn !== onlineRole)) {
                 const clickedOtherPiece = tokens.find(t => t.row === targetRow && t.col === targetCol);
                 setSelectedTokenId(clickedOtherPiece ? clickedOtherPiece.id : null);
@@ -770,7 +778,6 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
                 return;
             }
 
-            const targetToken = tokens.find(t => t.row === targetRow && t.col === targetCol);
             const currentPossibilities = pool.piecePossibilities.get(token.id) || new Set();
 
             const lastMoveObj = moveHistory.length > 0 ? {

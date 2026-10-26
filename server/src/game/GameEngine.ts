@@ -398,6 +398,14 @@ export class GameEngine {
         return () => { if (this.hintCommitLock === lock) this.hintCommitLock = undefined; };
     }
 
+    /** Scalar scheduling/fence checks do not need to copy the board and all pieces. */
+    public getTurnStatus(): Pick<PublicGameState, 'version' | 'turn' | 'gameOver' | 'introPending' | 'startsAt'> {
+        // Preserve the authority-loss freeze performed by a full public snapshot.
+        this.clockNow();
+        const { version, turn, gameOver, introPending, startsAt } = this.state;
+        return { version, turn, gameOver, introPending, startsAt };
+    }
+
     // 2. Generate Public GameState with filtering
     public getPublicState(playerId: string): PublicGameState {
         const clockNow=this.clockNow();

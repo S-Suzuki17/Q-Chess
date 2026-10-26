@@ -30,19 +30,22 @@ describe('precision QUBE search', () => {
         } finally { clock.mockRestore(); }
     });
     it('uses an independent high-precision neutral worker budget', async () => {
+        vi.useFakeTimers({toFake:['setTimeout','clearTimeout']});
         let sent:unknown;
         const terminate=vi.fn();
         vi.stubGlobal('Worker',class {
             onmessage?:(event:unknown)=>void;
             terminate=terminate;
-            postMessage(message:unknown){sent=message;this.onmessage?.({data:{result:{move:null}}});}
+            postMessage(message:{requestId:number}){sent=message;this.onmessage?.({data:{requestId:message.requestId,result:{move:null}}});}
         });
         try {
             const state=createInitialState();
             await requestQubeSearch(state,new AbortController().signal);
-            expect(sent).toEqual({state,personality:'balanced',...qubeSearchProfile()});
+            expect(sent).toEqual({requestId:expect.any(Number),state,personality:'balanced',...qubeSearchProfile()});
+            expect(terminate).not.toHaveBeenCalled();
+            vi.advanceTimersByTime(30_000);
             expect(terminate).toHaveBeenCalledOnce();
-        } finally {vi.unstubAllGlobals();}
+        } finally {vi.useRealTimers();vi.unstubAllGlobals();}
     });
     it('never inherits an attacking opponent evaluator for a paid hint', () => {
         const observed=vi.spyOn(EvalQoppelia.prototype,'evaluate');
