@@ -1,0 +1,57 @@
+{
+  "schemaVersion": 1,
+  "status": "completed",
+  "baseRevision": "45963838ab2d31bb22a77b62f6032961e2f529c6",
+  "reviewer": "Codex - free runtime and friendly-piece input review",
+  "changes": [
+    {
+      "path": "server/src/game/GameEngine.ts",
+      "gitBlob": "28a0281fe2d9b27683273d644921f4d2c13d772a"
+    },
+    {
+      "path": "src/components/LocalGameBoard.tsx",
+      "gitBlob": "45d009d34bb6164aaec9318c1800a4a7118ac777"
+    }
+  ],
+  "reviews": [
+    {
+      "group": "hints-and-clock",
+      "decision": "no-change-needed",
+      "reason": "One idle CPU worker is reused with independent hint searches, unchanged budgets, cancellation and stale-response fencing. Lightweight runtime reads retain authority-loss clock freezing and timeout processing. Friendly-piece input only changes selection, never submits a move. Japanese/English start, clock and hint guidance remains accurate; ticket, consent and reward behavior is unchanged.",
+      "checkedPages": [
+        "/guide/#start",
+        "/faq/#clock",
+        "/faq/#hints"
+      ],
+      "evidence": [
+        "src/locales/siteContent.ts and src/locales/rulesDict.ts: reviewed Japanese/English start, clock, hint and legal-move explanations",
+        "src/components/QubeTeacher.tsx and src/locales/qubeTeaching.ts: images, speakers and guidance unchanged",
+        "src/components/LocalGameBoard.tsx: friendly-piece selection exits before move validation/submission; existing hint, promotion and castling UI retained",
+        "Worker, QUBE search, GameEngine/RankedRuntime authority/clock and loopback integration regression tests passed",
+        "Actual Web export: 2D and WebGL 3D input/CPU checks at 1440x960 and 390x844; 100-tile fixture passed at both widths",
+        "scripts/release/check-web-review.mjs: eight public pages passed; docs/free-runtime-latency-20261026.md records scope and evidence limits"
+      ]
+    },
+    {
+      "group": "qube-teaching",
+      "decision": "no-change-needed",
+      "reason": "The shared board now switches friendly-piece selection with one input. Move, capture, deduction, promotion, castling, outcome and hint rules are unchanged. QUBE images, teacher explanations, help, tutorial and reward previews are retained. No processing catchphrase or retired posting section is introduced; public pages require no wording change for internal worker reuse and snapshot allocation.",
+      "checkedPages": [
+        "/",
+        "/about/",
+        "/rules/",
+        "/guide/",
+        "/faq/",
+        "game: tutorial, help dialogs, move hints and feedback, promotion/castling, stage/setup explanations, cosmetic preview/equipment guidance"
+      ],
+      "evidence": [
+        "src/locales/siteContent.ts and src/locales/rulesDict.ts: reviewed Japanese/English start, clock, hint and legal-move explanations",
+        "src/components/QubeTeacher.tsx and src/locales/qubeTeaching.ts: images, speakers and guidance unchanged",
+        "src/components/LocalGameBoard.tsx: friendly-piece selection exits before move validation/submission; existing hint, promotion and castling UI retained",
+        "Worker, QUBE search, GameEngine/RankedRuntime authority/clock and loopback integration regression tests passed",
+        "Actual Web export: 2D and WebGL 3D input/CPU checks at 1440x960 and 390x844; 100-tile fixture passed at both widths",
+        "scripts/release/check-web-review.mjs: eight public pages passed; docs/free-runtime-latency-20261026.md records scope and evidence limits"
+      ]
+    }
+  ]
+}

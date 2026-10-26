@@ -53,7 +53,10 @@ export class RankedRuntime {
     }
 
     public broadcast(match:MatchSession) {
-        if(match.engine)this.io.to(match.matchId).emit('sync_state',match.engine.getPublicState(match.players.host));
+        if(!match.engine)return;
+        const state=match.engine.getPublicState(match.players.host);
+        this.io.to(match.matchId).emit('sync_state',state);
+        return state;
     }
 
     public replaySettlement(match:MatchSession,userId:string,emit:(event:string,data:unknown)=>void) {
@@ -66,8 +69,8 @@ export class RankedRuntime {
     public afterAction(match:MatchSession) {
         if(match.admission&&!this.admission?.canAdvance(match))return;
         const alreadyFinished=match.state==='FINISHED';
-        this.broadcast(match);
-        if(match.engine?.getPublicState(match.players.host).gameOver) {
+        const state=this.broadcast(match);
+        if(state?.gameOver) {
             this.matchmaking.finishMatch(match);
             if(match.mode==='ranked'&&match.settlement!=='saved') {
                 match.settlement='pending';
@@ -135,27 +138,28 @@ export class RankedRuntime {
             if(match.state!=='IN_GAME'||!match.engine)continue;
             if(this.matchmaking.authorityCheckPending(match))continue;
             if(match.engine.checkTimeout()){this.afterAction(match);continue;}
+            const status=match.engine.getTurnStatus();
+            if(status.gameOver){this.afterAction(match);continue;}
+            if(!match.cpu||status.introPending||Date.now()<(status.startsAt??0)||this.cpuBusy.has(match.matchId))continue;
+            if(status.turn!==(match.cpu.side==='host'?0:1))continue;
             const state=match.engine.getPublicState(match.players.host);
-            if(state.gameOver){this.afterAction(match);continue;}
-            if(!match.cpu||state.introPending||Date.now()<(state.startsAt??0)||this.cpuBusy.has(match.matchId))continue;
-            if(state.turn!==(match.cpu.side==='host'?0:1))continue;
             this.cpuBusy.add(match.matchId);
             const cpuStartedAt=Date.now();
             void this.runCpu(state,match.cpu.profile).then(response=>{
                 if(match.state!=='IN_GAME'||!match.engine||!match.cpu||(match.admission&&!this.admission?.canAdvance(match)))return;
                 if(this.matchmaking.authorityCheckPending(match))return;
-                const current=match.engine.getPublicState(match.cpu.id);
+                const current=match.engine.getTurnStatus();
                 if(current.gameOver||current.version!==state.version||current.turn!==state.turn)return;
                 if(response.error)throw new CpuFailure('search_error');
                 if(response.version!==state.version)throw new CpuFailure('version_mismatch');
                 if(!response.move)throw new CpuFailure('no_legal_move');
                 const result=match.engine.processAction({actionId:`cpu:${state.version}`,version:state.version,playerId:match.cpu.id,action:{type:'MOVE',payload:response.move}});
-                if(!result.success&&!match.engine.getPublicState(match.cpu.id).gameOver)throw new CpuFailure('illegal_move');
+                if(!result.success&&!match.engine.getTurnStatus().gameOver)throw new CpuFailure('illegal_move');
                 this.afterAction(match);
             }).catch(error=>{
                 // Infrastructure failure is a void match, never a free rated win/loss.
                 if(match.state==='IN_GAME') {
-                    const current=match.engine?.getPublicState(match.players.host);
+                    const current=match.engine?.getTurnStatus();
                     if(!current||current.gameOver||current.version!==state.version||current.turn!==state.turn)return;
                     console.warn('[RankedCPU] Move failed', {reason:error instanceof CpuFailure?error.reason:'worker_error',
                         level:match.cpu?.profile.level,version:state.version,elapsedMs:Date.now()-cpuStartedAt});

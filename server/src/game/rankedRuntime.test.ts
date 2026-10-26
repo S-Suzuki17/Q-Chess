@@ -38,6 +38,60 @@ beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(1_000_000); vi.spyOn(Mat
 afterEach(() => { vi.clearAllTimers(); vi.useRealTimers(); vi.restoreAllMocks(); });
 
 describe('ranked runtime', () => {
+    it('does not copy full boards while waiting for a CPU result or the human turn', async () => {
+        const { io, mm, match } = fixture();
+        const cpu = deferred<RankCpuWorkerResponse>();
+        const snapshot = vi.spyOn(match.engine!, 'getPublicState');
+        const runtime = new RankedRuntime(io as any, mm, vi.fn(), () => cpu.promise);
+        runtime.tick();
+        expect(snapshot).toHaveBeenCalledTimes(1);
+        for (let i = 0; i < 100; i++) runtime.tick();
+        expect(snapshot).toHaveBeenCalledTimes(1);
+        cpu.resolve({ version: 0, move: openingMove }); await flush();
+        expect(snapshot).toHaveBeenCalledTimes(2); // CPU input and one published result.
+        for (let i = 0; i < 100; i++) runtime.tick();
+        expect(snapshot).toHaveBeenCalledTimes(2);
+    });
+
+    it('avoids board copies in human games but still publishes current clocks after actions', () => {
+        const { io, mm, match, events } = fixture();
+        match.cpu = undefined;
+        const snapshot = vi.spyOn(match.engine!, 'getPublicState');
+        const runtime = new RankedRuntime(io as any, mm, vi.fn());
+        const initialClock = match.engine!.getPublicState('human').clock!.white;
+        snapshot.mockClear();
+        vi.advanceTimersByTime(1000);
+        for (let i = 0; i < 100; i++) runtime.tick();
+        expect(snapshot).not.toHaveBeenCalled();
+        runtime.afterAction(match);
+        expect(snapshot).toHaveBeenCalledOnce();
+        expect(events.filter(event => event.event === 'sync_state').at(-1)!.payload.clock.white).toBe(initialClock - 1000);
+    });
+
+    it('returns detached scheduling fields and reflects authoritative changes', () => {
+        const { match } = fixture();
+        const status = match.engine!.getTurnStatus();
+        expect(status).toEqual({ version: 0, turn: 0, gameOver: null, introPending: false, startsAt: expect.any(Number) });
+        status.version = 999;
+        expect(match.engine!.getTurnStatus().version).toBe(0);
+        resign(match);
+        expect(match.engine!.getTurnStatus()).toMatchObject({ version: 1, gameOver: 'WHITE' });
+    });
+
+    it('preserves the clock freeze if scheduling observes a lost authority lease', () => {
+        const { match } = fixture();
+        const engine = match.engine!;
+        const remaining = engine.getPublicState('human').clock!.white;
+        let canAdvance = false;
+        engine.setAuthority({ canAdvance: () => canAdvance, safeUntil: () => Infinity });
+        engine.getTurnStatus();
+        vi.advanceTimersByTime(1000);
+        canAdvance = true;
+        expect(engine.getPublicState('human').clock!.white).toBe(remaining);
+        expect(engine.processAction({ actionId: 'after-freeze', version: 0, playerId: match.cpu!.id,
+            action: { type: 'MOVE', payload: openingMove } }).success).toBe(false);
+    });
+
     it('broadcasts candidate reductions for unmoved CPU pieces after a fallback move', async () => {
         const { io, mm, match, events } = fixture();
         // This fixture assigns CPU to White. Reserve two Rook/Queen identities,
