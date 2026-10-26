@@ -31,11 +31,16 @@ export function createLearningStore(client:SupabaseClient,account:Pick<DailyLogi
             const cached=weeks.get(week);
             if(cached&&cached.expires>Date.now())return cached.value;
             const value=(async()=>{
-            const {data:header,error}=await client.from('learning_weeks').select('week,opens_at,closes_at').eq('week',week).abortSignal(AbortSignal.timeout(5000)).maybeSingle();
+            // The existing week foreign key lets PostgREST return both parts in
+            // one request, avoiding a second round trip on a board-cache miss.
+            const {data:header,error}=await client.from('learning_weeks')
+                .select('week,opens_at,closes_at,learning_problems(ordinal,position_key,state)')
+                .eq('week',week).order('ordinal',{referencedTable:'learning_problems'})
+                .abortSignal(AbortSignal.timeout(5000)).maybeSingle();
             if(error)throw new LearningError('LEARNING_UNAVAILABLE');
             if(!header)return null;
-            const {data:rows,error:problemError}=await client.from('learning_problems').select('ordinal,position_key,state').eq('week',week).order('ordinal').abortSignal(AbortSignal.timeout(5000));
-            if(problemError||rows?.length!==10||!rows.every((row,i)=>row.ordinal===i+1&&row.state?.pieces))throw new LearningError('LEARNING_UNAVAILABLE');
+            const rows=header.learning_problems;
+            if(!Array.isArray(rows)||rows.length!==10||!rows.every((row,i)=>row?.ordinal===i+1&&Array.isArray(row.state?.pieces)))throw new LearningError('LEARNING_UNAVAILABLE');
             return {week:header.week,opensAt:header.opens_at,closesAt:header.closes_at,
                 problems:rows.map(row=>({id:String(row.ordinal),positionKey:row.position_key,state:row.state}))};
             })();
