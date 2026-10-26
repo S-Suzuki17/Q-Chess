@@ -37,7 +37,7 @@ function SavedHintRecovery({ userId, lang, matchId, mode, latestMatch=false }: {
         <strong>{text.saved}</strong>
         <p>{text.historical}</p>
         {hint.hasRecovery && <button className="campaign-primary" disabled={hint.pending} aria-busy={hint.pending}
-            onClick={() => void hint.recover()}>{hint.pending ? text.thinking : text.recover}</button>}
+            onClick={() => void hint.recover()}>{text.recover}</button>}
         <div role="status" aria-live="polite">
             {error != null && <p>{hintErrorText(lang, error)}</p>}
             {receipt && <p data-crown-saved-hint>{square(receipt.hint.fromRow, receipt.hint.fromCol)} → {square(receipt.hint.toRow, receipt.hint.toCol)}

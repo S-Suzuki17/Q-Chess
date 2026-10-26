@@ -1,0 +1,65 @@
+{
+  "node": "v25.2.1",
+  "results": [
+    {
+      "name": "initial-quantum",
+      "pieces": 16,
+      "selectAllPieces": {
+        "medianMs": 3.683899999999994,
+        "p95Ms": 5.204200000000014
+      },
+      "move": {
+        "medianMs": 0.1333999999999378,
+        "p95Ms": 0.36009999999987485
+      }
+    },
+    {
+      "name": "self-check",
+      "pieces": 2,
+      "selectAllPieces": {
+        "medianMs": 0.45289999999999964,
+        "p95Ms": 1.0614999999997963
+      },
+      "move": {
+        "medianMs": 0.07339999999999236,
+        "p95Ms": 0.19920000000001892
+      }
+    },
+    {
+      "name": "quantum-mate",
+      "pieces": 3,
+      "selectAllPieces": {
+        "medianMs": 0.7869000000000597,
+        "p95Ms": 1.790899999999965
+      },
+      "move": {
+        "medianMs": 0.15980000000013206,
+        "p95Ms": 0.3566000000000713
+      }
+    },
+    {
+      "name": "checkmate",
+      "pieces": 3,
+      "selectAllPieces": {
+        "medianMs": 0.47709999999983665,
+        "p95Ms": 0.718900000000076
+      },
+      "move": {
+        "medianMs": 0.03490000000010696,
+        "p95Ms": 0.1406000000001768
+      }
+    },
+    {
+      "name": "chess-castle",
+      "pieces": 2,
+      "selectAllPieces": {
+        "medianMs": 0.1290999999998803,
+        "p95Ms": 0.2905000000000655
+      },
+      "move": {
+        "medianMs": 0.03290000000015425,
+        "p95Ms": 0.06850000000008549
+      }
+    }
+  ]
+}

@@ -1,14 +1,14 @@
 {
-  "updatedAt": "2026-10-23T06:42:47.917Z",
+  "updatedAt": "2026-10-25T09:28:09.112Z",
   "ownerThread": "01a164bb-3c83-7030-a0b9-730230049a96",
-  "sourceHead": "431f47cf78540224234e5cf6644f8ed519342a30",
-  "mergedPullRequest": "https://github.com/S-Suzuki17/Q-Chess/pull/30",
-  "mainCommit": "5f7ae7a5f71a8bd382b6242c167450c12f398289",
+  "sourceHead": "c685897923f2ed99853eae9cb315292d737b36e5",
+  "mergedPullRequest": "https://github.com/S-Suzuki17/Q-Chess/pull/33",
+  "mainCommit": "51f0adcef1e7df19ddf5e22722190cd12ca51c9b",
   "production": {
     "web": "https://q-gambit.com",
-    "cloudflareDeployment": "5a7b9e61-a54a-43e1-a25f-7878e9091f68",
-    "renderDeployment": "dep-dbdfds61egvs738k1lk0",
-    "renderCommit": "1b8e7bab3b1add553847fc1f61b4d1427e250dd5",
+    "cloudflareDeployment": "249648df-f283-4ccf-ba4d-0074075cdfd5",
+    "renderDeployment": "dep-dbefrbuq1p3s73e7o5mg",
+    "renderCommit": "51f0adcef1e7df19ddf5e22722190cd12ca51c9b",
     "googleMigration": "20261023021029_google_account_onboarding",
     "authProviders": {
       "google": true,
@@ -28,16 +28,33 @@
     },
     "maintenance": false,
     "webVerification": {
+      "lastConfirmedDate": "2026-10-24",
       "checks": 114,
-      "assetsHashed": 80,
-      "passed": true
+      "assetsHashed": 261,
+      "passed": true,
+      "verifiedThisRun": false
     },
     "publicGuidesVerification": {
       "pages": 8,
       "passed": true
     },
-    "healthEvidence": "build/supervision-20261023/cpu-production-health.json",
-    "artifactManifest": "build/cloudflare-pages-2026-10-23T04-16-25-012Z.manifest.json"
+    "healthEvidence": "docs/latency-improvement-20261025.md",
+    "artifactManifest": null,
+    "cloudflareObservation": {
+      "observedDate": "2026-10-25",
+      "verifiedThisRun": true,
+      "source": "Pages dashboard",
+      "branch": "main",
+      "label": "PR #33",
+      "verifyAgainBeforeDeploying": true
+    },
+    "healthObservedAt": "2026-10-25T07:26:00Z",
+    "otherConfigurationLastFullVerification": "2026-10-23",
+    "rollback": {
+      "render": "dep-dbefrbuq1p3s73e7o5mg",
+      "cloudflare": "249648df-f283-4ccf-ba4d-0074075cdfd5",
+      "databaseChange": false
+    }
   },
   "completed": [
     "PR #29 release and Google-only login completed under explicit approval",
@@ -51,32 +68,26 @@
     "AdSense re-review accepted; Web ads remain disabled"
   ],
   "inProgress": [
-    "Release Android 29 / 1.24 with age screening, corrected native SDK loading and all existing native ad placements",
-    "Keep Play releases separate from 20 older ready changes and five saved store changes",
-    "Wait for AdSense site review; evaluate Web alternatives before any new integration"
+    "Publish approved latency correction through GitHub CI, main, Render and Pages",
+    "Keep prior Play 29 follow-up with its existing owner",
+    "Web advertising provider/review remains separate; no new advertising integration",
+    "Submit verified Android 30 to Play production under explicit approval; preserve six pending disclosure/store changes"
   ],
   "android": {
-    "versionCode": 28,
-    "versionName": "1.23",
-    "artifactVerification": "build/releases/q-gambit-1.23-code28-responsive-431f47c/verification.json",
-    "playUploaded": true,
-    "playReview": "Version 28 only is in review; confirmed after automatic checks",
-    "playEvidence": "build/supervision-20261023/play28-review-confirmed.jpg",
-    "publishedThisTask": false,
-    "deviceAcceptance": false,
-    "deviceGameplay": {
-      "selectionMs": 9.7,
-      "moveAndCpuMs": 1672.5,
-      "twoAndThreeDimensionalBoards": true,
-      "resume": true,
-      "landscapeBoardVisualNotConfirmed": true,
-      "evidence": "build/supervision-20261023/device/instrumentation.txt"
+    "versionCode": 29,
+    "versionName": "1.24",
+    "aabSHA256": "2413ef5a5e1c306ff1606f8ff6acb2a164e061a4c81a53e818c8a68123c34409",
+    "apkSHA256": "0aedb80e20760c8f9d717392574a8d41c4062c54e3fad90e23dcb3014f382b8b",
+    "retainedArtifacts": "F:/QG-Builds/ads29-release/app/outputs",
+    "playObservation": {
+      "date": "2026-10-25",
+      "source": "prior task observation",
+      "verifiedThisRun": false,
+      "submission21": "published; included production and prior store changes",
+      "submission22": "six additional data-safety/store changes under review",
+      "exactProductionVersionAndCountryAvailabilityRechecked": false
     },
-    "preservedOtherUnsubmittedChanges": 5,
-    "otherReadyToPublishChanges": 20,
-    "warning": "Existing advertising-ID declaration says used; code28 intentionally omits AD_ID permission. Play shows one non-blocking warning. Declaration and permission were not changed.",
-    "note": "Version28 alone remains in review. Its original UMP setup failure was resolved; test interstitial and rewarded SDK acceptance subsequently passed. Version29 packaging/submission is a separate step. Do not publish the older 20 ready changes.",
-    "deviceAdTest": {
+    "previousTestAdvertising": {
       "interstitial": true,
       "rewardedHint": true,
       "rewardedOnline": true,
@@ -86,9 +97,51 @@
       "evidence": "build/supervision-20261023/device/instrumentation-rewardedAdvertising.txt"
     },
     "nextCandidate": {
-      "versionCode": 29,
-      "versionName": "1.24",
-      "status": "building and validating; not yet uploaded"
+      "versionCode": 30,
+      "versionName": "1.25",
+      "sourceCommit": "c685897923f2ed99853eae9cb315292d737b36e5",
+      "webBuildPassed": true,
+      "syntheticAccountCasesPassed": 6,
+      "signingMatchesVersion29": null,
+      "nativeBuild": "final_web_export_and_capacitor_sync_passed_native_rebuild_blocked_F_disconnected",
+      "deviceAcceptance": "previous_candidate_passed_new_ui_rerun_required",
+      "uploadedToPlay": false,
+      "buildDirectory": "F:/QG-Builds/latency30-release-20261025",
+      "releaseApkSha256": null,
+      "releaseAabSha256": null,
+      "qaApkSha256": null,
+      "embeddedWebFilesVerifiedPerArtifact": null,
+      "aabSignedEntriesVerified": null,
+      "signingCertificateSha256": null,
+      "playSubmissionApproved": true,
+      "deviceEvidence": null,
+      "approval": {
+        "versionCode": 30,
+        "versionName": "1.25",
+        "track": "production",
+        "countries": "preserve all current production regions",
+        "submitForReview": true,
+        "publishAfterApproval": true,
+        "preserveExistingSixChanges": true,
+        "paidPlan": false
+      },
+      "previousCandidate": {
+        "releaseApkSha256": "bb2ec619296e2e27e953fe82252c928f5fbc209eea5d9275504a104c23e40511",
+        "releaseAabSha256": "a49ddb935d66d26ebdc89ea62c6930e5dbc60382889f4e2b575ed9aa2f03e7a6",
+        "qaApkSha256": "c83001c1bf32b5142431ade6e0fb1c2e96e848b89e44dfe93b7dea7b32a2c4b2",
+        "deviceEvidence": "scratch/latency-20261025/device-results.json",
+        "embeddedWebFilesVerifiedPerArtifact": 259,
+        "aabSignedEntriesVerified": 766,
+        "signingCertificateSha256": "296a49d93e3341a63053d5d55c106f6990453c0a929c529f962c4b83c6683273",
+        "signingMatchesVersion29": true
+      },
+      "playDraft": {
+        "release": 7,
+        "releaseName": "30 (1.25)",
+        "notesSaved": true,
+        "bundleUploaded": false,
+        "submitted": false
+      }
     }
   },
   "ads": {
@@ -114,8 +167,104 @@
     "cadence": "daily 09:00 Asia/Tokyo"
   },
   "next": [
-    "Validate signed Android29, publish corresponding Web guidance and send only the intended release to Play",
-    "Follow AdSense review without enabling an unapproved Web provider",
-    "Preserve independent Play follow-up and weekly content audit automations"
-  ]
+    "Publish approved latency correction and verify live Render/Pages revisions",
+    "Submit approved Android 30 to Play production and publish when approved",
+    "Keep all plans free; do not add paid services",
+    "Complete application work before the requested storage consolidation and cleanup"
+  ],
+  "recovery": {
+    "previousTrackedStateAt": "2026-10-23T06:42:47.917Z",
+    "originalWorkingFolder": "empty",
+    "activeCopy": "qgambit-latency-20261025",
+    "base": "51f0adcef1e7df19ddf5e22722190cd12ca51c9b",
+    "note": "Recovered from GitHub main. Older local working trees were preserved. Prior Play/Pages observations below are historical, not reverified this run."
+  },
+  "sourceBranch": "codex/interaction-latency-public-20261025",
+  "latencyImprovement": {
+    "record": "docs/latency-improvement-20261025.md",
+    "sourceCommit": "0e2f5078d09d177b595fd8b7496c549db8687ad5",
+    "status": "verified_source_and_artifacts_approved_for_web_server_publication",
+    "productionPublished": false,
+    "render": {
+      "plan": "free",
+      "region": "virginia",
+      "databaseRegion": "ap-northeast-1",
+      "paidPlanChangeApproved": false
+    },
+    "webCandidate": {
+      "directory": "build/cloudflare-pages-2026-10-25T09-03-56-556Z",
+      "files": 261,
+      "manifestSHA256": "7f6bf8693c403934130e7004b7bfa0f4f48d24b1003efab561b87823a13450e8",
+      "uploaded": false,
+      "superseded": false,
+      "sourceCommit": "c685897923f2ed99853eae9cb315292d737b36e5"
+    },
+    "verified": {
+      "focusedUnitTests": 241,
+      "webSyntheticAccountCases": 6,
+      "androidSyntheticAccountCases": 6,
+      "browserPracticeDesktopAndMobileWidth": true,
+      "serverBuild": true,
+      "typecheck": true
+    },
+    "next": "Finish PR #34 CI and merge, then verify Render and Pages deployment; Android rebuild waits for stable F drive",
+    "approvedOriginalCommit": "e6faa3355d829527c243758c8dd7df90054fbb84",
+    "sameImplementationTree": "25c99be6143cacd199c443bfdd082b8d86de9a7a",
+    "approval": {
+      "githubPush": true,
+      "mergeMainAfterChecks": true,
+      "render": true,
+      "cloudflarePages": true,
+      "relatedTestsAndRecords": true,
+      "database": false,
+      "paidPlan": false,
+      "play30": true
+    },
+    "pullRequest": "https://github.com/S-Suzuki17/Q-Chess/pull/34"
+  },
+  "pendingStorageCleanup": {
+    "status": "queued_after_application_improvement_and_release_verification",
+    "requestedByUser": true,
+    "scope": "Consolidate needed files and remove redundant/unneeded files on the full PC drives",
+    "started": false,
+    "protect": [
+      "source and uncommitted changes",
+      "signing keys",
+      "active SDK/Gradle/JDK",
+      "latest verified APK/AAB and Web package",
+      "verification and recovery records"
+    ],
+    "next": "Inventory paths, ownership, duplicates, sizes and backup coverage after application work; specify deletion targets under permissions.md"
+  },
+  "costPolicy": {
+    "paidPlansProhibited": true,
+    "newPaidServicesProhibited": true,
+    "instructionDate": "2026-10-25",
+    "renderMustRemainFree": true,
+    "userDecision": "Keep Free and use code improvements only; never use paid plans"
+  },
+  "quietInterface": {
+    "requestedByUser": true,
+    "status": "final_web_and_android_web_exports_passed_native_rebuild_pending",
+    "scope": "Remove routine move, hint, admission, sign-in and 3D preparation copy and decorative title slogans; preserve errors, recovery, consent and hints",
+    "verified": {
+      "targetedTests": 201,
+      "typecheck": true,
+      "hintBrowserWidths": [
+        390,
+        1280
+      ],
+      "finalHomeLayoutCases": 4,
+      "sharedAdmissionBrowserCases": 4,
+      "crownBrowserCases": 12,
+      "rankedStartBrowserCases": 24,
+      "secondaryScreenBrowserCases": 16,
+      "finalArtifactSyntheticAccountCases": {
+        "web": 6,
+        "android": 6
+      },
+      "homeEvidence": "scratch/latency-20261025/login-layout/final.json"
+    },
+    "release": "Web package bound to c685897 is ready. Production remains PR #33 pending CI and deployment. Final Android native artifact/device acceptance are pending; previousCandidate is historical."
+  }
 }

@@ -1,0 +1,30 @@
+{
+  "observedAt": "2026-10-25T08:25:47Z",
+  "device": "Pixel 10",
+  "package": "com.qgambit.app.qa",
+  "qaApkSha256": "c83001c1bf32b5142431ade6e0fb1c2e96e848b89e44dfe93b7dea7b32a2c4b2",
+  "test": "responsivePracticeWithIsolatedNetwork",
+  "passed": true,
+  "durationSeconds": 26.996,
+  "selectionMs": 58.3,
+  "moveMs": 11.6,
+  "moveAndCpuMs": 4051.1,
+  "checks": [
+    "selection",
+    "move display",
+    "CPU reply",
+    "free hint",
+    "3D render",
+    "pause/resume"
+  ],
+  "scope": "WebView external traffic blocked after hydration; isolated QA app; no real account or ad placement invoked",
+  "doesNotProve": [
+    "authenticated Internet latency",
+    "live advertisements",
+    "Play acceptance"
+  ],
+  "earlierAttempts": [
+    "device locked before test body",
+    "hint assertion deadline matched the 15-second analysis budget; corrected to 30 seconds"
+  ]
+}

@@ -72,17 +72,18 @@ describe('server opening and initial ratings',()=>{
         rpc.mockResolvedValue({data:false,error:null});expect(await service.verifyUser(token)).toBeNull();
         rpc.mockResolvedValue({data:true,error:{message:'denied'}});await expect(service.verifyUser(token)).rejects.toThrow('Session authority unavailable');
     });
-    it('caps pending JWT verification and frees capacity after completion',async()=>{
+    it.each([true,false])('caps pending JWT verification and frees capacity after completion (shared token: %s)',async sharedToken=>{
         let release!:(value:unknown)=>void;
         const pending=new Promise(resolve=>{release=resolve;}),getUser=vi.fn(()=>pending);
         const service=new SupabaseService({auth:{getUser}} as unknown as SupabaseClient);
-        const checks=Array.from({length:32},()=>service.verifyUser('a.b.c'));
+        const checks=Array.from({length:32},(_,i)=>service.verifyUser(sharedToken?'a.b.c':`a.b.token${i}`));
         await expect(service.verifyUser('a.b.c')).rejects.toThrow('Session authority unavailable');
-        expect(getUser).toHaveBeenCalledTimes(32);
+        const providerCalls=sharedToken?1:32;
+        expect(getUser).toHaveBeenCalledTimes(providerCalls);
         release({data:{user:null},error:new AuthApiError('denied',401,'bad_jwt')});await Promise.all(checks);
         getUser.mockResolvedValue({data:{user:null},error:new AuthApiError('denied',401,'bad_jwt')});
         expect(await service.verifyUser('a.b.c')).toBeNull();
-        expect(getUser).toHaveBeenCalledTimes(33);
+        expect(getUser).toHaveBeenCalledTimes(providerCalls+1);
     });
     it('keeps Web and server new-user defaults at 1000',()=>{
         expect(INITIAL_RATING).toBe(1000);expect(SERVER_INITIAL_RATING).toBe(INITIAL_RATING);

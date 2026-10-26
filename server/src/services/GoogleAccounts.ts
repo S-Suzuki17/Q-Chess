@@ -43,14 +43,16 @@ export class GoogleAccountError extends Error {constructor(public code:string){s
 export function createGoogleAccountStore(client:SupabaseClient,
     verify:(token:string)=>Promise<GoogleActor|null>):GoogleAccountStore {
     const read:GoogleAccountStore['read']=async authId=>{
-        const {data,error}=await client.from('google_account_links').select('user_id,username').eq('auth_user_id',authId)
+        const {data,error}=await client.from('google_account_links')
+            .select('user_id,username,profile:profiles!google_account_links_user_id_fkey(name)').eq('auth_user_id',authId)
             .abortSignal(AbortSignal.timeout(5000)).maybeSingle();
         if(error)throw new SessionAuthorityUnavailable();
         if(!data)return null;
-        const profile=await client.from('profiles').select('name').eq('id',data.user_id)
-            .abortSignal(AbortSignal.timeout(5000)).single();
-        if(profile.error)throw new SessionAuthorityUnavailable();
-        return {authId,userId:data.user_id,username:data.username,name:profile.data.name};
+        const profile:unknown=data.profile;
+        if(typeof data.user_id!=='string'||!data.user_id||typeof data.username!=='string'
+            ||!profile||typeof profile!=='object'||Array.isArray(profile)
+            ||!('name' in profile)||typeof profile.name!=='string')throw new SessionAuthorityUnavailable();
+        return {authId,userId:data.user_id,username:data.username,name:profile.name};
     };
     return {verify,read,
         async setup(actor,username,hash,version,legacyPassword){

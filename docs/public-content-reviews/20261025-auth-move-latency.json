@@ -1,0 +1,176 @@
+{
+  "schemaVersion": 1,
+  "status": "completed",
+  "baseRevision": "51f0adcef1e7df19ddf5e22722190cd12ca51c9b",
+  "reviewer": "Codex",
+  "changes": [
+    {
+      "path": "server/src/quantum-engine/moveGenerator.ts",
+      "gitBlob": "b122172573f5f533275f1411e88e5b56fb192c0d"
+    },
+    {
+      "path": "server/src/quantum-engine/stateTransition.ts",
+      "gitBlob": "8e8e8d65aa141b801f28223ace1ee3b8b80985ed"
+    },
+    {
+      "path": "server/src/quantum-engine/terminal.ts",
+      "gitBlob": "6974ff26a9a87991f0be7b67a3043124ea031200"
+    },
+    {
+      "path": "server/src/services/GoogleAccounts.ts",
+      "gitBlob": "523869ece9d4f179dbb0db1042d1037fbaf179ab"
+    },
+    {
+      "path": "server/src/services/SupabaseService.ts",
+      "gitBlob": "5290d97b755fa5e49e61ad290ded4a519825464b"
+    },
+    {
+      "path": "src/app/page.tsx",
+      "gitBlob": "b27168adfdc352983af78172d28eed0ab1843553"
+    },
+    {
+      "path": "src/components/LocalGameBoard.tsx",
+      "gitBlob": "065d1eeb4c80b00b66ec1aaa8fec38b3bd5889d9"
+    },
+    {
+      "path": "src/components/MatchLayout.tsx",
+      "gitBlob": "c7cb49a2137267f11adf0ec32f5574ff9e83cf57"
+    },
+    {
+      "path": "src/components/OnlineMatchWaiting.tsx",
+      "gitBlob": "9d7d657ffc6459be7e0f3ca8e93a59fa654499d7"
+    },
+    {
+      "path": "src/components/SharedMatchAdmissionChoice.tsx",
+      "gitBlob": "72abfa30908311ac5505ae9ac2746b8cc9ee6ddd"
+    },
+    {
+      "path": "src/components/TitleScreen.tsx",
+      "gitBlob": "5b3c9d19bed33d9b120f437d84d61285f3617990"
+    }
+  ],
+  "reviews": [
+    {
+      "group": "start-and-controls",
+      "decision": "no-change-needed",
+      "reason": "Compared Japanese and English guide start steps and guest FAQ with TitleScreen and saved-session rendering. Entry buttons, tutorial, practice, sign-in, cancellation and error retry are unchanged. Only decorative title copy and a routine checking sentence were removed, so the documented starting steps remain accurate. The subsequent user request promotes the existing Google sign-in action above guest, practice and tutorial and keeps the retained photo above the action group on mobile. Guest access and guide links remain available with the same labels and behavior, so the starting instructions remain accurate.",
+      "checkedPages": [
+        "/guide/#start",
+        "/faq/#guest"
+      ],
+      "evidence": [
+        "src/locales/siteContent.ts: Japanese/English start steps, guest, clock and hints guidance compared with the display-only diff",
+        "src/components/MatchLayout.tsx and QubeTeacher.tsx: hint results, teaching and cancellation preserved",
+        "docs/latency-improvement-20261025.md: quiet UI validation and unchanged release boundaries"
+      ]
+    },
+    {
+      "group": "candidates-and-outcomes",
+      "decision": "no-change-needed",
+      "reason": "Compared Japanese and English rules, guide candidates/outcomes/practice/chain and FAQ move/win with the exact engine diff. The single-target query calls the same candidate geometry, blockers, castling, en passant, promotion and identity filters as full enumeration. Candidate propagation, final living King safety and terminal outcomes are unchanged, so the existing explanations remain accurate.",
+      "checkedPages": [
+        "/rules/",
+        "/guide/#candidates",
+        "/guide/#outcomes",
+        "/guide/#practice",
+        "/guide/#chain",
+        "/faq/#move",
+        "/faq/#win"
+      ],
+      "evidence": [
+        "src/locales/siteContent.ts: Japanese and English learningCopy sections, exercises, chain explanations and move/win FAQ inspected",
+        "src/app/rules/page.tsx and src/locales/rulesVisualDict.ts: effective capture and checkmate explanations inspected",
+        "docs/latency-improvement-20261025.md: focused engine regression tests and local before/after measurements passed",
+        "scratch/latency-20261025/browser-results.json and device-results.json: actual practice selection, move, CPU, hint and 3D passed"
+      ]
+    },
+    {
+      "group": "hints-and-clock",
+      "decision": "no-change-needed",
+      "reason": "Compared Japanese and English hintHelp, hints FAQ and clock FAQ with MatchLayout, CrownHintRecovery and LocalGameBoard. The free/one-ticket label, manual source/destination action, existing result explanation, cancel control, retry and clocks remain. Pending calculation no longer inserts a text banner; it keeps the action disabled and aria-busy. No guide promises the removed processing wording.",
+      "checkedPages": [
+        "/guide/#start",
+        "/faq/#clock",
+        "/faq/#hints"
+      ],
+      "evidence": [
+        "src/locales/siteContent.ts: Japanese/English start steps, guest, clock and hints guidance compared with the display-only diff",
+        "src/components/MatchLayout.tsx and QubeTeacher.tsx: hint results, teaching and cancellation preserved",
+        "docs/latency-improvement-20261025.md: quiet UI validation and unchanged release boundaries"
+      ]
+    },
+    {
+      "group": "accounts-connections-and-saves",
+      "decision": "no-change-needed",
+      "reason": "Compared Japanese and English connection/save/privacy FAQ, contact instructions and effective privacyReview overrides with GoogleAccounts and SupabaseService changes. Only pending identical-token provider requests are coalesced; every caller still checks current session/recovery identity and later revocation checks remain. Profile linking uses the existing relationship, fails closed on missing/error responses and introduces no new storage, collection, sharing, consent or account workflow. Existing support, authentication and retention explanations require no change.",
+      "checkedPages": [
+        "/faq/#connection",
+        "/faq/#save",
+        "/faq/#privacy",
+        "/contact/",
+        "/privacy/"
+      ],
+      "evidence": [
+        "src/locales/siteContent.ts: Japanese and English connection/save/privacy FAQ and contact copy inspected",
+        "src/app/privacy/page.tsx, src/locales/privacyReview.ts and src/components/AccountDataGuide.tsx: effective account/storage/privacy disclosures inspected",
+        "server/src/services/GoogleAccountIdentity.test.ts: pending-only coalescing, per-caller live checks, token isolation, retry and timeout coverage passed",
+        "server/src/services/GoogleAccounts.test.ts: one joined API read and missing-profile/error fail-closed coverage passed",
+        "docs/latency-improvement-20261025.md: six synthetic account scenarios passed for each Web/Android export"
+      ]
+    },
+    {
+      "group": "commerce-and-disclosures",
+      "decision": "no-change-needed",
+      "reason": "Reviewed the changed admission choice and hint controls against the existing hint FAQ, TermsDocument/currentTerms and previously reviewed contact/privacy disclosures. Ticket costs, consent, availability, choice, cancellation, error/recovery and billing behavior are unchanged. No collection or purchase path is introduced. Only the routine pending sentence is removed.",
+      "checkedPages": [
+        "/faq/#hints",
+        "/contact/",
+        "/privacy/",
+        "/terms/"
+      ],
+      "evidence": [
+        "src/locales/siteContent.ts: Japanese/English start steps, guest, clock and hints guidance compared with the display-only diff",
+        "src/components/MatchLayout.tsx and QubeTeacher.tsx: hint results, teaching and cancellation preserved",
+        "docs/latency-improvement-20261025.md: quiet UI validation and unchanged release boundaries"
+      ]
+    },
+    {
+      "group": "public-guidance-and-navigation",
+      "decision": "no-change-needed",
+      "reason": "Compared the display-only diff with existing Japanese/English guide and FAQ entry text and the prior eight-page review. Removing title slogans and routine process banners does not alter links, access, rules, support, privacy or terms. The actual tutorial, guide/rules links and public documents remain, so their guidance does not require rewriting. The subsequent user request promotes the existing Google sign-in action above guest, practice and tutorial and keeps the retained photo above the action group on mobile. Guest access and guide links remain available with the same labels and behavior, so the starting instructions remain accurate.",
+      "checkedPages": [
+        "/",
+        "/guide/",
+        "/faq/",
+        "/rules/",
+        "/about/",
+        "/contact/",
+        "/privacy/",
+        "/terms/"
+      ],
+      "evidence": [
+        "src/locales/siteContent.ts: Japanese/English start steps, guest, clock and hints guidance compared with the display-only diff",
+        "src/components/MatchLayout.tsx and QubeTeacher.tsx: hint results, teaching and cancellation preserved",
+        "docs/latency-improvement-20261025.md: quiet UI validation and unchanged release boundaries"
+      ]
+    },
+    {
+      "group": "qube-teaching",
+      "decision": "no-change-needed",
+      "reason": "Reviewed QubeTeacher and actual MatchLayout hint results, errors and controls. QUBE portraits, tutorial/help explanations, candidate changes, promotion/castling explanations and saved hints remain. Only the waiting-time teaching wrapper is suppressed. The existing browser test confirms success, failure, cancellation and stale-reply behavior without a pending text banner.",
+      "checkedPages": [
+        "/",
+        "/about/",
+        "/rules/",
+        "/guide/",
+        "/faq/",
+        "game: tutorial, help dialogs, move hints and feedback, promotion/castling, stage/setup explanations, cosmetic preview/equipment guidance"
+      ],
+      "evidence": [
+        "src/locales/siteContent.ts: Japanese/English start steps, guest, clock and hints guidance compared with the display-only diff",
+        "src/components/MatchLayout.tsx and QubeTeacher.tsx: hint results, teaching and cancellation preserved",
+        "docs/latency-improvement-20261025.md: quiet UI validation and unchanged release boundaries"
+      ]
+    }
+  ]
+}

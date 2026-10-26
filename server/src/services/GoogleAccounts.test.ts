@@ -1,6 +1,7 @@
-import {describe,it,expect} from 'vitest';
+import {describe,it,expect,vi} from 'vitest';
+import {createClient} from '@supabase/supabase-js';
 import type {User} from '@supabase/supabase-js';
-import {hashGooglePassword,checkGooglePassword,verifiedGoogleActor} from './GoogleAccounts';
+import {hashGooglePassword,checkGooglePassword,verifiedGoogleActor,createGoogleAccountStore} from './GoogleAccounts';
 const id='11111111-1111-4111-8111-111111111111';
 const user={id,is_anonymous:false,identities:[{provider:'google'}]} as User;
 const token=(claims:object)=>'header.'+Buffer.from(JSON.stringify({sub:id,session_id:id,...claims})).toString('base64url')+'.signature';
@@ -22,5 +23,31 @@ describe('verified Google claims and action passwords',()=>{
   expect(await checkGooglePassword('x'.repeat(1025),first)).toBe(false);
   expect(await checkGooglePassword(null,first)).toBe(false);
   expect(await checkGooglePassword('SyntheticPassword123','invalid')).toBe(false);
+ });
+});
+
+describe('Google account inspection uses one Data API request',()=>{
+ function fixture(value:unknown,status=200){
+  const fetch=vi.fn(async(_input:RequestInfo|URL,_init?:RequestInit)=>new Response(JSON.stringify(value),{status,headers:{'Content-Type':'application/json'}}));
+  const client=createClient('https://example.test','synthetic-key',{
+   auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false},global:{fetch},
+  });
+  return {fetch,store:createGoogleAccountStore(client,async()=>null)};
+ }
+ it('reads the linked profile through the existing foreign key in a single round-trip',async()=>{
+  const f=fixture({user_id:'Alice',username:'Alice',profile:{name:'Display Alice'}});
+  expect(await f.store.read(id)).toEqual({authId:id,userId:'Alice',username:'Alice',name:'Display Alice'});
+  expect(f.fetch).toHaveBeenCalledTimes(1);
+  const url=new URL(String(f.fetch.mock.calls[0][0]));
+  expect(url.pathname).toBe('/rest/v1/google_account_links');
+  expect(url.searchParams.get('auth_user_id')).toBe('eq.'+id);
+  expect(url.searchParams.get('select')).toBe('user_id,username,profile:profiles!google_account_links_user_id_fkey(name)');
+ });
+ it('preserves incomplete onboarding and fails closed on missing profiles or API errors',async()=>{
+  expect(await fixture(null).store.read(id)).toBeNull();
+  for(const profile of [null,[],{name:null}]){
+   await expect(fixture({user_id:'Alice',username:'Alice',profile}).store.read(id)).rejects.toThrow();
+  }
+  await expect(fixture({message:'unavailable'},403).store.read(id)).rejects.toThrow();
  });
 });

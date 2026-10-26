@@ -356,11 +356,18 @@ try{
     }
     if(scenario.reconnect){
      step='transport reconnect restores this board without new queue';
+     const previousConnection=connections,previousResume=connectRequests,previousSnapshot=snapshots;
      closeTransport();
-     await page.waitForTimeout(1500);
+     // Socket.IO backoff and React's connected effect complete independently.
+     // Await actual resume traffic instead of assuming a 1.5-second sleep is enough.
+     const reconnectDeadline=Date.now()+5000;
+     while((connections<=previousConnection||connectRequests<=previousResume||snapshots<=previousSnapshot)&&Date.now()<reconnectDeadline){
+      await new Promise(resolve=>setTimeout(resolve,25));
+     }
      await page.waitForFunction(()=>document.querySelector('[data-square="h5"]'));
-     assert(connections>=2,'Transport reconnect performed');
-     assert(connectRequests>=2,'Board requested resume');
+     assert(connections>previousConnection,'Transport reconnect performed within five seconds');
+     assert(connectRequests>previousResume,'Board requested resume within five seconds');
+     assert(snapshots>previousSnapshot,'Resume returned a fresh snapshot within five seconds');
      assert.equal(queues,1,'Resume does not queue or choose another ticket');
     }
     if(scenario.checkCharacter){
