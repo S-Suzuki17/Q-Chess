@@ -59,3 +59,36 @@ it('does not erase the new account when an earlier account deletion completes la
     const storage=memory(),store=createCampaignStore(()=>storage,'Alice');store.update(()=>progress([3]));store.selectOwner('Bob');store.update(()=>progress([2,1]));
     store.resetAfterAccountDeletion('Alice');expect(store.getSnapshot().progress.stageStars).toEqual([2,1]);expect(store.getOwner()).toBe('Bob');
 });
+
+it('saves subsequent local edits with one request while clean refreshes still fetch other devices',async()=>{
+    const store=createCampaignStore(memory,'Alice');let revision=1,remote=progress([1]);
+    const request=vi.fn(async(body?:any):Promise<CloudProgress>=>{
+        if(!body)return {revision,progress:remote};
+        expect(body.revision).toBe(revision);remote=body.progress;return {revision:++revision,progress:remote,saved:true};
+    });
+    const sync=createCampaignSync(store,'Alice',request,vi.fn());await sync.flush();request.mockClear();
+    store.update(()=>progress([3,1]));await sync.flush();
+    expect(request).toHaveBeenCalledOnce();expect(request.mock.calls[0][0]).toMatchObject({revision:1});expect(store.hasPending()).toBe(false);
+    request.mockClear();remote=progress([3,3,2]);revision++;await sync.flush();
+    expect(request).toHaveBeenCalledOnce();expect(request.mock.calls[0]).toEqual([]);expect(store.getSnapshot().progress.stageStars).toEqual([3,3,2]);
+});
+it('reconciles another device edit when an optimistic save has an old revision',async()=>{
+    const store=createCampaignStore(memory,'Alice');let phase=0;
+    const request=vi.fn(async(body?:any):Promise<CloudProgress>=>{
+        if(!body)return {revision:1,progress:progress([1])};
+        if(phase++===0){expect(body.revision).toBe(1);return {saved:false,revision:2,progress:progress([2,3])};}
+        expect(body.revision).toBe(2);expect(body.progress.stageStars).toEqual([3,3]);return {saved:true,revision:3,progress:body.progress};
+    });
+    const sync=createCampaignSync(store,'Alice',request,vi.fn());await sync.flush();request.mockClear();
+    store.update(()=>progress([3]));await sync.flush();expect(request).toHaveBeenCalledTimes(2);expect(store.hasPending()).toBe(false);
+});
+it('re-reads after a lost save response and keeps the local edit',async()=>{
+    const store=createCampaignStore(memory,'Alice');let revision=1,remote=progress([1]),lose=true;
+    const request=vi.fn(async(body?:any):Promise<CloudProgress>=>{
+        if(!body)return {revision,progress:remote};remote=body.progress;revision++;
+        if(lose){lose=false;throw Error('lost response');}return {revision,progress:remote,saved:true};
+    });
+    const notify=vi.fn(),sync=createCampaignSync(store,'Alice',request,notify);await sync.flush();store.update(()=>progress([3]));await sync.flush();
+    expect(store.hasPending()).toBe(true);expect(notify).toHaveBeenLastCalledWith('error');request.mockClear();await sync.flush();
+    expect(request).toHaveBeenCalledOnce();expect(request.mock.calls[0]).toEqual([]);expect(store.hasPending()).toBe(false);expect(store.getSnapshot().progress.stageStars).toEqual([3]);
+});

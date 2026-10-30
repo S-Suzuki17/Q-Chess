@@ -28,14 +28,16 @@ export function createLearningRouter(auth:RankedSessionAuthority,store:LearningS
                 res.setHeader('Retry-After','60');res.status(429).json({code:'TRY_LATER'});return;
             }
             entry.count++;attempts.set(userId,entry);
-            if(gate.blocked(userId)||await store.blocked(userId)){res.status(423).json({code:'ACCOUNT_DELETING'});return;}
+            if(gate.blocked(userId)||(!['GET','HEAD'].includes(req.method)&&await store.blocked(userId))){res.status(423).json({code:'ACCOUNT_DELETING'});return;}
             res.locals.userId=userId;res.locals.token=token;res.locals.legacy=!!proof;next();
         }catch{res.status(503).json({code:'LEARNING_UNAVAILABLE'});}
     };
     router.get('/learning',authenticate,async(_req,res)=>{
         try{
             const userId=res.locals.userId as string,week=learningWeek(now()).week;
-            const [weeklySet,progress]=await Promise.all([store.week(week),store.progress(userId,week)]);
+            // After identity/rate checks, independent reads can overlap. Nothing is returned until deletion checks pass.
+            const [blocked,weeklySet,progress]=await Promise.all([store.blocked(userId),store.week(week),store.progress(userId,week)]);
+            if(blocked||gate.blocked(userId)){res.status(423).json({code:'ACCOUNT_DELETING'});return;}
             res.json({userId,weeklySet,...progress});
         }catch{res.status(503).json({code:'LEARNING_UNAVAILABLE'});}
     });

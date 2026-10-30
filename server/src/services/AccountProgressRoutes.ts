@@ -15,11 +15,18 @@ export function createAccountProgressRouter(auth:RankedSessionAuthority,store:Re
             if(!id||!isRankedUserId(id)||(proof&&!(await auth.verifySession(token)))){res.status(401).json({code:'AUTH_REQUIRED'});return;}
             if(Object.keys(req.query).length){res.status(400).json({code:'INVALID_REQUEST'});return;}
             if(!allow(`user:${id}`,30)){res.setHeader('Retry-After','60');res.status(429).json({code:'TRY_LATER'});return;}
-            if(gate.blocked(id)||await store.blocked(id)){res.status(423).json({code:'ACCOUNT_DELETING'});return;}
+            if(gate.blocked(id)||(!['GET','HEAD'].includes(req.method)&&await store.blocked(id))){res.status(423).json({code:'ACCOUNT_DELETING'});return;}
             res.locals.owner=id;res.locals.proof=proof?token:null;next();
         }catch{res.status(503).json({code:'UNAVAILABLE'});}
     });
-    router.get('/account/progress',async(_req,res)=>{try{res.json({userId:res.locals.owner,...await store.read(res.locals.owner)});}catch{res.status(503).json({code:'UNAVAILABLE'});}});
+    router.get('/account/progress',async(_req,res)=>{
+        try{
+            const id=res.locals.owner;
+            const [blocked,progress]=await Promise.all([store.blocked(id),store.read(id)]);
+            if(blocked||gate.blocked(id)){res.status(423).json({code:'ACCOUNT_DELETING'});return;}
+            res.json({userId:id,...progress});
+        }catch{res.status(503).json({code:'UNAVAILABLE'});}
+    });
     router.post('/account/progress',express.json({limit:'16kb',inflate:false}),async(req,res)=>{
         const {revision,progress}=req.body??{},parsed=parseSavedProgress(progress);
         if(!req.is('application/json')||!req.body||Object.keys(req.body).sort().join(',')!=='progress,revision'||!Number.isSafeInteger(revision)||revision<0||!parsed){res.status(400).json({code:'INVALID_REQUEST'});return;}

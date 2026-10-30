@@ -1,0 +1,51 @@
+{
+  "schemaVersion": 1,
+  "status": "completed",
+  "baseRevision": "9aa79010cc37aa9d86aa65ee6cd3059e58fdad89",
+  "reviewer": "Codex - network request and progress synchronization review",
+  "changes": [
+    {
+      "path": "server/src/services/AccountProgressRoutes.ts",
+      "gitBlob": "d0bfa35c782abc8cd289913014eba0ed2c58ae91"
+    },
+    {
+      "path": "server/src/services/LearningRoutes.ts",
+      "gitBlob": "a5b5e1c4c40551f72e4063b8d1ee767c954849f6"
+    }
+  ],
+  "reviews": [
+    {
+      "group": "accounts-connections-and-saves",
+      "decision": "no-change-needed",
+      "reason": "The same authenticated owner, deletion checks, local/cloud progress, conflict merging and retry behavior remain in force. Only concurrent read scheduling and compare-and-swap request counts change. Japanese and English FAQ connection/save/privacy, contact and privacy guidance still match; no new data, retention or recipient is introduced.",
+      "checkedPages": [
+        "/faq/#connection",
+        "/faq/#save",
+        "/faq/#privacy",
+        "/contact/",
+        "/privacy/"
+      ],
+      "evidence": [
+        "docs/network-latency-20261030.md: 95 focused tests, typecheck and server build; synthetic Web and Android export account cases passed without live account writes.",
+        "src/locales/siteContent.ts: Japanese and English FAQ connection/save/privacy/hints reviewed against the changed routes and campaignSync.",
+        "src/locales/privacyReview.ts, src/locales/securityPrivacy.ts, src/components/TermsDocument.tsx, src/config/currentTerms.ts and src/app/contact/page.tsx: ownership, storage, retry and disclosure behavior unchanged."
+      ]
+    },
+    {
+      "group": "commerce-and-disclosures",
+      "decision": "no-change-needed",
+      "reason": "Learning GET/HEAD work is scheduled concurrently only after authentication and local restriction checks. Reward POST, ticket consumption, current terms, pricing and advertising behavior remain unchanged. Japanese and English hint, contact, privacy and terms disclosures do not require edits.",
+      "checkedPages": [
+        "/faq/#hints",
+        "/contact/",
+        "/privacy/",
+        "/terms/"
+      ],
+      "evidence": [
+        "docs/network-latency-20261030.md: 95 focused tests, typecheck and server build; synthetic Web and Android export account cases passed without live account writes.",
+        "src/locales/siteContent.ts: Japanese and English FAQ connection/save/privacy/hints reviewed against the changed routes and campaignSync.",
+        "src/locales/privacyReview.ts, src/locales/securityPrivacy.ts, src/components/TermsDocument.tsx, src/config/currentTerms.ts and src/app/contact/page.tsx: ownership, storage, retry and disclosure behavior unchanged."
+      ]
+    }
+  ]
+}
