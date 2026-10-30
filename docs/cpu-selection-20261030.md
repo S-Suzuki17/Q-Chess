@@ -22,3 +22,7 @@ The already approved PR #37 was merged at `6c82ab2b6361fe50b633152424c7f7f0da7e4
 Documentation discrepancy: `docs/release.md:20` says GitHub pushes do not deploy Cloudflare; the actual q-gambit-web production branch configuration had automatic deployment enabled with no build setup. The approved configuration change restores the documented verified Direct Upload workflow. No paid resources or database changes were used.
 
 Raw local evidence is under `build/network-latency-20261030/`, including the preserved failing baseline, successful candidate, deployment logs and verification reports. These operational files are not published in Git.
+
+## Crown follow-up
+
+The Crown coverage above was limited to the acknowledgement/helper, not the optimistic CPU move path. A later user report reproduced a reset in that remaining path. See [the Crown-specific follow-up](crown-selection-20261030.md) for the correction and authenticated synthetic-browser evidence.
