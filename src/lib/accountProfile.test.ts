@@ -53,3 +53,78 @@ it('blocks cleartext remote endpoints', async () => {
 it('provides all errors in every supported language', () => {
     for (const lang of ['ja','en','zh','ru','fr','de','es','tr','pl','hi','pt','ta'] as const) for (const key of ['auth','failed','name'] as const) expect(accountProfileText(lang,key).length).toBeGreaterThan(5);
 });
+
+it('joins overlapping identical reads even when screens have separate abort signals, without caching results', async () => {
+    const {requestAccountProfile}=await import('./accountProfile');
+    let finish!:(value:Response)=>void;
+    const fetcher=vi.fn(()=>new Promise<Response>(done=>{finish=done;}));vi.stubGlobal('fetch',fetcher);
+    const first=new AbortController(),second=new AbortController();
+    const a=requestAccountProfile('/learning','Alice',undefined,first.signal);
+    const b=requestAccountProfile('/learning','Alice',undefined,second.signal);
+    expect(fetcher).toHaveBeenCalledOnce();
+    finish(reply({userId:'Alice',rows:[1]}));
+    const [left,right]=await Promise.all([a,b]);(left.rows as number[]).push(2);
+    expect(right.rows).toEqual([1]);
+    const later=requestAccountProfile('/learning','Alice');expect(fetcher).toHaveBeenCalledTimes(2);
+    finish(reply({userId:'Alice',rows:[3]}));expect((await later).rows).toEqual([3]);
+});
+it('cancels one reader independently and cancels transport only when every reader leaves', async () => {
+    const {requestAccountProfile}=await import('./accountProfile');
+    const finishes:Array<(value:Response)=>void>=[];
+    const fetcher=vi.fn((_url:unknown,_options:any)=>new Promise<Response>(done=>{finishes.push(done);}));vi.stubGlobal('fetch',fetcher);
+    const first=new AbortController(),second=new AbortController();
+    const a=requestAccountProfile('/learning','Alice',undefined,first.signal).catch(error=>error.code);
+    const b=requestAccountProfile('/learning','Alice',undefined,second.signal).catch(error=>error.code);
+    first.abort();expect(await a).toBe('UNAVAILABLE');expect(fetcher.mock.calls[0][1].signal.aborted).toBe(false);
+    second.abort();expect(await b).toBe('UNAVAILABLE');expect(fetcher.mock.calls[0][1].signal.aborted).toBe(true);
+    const retry=requestAccountProfile('/learning','Alice');expect(fetcher).toHaveBeenCalledTimes(2);
+    finishes[0](reply({userId:'Alice',old:true}));finishes[1](reply({userId:'Alice',fresh:true}));
+    expect(await retry).toMatchObject({fresh:true});
+});
+it('does not join reads across users, bearers, or endpoints', async () => {
+    const {requestAccountProfile}=await import('./accountProfile');
+    const finishes:Array<(value:Response)=>void>=[];
+    const fetcher=vi.fn(()=>new Promise<Response>(done=>{finishes.push(done);}));vi.stubGlobal('fetch',fetcher);
+    const a=requestAccountProfile('/learning','Alice');
+    mocks.proof.mockReturnValue({token:'new-proof'});
+    const b=requestAccountProfile('/learning','Alice'),c=requestAccountProfile('/account/progress','Alice'),d=requestAccountProfile('/learning','Bob');
+    expect(fetcher).toHaveBeenCalledTimes(4);
+    finishes.forEach((done,i)=>done(reply({userId:i===3?'Bob':'Alice'})));await Promise.all([a,b,c,d]);
+});
+it('does not let reads from before or during a mutation satisfy a later refresh', async () => {
+    const {requestAccountProfile}=await import('./accountProfile');
+    const finishes:Array<(value:Response)=>void>=[];
+    const fetcher=vi.fn(()=>new Promise<Response>(done=>{finishes.push(done);}));vi.stubGlobal('fetch',fetcher);
+    const before=requestAccountProfile('/learning','Alice');
+    const write=requestAccountProfile('/learning/complete','Alice',{kind:'tutorial'});
+    const during=requestAccountProfile('/learning','Alice');expect(fetcher).toHaveBeenCalledTimes(3);
+    finishes[1](reply({userId:'Alice',saved:true}));await write;
+    const after=requestAccountProfile('/learning','Alice');expect(fetcher).toHaveBeenCalledTimes(4);
+    finishes[0](reply({userId:'Alice',revision:0}));finishes[2](reply({userId:'Alice',revision:0}));finishes[3](reply({userId:'Alice',revision:1}));
+    await Promise.all([before,during]);expect(await after).toMatchObject({revision:1});
+});
+it('releases a failed shared request so a retry really reaches the server', async () => {
+    const {requestAccountProfile}=await import('./accountProfile');
+    const fetcher=vi.fn().mockResolvedValueOnce(reply({},503)).mockResolvedValueOnce(reply({userId:'Alice'}));vi.stubGlobal('fetch',fetcher);
+    const results=await Promise.allSettled([requestAccountProfile('/learning','Alice'),requestAccountProfile('/learning','Alice')]);
+    expect(results.every(row=>row.status==='rejected')).toBe(true);expect(fetcher).toHaveBeenCalledOnce();
+    expect(await requestAccountProfile('/learning','Alice')).toMatchObject({userId:'Alice'});expect(fetcher).toHaveBeenCalledTimes(2);
+});
+it('does not send a request for an already cancelled caller or combine mutation requests', async () => {
+    const {requestAccountProfile}=await import('./accountProfile');
+    const fetcher=vi.fn(async()=>reply({userId:'Alice'}));vi.stubGlobal('fetch',fetcher);
+    const abort=new AbortController();abort.abort();
+    await expect(requestAccountProfile('/learning','Alice',undefined,abort.signal)).rejects.toThrow('UNAVAILABLE');expect(fetcher).not.toHaveBeenCalled();
+    await Promise.all([requestAccountProfile('/learning/complete','Alice',{}),requestAccountProfile('/learning/complete','Alice',{})]);
+    expect(fetcher).toHaveBeenCalledTimes(2);
+});
+
+it('keeps the remaining screen request alive when another screen closes',async()=>{
+    const {requestAccountProfile}=await import('./accountProfile');let finish!:(value:Response)=>void;
+    const fetcher=vi.fn((_url:unknown,_options:any)=>new Promise<Response>(done=>{finish=done;}));vi.stubGlobal('fetch',fetcher);
+    const closed=new AbortController(),open=new AbortController();
+    const a=requestAccountProfile('/learning','Alice',undefined,closed.signal).catch(error=>error.code);
+    const b=requestAccountProfile('/learning','Alice',undefined,open.signal);closed.abort();expect(await a).toBe('UNAVAILABLE');
+    expect(fetcher.mock.calls[0][1].signal.aborted).toBe(false);finish(reply({userId:'Alice',weekly:[1]}));expect(await b).toMatchObject({weekly:[1]});
+    expect(fetcher).toHaveBeenCalledOnce();
+});

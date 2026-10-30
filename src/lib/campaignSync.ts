@@ -6,6 +6,7 @@ export const serializeProgress=(p:CampaignProgress)=>JSON.stringify(p,(key,value
 /** Single owner, single flight; stale callbacks never cross an account switch. */
 export function createCampaignSync(store:ReturnType<typeof createCampaignStore>,owner:string,request:(body?:unknown)=>Promise<CloudProgress>,notify:(state:SyncState)=>void){
     let active=true,pending:Promise<void>|null=null;
+    let known:CloudProgress|null=null;
     const current=()=>active&&store.getOwner()===owner;
     const flush=()=>{
         if(pending)return pending;
@@ -13,8 +14,11 @@ export function createCampaignSync(store:ReturnType<typeof createCampaignStore>,
         pending=(async()=>{
             notify('loading');
             try{
-                let remote=await request();
+                // A saved revision is safe to try: CAS returns the current remote row on conflict.
+                // Clean background refreshes still read other devices; only local writes skip the preliminary GET.
+                let remote=known&&store.hasPending()?known:await request();
                 if(!current())return;
+                known=remote;
                 store.load();store.mergeCloud(remote.progress??emptyCampaign(),store.hasPending()||remote.progress===null);
                 for(let attempt=0;attempt<3&&current();attempt++){
                     const local=store.getSnapshot().progress;
@@ -22,16 +26,17 @@ export function createCampaignSync(store:ReturnType<typeof createCampaignStore>,
                     const generation=store.getChanges();
                     remote=await request({revision:remote.revision,progress:JSON.parse(serializeProgress(local))});
                     if(!current())return;
+                    known=remote;
                     const newer=store.getChanges()!==generation;
                     store.mergeCloud(remote.progress??emptyCampaign(),newer||!remote.saved);
                     if(remote.saved&&!newer&&remote.progress&&serializeProgress(store.getSnapshot().progress)===serializeProgress(remote.progress)){store.acknowledge();notify('saved');return;}
                 }
                 if(current())notify('pending');
-            }catch{if(current())notify('error');}
+            }catch{known=null;if(current())notify('error');}
         })().finally(()=>{pending=null;});
         return pending;
     };
-    return {flush,stop:()=>{active=false;}};
+    return {flush,stop:()=>{active=false;known=null;}};
 }
 export function parseCloudProgress(value:Record<string,unknown>):CloudProgress {
     if(!Number.isSafeInteger(value.revision)||(value.revision as number)<0||(value.progress!==null&&(!value.progress||typeof value.progress!=='object')))throw new Error('UNAVAILABLE');

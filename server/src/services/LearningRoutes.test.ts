@@ -10,7 +10,7 @@ import {tutorialCourse,tutorialReferenceMove} from '../learning/tutorialCourse';
 import {generateWeeklyProblems,mateSolutions} from '../learning/weeklyProblems';
 import {createLearningMaintenance} from './LearningMaintenance';
 describe('learning reward HTTP authorization and proof validation',()=>{
- let server:http.Server,base:string,token:string,enabled:boolean,auth:RankedAuth,clock:number;
+ let server:http.Server,base:string,token:string,enabled:boolean,auth:RankedAuth,clock:number,gate:AccountWriteGate;
  let store:{[K in keyof LearningStore]:ReturnType<typeof vi.fn>};
  const state={tutorial:[],weekly:[],weeklyRewarded:false,tickets:{ranked:0,hint:0}};
  const lesson=tutorialCourse[0];
@@ -24,7 +24,7 @@ describe('learning reward HTTP authorization and proof validation',()=>{
     previousPositions:vi.fn().mockResolvedValue(new Set()),publish:vi.fn().mockResolvedValue(undefined)};
   auth=new RankedAuth(async(id,pw)=>['Alice','Bob'].includes(id)&&pw==='right');
   token=(await auth.issueLegacySession('Alice','right'))!.token;
-  const app=express();app.use(createLearningRouter(auth,store,new AccountWriteGate(),()=>enabled,()=>clock));
+  const app=express();app.use(createLearningRouter(auth,store,gate=new AccountWriteGate(),()=>enabled,()=>clock));
   server=http.createServer(app);await new Promise<void>(resolve=>server.listen(0,'127.0.0.1',resolve));
   base=`http://127.0.0.1:${(server.address() as AddressInfo).port}`;
  });
@@ -84,5 +84,22 @@ describe('learning reward HTTP authorization and proof validation',()=>{
   await expect(tick()).rejects.toThrow('temporary');
   await tick();await tick();
   expect(store.publish).toHaveBeenCalledTimes(2);
+ });
+
+ it('overlaps weekly/progress reads after authentication without returning a blocked account response',async()=>{
+  let finish!:(value:boolean)=>void;store.blocked.mockImplementation(()=>new Promise<boolean>(done=>{finish=done;}));
+  const result=fetch(base+'/learning',{headers:{Authorization:`Bearer ${token}`}});
+  await vi.waitFor(()=>expect(store.progress).toHaveBeenCalledWith('Alice','2026-10-20'));expect(store.week).toHaveBeenCalled();
+  let settled=false;void result.then(()=>{settled=true;});await new Promise(done=>setTimeout(done,10));expect(settled).toBe(false);
+  finish(true);const response=await result;expect(response.status).toBe(423);expect(await response.json()).toEqual({code:'ACCOUNT_DELETING'});
+ });
+ it('does not fetch private data without authentication and catches a deletion during a weekly read',async()=>{
+  expect((await fetch(base+'/learning')).status).toBe(401);expect(store.progress).not.toHaveBeenCalled();expect(store.week).not.toHaveBeenCalled();
+  let finish!:(value:any)=>void;store.progress.mockImplementationOnce(()=>new Promise(done=>{finish=done;}));
+  const result=fetch(base+'/learning',{headers:{Authorization:`Bearer ${token}`}});
+  await vi.waitFor(()=>expect(store.progress).toHaveBeenCalled());gate.reserve('Alice',false);finish(state);
+  expect((await result).status).toBe(423);gate.release('Alice');
+  store.blocked.mockRejectedValueOnce(Error('secret'));const unavailable=await fetch(base+'/learning',{headers:{Authorization:`Bearer ${token}`}});
+  expect(unavailable.status).toBe(503);expect(await unavailable.text()).not.toContain('secret');
  });
 });
