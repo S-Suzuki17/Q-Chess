@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "status": "completed",
+  "baseRevision": "ab51a6d475995edfe713c974e99fd335604b3416",
+  "reviewer": "Codex - Crown optimistic selection regression review",
+  "changes": [
+    {
+      "path": "src/components/LocalGameBoard.tsx",
+      "gitBlob": "c626417bc3da36b906b220bde89dcb4d12e7fd94"
+    }
+  ],
+  "reviews": [
+    {
+      "group": "hints-and-clock",
+      "decision": "no-change-needed",
+      "reason": "The remaining authenticated Crown optimistic CPU update now follows the existing selection retention rule. A surviving friendly selection stays selected; the player still explicitly chooses a legal destination on their turn. Existing instructions, hint behavior, clocks and ticket policies are unchanged.",
+      "checkedPages": [
+        "/guide/#start",
+        "/faq/#clock",
+        "/faq/#hints"
+      ],
+      "evidence": [
+        "docs/crown-selection-20261030.md: eight baseline resets and ten passing real-component Crown browser scenarios with synthetic account/transport/CPU timing.",
+        "src/components/LocalGameBoard.tsx: only the optimistic Crown selection setter changes; turn, pending, legality and authoritative update guards are unchanged.",
+        "The existing guide/FAQ piece-then-destination instructions, QUBE teaching, promotion/castling and cosmetic guidance do not require changes for a retained selection.",
+        "156 related unit cases and typecheck pass. Prior guest-only browser coverage is explicitly corrected in docs/cpu-selection-20261030.md."
+      ]
+    },
+    {
+      "group": "qube-teaching",
+      "decision": "no-change-needed",
+      "reason": "The remaining authenticated Crown optimistic CPU update now follows the existing selection retention rule. A surviving friendly selection stays selected; the player still explicitly chooses a legal destination on their turn. Existing instructions, hint behavior, clocks and ticket policies are unchanged.",
+      "checkedPages": [
+        "/",
+        "/about/",
+        "/rules/",
+        "/guide/",
+        "/faq/",
+        "game: tutorial, help dialogs, move hints and feedback, promotion/castling, stage/setup explanations, cosmetic preview/equipment guidance"
+      ],
+      "evidence": [
+        "docs/crown-selection-20261030.md: eight baseline resets and ten passing real-component Crown browser scenarios with synthetic account/transport/CPU timing.",
+        "src/components/LocalGameBoard.tsx: only the optimistic Crown selection setter changes; turn, pending, legality and authoritative update guards are unchanged.",
+        "The existing guide/FAQ piece-then-destination instructions, QUBE teaching, promotion/castling and cosmetic guidance do not require changes for a retained selection.",
+        "156 related unit cases and typecheck pass. Prior guest-only browser coverage is explicitly corrected in docs/cpu-selection-20261030.md."
+      ]
+    }
+  ]
+}

@@ -645,7 +645,8 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
             setPool(optimisticResult.pool);
             setTokens(optimisticResult.tokens);
             setIsCheck(isPlayerInCheck(nextTurn, optimisticResult.tokens, optimisticResult.pool));
-            setSelectedTokenId(null);
+            setSelectedTokenId(selected => selectionAfterBoardUpdate(selected, optimisticResult.tokens, playerSide,
+                token.player === playerSide || !!optimisticResult.state.winner));
             playMoveSound();
             crownBusy.current=true;setCrownPending(true);
             const controller=new AbortController();crownOperation.current=controller;
