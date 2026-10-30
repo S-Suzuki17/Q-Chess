@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "status": "completed",
+  "baseRevision": "6c82ab2b6361fe50b633152424c7f7f0da7e43d3",
+  "reviewer": "Codex - CPU handoff selection regression review",
+  "changes": [
+    {
+      "path": "src/components/LocalGameBoard.tsx",
+      "gitBlob": "b8aea6257e19d8af4d97017173382d0ef59d23e4"
+    }
+  ],
+  "reviews": [
+    {
+      "group": "hints-and-clock",
+      "decision": "no-change-needed",
+      "reason": "Retain only an uncaptured friendly piece selected while the opponent reply is pending. Movement still waits for the player turn and uses newly computed legal destinations. Player submission, capture/removal and game end clear the selection. The existing piece-then-destination instructions, QUBE hints, ticket rules, clocks and teaching copy remain correct; no automatic move or new user-facing copy is added.",
+      "checkedPages": [
+        "/guide/#start",
+        "/faq/#clock",
+        "/faq/#hints"
+      ],
+      "evidence": [
+        "docs/cpu-selection-20261030.md: baseline and candidate compared in four desktop/mobile 2D/3D cases each; baseline loses h2 selection, candidate preserves it and accepts one h4 destination input.",
+        "src/components/LocalGameBoard.tsx: acceptCrown and executeMove retain valid friendly selection; handleSquareClick turn/pending guards and localMoveDestinations recomputation remain unchanged.",
+        "src/locales/siteContent.ts Japanese/English guide start and FAQ clock/hints; src/components/TutorialCopy.tsx, HintExplanation.tsx and public guide/rules/about/home composition reviewed. No copy, tutorial, promotion, equipment, hint or clock behavior is changed.",
+        "Unit regression covers both player colors, capture/removal, enemy inspection and explicit clearing. Typecheck and the existing 98 board/hint cases pass."
+      ]
+    },
+    {
+      "group": "qube-teaching",
+      "decision": "no-change-needed",
+      "reason": "Retain only an uncaptured friendly piece selected while the opponent reply is pending. Movement still waits for the player turn and uses newly computed legal destinations. Player submission, capture/removal and game end clear the selection. The existing piece-then-destination instructions, QUBE hints, ticket rules, clocks and teaching copy remain correct; no automatic move or new user-facing copy is added.",
+      "checkedPages": [
+        "/",
+        "/about/",
+        "/rules/",
+        "/guide/",
+        "/faq/",
+        "game: tutorial, help dialogs, move hints and feedback, promotion/castling, stage/setup explanations, cosmetic preview/equipment guidance"
+      ],
+      "evidence": [
+        "docs/cpu-selection-20261030.md: baseline and candidate compared in four desktop/mobile 2D/3D cases each; baseline loses h2 selection, candidate preserves it and accepts one h4 destination input.",
+        "src/components/LocalGameBoard.tsx: acceptCrown and executeMove retain valid friendly selection; handleSquareClick turn/pending guards and localMoveDestinations recomputation remain unchanged.",
+        "src/locales/siteContent.ts Japanese/English guide start and FAQ clock/hints; src/components/TutorialCopy.tsx, HintExplanation.tsx and public guide/rules/about/home composition reviewed. No copy, tutorial, promotion, equipment, hint or clock behavior is changed.",
+        "Unit regression covers both player colors, capture/removal, enemy inspection and explicit clearing. Typecheck and the existing 98 board/hint cases pass."
+      ]
+    }
+  ]
+}

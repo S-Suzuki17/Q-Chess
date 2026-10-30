@@ -40,6 +40,7 @@ import { RANKED_SESSION_EVENT } from '../lib/rankedSession';
 import { getWinner } from '../quantum-engine/terminal';
 import { isCheckmateFinish, gameOverDialogDelay, showPlayerVictory } from '../lib/checkmatePresentation';
 import { createLocalPosition, applyLocalMove } from '../lib/localGame';
+import { selectionAfterBoardUpdate } from '../lib/boardSelection';
 import { localMoveDestinations } from '../lib/localMoveDestinations';
 import { clockDisplaySnapshot } from '../lib/matchClock';
 import { recordReplayMove } from '../lib/replayHistory';
@@ -274,11 +275,12 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
         const clocks=crownRunClocks(session);
         setTimeLeftWhite(clocks.whiteMs/1000);setTimeLeftBlack(clocks.blackMs/1000);
         setIsCheck(isPlayerInCheck(session.state.sideToMove,display.tokens,display.pool));
-        setSelectedTokenId(null);
+        setSelectedTokenId(selected => selectionAfterBoardUpdate(selected, display.tokens, playerSide,
+            session.status !== 'active' || !!session.state.winner));
         const result=session.state.winner;
         setWinner(result==='draw'?'draw':result?`${result}_wins`:session.status!=='active'
             ?session.whiteMs===0?'black_wins':session.blackMs===0?'white_wins':'draw':null);
-    },[]);
+    },[playerSide]);
     useEffect(()=>{
         const changed=()=>setCrownAttempt(value=>value+1);
         window.addEventListener(RANKED_SESSION_EVENT,changed);
@@ -722,7 +724,8 @@ export default function GameBoard({ lang, user, cpuLevel, roomId, onlineRole, ma
         setWinner(result.state.winner === 'draw' ? 'draw' : result.state.winner ? `${result.state.winner}_wins` : null);
         setIsCheck(isPlayerInCheck(nextTurn, result.tokens, result.pool));
 
-        setSelectedTokenId(null);
+        setSelectedTokenId(selected => selectionAfterBoardUpdate(selected, result.tokens, playerSide,
+            token.player === playerSide || !!result.state.winner));
         setCurrentTurn(nextTurn);
 
         if (timeControl === '10s') {

@@ -1,5 +1,5 @@
 // Real exported app, local guest practice; never contacts production APIs.
-// Usage: node scripts/qa/measure-board-input.mjs <baseline-export> <candidate-export>
+// Usage: node scripts/qa/measure-board-input.mjs <baseline-export> <candidate-export> [output-directory]
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { createServer } from 'node:http';
@@ -9,7 +9,7 @@ import { OrthographicCamera, Vector3 } from 'three';
 import { chromium } from 'playwright';
 const require = createRequire(import.meta.url);
 const { build } = require(require.resolve('esbuild', { paths: [resolve('server')] }));
-const output = resolve('build/free-runtime-latency/input');
+const output = resolve(process.argv[4] || 'build/free-runtime-latency/input');
 await mkdir(output, { recursive: true });
 await build({ entryPoints: ['src/components/boardPresentation.ts'], bundle: true, platform: 'node', format: 'cjs', outfile: resolve(output, 'board-presentation.cjs') });
 const { boardCamera } = require(resolve(output, 'board-presentation.cjs'));
@@ -31,7 +31,8 @@ try {
         try {
             for (const viewport of [{ width: 1440, height: 960 }, { width: 390, height: 844 }]) {
                 for (const view of ['2D', '3D']) {
-                    const context = await browser.newContext({ viewport, reducedMotion: 'no-preference' });
+                    const touch = viewport.width < 500;
+                    const context = await browser.newContext({ viewport, reducedMotion: 'no-preference', hasTouch: touch, isMobile: touch });
                     const errors = [];
                     await context.route('**/*', route => new URL(route.request().url()).origin === origin ? route.continue() : route.abort());
                     await context.addInitScript(view => {
@@ -43,17 +44,16 @@ try {
                     page.on('pageerror', error => errors.push(error.message));
                     try {
                         await page.goto(origin);
-                        await page.locator('.title-play').click();
-                        const terms = page.getByRole('button', { name: '同意して続ける', exact: true });
-                        if (await terms.isVisible()) { await page.getByRole('checkbox').check(); await terms.click(); }
-                        await page.locator('.lobby-shortcuts button').first().click();
-                        await page.locator('[data-time-control="10m"]').click();
+                        await page.getByRole('button', { name: 'CPUで練習', exact: true }).click();
                         await page.locator('.match-intro').waitFor({ state: 'detached' });
                         await page.getByRole('button', { name: view, exact: true }).click();
                         if (view === '3D') await page.locator('[data-graphics-state="ready"]').waitFor();
                         else await page.locator('[data-square="e2"]').waitFor();
                         const clickSquare = async square => {
-                            if (view === '2D') return page.locator(`[data-square="${square}"]`).click();
+                            if (view === '2D') {
+                                const cell = page.locator(`[data-square="${square}"]`);
+                                return touch ? cell.tap() : cell.click();
+                            }
                             const canvas = await page.locator('.board-webgl-layer canvas').boundingBox();
                             assert(canvas);
                             const setup = boardCamera(canvas.width, canvas.height);
@@ -61,7 +61,8 @@ try {
                             camera.position.set(...setup.position); camera.zoom = setup.zoom; camera.lookAt(0, 0, 0);
                             camera.updateProjectionMatrix(); camera.updateMatrixWorld();
                             const point = new Vector3(square.charCodeAt(0) - 97 - 3.5, .35, 8 - Number(square[1]) - 3.5).project(camera);
-                            await page.mouse.click(canvas.x + (point.x + 1) * canvas.width / 2, canvas.y + (1 - point.y) * canvas.height / 2);
+                            const x = canvas.x + (point.x + 1) * canvas.width / 2, y = canvas.y + (1 - point.y) * canvas.height / 2;
+                            await (touch ? page.touchscreen.tap(x, y) : page.mouse.click(x, y));
                         };
                         const measure = async (square, move = false) => {
                             await page.evaluate(({ square, move }) => {
@@ -106,13 +107,22 @@ try {
                         if (switched) await clickSquare('d2');
                         await measure('e2');
                         const move = await measure('e7', true);
+                        await clickSquare('h2');
+                        const selectedDuringCpu = await page.locator('[data-testid="selected-square"]').innerText();
                         await page.waitForFunction(() => document.querySelectorAll('.match-history li').length >= 2);
+                        const selectedAfterCpu = await page.locator('[data-testid="selected-square"]').innerText();
+                        let nextMove = null;
+                        if (variant === 'after') {
+                            assert.equal(selectedDuringCpu, 'h2');
+                            assert.equal(selectedAfterCpu, 'h2', 'CPU reply must retain the first friendly selection');
+                            nextMove = await measure('h4', true);
+                        }
                         assert.deepEqual(errors, []);
                         const gpu = view === '3D' ? await page.locator('canvas').evaluate(canvas => {
                             const gl = canvas.getContext('webgl2'), ext = gl?.getExtension('WEBGL_debug_renderer_info');
                             return ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : null;
                         }) : null;
-                        const result = { variant, viewport, view, selections, move, friendlyPieceSwitchesInOneClick: switched, cpuReplied: true, gpu, errors };
+                        const result = { variant, viewport, view, selections, move, friendlyPieceSwitchesInOneClick: switched, cpuReplied: true, selectedDuringCpu, selectedAfterCpu, nextMove, gpu, errors };
                         results.push(result); console.log(JSON.stringify(result));
                     } catch (error) {
                         console.error((await page.locator('body').innerText()).slice(0, 1400));
